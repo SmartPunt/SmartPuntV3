@@ -1,4 +1,3 @@
-// components/ui.tsx
 "use client";
 
 export function Panel({
@@ -9,7 +8,7 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <div className={`rounded-[28px] border border-slate-200/80 bg-white shadow-sm ${className}`}>
+    <div className={`rounded-[28px] border border-amber-200/40 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur ${className}`}>
       {children}
     </div>
   );
@@ -23,13 +22,13 @@ export function Badge({
   tone?: "slate" | "green" | "blue" | "violet" | "amber" | "rose" | "red";
 }) {
   const tones: Record<string, string> = {
-    slate: "bg-slate-100 text-slate-700",
-    green: "bg-emerald-100 text-emerald-700",
-    blue: "bg-sky-100 text-sky-700",
-    violet: "bg-violet-100 text-violet-700",
-    amber: "bg-amber-100 text-amber-700",
-    rose: "bg-rose-100 text-rose-700",
-    red: "bg-red-100 text-red-700",
+    slate: "bg-zinc-900 text-amber-200 border border-amber-200/20",
+    green: "bg-emerald-950 text-emerald-300 border border-emerald-700/40",
+    blue: "bg-sky-950 text-sky-300 border border-sky-700/40",
+    violet: "bg-violet-950 text-violet-300 border border-violet-700/40",
+    amber: "bg-amber-100 text-amber-900 border border-amber-300/70",
+    rose: "bg-rose-950 text-rose-300 border border-rose-700/40",
+    red: "bg-red-950 text-red-300 border border-red-700/40",
   };
 
   return (
@@ -40,13 +39,13 @@ export function Badge({
 }
 
 export function TipPill({ type }: { type: string }) {
-  let tone: "slate" | "green" | "blue" | "violet" | "amber" | "rose" = "slate";
+  let tone: any = "slate";
 
   if (type === "Win") tone = "green";
-  else if (type === "Place") tone = "blue";
-  else if (type === "All Up") tone = "violet";
-  else if (type === "Horse to Watch" || type === "Race to Watch") tone = "amber";
-  else if (type === "Long Term") tone = "rose";
+  if (type === "Place") tone = "blue";
+  if (type === "All Up") tone = "violet";
+  if (type === "Horse to Watch") tone = "amber";
+  if (type === "Long Term") tone = "rose";
 
   return <Badge tone={tone}>{type}</Badge>;
 }
