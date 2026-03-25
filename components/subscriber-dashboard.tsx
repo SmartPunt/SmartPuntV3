@@ -20,7 +20,7 @@ export default function SubscriberDashboard({
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
         <div className="mb-6 rounded-[2rem] bg-white p-5 shadow-sm lg:flex lg:items-center lg:justify-between">
           <div>
