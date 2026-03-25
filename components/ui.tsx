@@ -1,3 +1,4 @@
+// components/ui.tsx
 "use client";
 
 export function Panel({
