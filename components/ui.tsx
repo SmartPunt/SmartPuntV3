@@ -8,7 +8,9 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <div className={`rounded-[28px] border border-amber-200/40 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur ${className}`}>
+    <div
+      className={`rounded-[28px] border border-amber-200/40 bg-white/95 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur ${className}`}
+    >
       {children}
     </div>
   );
@@ -32,20 +34,22 @@ export function Badge({
   };
 
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${tones[tone]}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${tones[tone]}`}
+    >
       {children}
     </span>
   );
 }
 
 export function TipPill({ type }: { type: string }) {
-  let tone: any = "slate";
+  let tone: "slate" | "green" | "blue" | "violet" | "amber" | "rose" = "slate";
 
   if (type === "Win") tone = "green";
-  if (type === "Place") tone = "blue";
-  if (type === "All Up") tone = "violet";
-  if (type === "Horse to Watch") tone = "amber";
-  if (type === "Long Term") tone = "rose";
+  else if (type === "Place") tone = "blue";
+  else if (type === "All Up") tone = "violet";
+  else if (type === "Horse to Watch" || type === "Race to Watch") tone = "amber";
+  else if (type === "Long Term") tone = "rose";
 
   return <Badge tone={tone}>{type}</Badge>;
 }
