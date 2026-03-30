@@ -14,6 +14,25 @@ async function requireAdmin() {
   return profile;
 }
 
+function getServiceRoleHeaders() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase service role configuration in environment variables.");
+  }
+
+  return {
+    supabaseUrl,
+    serviceRoleKey,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+    },
+  };
+}
+
 async function sendSuggestedTipNotifications({
   race,
   horse,
@@ -148,25 +167,11 @@ export async function createSubscriberUserAction(
     return { error: "Password must be at least 6 characters.", success: null };
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return {
-      error: "Missing Supabase service role configuration in environment variables.",
-      success: null,
-    };
-  }
-
-  const adminHeaders = {
-    apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
-    "Content-Type": "application/json",
-  };
+  const { supabaseUrl, headers } = getServiceRoleHeaders();
 
   const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
     method: "POST",
-    headers: adminHeaders,
+    headers,
     body: JSON.stringify({
       email,
       password,
@@ -195,22 +200,27 @@ export async function createSubscriberUserAction(
     };
   }
 
-  const supabase = await createClient();
-
-  const { error: profileError } = await supabase.from("profiles").upsert(
-    {
-      id: userId,
-      email,
-      full_name: fullName,
-      role: "user",
-      status: "active",
+  const profileRes = await fetch(`${supabaseUrl}/rest/v1/profiles`, {
+    method: "POST",
+    headers: {
+      ...headers,
+      Prefer: "resolution=merge-duplicates",
     },
-    { onConflict: "id" },
-  );
+    body: JSON.stringify([
+      {
+        id: userId,
+        email,
+        full_name: fullName,
+        role: "user",
+        status: "active",
+      },
+    ]),
+  });
 
-  if (profileError) {
+  if (!profileRes.ok) {
+    const profileErrorText = await profileRes.text();
     return {
-      error: `Auth user created, but profile creation failed: ${profileError.message}`,
+      error: `Auth user created, but profile creation failed: ${profileErrorText}`,
       success: null,
     };
   }
