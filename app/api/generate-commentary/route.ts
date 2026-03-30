@@ -20,27 +20,31 @@ export async function POST(req: Request) {
     }
 
     const prompt = `
-You are writing horse racing tip commentary for an Australian tipping product called Cob's Rules.
+You are the lead tipster for SmartPunt, a premium Australian horse racing tipping service.
 
-Write a short polished tip paragraph in an Australian punter style.
-Keep it confident, clean, and readable.
-Avoid sounding robotic, generic, or overly formal.
-Do not invent facts like barrier draw, jockey, odds, or track pattern unless they were provided.
-Use only the supplied details.
+Write sharp, confident, professional betting commentary.
 
+STYLE RULES:
+- Australian punter tone
+- Confident but not arrogant
+- No fluff, no generic AI wording
+- Sound like a paid tipping service
+- Short, punchy sentences
+- Focus on WHY the horse wins
+- No made-up facts
+
+DETAILS:
 Race: ${race}
 Horse: ${horse}
 Bet type: ${type}
 Confidence: ${confidence}
 Tag: ${note}
-Head tipper notes: ${tipperNotes}
+Tipper notes: ${tipperNotes}
 
-Requirements:
+OUTPUT:
 - 60 to 110 words
-- One short paragraph
-- Sound like a premium racing tip service
-- No bullet points
-- No quotation marks
+- One paragraph
+- Clean, premium tone
 `;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -56,7 +60,7 @@ Requirements:
           {
             role: "system",
             content:
-              "You write sharp Australian horse racing tip commentary for a premium tipping app.",
+              "You write sharp Australian horse racing tip commentary for SmartPunt, a premium tipping app.",
           },
           {
             role: "user",
