@@ -54,9 +54,7 @@ async function sendSuggestedTipNotifications({
     .map((profile: any) => String(profile.email || "").trim())
     .filter(Boolean);
 
-  if (!recipients.length) {
-    return;
-  }
+  if (!recipients.length) return;
 
   const subject = `New SmartPunt Tip: ${race} - ${horse}`;
   const preview = commentary?.trim() || `${horse} has been added as a new SmartPunt tip.`;
@@ -130,6 +128,99 @@ async function sendSuggestedTipNotifications({
       throw new Error(`Failed to send notification emails: ${errorText}`);
     }
   }
+}
+
+export async function createSubscriberUserAction(
+  _: { error: string | null; success: string | null },
+  formData: FormData,
+) {
+  await requireAdmin();
+
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "").trim();
+
+  if (!fullName || !email || !password) {
+    return { error: "Full name, email, and password are required.", success: null };
+  }
+
+  if (password.length < 6) {
+    return { error: "Password must be at least 6 characters.", success: null };
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return {
+      error: "Missing Supabase service role configuration in environment variables.",
+      success: null,
+    };
+  }
+
+  const adminHeaders = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+
+  const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName,
+      },
+    }),
+  });
+
+  const createUserData = await createUserRes.json();
+
+  if (!createUserRes.ok) {
+    return {
+      error: createUserData?.msg || createUserData?.message || "Failed to create auth user.",
+      success: null,
+    };
+  }
+
+  const userId = createUserData?.id || createUserData?.user?.id;
+
+  if (!userId) {
+    return {
+      error: "Auth user was created but no user ID was returned.",
+      success: null,
+    };
+  }
+
+  const supabase = await createClient();
+
+  const { error: profileError } = await supabase.from("profiles").upsert(
+    {
+      id: userId,
+      email,
+      full_name: fullName,
+      role: "user",
+      status: "active",
+    },
+    { onConflict: "id" },
+  );
+
+  if (profileError) {
+    return {
+      error: `Auth user created, but profile creation failed: ${profileError.message}`,
+      success: null,
+    };
+  }
+
+  revalidatePath("/");
+
+  return {
+    error: null,
+    success: `Subscriber created successfully for ${email}.`,
+  };
 }
 
 export async function signInAction(
