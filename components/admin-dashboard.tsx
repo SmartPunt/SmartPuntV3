@@ -22,7 +22,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-sm font-medium text-slate-700">{label}</label>
+      <label className="text-sm font-medium text-zinc-700">{label}</label>
       <div className="mt-2">{children}</div>
     </div>
   );
@@ -45,7 +45,7 @@ function Input({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
     />
   );
 }
@@ -69,7 +69,7 @@ function Textarea({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
       style={{ minHeight }}
     />
   );
@@ -120,6 +120,7 @@ export default function AdminDashboard({
   const [tipNote, setTipNote] = useState("Best Bet");
   const [tipperNotes, setTipperNotes] = useState("");
   const [tipCommentary, setTipCommentary] = useState("");
+  const [suggestedTag, setSuggestedTag] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
 
@@ -132,6 +133,7 @@ export default function AdminDashboard({
     setTipNote(tip.note || "Best Bet");
     setTipCommentary(tip.commentary || "");
     setTipperNotes("");
+    setSuggestedTag(tip.note || "");
   }
 
   function clearTipForm() {
@@ -143,6 +145,7 @@ export default function AdminDashboard({
     setTipNote("Best Bet");
     setTipperNotes("");
     setTipCommentary("");
+    setSuggestedTag("");
     setGenerateError("");
   }
 
@@ -174,13 +177,14 @@ export default function AdminDashboard({
 
       setTipCommentary(data.commentary || "");
 
-      const suggested = detectBestTag({
+      const detected = detectBestTag({
         confidence: tipConfidence,
         type: tipType,
         notes: tipperNotes,
       });
 
-      setTipNote(suggested);
+      setSuggestedTag(detected);
+      setTipNote(detected);
     } catch (error) {
       setGenerateError(
         error instanceof Error ? error.message : "Failed to generate commentary.",
@@ -191,19 +195,21 @@ export default function AdminDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="grid min-h-screen lg:grid-cols-[280px_1fr]">
-        <aside className="border-r border-slate-200 bg-white p-5">
-          <div className="rounded-[28px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-5 text-white shadow-lg">
-            <p className="text-xs uppercase tracking-[0.22em] text-slate-300">SmartPunt</p>
-            <h1 className="mt-2 text-xl font-semibold">Head Tipper CMS</h1>
-            <p className="mt-2 text-sm text-slate-300">Premium admin control room</p>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
+      <div className="grid min-h-screen lg:grid-cols-[300px_1fr]">
+        <aside className="border-r border-amber-300/10 bg-black/20 p-5 backdrop-blur">
+          <div className="rounded-[28px] border border-amber-300/20 bg-[linear-gradient(135deg,#0f0f0f,#27272a,#ca8a04)] p-5 text-white shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.28em] text-amber-300/80">SmartPunt</p>
+            <h1 className="mt-2 text-xl font-semibold">Head Tipper Console</h1>
+            <p className="mt-2 text-sm text-amber-100/75">
+              Premium racing intelligence and AI-assisted tip creation
+            </p>
           </div>
 
           <div className="mt-6 grid gap-4">
-            <Panel>
-              <div className="p-4">
-                <p className="text-sm text-slate-500">Tips live</p>
+            <Panel className="bg-white/95">
+              <div className="p-4 text-zinc-950">
+                <p className="text-sm text-zinc-500">Tips live</p>
                 <div className="mt-3 flex items-center justify-between">
                   <p className="text-2xl font-semibold">{suggestedTips.length}</p>
                   <Badge tone="green">Tips</Badge>
@@ -211,9 +217,9 @@ export default function AdminDashboard({
               </div>
             </Panel>
 
-            <Panel>
-              <div className="p-4">
-                <p className="text-sm text-slate-500">Watchlist live</p>
+            <Panel className="bg-white/95">
+              <div className="p-4 text-zinc-950">
+                <p className="text-sm text-zinc-500">Watchlist live</p>
                 <div className="mt-3 flex items-center justify-between">
                   <p className="text-2xl font-semibold">{watchlistItems.length}</p>
                   <Badge tone="amber">Watch</Badge>
@@ -221,9 +227,9 @@ export default function AdminDashboard({
               </div>
             </Panel>
 
-            <Panel>
-              <div className="p-4">
-                <p className="text-sm text-slate-500">Long-term live</p>
+            <Panel className="bg-white/95">
+              <div className="p-4 text-zinc-950">
+                <p className="text-sm text-zinc-500">Long-term live</p>
                 <div className="mt-3 flex items-center justify-between">
                   <p className="text-2xl font-semibold">{longTermBets.length}</p>
                   <Badge tone="rose">Long-term</Badge>
@@ -232,26 +238,26 @@ export default function AdminDashboard({
             </Panel>
           </div>
 
-          <Panel className="mt-6">
-            <div className="space-y-3 p-4 text-sm text-slate-600">
+          <Panel className="mt-6 bg-white/95">
+            <div className="space-y-3 p-4 text-sm text-zinc-600">
               <div className="flex items-center justify-between">
                 <span>Logged in as</span>
                 <Badge tone="blue">admin</Badge>
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <span>User</span>
                 <Badge tone="slate">{currentUser.full_name || currentUser.email}</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span>Visibility</span>
-                <Badge tone="green">Private trial</Badge>
+                <span>Brand</span>
+                <Badge tone="amber">SmartPunt</Badge>
               </div>
             </div>
           </Panel>
 
           <div className="mt-5">
             <form action={signOutAction}>
-              <button className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+              <button className="w-full rounded-2xl border border-amber-300/30 bg-zinc-950 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-zinc-900">
                 Log out
               </button>
             </form>
@@ -259,39 +265,39 @@ export default function AdminDashboard({
         </aside>
 
         <main className="p-4 lg:p-8">
-          <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm lg:flex lg:items-center lg:justify-between">
+          <div className="rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,#0f0f0f,#27272a,#ca8a04)] p-6 shadow-2xl lg:flex lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm text-slate-500">Private admin trial</p>
+              <p className="text-sm text-amber-100/70">Private admin trial</p>
               <h2 className="mt-1 text-3xl font-semibold tracking-tight">SmartPunt tipper backend</h2>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-amber-100/75">
                 Logged in as {currentUser.full_name || currentUser.email}
               </p>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-3 lg:mt-0">
-              <Badge tone="blue">Backend hidden from subscribers</Badge>
+              <Badge tone="amber">Premium racing club</Badge>
               <Badge tone="green">Realtime ready</Badge>
             </div>
           </div>
 
           <div className="mt-8 space-y-8">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Content management</h2>
-              <p className="text-sm text-slate-500">
-                Add, edit, delete, and draft SmartPunt commentary with AI.
+              <h2 className="text-2xl font-semibold text-white">Build Your Tip</h2>
+              <p className="text-sm text-amber-100/70">
+                Enter the tip, add rough thoughts, let SmartPunt draft the write-up, then publish.
               </p>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-              <Panel>
-                <form action={upsertSuggestedTip} className="space-y-5 p-6">
+            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+              <Panel className="bg-white/95">
+                <form action={upsertSuggestedTip} className="space-y-6 p-6 text-zinc-950">
                   <input type="hidden" name="id" value={tipEdit?.id || ""} readOnly />
 
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-xl font-semibold">Suggested tips of the day</h3>
-                      <p className="text-sm text-slate-500">
-                        Enter the tip, draft commentary with AI, auto-suggest the tag, then publish.
+                      <h3 className="text-xl font-semibold">SmartPunt tip builder</h3>
+                      <p className="text-sm text-zinc-500">
+                        Step-by-step creation flow for your premium daily selections.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -320,12 +326,12 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-3">
-                    <Field label="Tip type">
+                    <Field label="Bet type">
                       <select
                         name="type"
                         value={tipType}
                         onChange={(e) => setTipType(e.target.value)}
-                        className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
                         <option>Win</option>
                         <option>Place</option>
@@ -338,7 +344,7 @@ export default function AdminDashboard({
                         name="confidence"
                         value={tipConfidence}
                         onChange={(e) => setTipConfidence(e.target.value)}
-                        className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
                         <option>High</option>
                         <option>Medium</option>
@@ -359,20 +365,37 @@ export default function AdminDashboard({
                   <Field label="Head tipper notes for AI">
                     <Textarea
                       name="tipper_notes_preview_only"
-                      placeholder="Why do you like this horse?"
+                      placeholder="Write raw thoughts here — map, tempo, value, forgive run, race shape..."
                       value={tipperNotes}
                       onChange={setTipperNotes}
+                      minHeight="140px"
                     />
                   </Field>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <button
                       type="button"
                       onClick={generateCommentary}
                       disabled={isGenerating}
-                      className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:brightness-105 disabled:opacity-60"
+                      className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-400 px-4 py-3 font-bold text-black transition hover:brightness-105 disabled:opacity-60"
                     >
-                      {isGenerating ? "Generating..." : "Draft commentary with AI"}
+                      {isGenerating ? "Generating..." : "⚡ Generate SmartPunt Commentary"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSuggestedTag(
+                          detectBestTag({
+                            confidence: tipConfidence,
+                            type: tipType,
+                            notes: tipperNotes,
+                          }),
+                        )
+                      }
+                      className="rounded-2xl border border-amber-300/30 bg-zinc-950 px-4 py-3 font-semibold text-amber-100 transition hover:bg-zinc-900"
+                    >
+                      Suggest Tag
                     </button>
                   </div>
 
@@ -382,10 +405,10 @@ export default function AdminDashboard({
                     </div>
                   ) : null}
 
-                  <Field label="Commentary">
+                  <Field label="Final commentary">
                     <Textarea
                       name="commentary"
-                      placeholder="AI draft or your own commentary appears here."
+                      placeholder="Your SmartPunt commentary will appear here."
                       value={tipCommentary}
                       onChange={setTipCommentary}
                       minHeight="180px"
@@ -395,69 +418,72 @@ export default function AdminDashboard({
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="submit"
-                      className="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
                     >
-                      {tipEdit ? "Update suggested tip" : "Publish suggested tip"}
+                      {tipEdit ? "Update Tip" : "Publish Tip"}
                     </button>
 
                     {(tipEdit || tipRace || tipHorse || tipCommentary || tipperNotes) ? (
                       <button
                         type="button"
                         onClick={clearTipForm}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                       >
-                        Clear form
+                        Clear Form
                       </button>
                     ) : null}
                   </div>
                 </form>
               </Panel>
 
-              <Panel>
-                <div className="p-6">
+              <Panel className="bg-white/95">
+                <div className="p-6 space-y-5 text-zinc-950">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-xl font-semibold">Live preview</h3>
-                      <p className="text-sm text-slate-500">
-                        See how the tip will appear to subscribers.
+                      <h3 className="text-xl font-semibold">Live Preview</h3>
+                      <p className="text-sm text-zinc-500">
+                        This is how the tip will feel on the subscriber side.
                       </p>
                     </div>
                     <TipPill type={tipType} />
                   </div>
 
-                  <div className="mt-5 rounded-[24px] border border-slate-200 bg-slate-50/80 p-5">
-                    <p className="text-sm text-slate-500">{tipRace || "Race"}</p>
-                    <h3 className="mt-1 text-2xl font-semibold text-slate-900">
-                      {tipHorse || "Horse"}
-                    </h3>
+                  <div className="rounded-[24px] border border-amber-200/30 bg-[linear-gradient(135deg,#171717,#3f3f46,#ca8a04)] p-5 text-white shadow-xl">
+                    <p className="text-sm text-amber-100/75">{tipRace || "Race"}</p>
+                    <h3 className="mt-1 text-2xl font-bold">{tipHorse || "Horse"}</h3>
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       {tipConfidence ? <Badge tone="blue">{tipConfidence} confidence</Badge> : null}
-                      {tipNote ? <Badge tone="amber">{tipNote}</Badge> : null}
+                      <Badge tone="amber">{suggestedTag || tipNote || "Best Bet"}</Badge>
                     </div>
 
-                    <p className="mt-4 text-sm leading-6 text-slate-600">
-                      {tipCommentary || "AI commentary will appear here before you publish."}
+                    <p className="mt-4 text-sm leading-6 text-amber-50/90">
+                      {tipCommentary || "Your SmartPunt commentary will appear here."}
                     </p>
                   </div>
 
-                  <div className="mt-6">
-                    <h4 className="text-sm font-semibold text-slate-900">Recent suggested tips</h4>
+                  <div>
+                    <h4 className="text-sm font-semibold text-zinc-900">Recent suggested tips</h4>
                     <div className="mt-4 space-y-4">
                       {suggestedTips.map((tip: any) => (
                         <div
                           key={tip.id}
-                          className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-5"
+                          className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div>
-                              <p className="text-sm text-slate-500">{tip.race}</p>
+                              <p className="text-sm text-zinc-500">{tip.race}</p>
                               <p className="mt-1 text-lg font-semibold">{tip.horse}</p>
                             </div>
                             <TipPill type={tip.type} />
                           </div>
 
-                          <p className="mt-3 text-sm leading-6 text-slate-600">
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {tip.confidence ? <Badge tone="blue">{tip.confidence}</Badge> : null}
+                            {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
+                          </div>
+
+                          <p className="mt-3 text-sm leading-6 text-zinc-600">
                             {tip.commentary || ""}
                           </p>
 
@@ -465,7 +491,7 @@ export default function AdminDashboard({
                             <button
                               type="button"
                               onClick={() => loadTipIntoForm(tip)}
-                              className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                              className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                             >
                               Edit
                             </button>
@@ -485,16 +511,16 @@ export default function AdminDashboard({
               </Panel>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-              <Panel>
-                <form action={upsertWatchItem} className="space-y-5 p-6">
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Panel className="bg-white/95">
+                <form action={upsertWatchItem} className="space-y-5 p-6 text-zinc-950">
                   <input type="hidden" name="id" value={watchEdit?.id || ""} readOnly />
 
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-xl font-semibold">Horses / races to watch</h3>
-                      <p className="text-sm text-slate-500">
-                        Build the watchlist with better race-day context.
+                      <p className="text-sm text-zinc-500">
+                        Add smart race-day notes and runners to follow.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -509,15 +535,16 @@ export default function AdminDashboard({
                         name="race"
                         defaultValue={watchEdit?.race || ""}
                         placeholder="Belmont R2"
-                        className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       />
                     </Field>
+
                     <Field label="Horse / Focus">
                       <input
                         name="horse"
                         defaultValue={watchEdit?.horse || ""}
                         placeholder="River Charge"
-                        className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       />
                     </Field>
                   </div>
@@ -526,7 +553,7 @@ export default function AdminDashboard({
                     <select
                       name="label"
                       defaultValue={watchEdit?.label || "Horse to Watch"}
-                      className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     >
                       <option>Horse to Watch</option>
                       <option>Race to Watch</option>
@@ -538,43 +565,43 @@ export default function AdminDashboard({
                       name="commentary"
                       defaultValue={watchEdit?.commentary || ""}
                       placeholder="Add your watchlist notes here."
-                      className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                      className="min-h-[120px] w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     />
                   </Field>
 
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="submit"
-                      className="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
                     >
-                      {watchEdit ? "Update watch item" : "Publish watch item"}
+                      {watchEdit ? "Update Watch Item" : "Publish Watch Item"}
                     </button>
 
                     {watchEdit ? (
                       <button
                         type="button"
                         onClick={() => setWatchEdit(null)}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                       >
-                        Cancel edit
+                        Cancel Edit
                       </button>
                     ) : null}
                   </div>
                 </form>
               </Panel>
 
-              <Panel>
-                <div className="p-6">
+              <Panel className="bg-white/95">
+                <div className="p-6 text-zinc-950">
                   <h3 className="text-xl font-semibold">Manage watchlist items</h3>
                   <div className="mt-5 space-y-4">
                     {watchlistItems.map((item: any) => (
                       <div
                         key={item.id}
-                        className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-5"
+                        className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-sm text-slate-500">{item.race || "Watchlist"}</p>
+                            <p className="text-sm text-zinc-500">{item.race || "Watchlist"}</p>
                             <p className="mt-1 text-lg font-semibold">
                               {item.horse || "Race note"}
                             </p>
@@ -582,7 +609,7 @@ export default function AdminDashboard({
                           <TipPill type={item.label} />
                         </div>
 
-                        <p className="mt-3 text-sm leading-6 text-slate-600">
+                        <p className="mt-3 text-sm leading-6 text-zinc-600">
                           {item.commentary || ""}
                         </p>
 
@@ -590,7 +617,7 @@ export default function AdminDashboard({
                           <button
                             type="button"
                             onClick={() => setWatchEdit(item)}
-                            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                           >
                             Edit
                           </button>
@@ -609,16 +636,16 @@ export default function AdminDashboard({
               </Panel>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-              <Panel>
-                <form action={upsertLongTermBet} className="space-y-5 p-6">
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Panel className="bg-white/95">
+                <form action={upsertLongTermBet} className="space-y-5 p-6 text-zinc-950">
                   <input type="hidden" name="id" value={longEdit?.id || ""} readOnly />
 
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-xl font-semibold">Long-term bets</h3>
-                      <p className="text-sm text-slate-500">
-                        Future plays and longer-range betting opportunities.
+                      <p className="text-sm text-zinc-500">
+                        Enter futures and longer-range betting opportunities.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -633,15 +660,16 @@ export default function AdminDashboard({
                         name="title"
                         defaultValue={longEdit?.title || ""}
                         placeholder="Autumn futures"
-                        className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       />
                     </Field>
+
                     <Field label="Horse / Selection">
                       <input
                         name="horse"
                         defaultValue={longEdit?.horse || ""}
                         placeholder="Ocean Ember"
-                        className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       />
                     </Field>
                   </div>
@@ -651,7 +679,7 @@ export default function AdminDashboard({
                       <select
                         name="bet_type"
                         defaultValue={longEdit?.bet_type || "Win"}
-                        className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
                         <option>Win</option>
                         <option>Place</option>
@@ -664,7 +692,7 @@ export default function AdminDashboard({
                         name="odds"
                         defaultValue={longEdit?.odds || ""}
                         placeholder="$12"
-                        className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       />
                     </Field>
                   </div>
@@ -674,49 +702,49 @@ export default function AdminDashboard({
                       name="commentary"
                       defaultValue={longEdit?.commentary || ""}
                       placeholder="Add your long-term angle here."
-                      className="min-h-[120px] w-full rounded-2xl border border-slate-200 px-3 py-2.5 outline-none transition focus:border-slate-300"
+                      className="min-h-[120px] w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     />
                   </Field>
 
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="submit"
-                      className="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
                     >
-                      {longEdit ? "Update long-term bet" : "Publish long-term bet"}
+                      {longEdit ? "Update Long-Term Bet" : "Publish Long-Term Bet"}
                     </button>
 
                     {longEdit ? (
                       <button
                         type="button"
                         onClick={() => setLongEdit(null)}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                        className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                       >
-                        Cancel edit
+                        Cancel Edit
                       </button>
                     ) : null}
                   </div>
                 </form>
               </Panel>
 
-              <Panel>
-                <div className="p-6">
+              <Panel className="bg-white/95">
+                <div className="p-6 text-zinc-950">
                   <h3 className="text-xl font-semibold">Manage long-term bets</h3>
                   <div className="mt-5 space-y-4">
                     {longTermBets.map((item: any) => (
                       <div
                         key={item.id}
-                        className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-5"
+                        className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-sm text-slate-500">{item.title}</p>
+                            <p className="text-sm text-zinc-500">{item.title}</p>
                             <p className="mt-1 text-lg font-semibold">{item.horse}</p>
                           </div>
                           <TipPill type="Long Term" />
                         </div>
 
-                        <p className="mt-3 text-sm leading-6 text-slate-600">
+                        <p className="mt-3 text-sm leading-6 text-zinc-600">
                           {item.commentary || ""}
                         </p>
 
@@ -724,7 +752,7 @@ export default function AdminDashboard({
                           <button
                             type="button"
                             onClick={() => setLongEdit(item)}
-                            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                            className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                           >
                             Edit
                           </button>
