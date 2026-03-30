@@ -4,6 +4,22 @@ import { signOutAction } from "@/lib/actions";
 import { Badge, Panel, TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
 
+function getTipCardStyle(type: string) {
+  if (type === "Win") {
+    return "border-emerald-300/40 bg-emerald-50/95";
+  }
+
+  if (type === "Place") {
+    return "border-sky-300/40 bg-sky-50/95";
+  }
+
+  if (type === "All Up") {
+    return "border-violet-300/40 bg-violet-50/95";
+  }
+
+  return "border-amber-200/30 bg-white";
+}
+
 function FeaturedTipCard({ tip }: { tip: any }) {
   return (
     <div className="overflow-hidden rounded-[28px] border border-amber-200/30 bg-[linear-gradient(135deg,#171717,#3f3f46,#ca8a04)] p-6 text-white shadow-xl">
@@ -29,7 +45,11 @@ function FeaturedTipCard({ tip }: { tip: any }) {
 
 function StandardTipCard({ tip }: { tip: any }) {
   return (
-    <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <div
+      className={`rounded-[24px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${getTipCardStyle(
+        tip.type,
+      )}`}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-zinc-500">{tip.race}</p>
