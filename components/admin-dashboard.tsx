@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import {
+  createSubscriberUserAction,
   deleteLongTermBetAction,
   deleteSuggestedTipAction,
   deleteWatchItemAction,
@@ -130,6 +131,11 @@ export default function AdminDashboard({
   const [suggestedTag, setSuggestedTag] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
+
+  const [userState, createUserFormAction] = useActionState(createSubscriberUserAction, {
+    error: null,
+    success: null,
+  });
 
   function loadTipIntoForm(tip: any) {
     setTipEdit(tip);
@@ -288,6 +294,85 @@ export default function AdminDashboard({
           </div>
 
           <div className="mt-8 space-y-8">
+            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+              <Panel className="bg-white/95">
+                <form action={createUserFormAction} className="space-y-5 p-6 text-zinc-950">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xl font-semibold">Create Subscriber Login</h3>
+                      <p className="text-sm text-zinc-500">
+                        Create a new user login and matching SmartPunt profile in one step.
+                      </p>
+                    </div>
+                    <Badge tone="amber">Admin</Badge>
+                  </div>
+
+                  <Field label="Full name">
+                    <input
+                      name="full_name"
+                      placeholder="Subscriber name"
+                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                    />
+                  </Field>
+
+                  <Field label="Email">
+                    <input
+                      name="email"
+                      type="email"
+                      placeholder="subscriber@email.com"
+                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                    />
+                  </Field>
+
+                  <Field label="Temporary password">
+                    <input
+                      name="password"
+                      type="text"
+                      placeholder="At least 6 characters"
+                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                    />
+                  </Field>
+
+                  {userState?.error ? (
+                    <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {userState.error}
+                    </div>
+                  ) : null}
+
+                  {userState?.success ? (
+                    <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      {userState.success}
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="submit"
+                    className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                  >
+                    Create User Login
+                  </button>
+                </form>
+              </Panel>
+
+              <Panel className="bg-white/95">
+                <div className="p-6 text-zinc-950">
+                  <h3 className="text-xl font-semibold">Create User Notes</h3>
+                  <div className="mt-4 space-y-3 text-sm text-zinc-600">
+                    <p>New users created here will automatically:</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge tone="green">Auth login created</Badge>
+                      <Badge tone="blue">Profile created</Badge>
+                      <Badge tone="amber">Role = user</Badge>
+                    </div>
+                    <p className="pt-2">
+                      Give the subscriber their email and temporary password, then they can log in
+                      immediately.
+                    </p>
+                  </div>
+                </div>
+              </Panel>
+            </div>
+
             <div>
               <h2 className="text-2xl font-semibold text-white">Build Your Tip</h2>
               <p className="text-sm text-amber-100/70">
@@ -315,12 +400,7 @@ export default function AdminDashboard({
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Race">
-                      <Input
-                        name="race"
-                        placeholder="Ascot R3"
-                        value={tipRace}
-                        onChange={setTipRace}
-                      />
+                      <Input name="race" placeholder="Ascot R3" value={tipRace} onChange={setTipRace} />
                     </Field>
                     <Field label="Horse / Selection">
                       <Input
@@ -360,12 +440,7 @@ export default function AdminDashboard({
                     </Field>
 
                     <Field label="Tag">
-                      <Input
-                        name="note"
-                        placeholder="Best Bet"
-                        value={tipNote}
-                        onChange={setTipNote}
-                      />
+                      <Input name="note" placeholder="Best Bet" value={tipNote} onChange={setTipNote} />
                     </Field>
                   </div>
 
@@ -467,11 +542,7 @@ export default function AdminDashboard({
                     <TipPill type={tipType} />
                   </div>
 
-                  <div
-                    className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
-                      tipType,
-                    )}`}
-                  >
+                  <div className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tipType)}`}>
                     <p className="text-sm text-zinc-500">{tipRace || "Race"}</p>
                     <h3 className="mt-1 text-2xl font-bold text-zinc-950">
                       {tipHorse || "Horse"}
@@ -500,9 +571,7 @@ export default function AdminDashboard({
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <p className="text-sm text-zinc-500">{tip.race}</p>
-                              <p className="mt-1 text-lg font-semibold text-zinc-950">
-                                {tip.horse}
-                              </p>
+                              <p className="mt-1 text-lg font-semibold text-zinc-950">{tip.horse}</p>
                             </div>
                             <TipPill type={tip.type} />
                           </div>
@@ -768,9 +837,7 @@ export default function AdminDashboard({
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="text-sm text-zinc-500">{item.title}</p>
-                            <p className="mt-1 text-lg font-semibold text-zinc-950">
-                              {item.horse}
-                            </p>
+                            <p className="mt-1 text-lg font-semibold text-zinc-950">{item.horse}</p>
                           </div>
                           <TipPill type="Long Term" />
                         </div>
