@@ -6,15 +6,15 @@ import { useRealtimeTable } from "@/components/useRealtimeTable";
 
 function getTipCardStyle(type: string) {
   if (type === "Win") {
-    return "border-emerald-300/40 bg-emerald-50/95";
+    return "border-emerald-300/50 bg-emerald-100";
   }
 
   if (type === "Place") {
-    return "border-sky-300/40 bg-sky-50/95";
+    return "border-sky-300/50 bg-sky-100";
   }
 
   if (type === "All Up") {
-    return "border-violet-300/40 bg-violet-50/95";
+    return "border-pink-300/50 bg-pink-100";
   }
 
   return "border-amber-200/30 bg-white";
@@ -22,11 +22,15 @@ function getTipCardStyle(type: string) {
 
 function FeaturedTipCard({ tip }: { tip: any }) {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-amber-200/30 bg-[linear-gradient(135deg,#171717,#3f3f46,#ca8a04)] p-6 text-white shadow-xl">
+    <div
+      className={`overflow-hidden rounded-[28px] border p-6 shadow-xl ${getTipCardStyle(
+        tip.type,
+      )}`}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-amber-100/75">{tip.race}</p>
-          <h2 className="mt-1 text-3xl font-bold tracking-tight">{tip.horse}</h2>
+          <p className="text-sm text-zinc-500">{tip.race}</p>
+          <h2 className="mt-1 text-3xl font-bold tracking-tight text-zinc-950">{tip.horse}</h2>
         </div>
         <TipPill type={tip.type} />
       </div>
@@ -36,9 +40,7 @@ function FeaturedTipCard({ tip }: { tip: any }) {
         {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
       </div>
 
-      <p className="mt-5 max-w-3xl text-sm leading-6 text-amber-50/90">
-        {tip.commentary || ""}
-      </p>
+      <p className="mt-5 max-w-3xl text-sm leading-6 text-zinc-700">{tip.commentary || ""}</p>
     </div>
   );
 }
@@ -63,7 +65,7 @@ function StandardTipCard({ tip }: { tip: any }) {
         {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-zinc-600">{tip.commentary || ""}</p>
+      <p className="mt-4 text-sm leading-6 text-zinc-700">{tip.commentary || ""}</p>
     </div>
   );
 }
