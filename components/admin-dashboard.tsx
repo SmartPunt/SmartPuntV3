@@ -94,6 +94,22 @@ function detectBestTag({
   return "Best Bet";
 }
 
+function getTipCardStyle(type: string) {
+  if (type === "Win") {
+    return "border-emerald-300/50 bg-emerald-100";
+  }
+
+  if (type === "Place") {
+    return "border-sky-300/50 bg-sky-100";
+  }
+
+  if (type === "All Up") {
+    return "border-pink-300/50 bg-pink-100";
+  }
+
+  return "border-amber-200/30 bg-white";
+}
+
 export default function AdminDashboard({
   currentUser,
   initialSuggestedTips,
@@ -448,16 +464,22 @@ export default function AdminDashboard({
                     <TipPill type={tipType} />
                   </div>
 
-                  <div className="rounded-[24px] border border-amber-200/30 bg-[linear-gradient(135deg,#171717,#3f3f46,#ca8a04)] p-5 text-white shadow-xl">
-                    <p className="text-sm text-amber-100/75">{tipRace || "Race"}</p>
-                    <h3 className="mt-1 text-2xl font-bold">{tipHorse || "Horse"}</h3>
+                  <div
+                    className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
+                      tipType,
+                    )}`}
+                  >
+                    <p className="text-sm text-zinc-500">{tipRace || "Race"}</p>
+                    <h3 className="mt-1 text-2xl font-bold text-zinc-950">
+                      {tipHorse || "Horse"}
+                    </h3>
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       {tipConfidence ? <Badge tone="blue">{tipConfidence} confidence</Badge> : null}
                       <Badge tone="amber">{suggestedTag || tipNote || "Best Bet"}</Badge>
                     </div>
 
-                    <p className="mt-4 text-sm leading-6 text-amber-50/90">
+                    <p className="mt-4 text-sm leading-6 text-zinc-700">
                       {tipCommentary || "Your SmartPunt commentary will appear here."}
                     </p>
                   </div>
@@ -468,12 +490,16 @@ export default function AdminDashboard({
                       {suggestedTips.map((tip: any) => (
                         <div
                           key={tip.id}
-                          className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
+                          className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
+                            tip.type,
+                          )}`}
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div>
                               <p className="text-sm text-zinc-500">{tip.race}</p>
-                              <p className="mt-1 text-lg font-semibold">{tip.horse}</p>
+                              <p className="mt-1 text-lg font-semibold text-zinc-950">
+                                {tip.horse}
+                              </p>
                             </div>
                             <TipPill type={tip.type} />
                           </div>
@@ -483,7 +509,7 @@ export default function AdminDashboard({
                             {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
                           </div>
 
-                          <p className="mt-3 text-sm leading-6 text-zinc-600">
+                          <p className="mt-3 text-sm leading-6 text-zinc-700">
                             {tip.commentary || ""}
                           </p>
 
@@ -602,7 +628,7 @@ export default function AdminDashboard({
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="text-sm text-zinc-500">{item.race || "Watchlist"}</p>
-                            <p className="mt-1 text-lg font-semibold">
+                            <p className="mt-1 text-lg font-semibold text-zinc-950">
                               {item.horse || "Race note"}
                             </p>
                           </div>
@@ -739,7 +765,9 @@ export default function AdminDashboard({
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="text-sm text-zinc-500">{item.title}</p>
-                            <p className="mt-1 text-lg font-semibold">{item.horse}</p>
+                            <p className="mt-1 text-lg font-semibold text-zinc-950">
+                              {item.horse}
+                            </p>
                           </div>
                           <TipPill type="Long Term" />
                         </div>
