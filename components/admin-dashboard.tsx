@@ -95,18 +95,9 @@ function detectBestTag({
 }
 
 function getTipCardStyle(type: string) {
-  if (type === "Win") {
-    return "border-emerald-300/50 bg-emerald-100";
-  }
-
-  if (type === "Place") {
-    return "border-sky-300/50 bg-sky-100";
-  }
-
-  if (type === "All Up") {
-    return "border-pink-300/50 bg-pink-100";
-  }
-
+  if (type === "Win") return "border-emerald-300/50 bg-emerald-100";
+  if (type === "Place") return "border-sky-300/50 bg-sky-100";
+  if (type === "All Up") return "border-pink-300/50 bg-pink-100";
   return "border-amber-200/30 bg-white";
 }
 
@@ -419,6 +410,18 @@ export default function AdminDashboard({
                     <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
                       {generateError}
                     </div>
+                  ) : null}
+
+                  {!tipEdit ? (
+                    <label className="flex items-center gap-3 rounded-2xl border border-amber-200/30 bg-amber-50 px-4 py-3 text-sm text-zinc-800">
+                      <input
+                        type="checkbox"
+                        name="send_notification"
+                        value="true"
+                        className="h-4 w-4 rounded border-zinc-300"
+                      />
+                      Send notification email to all active subscribers
+                    </label>
                   ) : null}
 
                   <Field label="Final commentary">
