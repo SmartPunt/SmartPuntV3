@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { signOutAction } from "@/lib/actions";
 import { Badge, Panel, TipPill } from "@/components/ui";
@@ -242,6 +243,12 @@ export default function SubscriberDashboard({
 
             <div className="flex flex-wrap gap-3">
               <Badge tone="green">Live updates on</Badge>
+              <Link
+                href="/pricing"
+                className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+              >
+                View Plans
+              </Link>
               <form action={signOutAction}>
                 <button className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15">
                   Log out
