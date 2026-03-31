@@ -266,6 +266,17 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   const isNew = !id;
   const sendNotification = String(formData.get("send_notification") ?? "") === "true";
 
+  const raceDate = String(formData.get("race_date") ?? "");
+  const raceTime = String(formData.get("race_time") ?? "");
+  const raceTimezone = String(formData.get("race_timezone") ?? "Australia/Perth");
+
+  let raceStartAt: string | null = null;
+
+  if (raceDate && raceTime) {
+    const naive = `${raceDate}T${raceTime}:00`;
+    raceStartAt = `${naive}${getTimezoneOffsetSuffix(raceTimezone)}`;
+  }
+
   const payload = {
     race: String(formData.get("race") ?? ""),
     horse: String(formData.get("horse") ?? ""),
@@ -273,6 +284,7 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
     confidence: String(formData.get("confidence") ?? "High"),
     note: String(formData.get("note") ?? ""),
     commentary: String(formData.get("commentary") ?? ""),
+    race_start_at: raceStartAt,
     created_by: profile.id,
     updated_at: new Date().toISOString(),
   };
@@ -316,6 +328,20 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/");
+}
+
+function getTimezoneOffsetSuffix(timezone: string) {
+  const offsets: Record<string, string> = {
+    "Australia/Perth": "+08:00",
+    "Australia/Adelaide": "+09:30",
+    "Australia/Darwin": "+09:30",
+    "Australia/Brisbane": "+10:00",
+    "Australia/Sydney": "+10:00",
+    "Australia/Melbourne": "+10:00",
+    "Australia/Hobart": "+10:00",
+  };
+
+  return offsets[timezone] || "+08:00";
 }
 
 export async function deleteSuggestedTipAction(formData: FormData): Promise<void> {
