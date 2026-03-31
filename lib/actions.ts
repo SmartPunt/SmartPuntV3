@@ -24,7 +24,6 @@ function getServiceRoleHeaders() {
 
   return {
     supabaseUrl,
-    serviceRoleKey,
     headers: {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
@@ -49,7 +48,7 @@ function getZonedParts(date: Date, timeZone: string) {
 
   const get = (type: string) => {
     const value = parts.find((part) => part.type === type)?.value;
-    if (!value) throw new Error(`Missing ${type} while formatting timezone parts.`);
+    if (!value) throw new Error(`Missing ${type}`);
     return Number(value);
   };
 
@@ -119,10 +118,7 @@ async function sendSuggestedTipNotifications({
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   const appUrl = process.env.SMARTPUNT_APP_URL || "";
 
-  if (!resendApiKey || !fromEmail) {
-    console.warn("Notification skipped: missing Resend environment variables.");
-    return;
-  }
+  if (!resendApiKey || !fromEmail) return;
 
   const supabase = await createClient();
 
@@ -293,7 +289,6 @@ export async function createSubscriberUserAction(
   }
 
   revalidatePath("/");
-
   return {
     error: null,
     success: `Subscriber created successfully for ${email}.`,
@@ -327,6 +322,46 @@ export async function signOutAction() {
   revalidatePath("/", "layout");
 }
 
+export async function markTipActiveAction(formData: FormData): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("Unauthorized");
+
+  const tipId = Number(formData.get("tip_id"));
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("user_active_tips").upsert(
+    {
+      user_id: profile.id,
+      tip_id: tipId,
+    },
+    { onConflict: "user_id,tip_id" },
+  );
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/my-resulted-tips");
+}
+
+export async function removeTipActiveAction(formData: FormData): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("Unauthorized");
+
+  const tipId = Number(formData.get("tip_id"));
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("user_active_tips")
+    .delete()
+    .eq("user_id", profile.id)
+    .eq("tip_id", tipId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/my-resulted-tips");
+}
+
 export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   const profile = await requireAdmin();
   const id = String(formData.get("id") ?? "");
@@ -341,6 +376,9 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   const finishingPositionRaw = String(formData.get("finishing_position") ?? "").trim();
   const successfulRaw = String(formData.get("successful") ?? "").trim();
 
+  const successful =
+    successfulRaw === "true" ? true : successfulRaw === "false" ? false : null;
+
   const payload = {
     race: String(formData.get("race") ?? ""),
     horse: String(formData.get("horse") ?? ""),
@@ -351,8 +389,8 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
     race_start_at: raceStartAt,
     race_timezone: raceTimezone,
     finishing_position: finishingPositionRaw ? Number(finishingPositionRaw) : null,
-    successful:
-      successfulRaw === "true" ? true : successfulRaw === "false" ? false : null,
+    successful,
+    settled_at: typeof successful === "boolean" ? new Date().toISOString() : null,
     created_by: profile.id,
     updated_at: new Date().toISOString(),
   };
@@ -365,9 +403,7 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
       .update(payload)
       .eq("id", Number(id));
 
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
   } else {
     const { data, error } = await supabase
       .from("suggested_tips")
@@ -375,9 +411,7 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
       .select()
       .single();
 
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
 
     if (isNew && sendNotification && data) {
       try {
@@ -396,6 +430,8 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/");
+  revalidatePath("/resulted-tips");
+  revalidatePath("/my-resulted-tips");
 }
 
 export async function deleteSuggestedTipAction(formData: FormData): Promise<void> {
@@ -403,16 +439,12 @@ export async function deleteSuggestedTipAction(formData: FormData): Promise<void
   const id = Number(formData.get("id"));
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("suggested_tips")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const { error } = await supabase.from("suggested_tips").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 
   revalidatePath("/");
+  revalidatePath("/resulted-tips");
+  revalidatePath("/my-resulted-tips");
 }
 
 export async function upsertWatchItem(formData: FormData): Promise<void> {
@@ -429,16 +461,12 @@ export async function upsertWatchItem(formData: FormData): Promise<void> {
   };
 
   const supabase = await createClient();
-
   const query = id
     ? supabase.from("watchlist_items").update(payload).eq("id", Number(id))
     : supabase.from("watchlist_items").insert(payload);
 
   const { error } = await query;
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   revalidatePath("/");
 }
@@ -448,14 +476,8 @@ export async function deleteWatchItemAction(formData: FormData): Promise<void> {
   const id = Number(formData.get("id"));
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("watchlist_items")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const { error } = await supabase.from("watchlist_items").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 
   revalidatePath("/");
 }
@@ -475,16 +497,12 @@ export async function upsertLongTermBet(formData: FormData): Promise<void> {
   };
 
   const supabase = await createClient();
-
   const query = id
     ? supabase.from("long_term_bets").update(payload).eq("id", Number(id))
     : supabase.from("long_term_bets").insert(payload);
 
   const { error } = await query;
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
 
   revalidatePath("/");
 }
@@ -494,14 +512,8 @@ export async function deleteLongTermBetAction(formData: FormData): Promise<void>
   const id = Number(formData.get("id"));
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("long_term_bets")
-    .delete()
-    .eq("id", id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const { error } = await supabase.from("long_term_bets").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 
   revalidatePath("/");
 }
