@@ -34,14 +34,17 @@ function Input({
   placeholder,
   value,
   onChange,
+  type = "text",
 }: {
   name: string;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
+  type?: string;
 }) {
   return (
     <input
+      type={type}
       name={name}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -102,6 +105,16 @@ function getTipCardStyle(type: string) {
   return "border-amber-200/30 bg-white";
 }
 
+function getDatePart(iso?: string | null) {
+  if (!iso) return "";
+  return new Date(iso).toISOString().slice(0, 10);
+}
+
+function getTimePart(iso?: string | null) {
+  if (!iso) return "";
+  return new Date(iso).toISOString().slice(11, 16);
+}
+
 export default function AdminDashboard({
   currentUser,
   initialSuggestedTips,
@@ -128,6 +141,9 @@ export default function AdminDashboard({
   const [tipNote, setTipNote] = useState("Best Bet");
   const [tipperNotes, setTipperNotes] = useState("");
   const [tipCommentary, setTipCommentary] = useState("");
+  const [tipRaceDate, setTipRaceDate] = useState("");
+  const [tipRaceTime, setTipRaceTime] = useState("");
+  const [tipRaceTimezone, setTipRaceTimezone] = useState("Australia/Perth");
   const [suggestedTag, setSuggestedTag] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
@@ -147,6 +163,9 @@ export default function AdminDashboard({
     setTipCommentary(tip.commentary || "");
     setTipperNotes("");
     setSuggestedTag(tip.note || "");
+    setTipRaceDate(getDatePart(tip.race_start_at));
+    setTipRaceTime(getTimePart(tip.race_start_at));
+    setTipRaceTimezone("Australia/Perth");
   }
 
   function clearTipForm() {
@@ -158,6 +177,9 @@ export default function AdminDashboard({
     setTipNote("Best Bet");
     setTipperNotes("");
     setTipCommentary("");
+    setTipRaceDate("");
+    setTipRaceTime("");
+    setTipRaceTimezone("Australia/Perth");
     setSuggestedTag("");
     setGenerateError("");
   }
@@ -444,6 +466,45 @@ export default function AdminDashboard({
                     </Field>
                   </div>
 
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Field label="Race date">
+                      <Input
+                        name="race_date"
+                        type="date"
+                        placeholder=""
+                        value={tipRaceDate}
+                        onChange={setTipRaceDate}
+                      />
+                    </Field>
+
+                    <Field label="Race time">
+                      <Input
+                        name="race_time"
+                        type="time"
+                        placeholder=""
+                        value={tipRaceTime}
+                        onChange={setTipRaceTime}
+                      />
+                    </Field>
+
+                    <Field label="Race timezone">
+                      <select
+                        name="race_timezone"
+                        value={tipRaceTimezone}
+                        onChange={(e) => setTipRaceTimezone(e.target.value)}
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                      >
+                        <option value="Australia/Perth">Australia/Perth</option>
+                        <option value="Australia/Adelaide">Australia/Adelaide</option>
+                        <option value="Australia/Darwin">Australia/Darwin</option>
+                        <option value="Australia/Brisbane">Australia/Brisbane</option>
+                        <option value="Australia/Sydney">Australia/Sydney</option>
+                        <option value="Australia/Melbourne">Australia/Melbourne</option>
+                        <option value="Australia/Hobart">Australia/Hobart</option>
+                      </select>
+                    </Field>
+                  </div>
+
                   <Field label="Head tipper notes for AI">
                     <Textarea
                       name="tipper_notes_preview_only"
@@ -551,6 +612,9 @@ export default function AdminDashboard({
                     <div className="mt-4 flex flex-wrap gap-2">
                       {tipConfidence ? <Badge tone="blue">{tipConfidence} confidence</Badge> : null}
                       <Badge tone="amber">{suggestedTag || tipNote || "Best Bet"}</Badge>
+                      {tipRaceDate && tipRaceTime ? (
+                        <Badge tone="slate">{tipRaceDate} {tipRaceTime}</Badge>
+                      ) : null}
                     </div>
 
                     <p className="mt-4 text-sm leading-6 text-zinc-700">
@@ -579,6 +643,9 @@ export default function AdminDashboard({
                           <div className="mt-3 flex flex-wrap gap-2">
                             {tip.confidence ? <Badge tone="blue">{tip.confidence}</Badge> : null}
                             {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
+                            {tip.race_start_at ? (
+                              <Badge tone="slate">{new Date(tip.race_start_at).toLocaleString()}</Badge>
+                            ) : null}
                           </div>
 
                           <p className="mt-3 text-sm leading-6 text-zinc-700">
