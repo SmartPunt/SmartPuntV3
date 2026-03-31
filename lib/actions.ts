@@ -73,18 +73,11 @@ function zonedDateTimeToUtcIso(
   const [year, month, day] = raceDate.split("-").map(Number);
   const [hour, minute] = raceTime.split(":").map(Number);
 
-  if (
-    !year ||
-    !month ||
-    !day ||
-    Number.isNaN(hour) ||
-    Number.isNaN(minute)
-  ) {
+  if (!year || !month || !day || Number.isNaN(hour) || Number.isNaN(minute)) {
     return null;
   }
 
   const desiredLocalAsUtc = Date.UTC(year, month - 1, day, hour, minute, 0);
-
   let utcGuess = desiredLocalAsUtc;
 
   for (let i = 0; i < 3; i += 1) {
@@ -345,6 +338,9 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   const raceTimezone = String(formData.get("race_timezone") ?? "Australia/Perth");
   const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
 
+  const finishingPositionRaw = String(formData.get("finishing_position") ?? "").trim();
+  const successfulRaw = String(formData.get("successful") ?? "").trim();
+
   const payload = {
     race: String(formData.get("race") ?? ""),
     horse: String(formData.get("horse") ?? ""),
@@ -354,6 +350,9 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
     commentary: String(formData.get("commentary") ?? ""),
     race_start_at: raceStartAt,
     race_timezone: raceTimezone,
+    finishing_position: finishingPositionRaw ? Number(finishingPositionRaw) : null,
+    successful:
+      successfulRaw === "true" ? true : successfulRaw === "false" ? false : null,
     created_by: profile.id,
     updated_at: new Date().toISOString(),
   };
