@@ -37,6 +37,7 @@ export default async function HomePage() {
         initialSuggestedTips={liveTips}
         initialWatchlistItems={watchlistItems || []}
         initialLongTermBets={longTermBets || []}
+        initialActiveTipIds={[]}
       />
     );
   }
