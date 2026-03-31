@@ -75,6 +75,44 @@ function getCountdownText(iso: string, now: number) {
   return `Starts in ${minutes}m`;
 }
 
+function calculateSuccessStats(tips: any[]) {
+  const now = new Date();
+
+  const isToday = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    );
+  };
+
+  const isThisMonth = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth()
+    );
+  };
+
+  const settled = tips.filter((tip) => typeof tip.successful === "boolean");
+  const settledToday = settled.filter((tip) => isToday(tip.race_start_at || tip.created_at));
+  const settledThisMonth = settled.filter((tip) =>
+    isThisMonth(tip.race_start_at || tip.created_at),
+  );
+
+  const pct = (items: any[]) =>
+    items.length ? Math.round((items.filter((tip) => tip.successful).length / items.length) * 100) : 0;
+
+  return {
+    day: { rate: pct(settledToday), total: settledToday.length },
+    month: { rate: pct(settledThisMonth), total: settledThisMonth.length },
+    all: { rate: pct(settled), total: settled.length },
+  };
+}
+
 function CollapsibleTipCard({
   tip,
   expanded,
@@ -111,6 +149,9 @@ function CollapsibleTipCard({
         {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
         {isActiveTip ? <Badge tone="green">Active Tip</Badge> : null}
         {tip.race_start_at ? <Badge tone="slate">{formatRaceTime(tip.race_start_at)}</Badge> : null}
+        {tip.finishing_position ? <Badge tone="slate">Placed {tip.finishing_position}</Badge> : null}
+        {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
+        {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
       </div>
 
       {tip.race_start_at ? (
@@ -215,6 +256,8 @@ export default function SubscriberDashboard({
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
+  const stats = useMemo(() => calculateSuccessStats(suggestedTips), [suggestedTips]);
+
   const [filter, setFilter] = useState<TipFilter>("All");
   const [expandedTipIds, setExpandedTipIds] = useState<number[]>([]);
   const [activeTipIds, setActiveTipIds] = useState<number[]>([]);
@@ -312,30 +355,30 @@ export default function SubscriberDashboard({
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Tips live</p>
+              <p className="text-sm text-zinc-500">Today success</p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{suggestedTips.length}</p>
-                <Badge tone="green">Today</Badge>
+                <p className="text-2xl font-semibold">{stats.day.rate}%</p>
+                <Badge tone="green">{stats.day.total} settled</Badge>
               </div>
             </div>
           </Panel>
 
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Active tips</p>
+              <p className="text-sm text-zinc-500">Month success</p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{activeTipIds.length}</p>
-                <Badge tone="amber">Selected</Badge>
+                <p className="text-2xl font-semibold">{stats.month.rate}%</p>
+                <Badge tone="amber">{stats.month.total} settled</Badge>
               </div>
             </div>
           </Panel>
 
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Long-term live</p>
+              <p className="text-sm text-zinc-500">All-time success</p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{longTermBets.length}</p>
-                <Badge tone="rose">Futures</Badge>
+                <p className="text-2xl font-semibold">{stats.all.rate}%</p>
+                <Badge tone="rose">{stats.all.total} settled</Badge>
               </div>
             </div>
           </Panel>
