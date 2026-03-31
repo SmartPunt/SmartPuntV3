@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import {
   createSubscriberUserAction,
   deleteLongTermBetAction,
@@ -119,6 +119,44 @@ function formatTimeForInput(iso?: string | null) {
   return date.toISOString().slice(11, 16);
 }
 
+function calculateSuccessStats(tips: any[]) {
+  const now = new Date();
+
+  const isToday = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    );
+  };
+
+  const isThisMonth = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth()
+    );
+  };
+
+  const settled = tips.filter((tip) => typeof tip.successful === "boolean");
+  const settledToday = settled.filter((tip) => isToday(tip.race_start_at || tip.created_at));
+  const settledThisMonth = settled.filter((tip) =>
+    isThisMonth(tip.race_start_at || tip.created_at),
+  );
+
+  const pct = (items: any[]) =>
+    items.length ? Math.round((items.filter((tip) => tip.successful).length / items.length) * 100) : 0;
+
+  return {
+    day: { rate: pct(settledToday), total: settledToday.length },
+    month: { rate: pct(settledThisMonth), total: settledThisMonth.length },
+    all: { rate: pct(settled), total: settled.length },
+  };
+}
+
 export default function AdminDashboard({
   currentUser,
   initialSuggestedTips,
@@ -134,6 +172,8 @@ export default function AdminDashboard({
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
+  const stats = useMemo(() => calculateSuccessStats(suggestedTips), [suggestedTips]);
+
   const [tipEdit, setTipEdit] = useState<any | null>(null);
   const [watchEdit, setWatchEdit] = useState<any | null>(null);
   const [longEdit, setLongEdit] = useState<any | null>(null);
@@ -148,6 +188,8 @@ export default function AdminDashboard({
   const [tipRaceDate, setTipRaceDate] = useState("");
   const [tipRaceTime, setTipRaceTime] = useState("");
   const [tipRaceTimezone, setTipRaceTimezone] = useState("Australia/Perth");
+  const [tipFinishingPosition, setTipFinishingPosition] = useState("");
+  const [tipSuccessful, setTipSuccessful] = useState("");
   const [suggestedTag, setSuggestedTag] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
@@ -170,6 +212,14 @@ export default function AdminDashboard({
     setTipRaceDate(formatDateForInput(tip.race_start_at));
     setTipRaceTime(formatTimeForInput(tip.race_start_at));
     setTipRaceTimezone(tip.race_timezone || "Australia/Perth");
+    setTipFinishingPosition(
+      tip.finishing_position === null || tip.finishing_position === undefined
+        ? ""
+        : String(tip.finishing_position),
+    );
+    setTipSuccessful(
+      typeof tip.successful === "boolean" ? String(tip.successful) : "",
+    );
   }
 
   function clearTipForm() {
@@ -184,6 +234,8 @@ export default function AdminDashboard({
     setTipRaceDate("");
     setTipRaceTime("");
     setTipRaceTimezone("Australia/Perth");
+    setTipFinishingPosition("");
+    setTipSuccessful("");
     setSuggestedTag("");
     setGenerateError("");
   }
@@ -248,30 +300,30 @@ export default function AdminDashboard({
           <div className="mt-6 grid gap-4">
             <Panel className="bg-white/95">
               <div className="p-4 text-zinc-950">
-                <p className="text-sm text-zinc-500">Tips live</p>
+                <p className="text-sm text-zinc-500">Today success</p>
                 <div className="mt-3 flex items-center justify-between">
-                  <p className="text-2xl font-semibold">{suggestedTips.length}</p>
-                  <Badge tone="green">Tips</Badge>
+                  <p className="text-2xl font-semibold">{stats.day.rate}%</p>
+                  <Badge tone="green">{stats.day.total} settled</Badge>
                 </div>
               </div>
             </Panel>
 
             <Panel className="bg-white/95">
               <div className="p-4 text-zinc-950">
-                <p className="text-sm text-zinc-500">Watchlist live</p>
+                <p className="text-sm text-zinc-500">Month success</p>
                 <div className="mt-3 flex items-center justify-between">
-                  <p className="text-2xl font-semibold">{watchlistItems.length}</p>
-                  <Badge tone="amber">Watch</Badge>
+                  <p className="text-2xl font-semibold">{stats.month.rate}%</p>
+                  <Badge tone="amber">{stats.month.total} settled</Badge>
                 </div>
               </div>
             </Panel>
 
             <Panel className="bg-white/95">
               <div className="p-4 text-zinc-950">
-                <p className="text-sm text-zinc-500">Long-term live</p>
+                <p className="text-sm text-zinc-500">All-time success</p>
                 <div className="mt-3 flex items-center justify-between">
-                  <p className="text-2xl font-semibold">{longTermBets.length}</p>
-                  <Badge tone="rose">Long-term</Badge>
+                  <p className="text-2xl font-semibold">{stats.all.rate}%</p>
+                  <Badge tone="rose">{stats.all.total} settled</Badge>
                 </div>
               </div>
             </Panel>
@@ -509,6 +561,31 @@ export default function AdminDashboard({
                     </Field>
                   </div>
 
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Finishing position">
+                      <Input
+                        name="finishing_position"
+                        type="number"
+                        placeholder="e.g. 1"
+                        value={tipFinishingPosition}
+                        onChange={setTipFinishingPosition}
+                      />
+                    </Field>
+
+                    <Field label="Successful tip?">
+                      <select
+                        name="successful"
+                        value={tipSuccessful}
+                        onChange={(e) => setTipSuccessful(e.target.value)}
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                      >
+                        <option value="">Not settled yet</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    </Field>
+                  </div>
+
                   <Field label="Head tipper notes for AI">
                     <Textarea
                       name="tipper_notes_preview_only"
@@ -621,6 +698,11 @@ export default function AdminDashboard({
                           {tipRaceDate} {tipRaceTime} ({tipRaceTimezone})
                         </Badge>
                       ) : null}
+                      {tipFinishingPosition ? (
+                        <Badge tone="slate">Placed {tipFinishingPosition}</Badge>
+                      ) : null}
+                      {tipSuccessful === "true" ? <Badge tone="green">Successful</Badge> : null}
+                      {tipSuccessful === "false" ? <Badge tone="rose">Unsuccessful</Badge> : null}
                     </div>
 
                     <p className="mt-4 text-sm leading-6 text-zinc-700">
@@ -649,17 +731,11 @@ export default function AdminDashboard({
                           <div className="mt-3 flex flex-wrap gap-2">
                             {tip.confidence ? <Badge tone="blue">{tip.confidence}</Badge> : null}
                             {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                            {tip.race_start_at ? (
-                              <Badge tone="slate">
-                                {new Intl.DateTimeFormat(undefined, {
-                                  weekday: "short",
-                                  day: "numeric",
-                                  month: "short",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                }).format(new Date(tip.race_start_at))}
-                              </Badge>
+                            {tip.finishing_position ? (
+                              <Badge tone="slate">Placed {tip.finishing_position}</Badge>
                             ) : null}
+                            {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
+                            {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
                           </div>
 
                           <p className="mt-3 text-sm leading-6 text-zinc-700">
@@ -672,7 +748,7 @@ export default function AdminDashboard({
                               onClick={() => loadTipIntoForm(tip)}
                               className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                             >
-                              Edit
+                              Edit / Settle
                             </button>
 
                             <form action={deleteSuggestedTipAction}>
