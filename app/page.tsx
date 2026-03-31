@@ -1,41 +1,60 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import LoginPage from "@/components/login-page";
-import SubscriberDashboard from "@/components/subscriber-dashboard";
 import AdminDashboard from "@/components/admin-dashboard";
+import SubscriberDashboard from "@/components/subscriber-dashboard";
 
-export default async function Page() {
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
+export default async function HomePage() {
   const profile = await getCurrentProfile();
 
-  if (!auth.user || !profile) {
-    return <LoginPage />;
+  if (!profile) {
+    redirect("/login");
   }
 
-  const [{ data: suggestedTips }, { data: watchlistItems }, { data: longTermBets }] = await Promise.all([
-    supabase.from("suggested_tips").select("*").order("created_at", { ascending: false }),
-    supabase.from("watchlist_items").select("*").order("created_at", { ascending: false }),
-    supabase.from("long_term_bets").select("*").order("created_at", { ascending: false }),
-  ]);
+  const supabase = await createClient();
+
+  const { data: tips } = await supabase
+    .from("suggested_tips")
+    .select("*")
+    .order("race_start_at", { ascending: true, nullsFirst: false });
+
+  const { data: watchlistItems } = await supabase
+    .from("watchlist_items")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const { data: longTermBets } = await supabase
+    .from("long_term_bets")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  const liveTips = (tips || []).filter((tip: any) => typeof tip.successful !== "boolean");
 
   if (profile.role === "admin") {
     return (
       <AdminDashboard
         currentUser={profile}
-        initialSuggestedTips={suggestedTips ?? []}
-        initialWatchlistItems={watchlistItems ?? []}
-        initialLongTermBets={longTermBets ?? []}
+        initialSuggestedTips={liveTips}
+        initialWatchlistItems={watchlistItems || []}
+        initialLongTermBets={longTermBets || []}
       />
     );
   }
 
+  const { data: activeSelections } = await supabase
+    .from("user_active_tips")
+    .select("tip_id")
+    .eq("user_id", profile.id);
+
+  const activeTipIds = (activeSelections || []).map((row: any) => row.tip_id);
+
   return (
     <SubscriberDashboard
       currentUser={profile}
-      initialSuggestedTips={suggestedTips ?? []}
-      initialWatchlistItems={watchlistItems ?? []}
-      initialLongTermBets={longTermBets ?? []}
+      initialSuggestedTips={liveTips}
+      initialWatchlistItems={watchlistItems || []}
+      initialLongTermBets={longTermBets || []}
+      initialActiveTipIds={activeTipIds}
     />
   );
 }
