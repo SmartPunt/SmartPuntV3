@@ -105,14 +105,18 @@ function getTipCardStyle(type: string) {
   return "border-amber-200/30 bg-white";
 }
 
-function getDatePart(iso?: string | null) {
+function formatDateForInput(iso?: string | null) {
   if (!iso) return "";
-  return new Date(iso).toISOString().slice(0, 10);
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
 }
 
-function getTimePart(iso?: string | null) {
+function formatTimeForInput(iso?: string | null) {
   if (!iso) return "";
-  return new Date(iso).toISOString().slice(11, 16);
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(11, 16);
 }
 
 export default function AdminDashboard({
@@ -163,9 +167,9 @@ export default function AdminDashboard({
     setTipCommentary(tip.commentary || "");
     setTipperNotes("");
     setSuggestedTag(tip.note || "");
-    setTipRaceDate(getDatePart(tip.race_start_at));
-    setTipRaceTime(getTimePart(tip.race_start_at));
-    setTipRaceTimezone("Australia/Perth");
+    setTipRaceDate(formatDateForInput(tip.race_start_at));
+    setTipRaceTime(formatTimeForInput(tip.race_start_at));
+    setTipRaceTimezone(tip.race_timezone || "Australia/Perth");
   }
 
   function clearTipForm() {
@@ -487,7 +491,7 @@ export default function AdminDashboard({
                       />
                     </Field>
 
-                    <Field label="Race timezone">
+                    <Field label="Track timezone">
                       <select
                         name="race_timezone"
                         value={tipRaceTimezone}
@@ -613,7 +617,9 @@ export default function AdminDashboard({
                       {tipConfidence ? <Badge tone="blue">{tipConfidence} confidence</Badge> : null}
                       <Badge tone="amber">{suggestedTag || tipNote || "Best Bet"}</Badge>
                       {tipRaceDate && tipRaceTime ? (
-                        <Badge tone="slate">{tipRaceDate} {tipRaceTime}</Badge>
+                        <Badge tone="slate">
+                          {tipRaceDate} {tipRaceTime} ({tipRaceTimezone})
+                        </Badge>
                       ) : null}
                     </div>
 
@@ -644,7 +650,15 @@ export default function AdminDashboard({
                             {tip.confidence ? <Badge tone="blue">{tip.confidence}</Badge> : null}
                             {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
                             {tip.race_start_at ? (
-                              <Badge tone="slate">{new Date(tip.race_start_at).toLocaleString()}</Badge>
+                              <Badge tone="slate">
+                                {new Intl.DateTimeFormat(undefined, {
+                                  weekday: "short",
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                }).format(new Date(tip.race_start_at))}
+                              </Badge>
                             ) : null}
                           </div>
 
