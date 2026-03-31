@@ -28,7 +28,9 @@ export default async function HomePage() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  const liveTips = (tips || []).filter((tip: any) => typeof tip.successful !== "boolean");
+  const liveTips = (tips || []).filter(
+    (tip: any) => typeof tip.successful !== "boolean",
+  );
 
   if (profile.role === "admin") {
     return (
@@ -37,7 +39,6 @@ export default async function HomePage() {
         initialSuggestedTips={liveTips}
         initialWatchlistItems={watchlistItems || []}
         initialLongTermBets={longTermBets || []}
-        initialActiveTipIds={[]}
       />
     );
   }
