@@ -48,10 +48,38 @@ function FilterButton({
   );
 }
 
+function formatRaceTime(iso: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
+function getCountdownText(iso: string, now: number) {
+  const diff = new Date(iso).getTime() - now;
+
+  if (diff <= 0) {
+    return "Race started";
+  }
+
+  const totalMinutes = Math.floor(diff / 1000 / 60);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days > 0) return `Starts in ${days}d ${hours}h`;
+  if (hours > 0) return `Starts in ${hours}h ${minutes}m`;
+  return `Starts in ${minutes}m`;
+}
+
 function CollapsibleTipCard({
   tip,
   expanded,
   isActiveTip,
+  now,
   onToggleExpanded,
   onMarkActive,
   onRemoveActive,
@@ -59,6 +87,7 @@ function CollapsibleTipCard({
   tip: any;
   expanded: boolean;
   isActiveTip: boolean;
+  now: number;
   onToggleExpanded: () => void;
   onMarkActive: () => void;
   onRemoveActive: () => void;
@@ -81,7 +110,17 @@ function CollapsibleTipCard({
         {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
         {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
         {isActiveTip ? <Badge tone="green">Active Tip</Badge> : null}
+        {tip.race_start_at ? <Badge tone="slate">{formatRaceTime(tip.race_start_at)}</Badge> : null}
       </div>
+
+      {tip.race_start_at ? (
+        <div className="mt-3 rounded-2xl bg-white/70 px-4 py-3">
+          <p className="text-sm font-semibold text-zinc-800">
+            {getCountdownText(tip.race_start_at, now)}
+          </p>
+          <p className="mt-1 text-xs text-zinc-600">Shown in your local timezone</p>
+        </div>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap gap-3">
         <button
@@ -179,6 +218,7 @@ export default function SubscriberDashboard({
   const [filter, setFilter] = useState<TipFilter>("All");
   const [expandedTipIds, setExpandedTipIds] = useState<number[]>([]);
   const [activeTipIds, setActiveTipIds] = useState<number[]>([]);
+  const [now, setNow] = useState(Date.now());
 
   const storageKey = useMemo(() => {
     return `smartpunt-active-tips-${currentUser?.id || currentUser?.email || "subscriber"}`;
@@ -203,6 +243,11 @@ export default function SubscriberDashboard({
     }
   }, [activeTipIds, storageKey]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   function toggleExpanded(id: number) {
     setExpandedTipIds((prev) =>
       prev.includes(id) ? prev.filter((tipId) => tipId !== id) : [...prev, id],
@@ -217,10 +262,16 @@ export default function SubscriberDashboard({
     setActiveTipIds((prev) => prev.filter((tipId) => tipId !== id));
   }
 
+  const sortedTips = [...suggestedTips].sort((a: any, b: any) => {
+    const aTime = a.race_start_at ? new Date(a.race_start_at).getTime() : Number.MAX_SAFE_INTEGER;
+    const bTime = b.race_start_at ? new Date(b.race_start_at).getTime() : Number.MAX_SAFE_INTEGER;
+    return aTime - bTime;
+  });
+
   const filteredTips =
     filter === "All"
-      ? suggestedTips
-      : suggestedTips.filter((tip: any) => tip.type === filter);
+      ? sortedTips
+      : sortedTips.filter((tip: any) => tip.type === filter);
 
   const activeTips = filteredTips.filter((tip: any) => activeTipIds.includes(tip.id));
   const availableTips = filteredTips.filter((tip: any) => !activeTipIds.includes(tip.id));
@@ -327,6 +378,7 @@ export default function SubscriberDashboard({
                       tip={tip}
                       expanded={expandedTipIds.includes(tip.id)}
                       isActiveTip={true}
+                      now={now}
                       onToggleExpanded={() => toggleExpanded(tip.id)}
                       onMarkActive={() => markActive(tip.id)}
                       onRemoveActive={() => removeActive(tip.id)}
@@ -361,6 +413,7 @@ export default function SubscriberDashboard({
                       tip={tip}
                       expanded={expandedTipIds.includes(tip.id)}
                       isActiveTip={false}
+                      now={now}
                       onToggleExpanded={() => toggleExpanded(tip.id)}
                       onMarkActive={() => markActive(tip.id)}
                       onRemoveActive={() => removeActive(tip.id)}
