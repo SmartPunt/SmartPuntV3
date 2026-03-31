@@ -112,7 +112,9 @@ function CollapsibleTipCard({
 
       {expanded ? (
         <div className="mt-4 rounded-2xl bg-white/70 p-4">
-          <p className="text-sm leading-6 text-zinc-700">{tip.commentary || "No commentary added yet."}</p>
+          <p className="text-sm leading-6 text-zinc-700">
+            {tip.commentary || "No commentary added yet."}
+          </p>
         </div>
       ) : null}
     </div>
