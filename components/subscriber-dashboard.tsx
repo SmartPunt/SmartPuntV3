@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { signOutAction } from "@/lib/actions";
 import { Badge, Panel, TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
+
+type TipFilter = "All" | "Win" | "Place" | "All Up";
 
 function getTipCardStyle(type: string) {
   if (type === "Win") {
@@ -20,32 +23,45 @@ function getTipCardStyle(type: string) {
   return "border-amber-200/30 bg-white";
 }
 
-function FeaturedTipCard({ tip }: { tip: any }) {
+function FilterButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: TipFilter;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
-    <div
-      className={`overflow-hidden rounded-[28px] border p-6 shadow-xl ${getTipCardStyle(
-        tip.type,
-      )}`}
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+        active
+          ? "bg-amber-300 text-zinc-950"
+          : "border border-white/10 bg-white/10 text-white hover:bg-white/15"
+      }`}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-zinc-500">{tip.race}</p>
-          <h2 className="mt-1 text-3xl font-bold tracking-tight text-zinc-950">{tip.horse}</h2>
-        </div>
-        <TipPill type={tip.type} />
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
-        {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-      </div>
-
-      <p className="mt-5 max-w-3xl text-sm leading-6 text-zinc-700">{tip.commentary || ""}</p>
-    </div>
+      {label}
+    </button>
   );
 }
 
-function StandardTipCard({ tip }: { tip: any }) {
+function CollapsibleTipCard({
+  tip,
+  expanded,
+  isActiveTip,
+  onToggleExpanded,
+  onMarkActive,
+  onRemoveActive,
+}: {
+  tip: any;
+  expanded: boolean;
+  isActiveTip: boolean;
+  onToggleExpanded: () => void;
+  onMarkActive: () => void;
+  onRemoveActive: () => void;
+}) {
   return (
     <div
       className={`rounded-[24px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${getTipCardStyle(
@@ -63,9 +79,42 @@ function StandardTipCard({ tip }: { tip: any }) {
       <div className="mt-4 flex flex-wrap gap-2">
         {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
         {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
+        {isActiveTip ? <Badge tone="green">Active Tip</Badge> : null}
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-zinc-700">{tip.commentary || ""}</p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+        >
+          {expanded ? "Hide Commentary" : "View Commentary"}
+        </button>
+
+        {isActiveTip ? (
+          <button
+            type="button"
+            onClick={onRemoveActive}
+            className="rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-amber-200 transition hover:bg-zinc-800"
+          >
+            Remove From Active
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onMarkActive}
+            className="rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-amber-200 transition hover:bg-zinc-800"
+          >
+            Mark Active
+          </button>
+        )}
+      </div>
+
+      {expanded ? (
+        <div className="mt-4 rounded-2xl bg-white/70 p-4">
+          <p className="text-sm leading-6 text-zinc-700">{tip.commentary || "No commentary added yet."}</p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -124,8 +173,54 @@ export default function SubscriberDashboard({
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
-  const featuredTip = suggestedTips[0];
-  const otherTips = suggestedTips.slice(1);
+  const [filter, setFilter] = useState<TipFilter>("All");
+  const [expandedTipIds, setExpandedTipIds] = useState<number[]>([]);
+  const [activeTipIds, setActiveTipIds] = useState<number[]>([]);
+
+  const storageKey = useMemo(() => {
+    return `smartpunt-active-tips-${currentUser?.id || currentUser?.email || "subscriber"}`;
+  }, [currentUser]);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (saved) {
+        setActiveTipIds(JSON.parse(saved));
+      }
+    } catch {
+      setActiveTipIds([]);
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(activeTipIds));
+    } catch {
+      // ignore localStorage issues
+    }
+  }, [activeTipIds, storageKey]);
+
+  function toggleExpanded(id: number) {
+    setExpandedTipIds((prev) =>
+      prev.includes(id) ? prev.filter((tipId) => tipId !== id) : [...prev, id],
+    );
+  }
+
+  function markActive(id: number) {
+    setActiveTipIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function removeActive(id: number) {
+    setActiveTipIds((prev) => prev.filter((tipId) => tipId !== id));
+  }
+
+  const filteredTips =
+    filter === "All"
+      ? suggestedTips
+      : suggestedTips.filter((tip: any) => tip.type === filter);
+
+  const activeTips = filteredTips.filter((tip: any) => activeTipIds.includes(tip.id));
+  const availableTips = filteredTips.filter((tip: any) => !activeTipIds.includes(tip.id));
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
@@ -167,10 +262,10 @@ export default function SubscriberDashboard({
 
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Watchlist live</p>
+              <p className="text-sm text-zinc-500">Active tips</p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{watchlistItems.length}</p>
-                <Badge tone="amber">Watch</Badge>
+                <p className="text-2xl font-semibold">{activeTipIds.length}</p>
+                <Badge tone="amber">Selected</Badge>
               </div>
             </div>
           </Panel>
@@ -187,44 +282,89 @@ export default function SubscriberDashboard({
         </div>
 
         <div className="mt-8 space-y-10">
-          <div>
-            <h2 className="text-2xl font-semibold text-white">Today’s Suggested Tips</h2>
-            <p className="mt-1 text-sm text-amber-100/70">
-              SmartPunt’s premium daily plays, written in a clean race-day format.
-            </p>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-2xl font-semibold text-white">Today’s Suggested Tips</h2>
+              <p className="mt-1 text-sm text-amber-100/70">
+                Filter by bet type, open commentary when needed, and move bets you’re taking into Active Tips.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <FilterButton label="All" active={filter === "All"} onClick={() => setFilter("All")} />
+              <FilterButton label="Win" active={filter === "Win"} onClick={() => setFilter("Win")} />
+              <FilterButton label="Place" active={filter === "Place"} onClick={() => setFilter("Place")} />
+              <FilterButton label="All Up" active={filter === "All Up"} onClick={() => setFilter("All Up")} />
+            </div>
           </div>
 
-          {featuredTip ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Badge tone="amber">Featured Tip</Badge>
-                <Badge tone="green">Top Play</Badge>
+          <Panel className="text-zinc-950">
+            <div className="p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold">Active Tips</h3>
+                  <p className="text-sm text-zinc-500">
+                    Tips you’ve marked as acted on.
+                  </p>
+                </div>
+                <Badge tone="green">{activeTips.length} active</Badge>
               </div>
-              <FeaturedTipCard tip={featuredTip} />
-            </div>
-          ) : null}
 
-          {otherTips.length ? (
-            <Panel className="text-zinc-950">
-              <div className="p-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-semibold">More tips on the day</h3>
-                    <p className="text-sm text-zinc-500">
-                      Additional SmartPunt selections for punters tracking the full card.
-                    </p>
+              <div className="mt-5 space-y-4">
+                {activeTips.length ? (
+                  activeTips.map((tip: any) => (
+                    <CollapsibleTipCard
+                      key={tip.id}
+                      tip={tip}
+                      expanded={expandedTipIds.includes(tip.id)}
+                      isActiveTip={true}
+                      onToggleExpanded={() => toggleExpanded(tip.id)}
+                      onMarkActive={() => markActive(tip.id)}
+                      onRemoveActive={() => removeActive(tip.id)}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
+                    No active tips yet. Mark a tip active when you decide to take it.
                   </div>
-                  <Badge tone="green">{otherTips.length} more</Badge>
-                </div>
-
-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                  {otherTips.map((tip: any) => (
-                    <StandardTipCard key={tip.id} tip={tip} />
-                  ))}
-                </div>
+                )}
               </div>
-            </Panel>
-          ) : null}
+            </div>
+          </Panel>
+
+          <Panel className="text-zinc-950">
+            <div className="p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold">Available Tips</h3>
+                  <p className="text-sm text-zinc-500">
+                    Compact list view. Open any tip to read the full commentary.
+                  </p>
+                </div>
+                <Badge tone="blue">{availableTips.length} shown</Badge>
+              </div>
+
+              <div className="mt-5 space-y-4">
+                {availableTips.length ? (
+                  availableTips.map((tip: any) => (
+                    <CollapsibleTipCard
+                      key={tip.id}
+                      tip={tip}
+                      expanded={expandedTipIds.includes(tip.id)}
+                      isActiveTip={false}
+                      onToggleExpanded={() => toggleExpanded(tip.id)}
+                      onMarkActive={() => markActive(tip.id)}
+                      onRemoveActive={() => removeActive(tip.id)}
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
+                    No tips match this filter right now.
+                  </div>
+                )}
+              </div>
+            </div>
+          </Panel>
 
           <div className="grid gap-8 xl:grid-cols-2">
             <Panel className="text-zinc-950">
