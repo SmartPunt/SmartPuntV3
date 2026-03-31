@@ -33,6 +33,80 @@ function getServiceRoleHeaders() {
   };
 }
 
+function getZonedParts(date: Date, timeZone: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+
+  const parts = formatter.formatToParts(date);
+
+  const get = (type: string) => {
+    const value = parts.find((part) => part.type === type)?.value;
+    if (!value) throw new Error(`Missing ${type} while formatting timezone parts.`);
+    return Number(value);
+  };
+
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second"),
+  };
+}
+
+function zonedDateTimeToUtcIso(
+  raceDate: string,
+  raceTime: string,
+  timeZone: string,
+): string | null {
+  if (!raceDate || !raceTime || !timeZone) return null;
+
+  const [year, month, day] = raceDate.split("-").map(Number);
+  const [hour, minute] = raceTime.split(":").map(Number);
+
+  if (
+    !year ||
+    !month ||
+    !day ||
+    Number.isNaN(hour) ||
+    Number.isNaN(minute)
+  ) {
+    return null;
+  }
+
+  const desiredLocalAsUtc = Date.UTC(year, month - 1, day, hour, minute, 0);
+
+  let utcGuess = desiredLocalAsUtc;
+
+  for (let i = 0; i < 3; i += 1) {
+    const parts = getZonedParts(new Date(utcGuess), timeZone);
+    const zonedAsUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+
+    const diff = desiredLocalAsUtc - zonedAsUtc;
+    utcGuess += diff;
+
+    if (diff === 0) break;
+  }
+
+  return new Date(utcGuess).toISOString();
+}
+
 async function sendSuggestedTipNotifications({
   race,
   horse,
@@ -269,13 +343,7 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   const raceDate = String(formData.get("race_date") ?? "");
   const raceTime = String(formData.get("race_time") ?? "");
   const raceTimezone = String(formData.get("race_timezone") ?? "Australia/Perth");
-
-  let raceStartAt: string | null = null;
-
-  if (raceDate && raceTime) {
-    const naive = `${raceDate}T${raceTime}:00`;
-    raceStartAt = `${naive}${getTimezoneOffsetSuffix(raceTimezone)}`;
-  }
+  const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
 
   const payload = {
     race: String(formData.get("race") ?? ""),
@@ -285,6 +353,7 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
     note: String(formData.get("note") ?? ""),
     commentary: String(formData.get("commentary") ?? ""),
     race_start_at: raceStartAt,
+    race_timezone: raceTimezone,
     created_by: profile.id,
     updated_at: new Date().toISOString(),
   };
@@ -328,20 +397,6 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/");
-}
-
-function getTimezoneOffsetSuffix(timezone: string) {
-  const offsets: Record<string, string> = {
-    "Australia/Perth": "+08:00",
-    "Australia/Adelaide": "+09:30",
-    "Australia/Darwin": "+09:30",
-    "Australia/Brisbane": "+10:00",
-    "Australia/Sydney": "+10:00",
-    "Australia/Melbourne": "+10:00",
-    "Australia/Hobart": "+10:00",
-  };
-
-  return offsets[timezone] || "+08:00";
 }
 
 export async function deleteSuggestedTipAction(formData: FormData): Promise<void> {
