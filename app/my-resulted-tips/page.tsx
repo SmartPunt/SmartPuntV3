@@ -47,6 +47,7 @@ function calculateSuccessStats(tips: any[]) {
 
     return {
       total,
+      won,
       rate: total ? Math.round((won / total) * 100) : null,
     };
   };
@@ -65,18 +66,18 @@ function StatCard({
   tone,
 }: {
   title: string;
-  stat: { total: number; rate: number | null };
+  stat: { total: number; won: number; rate: number | null };
   emptyLabel: string;
   tone: "green" | "amber" | "rose";
 }) {
+  const value = stat.total ? `${stat.rate}% (${stat.won}/${stat.total})` : emptyLabel;
+
   return (
     <Panel className="text-zinc-950">
       <div className="p-4">
         <p className="text-sm text-zinc-500">{title}</p>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-2xl font-semibold">
-            {stat.total ? `${stat.rate}%` : emptyLabel}
-          </p>
+          <p className="text-2xl font-semibold">{value}</p>
           <Badge tone={tone}>
             {stat.total ? `${stat.total} settled` : "No bets"}
           </Badge>
@@ -86,35 +87,21 @@ function StatCard({
   );
 }
 
-export default async function MyResultedTipsPage() {
+export default async function ResultedTipsPage() {
   const profile = await getCurrentProfile();
 
   if (!profile) redirect("/login");
-  if (profile.role !== "user") redirect("/");
+  if (profile.role !== "admin") redirect("/");
 
   const supabase = await createClient();
 
-  const { data: activeSelections } = await supabase
-    .from("user_active_tips")
-    .select("tip_id")
-    .eq("user_id", profile.id);
+  const { data: resultedTips } = await supabase
+    .from("suggested_tips")
+    .select("*")
+    .not("successful", "is", null)
+    .order("settled_at", { ascending: false, nullsFirst: false });
 
-  const tipIds = (activeSelections || []).map((row: any) => row.tip_id);
-
-  let resultedTips: any[] = [];
-
-  if (tipIds.length) {
-    const { data } = await supabase
-      .from("suggested_tips")
-      .select("*")
-      .in("id", tipIds)
-      .not("successful", "is", null)
-      .order("settled_at", { ascending: false, nullsFirst: false });
-
-    resultedTips = data || [];
-  }
-
-  const stats = calculateSuccessStats(resultedTips);
+  const stats = calculateSuccessStats(resultedTips || []);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
@@ -122,9 +109,9 @@ export default async function MyResultedTipsPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-amber-100/80">SmartPunt</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight">My Resulted Tips</h1>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight">Resulted Tips</h1>
             <p className="mt-2 text-sm text-amber-100/70">
-              Only tips you saved as active and have now settled.
+              Head Tipper settled history and strike rate.
             </p>
           </div>
           <Link
@@ -137,19 +124,19 @@ export default async function MyResultedTipsPage() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <StatCard
-            title="My Success Today"
+            title="Head Tipper Today"
             stat={stats.day}
             emptyLabel="No bets today"
             tone="green"
           />
           <StatCard
-            title="My Success This Month"
+            title="Head Tipper This Month"
             stat={stats.month}
             emptyLabel="No bets this month"
             tone="amber"
           />
           <StatCard
-            title="My Success All Time"
+            title="Head Tipper All Time"
             stat={stats.all}
             emptyLabel="No bets yet"
             tone="rose"
@@ -157,8 +144,8 @@ export default async function MyResultedTipsPage() {
         </div>
 
         <div className="mt-8 space-y-4">
-          {resultedTips.length ? (
-            resultedTips.map((tip: any) => (
+          {(resultedTips || []).length ? (
+            (resultedTips || []).map((tip: any) => (
               <div
                 key={tip.id}
                 className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tip.type)}`}
@@ -186,7 +173,7 @@ export default async function MyResultedTipsPage() {
             ))
           ) : (
             <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
-              No resulted tips yet from your active selections.
+              No resulted tips yet.
             </div>
           )}
         </div>
