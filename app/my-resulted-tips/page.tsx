@@ -68,7 +68,7 @@ function StatCard({
   title: string;
   stat: { total: number; won: number; rate: number | null };
   emptyLabel: string;
-  tone: "green" | "amber" | "rose";
+  tone: "green" | "amber" | "rose" | "blue";
 }) {
   const value = stat.total ? `${stat.rate}% (${stat.won}/${stat.total})` : emptyLabel;
 
@@ -87,21 +87,58 @@ function StatCard({
   );
 }
 
-export default async function ResultedTipsPage() {
+export default async function MyResultedTipsPage() {
   const profile = await getCurrentProfile();
 
-  if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect("/");
+  if (!profile) {
+    redirect("/login");
+  }
+
+  if (profile.role !== "user") {
+    redirect("/");
+  }
 
   const supabase = await createClient();
 
-  const { data: resultedTips } = await supabase
+  const { data: activeSelections, error: activeSelectionsError } = await supabase
+    .from("user_active_tips")
+    .select("tip_id")
+    .eq("user_id", profile.id);
+
+  if (activeSelectionsError) {
+    throw new Error(`Failed to load saved tips: ${activeSelectionsError.message}`);
+  }
+
+  const tipIds = (activeSelections || []).map((row: any) => row.tip_id);
+
+  let resultedTips: any[] = [];
+
+  if (tipIds.length) {
+    const { data, error } = await supabase
+      .from("suggested_tips")
+      .select("*")
+      .in("id", tipIds)
+      .not("successful", "is", null)
+      .order("settled_at", { ascending: false, nullsFirst: false });
+
+    if (error) {
+      throw new Error(`Failed to load resulted tips: ${error.message}`);
+    }
+
+    resultedTips = data || [];
+  }
+
+  const { data: allResultedTips, error: allResultedError } = await supabase
     .from("suggested_tips")
     .select("*")
-    .not("successful", "is", null)
-    .order("settled_at", { ascending: false, nullsFirst: false });
+    .not("successful", "is", null);
 
-  const stats = calculateSuccessStats(resultedTips || []);
+  if (allResultedError) {
+    throw new Error(`Failed to load head tipper stats: ${allResultedError.message}`);
+  }
+
+  const myStats = calculateSuccessStats(resultedTips);
+  const headTipperStats = calculateSuccessStats(allResultedTips || []);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
@@ -109,9 +146,9 @@ export default async function ResultedTipsPage() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-amber-100/80">SmartPunt</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight">Resulted Tips</h1>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight">My Resulted Tips</h1>
             <p className="mt-2 text-sm text-amber-100/70">
-              Head Tipper settled history and strike rate.
+              Only tips you saved as active and that have now been settled.
             </p>
           </div>
           <Link
@@ -122,30 +159,36 @@ export default async function ResultedTipsPage() {
           </Link>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            title="Head Tipper Today"
-            stat={stats.day}
+            title="My Success Today"
+            stat={myStats.day}
             emptyLabel="No bets today"
             tone="green"
           />
           <StatCard
-            title="Head Tipper This Month"
-            stat={stats.month}
+            title="My Success This Month"
+            stat={myStats.month}
             emptyLabel="No bets this month"
             tone="amber"
           />
           <StatCard
-            title="Head Tipper All Time"
-            stat={stats.all}
+            title="My Success All Time"
+            stat={myStats.all}
             emptyLabel="No bets yet"
             tone="rose"
+          />
+          <StatCard
+            title="Head Tipper All Time"
+            stat={headTipperStats.all}
+            emptyLabel="No bets yet"
+            tone="blue"
           />
         </div>
 
         <div className="mt-8 space-y-4">
-          {(resultedTips || []).length ? (
-            (resultedTips || []).map((tip: any) => (
+          {resultedTips.length ? (
+            resultedTips.map((tip: any) => (
               <div
                 key={tip.id}
                 className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tip.type)}`}
@@ -173,7 +216,7 @@ export default async function ResultedTipsPage() {
             ))
           ) : (
             <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
-              No resulted tips yet.
+              No resulted tips yet from your active selections.
             </div>
           )}
         </div>
