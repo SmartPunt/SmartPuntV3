@@ -47,6 +47,7 @@ function calculateSuccessStats(tips: any[]) {
 
     return {
       total,
+      won,
       rate: total ? Math.round((won / total) * 100) : null,
     };
   };
@@ -65,18 +66,18 @@ function StatCard({
   tone,
 }: {
   title: string;
-  stat: { total: number; rate: number | null };
+  stat: { total: number; won: number; rate: number | null };
   emptyLabel: string;
   tone: "green" | "amber" | "rose";
 }) {
+  const value = stat.total ? `${stat.rate}% (${stat.won}/${stat.total})` : emptyLabel;
+
   return (
     <Panel className="text-zinc-950">
       <div className="p-4">
         <p className="text-sm text-zinc-500">{title}</p>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-2xl font-semibold">
-            {stat.total ? `${stat.rate}%` : emptyLabel}
-          </p>
+          <p className="text-2xl font-semibold">{value}</p>
           <Badge tone={tone}>
             {stat.total ? `${stat.total} settled` : "No bets"}
           </Badge>
