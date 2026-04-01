@@ -11,6 +11,10 @@ function getTipCardStyle(type: string) {
   return "border-amber-200/30 bg-white";
 }
 
+function getTipDate(tip: any) {
+  return tip.settled_at || tip.race_start_at || tip.updated_at || tip.created_at || null;
+}
+
 function calculateSuccessStats(tips: any[]) {
   const now = new Date();
 
@@ -34,19 +38,52 @@ function calculateSuccessStats(tips: any[]) {
   };
 
   const settled = tips.filter((tip) => typeof tip.successful === "boolean");
-  const settledToday = settled.filter((tip) => isToday(tip.settled_at || tip.race_start_at));
-  const settledThisMonth = settled.filter((tip) =>
-    isThisMonth(tip.settled_at || tip.race_start_at),
-  );
+  const settledToday = settled.filter((tip) => isToday(getTipDate(tip)));
+  const settledThisMonth = settled.filter((tip) => isThisMonth(getTipDate(tip)));
 
-  const pct = (items: any[]) =>
-    items.length ? Math.round((items.filter((tip) => tip.successful).length / items.length) * 100) : 0;
+  const makeStat = (items: any[]) => {
+    const total = items.length;
+    const won = items.filter((tip) => tip.successful).length;
+
+    return {
+      total,
+      rate: total ? Math.round((won / total) * 100) : null,
+    };
+  };
 
   return {
-    day: { rate: pct(settledToday), total: settledToday.length },
-    month: { rate: pct(settledThisMonth), total: settledThisMonth.length },
-    all: { rate: pct(settled), total: settled.length },
+    day: makeStat(settledToday),
+    month: makeStat(settledThisMonth),
+    all: makeStat(settled),
   };
+}
+
+function StatCard({
+  title,
+  stat,
+  emptyLabel,
+  tone,
+}: {
+  title: string;
+  stat: { total: number; rate: number | null };
+  emptyLabel: string;
+  tone: "green" | "amber" | "rose";
+}) {
+  return (
+    <Panel className="text-zinc-950">
+      <div className="p-4">
+        <p className="text-sm text-zinc-500">{title}</p>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="text-2xl font-semibold">
+            {stat.total ? `${stat.rate}%` : emptyLabel}
+          </p>
+          <Badge tone={tone}>
+            {stat.total ? `${stat.total} settled` : "No bets"}
+          </Badge>
+        </div>
+      </div>
+    </Panel>
+  );
 }
 
 export default async function MyResultedTipsPage() {
@@ -86,7 +123,9 @@ export default async function MyResultedTipsPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-amber-100/80">SmartPunt</p>
             <h1 className="mt-2 text-4xl font-bold tracking-tight">My Resulted Tips</h1>
-            <p className="mt-2 text-sm text-amber-100/70">Only tips you saved as active and have now settled.</p>
+            <p className="mt-2 text-sm text-amber-100/70">
+              Only tips you saved as active and have now settled.
+            </p>
           </div>
           <Link
             href="/"
@@ -97,35 +136,24 @@ export default async function MyResultedTipsPage() {
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <Panel className="text-zinc-950">
-            <div className="p-4">
-              <p className="text-sm text-zinc-500">My Success Today</p>
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{stats.day.rate}%</p>
-                <Badge tone="green">{stats.day.total} settled</Badge>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel className="text-zinc-950">
-            <div className="p-4">
-              <p className="text-sm text-zinc-500">My Success Month</p>
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{stats.month.rate}%</p>
-                <Badge tone="amber">{stats.month.total} settled</Badge>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel className="text-zinc-950">
-            <div className="p-4">
-              <p className="text-sm text-zinc-500">My Success All Time</p>
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{stats.all.rate}%</p>
-                <Badge tone="rose">{stats.all.total} settled</Badge>
-              </div>
-            </div>
-          </Panel>
+          <StatCard
+            title="My Success Today"
+            stat={stats.day}
+            emptyLabel="No bets today"
+            tone="green"
+          />
+          <StatCard
+            title="My Success This Month"
+            stat={stats.month}
+            emptyLabel="No bets this month"
+            tone="amber"
+          />
+          <StatCard
+            title="My Success All Time"
+            stat={stats.all}
+            emptyLabel="No bets yet"
+            tone="rose"
+          />
         </div>
 
         <div className="mt-8 space-y-4">
@@ -146,7 +174,9 @@ export default async function MyResultedTipsPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
                   {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                  {tip.finishing_position ? <Badge tone="slate">Placed {tip.finishing_position}</Badge> : null}
+                  {tip.finishing_position ? (
+                    <Badge tone="slate">Placed {tip.finishing_position}</Badge>
+                  ) : null}
                   {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
                   {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
                 </div>
