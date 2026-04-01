@@ -251,8 +251,8 @@ export default function AdminDashboard({
       <div className="grid min-h-screen lg:grid-cols-[300px_1fr]">
         <aside className="border-r border-amber-300/10 bg-black/20 p-5 backdrop-blur">
           <div className="rounded-[28px] border border-amber-300/20 bg-[linear-gradient(135deg,#0f0f0f,#27272a,#ca8a04)] p-5 text-white shadow-2xl">
-            <p className="text-xs uppercase tracking-[0.28em] text-amber-300/80">SmartPunt</p>
-            <h1 className="mt-2 text-xl font-semibold">Head Tipper Console</h1>
+            <img src="/logo.png" alt="Fortune on 5" className="mb-3 h-12 w-auto" />
+            <h1 className="text-xl font-semibold">Head Tipper Console</h1>
             <p className="mt-2 text-sm text-amber-100/75">
               Live tips only. Settled tips move to the Resulted Tips page.
             </p>
@@ -293,7 +293,7 @@ export default function AdminDashboard({
               </div>
               <div className="flex items-center justify-between">
                 <span>Brand</span>
-                <Badge tone="amber">SmartPunt</Badge>
+                <Badge tone="amber">Fortune on 5</Badge>
               </div>
             </div>
           </Panel>
@@ -310,8 +310,9 @@ export default function AdminDashboard({
         <main className="p-4 lg:p-8">
           <div className="rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,#0f0f0f,#27272a,#ca8a04)] p-6 shadow-2xl lg:flex lg:items-center lg:justify-between">
             <div>
+              <img src="/logo.png" alt="Fortune on 5" className="mb-3 h-14 w-auto" />
               <p className="text-sm text-amber-100/70">Private admin trial</p>
-              <h2 className="mt-1 text-3xl font-semibold tracking-tight">SmartPunt tipper backend</h2>
+              <h2 className="mt-1 text-3xl font-semibold tracking-tight">Fortune on 5 tipper backend</h2>
               <p className="mt-2 text-sm text-amber-100/75">
                 Logged in as {currentUser.full_name || currentUser.email}
               </p>
@@ -331,7 +332,7 @@ export default function AdminDashboard({
                     <div>
                       <h3 className="text-xl font-semibold">Create Subscriber Login</h3>
                       <p className="text-sm text-zinc-500">
-                        Create a new user login and matching SmartPunt profile in one step.
+                        Create a new user login and matching Fortune on 5 profile in one step.
                       </p>
                     </div>
                     <Badge tone="amber">Admin</Badge>
@@ -405,7 +406,7 @@ export default function AdminDashboard({
             <div>
               <h2 className="text-2xl font-semibold text-white">Build Your Tip</h2>
               <p className="text-sm text-amber-100/70">
-                Enter the tip, add rough thoughts, let SmartPunt draft the write-up, then publish.
+                Enter the tip, add rough thoughts, let Fortune on 5 draft the write-up, then publish.
               </p>
             </div>
 
@@ -416,7 +417,7 @@ export default function AdminDashboard({
 
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-xl font-semibold">SmartPunt tip builder</h3>
+                      <h3 className="text-xl font-semibold">Fortune on 5 tip builder</h3>
                       <p className="text-sm text-zinc-500">
                         Live tips only appear here. Settled tips move off this page.
                       </p>
@@ -554,7 +555,7 @@ export default function AdminDashboard({
                       disabled={isGenerating}
                       className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-400 px-4 py-3 font-bold text-black transition hover:brightness-105 disabled:opacity-60"
                     >
-                      {isGenerating ? "Generating..." : "⚡ Generate SmartPunt Commentary"}
+                      {isGenerating ? "Generating..." : "⚡ Generate Fortune on 5 Commentary"}
                     </button>
 
                     <button
@@ -595,7 +596,7 @@ export default function AdminDashboard({
                   <Field label="Final commentary">
                     <Textarea
                       name="commentary"
-                      placeholder="Your SmartPunt commentary will appear here."
+                      placeholder="Your Fortune on 5 commentary will appear here."
                       value={tipCommentary}
                       onChange={setTipCommentary}
                       minHeight="180px"
@@ -657,7 +658,7 @@ export default function AdminDashboard({
                     </div>
 
                     <p className="mt-4 text-sm leading-6 text-zinc-700">
-                      {tipCommentary || "Your SmartPunt commentary will appear here."}
+                      {tipCommentary || "Your Fortune on 5 commentary will appear here."}
                     </p>
                   </div>
 
