@@ -1,59 +1,59 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Panel } from "@/components/ui";
+import { useActionState } from "react";
+import { signInAction } from "@/lib/actions";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    window.location.reload();
-  }
+  const [state, formAction] = useActionState(signInAction, {
+    error: null,
+  });
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 lg:p-10">
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_420px]">
-        <div className="rounded-[2rem] bg-slate-900 p-8 text-white shadow-sm">
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Cob's Rules</p>
-          <h1 className="mt-3 text-4xl font-semibold">Private live trial</h1>
-          <p className="mt-4 max-w-2xl text-slate-300">
-            Real Supabase-backed login. Admin sees backend. Subscribers see the punter side only.
-          </p>
-        </div>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
+      <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10 lg:px-8">
+        <div className="w-full max-w-md rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,rgba(17,17,17,0.96),rgba(39,39,42,0.96),rgba(202,138,4,0.20))] p-8 shadow-2xl backdrop-blur">
+          <div className="mb-10 flex flex-col items-center">
+            <img src="/logo.png" alt="Fortune on 5" className="mb-4 h-24 w-auto" />
+            <h1 className="text-2xl font-semibold text-white">Fortune on 5</h1>
+            <p className="mt-1 text-sm text-amber-300">Premium Racing Tips</p>
+          </div>
 
-        <Panel>
-          <form onSubmit={handleLogin} className="space-y-5 p-6">
+          <form action={formAction} className="space-y-5">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900">Sign in</h2>
-              <p className="mt-1 text-sm text-slate-500">Use your Supabase user credentials.</p>
+              <label className="text-sm font-medium text-amber-100/85">Email</label>
+              <input
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                className="mt-2 w-full rounded-2xl border border-amber-300/20 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-amber-300"
+              />
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-700">Email</label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" className="mt-2 w-full rounded-2xl border border-slate-200 px-3 py-2 outline-none" />
+              <label className="text-sm font-medium text-amber-100/85">Password</label>
+              <input
+                name="password"
+                type="password"
+                placeholder="Your password"
+                className="mt-2 w-full rounded-2xl border border-amber-300/20 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-amber-300"
+              />
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-slate-700">Password</label>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" className="mt-2 w-full rounded-2xl border border-slate-200 px-3 py-2 outline-none" />
-            </div>
+            {state?.error ? (
+              <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+                {state.error}
+              </div>
+            ) : null}
 
-            <button type="submit" className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Login</button>
-            {error ? <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700">{error}</div> : null}
+            <button
+              type="submit"
+              className="w-full rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+            >
+              Log in
+            </button>
           </form>
-        </Panel>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
