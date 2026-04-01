@@ -246,8 +246,8 @@ export default function SubscriberDashboard({
         <div className="overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,#171717,#3f3f46,#ca8a04)] p-6 shadow-xl lg:p-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-amber-100/80">SmartPunt</p>
-              <h1 className="mt-2 text-4xl font-bold tracking-tight">Premium Racing Club</h1>
+              <img src="/logo.png" alt="Fortune on 5" className="mb-3 h-14 w-auto" />
+              <h1 className="text-4xl font-bold tracking-tight">Premium Racing Club</h1>
               <p className="mt-2 text-sm text-amber-100/85">
                 Sharp daily tips, expert insight, and longer-range plays.
               </p>
