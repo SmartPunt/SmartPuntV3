@@ -247,10 +247,10 @@ export default function SubscriberDashboard({
           <img
             src="/header-logo.png"
             alt="Fortune on 5"
-            className="absolute left-[31%] top-[44%] w-[600px] max-w-none -translate-y-1/2 opacity-92 pointer-events-none select-none lg:w-[700px]"
+            className="absolute left-[25%] top-[42%] w-[720px] max-w-none -translate-y-1/2 opacity-94 pointer-events-none select-none lg:w-[820px]"
           />
 
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.22)_0%,rgba(0,0,0,0.08)_32%,rgba(0,0,0,0.48)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.06)_30%,rgba(0,0,0,0.46)_100%)]" />
 
           <div className="relative z-10 flex h-full min-h-[260px] flex-col justify-between p-5 lg:min-h-[300px] lg:p-8">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -278,7 +278,7 @@ export default function SubscriberDashboard({
             </div>
 
             <div className="mt-auto">
-              <div className="rounded-2xl bg-black/22 px-5 py-4 backdrop-blur-[1px]">
+              <div className="rounded-2xl bg-black/18 px-5 py-4 backdrop-blur-[1px]">
                 <div className="flex flex-wrap items-end gap-x-5 gap-y-2 text-white">
                   <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">
                     Premium Racing Club
@@ -286,7 +286,7 @@ export default function SubscriberDashboard({
                   <p className="text-base text-zinc-200">
                     Sharp daily tips, expert insight, and longer-range plays.
                   </p>
-                  <p className="text-sm text-zinc-300">
+                  <p className="ml-auto text-sm text-zinc-300">
                     Logged in as {currentUser.full_name || currentUser.email}
                   </p>
                 </div>
