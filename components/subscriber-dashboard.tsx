@@ -68,6 +68,65 @@ function getCountdownText(iso: string, now: number) {
   return `Starts in ${minutes}m`;
 }
 
+function getUrgencyMeta(iso: string, now: number) {
+  const diff = new Date(iso).getTime() - now;
+
+  if (diff <= 0) {
+    return {
+      label: "Race underway",
+      tone: "red" as const,
+    };
+  }
+
+  const totalMinutes = Math.floor(diff / 1000 / 60);
+
+  if (totalMinutes <= 10) {
+    return {
+      label: `Jumps in ${totalMinutes} min`,
+      tone: "red" as const,
+    };
+  }
+
+  if (totalMinutes <= 30) {
+    return {
+      label: `Jumping soon · ${totalMinutes} min`,
+      tone: "amber" as const,
+    };
+  }
+
+  if (totalMinutes <= 120) {
+    return {
+      label: `Coming up · ${totalMinutes} min`,
+      tone: "blue" as const,
+    };
+  }
+
+  return {
+    label: getCountdownText(iso, now),
+    tone: "slate" as const,
+  };
+}
+
+function pickBestBet(tips: any[]) {
+  if (!tips.length) return null;
+
+  const noteHasBest = (tip: any) =>
+    typeof tip.note === "string" && tip.note.toLowerCase().includes("best bet");
+
+  const explicitBest = tips.find(noteHasBest);
+  if (explicitBest) return explicitBest;
+
+  const highConfidenceWin = tips.find(
+    (tip: any) => tip.type === "Win" && tip.confidence === "High",
+  );
+  if (highConfidenceWin) return highConfidenceWin;
+
+  const anyWin = tips.find((tip: any) => tip.type === "Win");
+  if (anyWin) return anyWin;
+
+  return tips[0];
+}
+
 function CollapsibleTipCard({
   tip,
   expanded,
@@ -81,6 +140,8 @@ function CollapsibleTipCard({
   now: number;
   onToggleExpanded: () => void;
 }) {
+  const urgency = tip.race_start_at ? getUrgencyMeta(tip.race_start_at, now) : null;
+
   return (
     <div
       className={`rounded-[24px] border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${getTipCardStyle(
@@ -100,6 +161,7 @@ function CollapsibleTipCard({
         {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
         {isActiveTip ? <Badge tone="green">My Active Tip</Badge> : null}
         {tip.race_start_at ? <Badge tone="slate">{formatRaceTime(tip.race_start_at)}</Badge> : null}
+        {urgency ? <Badge tone={urgency.tone}>{urgency.label}</Badge> : null}
       </div>
 
       {tip.race_start_at ? (
@@ -239,6 +301,7 @@ export default function SubscriberDashboard({
 
   const activeTips = filteredTips.filter((tip: any) => activeTipIds.includes(tip.id));
   const availableTips = filteredTips.filter((tip: any) => !activeTipIds.includes(tip.id));
+  const bestBetTip = useMemo(() => pickBestBet(filteredTips), [filteredTips]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
@@ -294,6 +357,114 @@ export default function SubscriberDashboard({
             </div>
           </div>
         </div>
+
+        {bestBetTip ? (
+          <div className="mt-6">
+            <div className="overflow-hidden rounded-[28px] border border-amber-300/30 bg-[linear-gradient(135deg,rgba(18,18,18,0.98),rgba(44,33,10,0.98))] shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+              <div className="grid gap-5 p-5 lg:grid-cols-[1.15fr_0.85fr] lg:p-7">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="amber">Best Bet</Badge>
+                    <TipPill type={bestBetTip.type} />
+                    {bestBetTip.confidence ? (
+                      <Badge tone="blue">{bestBetTip.confidence} confidence</Badge>
+                    ) : null}
+                    {bestBetTip.race_start_at ? (
+                      <Badge tone={getUrgencyMeta(bestBetTip.race_start_at, now).tone}>
+                        {getUrgencyMeta(bestBetTip.race_start_at, now).label}
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  <p className="mt-4 text-sm uppercase tracking-[0.22em] text-amber-200/75">
+                    Featured play
+                  </p>
+
+                  <h2 className="mt-2 text-3xl font-bold tracking-tight text-white lg:text-4xl">
+                    {bestBetTip.horse}
+                  </h2>
+
+                  <p className="mt-2 text-base text-zinc-300">
+                    {bestBetTip.race}
+                  </p>
+
+                  <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-200">
+                    {bestBetTip.commentary || bestBetTip.note || "Today’s standout play."}
+                  </p>
+
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(bestBetTip.id)}
+                      className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+                    >
+                      {expandedTipIds.includes(bestBetTip.id) ? "Hide Commentary" : "View Commentary"}
+                    </button>
+
+                    {activeTipIds.includes(bestBetTip.id) ? (
+                      <form action={removeTipActiveAction}>
+                        <input type="hidden" name="tip_id" value={bestBetTip.id} />
+                        <button className="rounded-2xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-amber-200">
+                          Remove From Active
+                        </button>
+                      </form>
+                    ) : (
+                      <form action={markTipActiveAction}>
+                        <input type="hidden" name="tip_id" value={bestBetTip.id} />
+                        <button className="rounded-2xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-amber-200">
+                          Mark Active
+                        </button>
+                      </form>
+                    )}
+                  </div>
+
+                  {expandedTipIds.includes(bestBetTip.id) ? (
+                    <div className="mt-5 rounded-2xl bg-black/25 p-4">
+                      <p className="text-sm leading-7 text-zinc-100">
+                        {bestBetTip.commentary || "No commentary added yet."}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="rounded-[24px] border border-white/10 bg-black/25 p-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-200/75">
+                    Race urgency
+                  </p>
+
+                  {bestBetTip.race_start_at ? (
+                    <>
+                      <p className="mt-4 text-3xl font-bold text-white">
+                        {getCountdownText(bestBetTip.race_start_at, now).replace("Starts in ", "")}
+                      </p>
+                      <p className="mt-2 text-sm text-zinc-300">
+                        {formatRaceTime(bestBetTip.race_start_at)}
+                      </p>
+                      <div className="mt-4">
+                        <Badge tone={getUrgencyMeta(bestBetTip.race_start_at, now).tone}>
+                          {getUrgencyMeta(bestBetTip.race_start_at, now).label}
+                        </Badge>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="mt-4 text-sm text-zinc-300">
+                      Race time not set yet.
+                    </p>
+                  )}
+
+                  <div className="mt-6 rounded-2xl bg-white/5 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                      Why this is featured
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-zinc-200">
+                      Highest-priority play surfaced for quick action. Strongest match is chosen from today’s visible tips, preferring explicit Best Bet tags first, then high-confidence win selections.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Panel className="text-zinc-950">
