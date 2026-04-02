@@ -123,24 +123,9 @@ export default async function ResultedTipsPage() {
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <StatCard
-            title="Head Tipper Today"
-            stat={stats.day}
-            emptyLabel="No bets today"
-            tone="green"
-          />
-          <StatCard
-            title="Head Tipper This Month"
-            stat={stats.month}
-            emptyLabel="No bets this month"
-            tone="amber"
-          />
-          <StatCard
-            title="Head Tipper All Time"
-            stat={stats.all}
-            emptyLabel="No bets yet"
-            tone="rose"
-          />
+          <StatCard title="Head Tipper Today" stat={stats.day} emptyLabel="No bets today" tone="green" />
+          <StatCard title="Head Tipper This Month" stat={stats.month} emptyLabel="No bets this month" tone="amber" />
+          <StatCard title="Head Tipper All Time" stat={stats.all} emptyLabel="No bets yet" tone="rose" />
         </div>
 
         <div className="mt-8 space-y-4">
@@ -161,14 +146,24 @@ export default async function ResultedTipsPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
                   {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                  {tip.finishing_position ? (
-                    <Badge tone="slate">Placed {tip.finishing_position}</Badge>
-                  ) : null}
+                  {tip.finishing_position ? <Badge tone="slate">Placed {tip.finishing_position}</Badge> : null}
                   {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
                   {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
                 </div>
 
                 <p className="mt-4 text-sm leading-6 text-zinc-700">{tip.commentary || ""}</p>
+
+                {/* 🔥 NEW PREMIUM RESULT COMMENT */}
+                {tip.result_comment ? (
+                  <div className="mt-4 rounded-2xl border border-amber-200/40 bg-amber-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                      Post-race analysis
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-800">
+                      {tip.result_comment}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ))
           ) : (
