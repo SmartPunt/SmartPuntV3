@@ -393,14 +393,6 @@ export default function SubscriberDashboard({
                   </p>
 
                   <div className="mt-6 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleExpanded(bestBetTip.id)}
-                      className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                      {expandedTipIds.includes(bestBetTip.id) ? "Hide Commentary" : "View Commentary"}
-                    </button>
-
                     {activeTipIds.includes(bestBetTip.id) ? (
                       <form action={removeTipActiveAction}>
                         <input type="hidden" name="tip_id" value={bestBetTip.id} />
@@ -417,14 +409,6 @@ export default function SubscriberDashboard({
                       </form>
                     )}
                   </div>
-
-                  {expandedTipIds.includes(bestBetTip.id) ? (
-                    <div className="mt-5 rounded-2xl bg-black/25 p-4">
-                      <p className="text-sm leading-7 text-zinc-100">
-                        {bestBetTip.commentary || "No commentary added yet."}
-                      </p>
-                    </div>
-                  ) : null}
                 </div>
 
                 <div className="rounded-[24px] border border-white/10 bg-black/25 p-5">
