@@ -243,24 +243,16 @@ export default function SubscriberDashboard({
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
-
-        {/* HEADER */}
         <div className="relative overflow-hidden rounded-[32px] bg-black shadow-xl border border-white/10 min-h-[260px] lg:min-h-[300px]">
-
-          {/* LOGO HERO */}
           <img
             src="/header-logo.png"
             alt="Fortune on 5"
-            className="absolute left-1/4 top-1/2 -translate-y-1/2 scale-[1.6] opacity-95 pointer-events-none select-none"
+            className="absolute left-[34%] top-1/2 w-[460px] max-w-none -translate-y-1/2 opacity-90 pointer-events-none select-none lg:w-[520px]"
           />
 
-          {/* OVERLAY */}
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.35)_0%,rgba(0,0,0,0.15)_35%,rgba(0,0,0,0.55)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.32)_0%,rgba(0,0,0,0.12)_35%,rgba(0,0,0,0.55)_100%)]" />
 
-          {/* CONTENT */}
           <div className="relative z-10 flex h-full min-h-[260px] flex-col justify-between p-5 lg:min-h-[300px] lg:p-8">
-
-            {/* TOP ROW */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <Badge tone="green">Live updates on</Badge>
 
@@ -285,9 +277,8 @@ export default function SubscriberDashboard({
               </div>
             </div>
 
-            {/* TEXT BLOCK */}
             <div className="max-w-2xl">
-              <div className="rounded-2xl bg-black/40 p-4 backdrop-blur-[2px]">
+              <div className="rounded-2xl bg-black/28 p-4 backdrop-blur-[1px]">
                 <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">
                   Premium Racing Club
                 </h1>
@@ -299,11 +290,8 @@ export default function SubscriberDashboard({
                 </p>
               </div>
             </div>
-
           </div>
         </div>
-
-        {/* REST OF PAGE UNCHANGED */}
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Panel className="text-zinc-950">
