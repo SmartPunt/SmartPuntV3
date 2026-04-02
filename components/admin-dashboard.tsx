@@ -311,19 +311,54 @@ export default function AdminDashboard({
         </aside>
 
         <main className="p-4 lg:p-8">
-          <div className="rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,#0f0f0f,#27272a,#ca8a04)] p-6 shadow-2xl lg:flex lg:items-center lg:justify-between">
-            <div>
-              <img src="/logo.png" alt="Fortune on 5" className="mb-3 h-14 w-auto" />
-              <p className="text-sm text-amber-100/70">Private admin trial</p>
-              <h2 className="mt-1 text-3xl font-semibold tracking-tight">Fortune on 5 tipper backend</h2>
-              <p className="mt-2 text-sm text-amber-100/75">
-                Logged in as {currentUser.full_name || currentUser.email}
-              </p>
-            </div>
+          <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-2xl min-h-[200px] lg:min-h-[280px]">
+            <img
+              src="/header-logo.png"
+              alt="Fortune on 5"
+              className="absolute left-1/2 top-[45%] w-[260px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-95 pointer-events-none select-none sm:w-[420px] lg:top-[42%] lg:w-[900px]"
+            />
 
-            <div className="mt-4 flex flex-wrap gap-3 lg:mt-0">
-              <Badge tone="amber">Premium racing club</Badge>
-              <Badge tone="green">Live tips only</Badge>
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.22)_0%,rgba(0,0,0,0.06)_30%,rgba(0,0,0,0.52)_100%)]" />
+
+            <div className="relative z-10 flex h-full min-h-[200px] flex-col justify-between p-4 lg:min-h-[280px] lg:p-8">
+              <div className="flex items-start justify-between gap-3">
+                <Badge tone="amber">Head Tipper Console</Badge>
+
+                <div className="ml-auto flex flex-col items-end gap-2 lg:gap-3">
+                  <Link
+                    href="/resulted-tips"
+                    className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm"
+                  >
+                    View Resulted Tips
+                  </Link>
+                  <form action={signOutAction}>
+                    <button className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm">
+                      Log out
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              <div className="mt-auto">
+                <div className="rounded-2xl bg-black/20 px-4 py-3 backdrop-blur-[1px] lg:px-5 lg:py-4">
+                  <div className="flex flex-wrap items-end gap-x-4 gap-y-2 text-white lg:gap-x-5">
+                    <h2 className="text-xl font-bold tracking-tight sm:text-2xl lg:text-4xl">
+                      Fortune on 5 tipper backend
+                    </h2>
+                    <p className="text-sm text-zinc-200 lg:text-base">
+                      Build tips, settle races, and manage the premium racing club feed.
+                    </p>
+                    <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
+                      Logged in as {currentUser.full_name || currentUser.email}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge tone="green">Live tips only</Badge>
+                    <Badge tone="amber">Private admin trial</Badge>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
