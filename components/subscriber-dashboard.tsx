@@ -247,10 +247,10 @@ export default function SubscriberDashboard({
           <img
             src="/header-logo.png"
             alt="Fortune on 5"
-            className="absolute left-[34%] top-1/2 w-[460px] max-w-none -translate-y-1/2 opacity-90 pointer-events-none select-none lg:w-[520px]"
+            className="absolute left-[32%] top-1/2 w-[520px] max-w-none -translate-y-1/2 opacity-92 pointer-events-none select-none lg:w-[600px]"
           />
 
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.32)_0%,rgba(0,0,0,0.12)_35%,rgba(0,0,0,0.55)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.30)_0%,rgba(0,0,0,0.10)_35%,rgba(0,0,0,0.52)_100%)]" />
 
           <div className="relative z-10 flex h-full min-h-[260px] flex-col justify-between p-5 lg:min-h-[300px] lg:p-8">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -278,7 +278,7 @@ export default function SubscriberDashboard({
             </div>
 
             <div className="max-w-2xl">
-              <div className="rounded-2xl bg-black/28 p-4 backdrop-blur-[1px]">
+              <div className="rounded-2xl bg-black/24 p-4 backdrop-blur-[1px]">
                 <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">
                   Premium Racing Club
                 </h1>
