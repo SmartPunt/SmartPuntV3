@@ -59,6 +59,31 @@ function calculateSuccessStats(tips: any[]) {
   };
 }
 
+function getVerdict(tip: any): { label: string; tone: "green" | "amber" | "rose" } | null {
+  if (tip.successful === true) {
+    return { label: "NAILED IT", tone: "green" };
+  }
+
+  if (tip.successful === false) {
+    const text = String(tip.result_comment || "").toLowerCase();
+
+    if (
+      text.includes("luck") ||
+      text.includes("blocked") ||
+      text.includes("held up") ||
+      text.includes("unlucky") ||
+      text.includes("wide") ||
+      text.includes("traffic")
+    ) {
+      return { label: "UNLUCKY", tone: "amber" };
+    }
+
+    return { label: "MISS", tone: "rose" };
+  }
+
+  return null;
+}
+
 function StatCard({
   title,
   stat,
@@ -188,50 +213,58 @@ export default async function MyResultedTipsPage() {
 
         <div className="mt-8 space-y-4">
           {resultedTips.length ? (
-            resultedTips.map((tip: any) => (
-              <div
-                key={tip.id}
-                className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tip.type)}`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-zinc-500">{tip.race}</p>
-                    <h3 className="mt-1 text-2xl font-semibold text-zinc-950">{tip.horse}</h3>
-                  </div>
-                  <TipPill type={tip.type} />
-                </div>
+            resultedTips.map((tip: any) => {
+              const verdict = getVerdict(tip);
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
-                  {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                  {tip.finishing_position ? (
-                    <Badge tone="slate">Placed {tip.finishing_position}</Badge>
+              return (
+                <div
+                  key={tip.id}
+                  className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tip.type)}`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm text-zinc-500">{tip.race}</p>
+                      <h3 className="mt-1 text-2xl font-semibold text-zinc-950">{tip.horse}</h3>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                      <TipPill type={tip.type} />
+                      {verdict ? <Badge tone={verdict.tone}>{verdict.label}</Badge> : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
+                    {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
+                    {tip.finishing_position ? (
+                      <Badge tone="slate">Placed {tip.finishing_position}</Badge>
+                    ) : null}
+                    {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
+                    {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
+                  </div>
+
+                  {tip.result_comment ? (
+                    <div className="mt-4 rounded-2xl border border-amber-200/40 bg-amber-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                        Post-race analysis
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-800">
+                        {tip.result_comment}
+                      </p>
+                    </div>
                   ) : null}
-                  {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
-                  {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
+
+                  <details className="mt-4 rounded-2xl border border-zinc-300/60 bg-white/70 p-4 text-zinc-800">
+                    <summary className="cursor-pointer text-sm font-semibold text-zinc-700">
+                      View original tip write-up
+                    </summary>
+                    <p className="mt-3 text-sm leading-6 text-zinc-700">
+                      {tip.commentary || "No original commentary added."}
+                    </p>
+                  </details>
                 </div>
-
-                {tip.result_comment ? (
-                  <div className="mt-4 rounded-2xl border border-amber-200/40 bg-amber-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
-                      Post-race analysis
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-800">
-                      {tip.result_comment}
-                    </p>
-                  </div>
-                ) : null}
-
-                <details className="mt-4 rounded-2xl border border-zinc-300/60 bg-white/70 p-4 text-zinc-800">
-                  <summary className="cursor-pointer text-sm font-semibold text-zinc-700">
-                    View original tip write-up
-                  </summary>
-                  <p className="mt-3 text-sm leading-6 text-zinc-700">
-                    {tip.commentary || "No original commentary added."}
-                  </p>
-                </details>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
               No resulted tips yet from your active selections.
