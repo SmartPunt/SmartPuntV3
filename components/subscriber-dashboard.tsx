@@ -46,26 +46,38 @@ export default function SubscriberDashboard({
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
   const [filter, setFilter] = useState("All");
-  const [expanded, setExpanded] = useState<number[]>([]);
-  const [activeTipIds] = useState(initialActiveTipIds || []);
+  const [expandedTipIds, setExpandedTipIds] = useState<number[]>([]);
+  const [activeTipIds, setActiveTipIds] = useState<number[]>(initialActiveTipIds || []);
+
+  function toggleExpanded(id: number) {
+    setExpandedTipIds((prev) =>
+      prev.includes(id)
+        ? prev.filter((tipId) => tipId !== id)
+        : [...prev, id]
+    );
+  }
 
   const filteredTips =
     filter === "All"
       ? suggestedTips
       : suggestedTips.filter((t: any) => t.type === filter);
 
+  const activeTips = filteredTips.filter((t: any) => activeTipIds.includes(t.id));
+  const availableTips = filteredTips.filter((t: any) => !activeTipIds.includes(t.id));
+
   return (
     <div className="min-h-screen bg-[#0B0B0F] text-white">
       <div className="max-w-7xl mx-auto p-6">
 
-        {/* ✅ BLACK HEADER ONLY CHANGE */}
-        <div className="rounded-[32px] bg-black border border-white/10 p-8">
+        {/* ✅ FIXED HEADER ONLY */}
+        <div className="rounded-[32px] bg-black border border-white/10 p-8 mb-6">
           <div className="flex justify-between items-center">
 
             <div>
               <img
                 src="/header-logo.png"
-                className="w-[500px] max-w-full mb-4"
+                alt="Fortune on 5"
+                className="w-[520px] max-w-full mb-4 object-contain"
               />
               <p className="text-gray-400 text-sm">
                 Logged in as {currentUser?.email}
@@ -75,28 +87,50 @@ export default function SubscriberDashboard({
             <div className="flex gap-3 items-center">
               <Badge tone="green">Live updates on</Badge>
 
-              <Link href="/my-resulted-tips">My Resulted Tips</Link>
-              <Link href="/pricing">View Plans</Link>
+              <Link href="/my-resulted-tips">
+                <button className="border border-white/10 px-4 py-2 rounded-xl">
+                  My Resulted Tips
+                </button>
+              </Link>
+
+              <Link href="/pricing">
+                <button className="border border-white/10 px-4 py-2 rounded-xl">
+                  View Plans
+                </button>
+              </Link>
 
               <form action={signOutAction}>
-                <button>Log out</button>
+                <button className="border border-white/10 px-4 py-2 rounded-xl">
+                  Log out
+                </button>
               </form>
             </div>
           </div>
         </div>
 
         {/* FILTER */}
-        <div className="mt-6 flex gap-2">
+        <div className="flex gap-2 mb-6">
           <FilterButton label="All" active={filter === "All"} onClick={() => setFilter("All")} />
           <FilterButton label="Win" active={filter === "Win"} onClick={() => setFilter("Win")} />
           <FilterButton label="Place" active={filter === "Place"} onClick={() => setFilter("Place")} />
           <FilterButton label="All Up" active={filter === "All Up"} onClick={() => setFilter("All Up")} />
         </div>
 
-        {/* TIPS */}
-        <div className="mt-6 space-y-4">
-          {filteredTips.map((tip: any) => (
-            <div key={tip.id} className="bg-white text-black p-4 rounded-xl">
+        {/* ACTIVE TIPS */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-3">My Active Tips</h2>
+          {activeTips.map((tip: any) => (
+            <div key={tip.id} className="bg-white text-black p-4 rounded-xl mb-2">
+              {tip.horse}
+            </div>
+          ))}
+        </div>
+
+        {/* AVAILABLE TIPS */}
+        <div>
+          <h2 className="text-xl font-semibold mb-3">Available Tips</h2>
+          {availableTips.map((tip: any) => (
+            <div key={tip.id} className="bg-white text-black p-4 rounded-xl mb-2">
               {tip.horse}
             </div>
           ))}
