@@ -212,6 +212,17 @@ export default async function MyResultedTipsPage() {
                 </div>
 
                 <p className="mt-4 text-sm leading-6 text-zinc-700">{tip.commentary || ""}</p>
+
+                {tip.result_comment ? (
+                  <div className="mt-4 rounded-2xl border border-amber-200/40 bg-amber-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                      Post-race analysis
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-800">
+                      {tip.result_comment}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ))
           ) : (
