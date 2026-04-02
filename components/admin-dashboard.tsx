@@ -151,6 +151,7 @@ export default function AdminDashboard({
   const [tipRaceTimezone, setTipRaceTimezone] = useState("Australia/Perth");
   const [tipFinishingPosition, setTipFinishingPosition] = useState("");
   const [tipSuccessful, setTipSuccessful] = useState("");
+  const [tipResultComment, setTipResultComment] = useState("");
   const [suggestedTag, setSuggestedTag] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
@@ -181,6 +182,7 @@ export default function AdminDashboard({
     setTipSuccessful(
       typeof tip.successful === "boolean" ? String(tip.successful) : "",
     );
+    setTipResultComment(tip.result_comment || "");
   }
 
   function clearTipForm() {
@@ -197,6 +199,7 @@ export default function AdminDashboard({
     setTipRaceTimezone("Australia/Perth");
     setTipFinishingPosition("");
     setTipSuccessful("");
+    setTipResultComment("");
     setSuggestedTag("");
     setGenerateError("");
   }
@@ -538,6 +541,16 @@ export default function AdminDashboard({
                     </Field>
                   </div>
 
+                  <Field label="Post-race analysis">
+                    <Textarea
+                      name="result_comment"
+                      placeholder="What actually happened? Example: got held up, right run but no finish, wrong tempo, huge run in defeat..."
+                      value={tipResultComment}
+                      onChange={setTipResultComment}
+                      minHeight="120px"
+                    />
+                  </Field>
+
                   <Field label="Head tipper notes for AI">
                     <Textarea
                       name="tipper_notes_preview_only"
@@ -611,7 +624,7 @@ export default function AdminDashboard({
                       {tipEdit ? "Update Tip" : "Publish Tip"}
                     </button>
 
-                    {(tipEdit || tipRace || tipHorse || tipCommentary || tipperNotes) ? (
+                    {(tipEdit || tipRace || tipHorse || tipCommentary || tipperNotes || tipResultComment) ? (
                       <button
                         type="button"
                         onClick={clearTipForm}
@@ -660,6 +673,15 @@ export default function AdminDashboard({
                     <p className="mt-4 text-sm leading-6 text-zinc-700">
                       {tipCommentary || "Your Fortune on 5 commentary will appear here."}
                     </p>
+
+                    {tipResultComment ? (
+                      <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                          Post-race analysis
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-700">{tipResultComment}</p>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div>
@@ -688,6 +710,17 @@ export default function AdminDashboard({
                           <p className="mt-3 text-sm leading-6 text-zinc-700">
                             {tip.commentary || ""}
                           </p>
+
+                          {tip.result_comment ? (
+                            <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                                Post-race analysis
+                              </p>
+                              <p className="mt-2 text-sm leading-6 text-zinc-700">
+                                {tip.result_comment}
+                              </p>
+                            </div>
+                          ) : null}
 
                           <div className="mt-4 flex gap-2">
                             <button
