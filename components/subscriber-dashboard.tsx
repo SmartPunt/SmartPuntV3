@@ -243,42 +243,52 @@ export default function SubscriberDashboard({
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
-        <div className="overflow-hidden rounded-[32px] bg-black p-6 shadow-xl lg:p-8 border border-white/10">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <img
-                src="/header-logo.png"
-                alt="Fortune on 5"
-                className="mb-3 h-auto w-full max-w-[560px]"
-              />
-              <h1 className="text-4xl font-bold tracking-tight">Premium Racing Club</h1>
-              <p className="mt-2 text-sm text-zinc-300">
-                Sharp daily tips, expert insight, and longer-range plays.
-              </p>
-              <p className="mt-3 text-sm text-zinc-400">
-                Logged in as {currentUser.full_name || currentUser.email}
-              </p>
+        <div className="relative overflow-hidden rounded-[32px] bg-black shadow-xl border border-white/10 min-h-[260px] lg:min-h-[300px]">
+          <img
+            src="/header-logo.png"
+            alt="Fortune on 5"
+            className="absolute inset-0 h-full w-full object-contain object-center"
+          />
+
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.35)_0%,rgba(0,0,0,0.15)_35%,rgba(0,0,0,0.55)_100%)]" />
+
+          <div className="relative z-10 flex h-full min-h-[260px] flex-col justify-between p-5 lg:min-h-[300px] lg:p-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <Badge tone="green">Live updates on</Badge>
+
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/my-resulted-tips"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  My Resulted Tips
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  View Plans
+                </Link>
+                <form action={signOutAction}>
+                  <button className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                    Log out
+                  </button>
+                </form>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Badge tone="green">Live updates on</Badge>
-              <Link
-                href="/my-resulted-tips"
-                className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
-              >
-                My Resulted Tips
-              </Link>
-              <Link
-                href="/pricing"
-                className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
-              >
-                View Plans
-              </Link>
-              <form action={signOutAction}>
-                <button className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15">
-                  Log out
-                </button>
-              </form>
+            <div className="max-w-2xl">
+              <div className="rounded-2xl bg-black/40 p-4 backdrop-blur-[2px]">
+                <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">
+                  Premium Racing Club
+                </h1>
+                <p className="mt-2 text-sm text-zinc-200 lg:text-base">
+                  Sharp daily tips, expert insight, and longer-range plays.
+                </p>
+                <p className="mt-3 text-sm text-zinc-300">
+                  Logged in as {currentUser.full_name || currentUser.email}
+                </p>
+              </div>
             </div>
           </div>
         </div>
