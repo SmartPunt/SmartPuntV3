@@ -247,7 +247,7 @@ export default function SubscriberDashboard({
           <img
             src="/header-logo.png"
             alt="Fortune on 5"
-            className="absolute left-[18%] top-[42%] w-[828px] max-w-none -translate-y-1/2 opacity-94 pointer-events-none select-none lg:w-[943px]"
+            className="absolute left-1/2 top-[42%] w-[828px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-94 pointer-events-none select-none lg:w-[943px]"
           />
 
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.06)_30%,rgba(0,0,0,0.46)_100%)]" />
