@@ -247,7 +247,7 @@ export default function SubscriberDashboard({
           <img
             src="/header-logo.png"
             alt="Fortune on 5"
-            className="absolute left-[18%] top-[42%] w-[720px] max-w-none -translate-y-1/2 opacity-94 pointer-events-none select-none lg:w-[820px]"
+            className="absolute left-[18%] top-[42%] w-[828px] max-w-none -translate-y-1/2 opacity-94 pointer-events-none select-none lg:w-[943px]"
           />
 
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.06)_30%,rgba(0,0,0,0.46)_100%)]" />
@@ -256,15 +256,21 @@ export default function SubscriberDashboard({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <Badge tone="green">Live updates on</Badge>
 
-              <div className="flex flex-wrap gap-3">
-                <Link href="/my-resulted-tips" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/15">
+              <div className="ml-auto flex flex-col items-end gap-3">
+                <Link
+                  href="/my-resulted-tips"
+                  className="w-fit rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   My Resulted Tips
                 </Link>
-                <Link href="/pricing" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/15">
+                <Link
+                  href="/pricing"
+                  className="w-fit rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   View Plans
                 </Link>
                 <form action={signOutAction}>
-                  <button className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm hover:bg-white/15">
+                  <button className="w-fit rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                     Log out
                   </button>
                 </form>
@@ -288,9 +294,6 @@ export default function SubscriberDashboard({
             </div>
           </div>
         </div>
-
-        {/* EVERYTHING BELOW UNCHANGED */}
-        {/* (keeping your tipping logic safe) */}
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Panel className="text-zinc-950">
