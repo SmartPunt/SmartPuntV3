@@ -386,6 +386,7 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
     confidence: String(formData.get("confidence") ?? "High"),
     note: String(formData.get("note") ?? ""),
     commentary: String(formData.get("commentary") ?? ""),
+    result_comment: String(formData.get("result_comment") ?? ""),
     race_start_at: raceStartAt,
     race_timezone: raceTimezone,
     finishing_position: finishingPositionRaw ? Number(finishingPositionRaw) : null,
