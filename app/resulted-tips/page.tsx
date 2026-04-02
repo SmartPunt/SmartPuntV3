@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Badge, Panel, TipPill } from "@/components/ui";
@@ -87,22 +90,72 @@ function StatCard({
   );
 }
 
-export default async function ResultedTipsPage() {
-  const profile = await getCurrentProfile();
+function ResultedTipCard({ tip }: { tip: any }) {
+  const [showCommentary, setShowCommentary] = useState(false);
 
-  if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect("/");
+  return (
+    <div
+      className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tip.type)}`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-zinc-500">{tip.race}</p>
+          <h3 className="mt-1 text-2xl font-semibold text-zinc-950">{tip.horse}</h3>
+        </div>
+        <TipPill type={tip.type} />
+      </div>
 
-  const supabase = await createClient();
+      <div className="mt-4 flex flex-wrap gap-2">
+        {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
+        {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
+        {tip.finishing_position ? (
+          <Badge tone="slate">Placed {tip.finishing_position}</Badge>
+        ) : null}
+        {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
+        {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
+      </div>
 
-  const { data: resultedTips } = await supabase
-    .from("suggested_tips")
-    .select("*")
-    .not("successful", "is", null)
-    .order("settled_at", { ascending: false, nullsFirst: false });
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setShowCommentary((prev) => !prev)}
+          className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+        >
+          {showCommentary ? "Hide Original Tip Write-Up" : "View Original Tip Write-Up"}
+        </button>
+      </div>
 
-  const stats = calculateSuccessStats(resultedTips || []);
+      {showCommentary ? (
+        <div className="mt-4 rounded-2xl bg-white/70 p-4">
+          <p className="text-sm leading-6 text-zinc-700">{tip.commentary || ""}</p>
+        </div>
+      ) : null}
 
+      {tip.result_comment ? (
+        <div className="mt-4 rounded-2xl border border-amber-200/40 bg-amber-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+            Post-race analysis
+          </p>
+          <p className="mt-2 text-sm leading-6 text-zinc-800">
+            {tip.result_comment}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export default function ResultedTipsPage({
+  resultedTips,
+  stats,
+}: {
+  resultedTips: any[];
+  stats: {
+    day: { total: number; won: number; rate: number | null };
+    month: { total: number; won: number; rate: number | null };
+    all: { total: number; won: number; rate: number | null };
+  };
+}) {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
       <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
@@ -123,49 +176,29 @@ export default async function ResultedTipsPage() {
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <StatCard title="Head Tipper Today" stat={stats.day} emptyLabel="No bets today" tone="green" />
-          <StatCard title="Head Tipper This Month" stat={stats.month} emptyLabel="No bets this month" tone="amber" />
-          <StatCard title="Head Tipper All Time" stat={stats.all} emptyLabel="No bets yet" tone="rose" />
+          <StatCard
+            title="Head Tipper Today"
+            stat={stats.day}
+            emptyLabel="No bets today"
+            tone="green"
+          />
+          <StatCard
+            title="Head Tipper This Month"
+            stat={stats.month}
+            emptyLabel="No bets this month"
+            tone="amber"
+          />
+          <StatCard
+            title="Head Tipper All Time"
+            stat={stats.all}
+            emptyLabel="No bets yet"
+            tone="rose"
+          />
         </div>
 
         <div className="mt-8 space-y-4">
-          {(resultedTips || []).length ? (
-            (resultedTips || []).map((tip: any) => (
-              <div
-                key={tip.id}
-                className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tip.type)}`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-zinc-500">{tip.race}</p>
-                    <h3 className="mt-1 text-2xl font-semibold text-zinc-950">{tip.horse}</h3>
-                  </div>
-                  <TipPill type={tip.type} />
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
-                  {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                  {tip.finishing_position ? <Badge tone="slate">Placed {tip.finishing_position}</Badge> : null}
-                  {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
-                  {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
-                </div>
-
-                <p className="mt-4 text-sm leading-6 text-zinc-700">{tip.commentary || ""}</p>
-
-                {/* 🔥 NEW PREMIUM RESULT COMMENT */}
-                {tip.result_comment ? (
-                  <div className="mt-4 rounded-2xl border border-amber-200/40 bg-amber-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
-                      Post-race analysis
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-zinc-800">
-                      {tip.result_comment}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            ))
+          {resultedTips.length ? (
+            resultedTips.map((tip: any) => <ResultedTipCard key={tip.id} tip={tip} />)
           ) : (
             <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
               No resulted tips yet.
@@ -175,4 +208,33 @@ export default async function ResultedTipsPage() {
       </div>
     </main>
   );
+}
+
+export async function getServerSideProps() {
+  const profile = await getCurrentProfile();
+
+  if (!profile) {
+    return { redirect: { destination: "/login", permanent: false } };
+  }
+
+  if (profile.role !== "admin") {
+    return { redirect: { destination: "/", permanent: false } };
+  }
+
+  const supabase = await createClient();
+
+  const { data: resultedTips } = await supabase
+    .from("suggested_tips")
+    .select("*")
+    .not("successful", "is", null)
+    .order("settled_at", { ascending: false, nullsFirst: false });
+
+  const stats = calculateSuccessStats(resultedTips || []);
+
+  return {
+    props: {
+      resultedTips: resultedTips || [],
+      stats,
+    },
+  };
 }
