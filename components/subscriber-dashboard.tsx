@@ -243,34 +243,34 @@ export default function SubscriberDashboard({
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
-        <div className="relative overflow-hidden rounded-[32px] bg-black shadow-xl border border-white/10 min-h-[260px] lg:min-h-[300px]">
+        <div className="relative overflow-hidden rounded-[32px] bg-black shadow-xl border border-white/10 min-h-[180px] lg:min-h-[300px]">
           <img
             src="/header-logo.png"
             alt="Fortune on 5"
-            className="absolute left-1/2 top-[42%] w-[828px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-94 pointer-events-none select-none lg:w-[943px]"
+            className="absolute left-1/2 top-[45%] w-[260px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-95 pointer-events-none select-none sm:w-[400px] lg:top-[42%] lg:w-[943px]"
           />
 
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.06)_30%,rgba(0,0,0,0.46)_100%)]" />
 
-          <div className="relative z-10 flex h-full min-h-[260px] flex-col justify-between p-5 lg:min-h-[300px] lg:p-8">
-            <div className="flex items-start justify-between gap-4">
+          <div className="relative z-10 flex h-full min-h-[180px] flex-col justify-between p-4 lg:min-h-[300px] lg:p-8">
+            <div className="flex items-start justify-between gap-3">
               <Badge tone="green">Live updates on</Badge>
 
-              <div className="ml-auto flex flex-col items-end gap-3">
+              <div className="ml-auto flex flex-col items-end gap-2 lg:gap-3">
                 <Link
                   href="/my-resulted-tips"
-                  className="w-fit rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                  className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm"
                 >
                   My Resulted Tips
                 </Link>
                 <Link
                   href="/pricing"
-                  className="w-fit rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                  className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm"
                 >
                   View Plans
                 </Link>
                 <form action={signOutAction}>
-                  <button className="w-fit rounded-2xl border border-white/15 bg-black/45 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                  <button className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm">
                     Log out
                   </button>
                 </form>
@@ -278,15 +278,15 @@ export default function SubscriberDashboard({
             </div>
 
             <div className="mt-auto">
-              <div className="rounded-2xl bg-black/18 px-5 py-4 backdrop-blur-[1px]">
-                <div className="flex flex-wrap items-end gap-x-5 gap-y-2 text-white">
-                  <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">
+              <div className="rounded-2xl bg-black/18 px-4 py-3 backdrop-blur-[1px] lg:px-5 lg:py-4">
+                <div className="flex flex-wrap items-end gap-x-4 gap-y-2 text-white lg:gap-x-5">
+                  <h1 className="text-xl font-bold tracking-tight sm:text-2xl lg:text-4xl">
                     Premium Racing Club
                   </h1>
-                  <p className="text-base text-zinc-200">
+                  <p className="text-sm text-zinc-200 lg:text-base">
                     Sharp daily tips, expert insight, and longer-range plays.
                   </p>
-                  <p className="ml-auto text-sm text-zinc-300">
+                  <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                     Logged in as {currentUser.full_name || currentUser.email}
                   </p>
                 </div>
