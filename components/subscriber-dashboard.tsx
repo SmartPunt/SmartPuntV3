@@ -247,10 +247,10 @@ export default function SubscriberDashboard({
           <img
             src="/header-logo.png"
             alt="Fortune on 5"
-            className="absolute left-[32%] top-1/2 w-[520px] max-w-none -translate-y-1/2 opacity-92 pointer-events-none select-none lg:w-[600px]"
+            className="absolute left-[31%] top-[44%] w-[600px] max-w-none -translate-y-1/2 opacity-92 pointer-events-none select-none lg:w-[700px]"
           />
 
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.30)_0%,rgba(0,0,0,0.10)_35%,rgba(0,0,0,0.52)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.22)_0%,rgba(0,0,0,0.08)_32%,rgba(0,0,0,0.48)_100%)]" />
 
           <div className="relative z-10 flex h-full min-h-[260px] flex-col justify-between p-5 lg:min-h-[300px] lg:p-8">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -277,17 +277,19 @@ export default function SubscriberDashboard({
               </div>
             </div>
 
-            <div className="max-w-2xl">
-              <div className="rounded-2xl bg-black/24 p-4 backdrop-blur-[1px]">
-                <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">
-                  Premium Racing Club
-                </h1>
-                <p className="mt-2 text-sm text-zinc-200 lg:text-base">
-                  Sharp daily tips, expert insight, and longer-range plays.
-                </p>
-                <p className="mt-3 text-sm text-zinc-300">
-                  Logged in as {currentUser.full_name || currentUser.email}
-                </p>
+            <div className="mt-auto">
+              <div className="rounded-2xl bg-black/22 px-5 py-4 backdrop-blur-[1px]">
+                <div className="flex flex-wrap items-end gap-x-5 gap-y-2 text-white">
+                  <h1 className="text-3xl font-bold tracking-tight lg:text-4xl">
+                    Premium Racing Club
+                  </h1>
+                  <p className="text-base text-zinc-200">
+                    Sharp daily tips, expert insight, and longer-range plays.
+                  </p>
+                  <p className="text-sm text-zinc-300">
+                    Logged in as {currentUser.full_name || currentUser.email}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
