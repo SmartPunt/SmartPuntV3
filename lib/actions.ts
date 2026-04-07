@@ -142,27 +142,26 @@ async function sendSuggestedTipNotifications({
   const preview = commentary?.trim() || `${horse} has been tipped.`;
 
   const html = (email: string) => `
-    <style>
-      @media only screen and (max-width: 600px) {
-        .fo5-logo {
-          height: 540px !important;
-        }
-      }
-    </style>
+    <div style="background:#0a0a0a;padding:24px 12px;font-family:Arial,sans-serif;">
+      <div style="max-width:640px;margin:0 auto;background:#111111;border-radius:20px;overflow:hidden;border:1px solid rgba(251,191,36,0.15);">
 
-    <div style="background:#0a0a0a;padding:30px 16px;font-family:Arial,sans-serif;">
-      <div style="max-width:600px;margin:0 auto;background:#111111;border-radius:20px;overflow:hidden;border:1px solid rgba(251,191,36,0.15);">
-        <div style="padding:24px;text-align:center;border-bottom:1px solid rgba(251,191,36,0.10);background:linear-gradient(180deg,#111111 0%,#171717 100%);">
+        <div style="position:relative;background:#000000;padding:0;margin:0;line-height:0;">
           ${
             appUrl
-              ? `<img src="${appUrl}/header-logo.png" alt="Fortune on 5" class="fo5-logo" style="height:180px;width:auto;margin:0 auto 10px;display:block;" />`
+              ? `<img
+                  src="${appUrl}/header-logo.png"
+                  alt="Fortune on 5"
+                  style="display:block;width:100%;height:auto;margin:0;padding:0;border:0;"
+                />`
               : ""
           }
-          <div style="color:#fbbf24;font-size:12px;letter-spacing:0.25em;text-transform:uppercase;">
-            Fortune on 5
-          </div>
-          <div style="color:#d4d4d8;font-size:13px;margin-top:8px;">
-            Premium racing club alert
+          <div style="position:relative;background:linear-gradient(180deg,rgba(0,0,0,0.00) 0%,rgba(0,0,0,0.38) 100%);padding:14px 20px 16px 20px;text-align:left;">
+            <div style="color:#fbbf24;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;">
+              Fortune on 5
+            </div>
+            <div style="color:#d4d4d8;font-size:12px;margin-top:6px;">
+              Premium racing club alert
+            </div>
           </div>
         </div>
 
