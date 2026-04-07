@@ -138,49 +138,69 @@ async function sendSuggestedTipNotifications({
 
   if (!recipients.length) return;
 
-  const subject = `New SmartPunt Tip: ${race} - ${horse}`;
-  const preview = commentary?.trim() || `${horse} has been added as a new SmartPunt tip.`;
+  const subject = `🔥 ${horse} – ${race}`;
+  const preview = commentary?.trim() || `${horse} has been tipped.`;
 
   const html = (email: string) => `
-    <div style="font-family: Arial, sans-serif; background: #f8fafc; padding: 24px; color: #111827;">
-      <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e5e7eb;">
-        <div style="padding: 24px; background: linear-gradient(135deg, #171717, #3f3f46, #ca8a04); color: white;">
-          <div style="font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.8;">SmartPunt</div>
-          <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2;">New Tip Just Dropped</h1>
-          <p style="margin: 10px 0 0; opacity: 0.9;">Premium racing club alert</p>
+    <div style="background:#0a0a0a;padding:30px 16px;font-family:Arial,sans-serif;">
+      <div style="max-width:600px;margin:0 auto;background:#111111;border-radius:20px;overflow:hidden;border:1px solid rgba(251,191,36,0.15);">
+
+        <div style="padding:24px;text-align:center;border-bottom:1px solid rgba(251,191,36,0.10);background:linear-gradient(180deg,#111111 0%,#171717 100%);">
+          ${
+            appUrl
+              ? `<img src="${appUrl}/email-logo.png" alt="Fortune on 5" style="height:60px;width:auto;margin:0 auto 10px;display:block;" />`
+              : ""
+          }
+          <div style="color:#fbbf24;font-size:12px;letter-spacing:0.25em;text-transform:uppercase;">
+            Fortune on 5
+          </div>
+          <div style="color:#d4d4d8;font-size:13px;margin-top:8px;">
+            Premium racing club alert
+          </div>
         </div>
 
-        <div style="padding: 24px;">
-          <p style="margin: 0; font-size: 14px; color: #6b7280;">${race}</p>
-          <h2 style="margin: 6px 0 0; font-size: 28px; color: #111827;">${horse}</h2>
+        <div style="padding:24px;color:#ffffff;">
+          <div style="color:#a1a1aa;font-size:13px;">${race}</div>
 
-          <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;">
-            <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#ecfccb;color:#166534;font-size:12px;font-weight:700;">${type}</span>
-            <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:12px;font-weight:700;">${confidence} confidence</span>
+          <div style="font-size:28px;font-weight:700;line-height:1.2;margin-top:4px;color:#ffffff;">
+            ${horse}
+          </div>
+
+          <div style="margin-top:16px;">
+            <span style="display:inline-block;background:#052e16;color:#86efac;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-right:6px;margin-bottom:6px;">
+              ${type}
+            </span>
+            <span style="display:inline-block;background:#082f49;color:#7dd3fc;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-right:6px;margin-bottom:6px;">
+              ${confidence} confidence
+            </span>
             ${
               note
-                ? `<span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;">${note}</span>`
+                ? `<span style="display:inline-block;background:#451a03;color:#fcd34d;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:6px;">
+                    ${note}
+                  </span>`
                 : ""
             }
           </div>
 
-          <p style="margin: 20px 0 0; font-size: 15px; line-height: 1.7; color: #374151;">
-            ${preview}
-          </p>
+          <div style="margin-top:20px;background:#18181b;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:18px;">
+            <div style="font-size:15px;line-height:1.7;color:#e4e4e7;">
+              ${preview}
+            </div>
+          </div>
 
           ${
             appUrl
-              ? `<div style="margin-top: 24px;">
-                  <a href="${appUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#111827;color:#fbbf24;text-decoration:none;font-weight:700;">
-                    View in SmartPunt
+              ? `<div style="margin-top:24px;">
+                  <a href="${appUrl}" style="display:inline-block;background:#000000;color:#fbbf24;padding:12px 18px;border-radius:12px;text-decoration:none;font-weight:700;border:1px solid rgba(251,191,36,0.30);">
+                    View Full Tips
                   </a>
-                 </div>`
+                </div>`
               : ""
           }
 
-          <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
+          <div style="margin-top:24px;font-size:11px;color:#71717a;">
             Sent to ${email} because you’re an active SmartPunt subscriber.
-          </p>
+          </div>
         </div>
       </div>
     </div>
