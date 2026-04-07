@@ -144,8 +144,6 @@ async function sendSuggestedTipNotifications({
   const html = (email: string) => `
     <div style="background:#0a0a0a;padding:30px 16px;font-family:Arial,sans-serif;">
       <div style="max-width:600px;margin:0 auto;background:#111111;border-radius:20px;overflow:hidden;border:1px solid rgba(251,191,36,0.15);">
-
-        <!-- HEADER -->
         <div style="padding:24px;text-align:center;border-bottom:1px solid rgba(251,191,36,0.10);background:linear-gradient(180deg,#111111 0%,#171717 100%);">
           ${
             appUrl
@@ -160,7 +158,6 @@ async function sendSuggestedTipNotifications({
           </div>
         </div>
 
-        <!-- TIP -->
         <div style="padding:24px;color:#ffffff;">
           <div style="color:#a1a1aa;font-size:13px;">${race}</div>
 
@@ -168,7 +165,6 @@ async function sendSuggestedTipNotifications({
             ${horse}
           </div>
 
-          <!-- BADGES -->
           <div style="margin-top:16px;">
             <span style="display:inline-block;background:#052e16;color:#86efac;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-right:6px;margin-bottom:6px;">
               ${type}
@@ -185,14 +181,12 @@ async function sendSuggestedTipNotifications({
             }
           </div>
 
-          <!-- COMMENTARY -->
           <div style="margin-top:20px;background:#18181b;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:18px;">
             <div style="font-size:15px;line-height:1.7;color:#e4e4e7;">
               ${preview}
             </div>
           </div>
 
-          <!-- CTA -->
           ${
             appUrl
               ? `<div style="margin-top:24px;">
@@ -203,7 +197,6 @@ async function sendSuggestedTipNotifications({
               : ""
           }
 
-          <!-- FOOTER -->
           <div style="margin-top:24px;font-size:11px;color:#71717a;">
             Sent to ${email} because you’re an active SmartPunt subscriber.
           </div>
@@ -321,8 +314,6 @@ export async function createSubscriberUserAction(
   };
 }
 
-// rest unchanged...
-
 export async function signInAction(
   _: { error: string | null },
   formData: FormData,
@@ -348,4 +339,201 @@ export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
+}
+
+export async function markTipActiveAction(formData: FormData): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("Unauthorized");
+
+  const tipId = Number(formData.get("tip_id"));
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("user_active_tips").upsert(
+    {
+      user_id: profile.id,
+      tip_id: tipId,
+    },
+    { onConflict: "user_id,tip_id" },
+  );
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/my-resulted-tips");
+}
+
+export async function removeTipActiveAction(formData: FormData): Promise<void> {
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error("Unauthorized");
+
+  const tipId = Number(formData.get("tip_id"));
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("user_active_tips")
+    .delete()
+    .eq("user_id", profile.id)
+    .eq("tip_id", tipId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/my-resulted-tips");
+}
+
+export async function upsertSuggestedTip(formData: FormData): Promise<void> {
+  const profile = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const isNew = !id;
+  const sendNotification = String(formData.get("send_notification") ?? "") === "true";
+
+  const raceDate = String(formData.get("race_date") ?? "");
+  const raceTime = String(formData.get("race_time") ?? "");
+  const raceTimezone = String(formData.get("race_timezone") ?? "Australia/Perth");
+  const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
+
+  const finishingPositionRaw = String(formData.get("finishing_position") ?? "").trim();
+  const successfulRaw = String(formData.get("successful") ?? "").trim();
+
+  const successful =
+    successfulRaw === "true" ? true : successfulRaw === "false" ? false : null;
+
+  const payload = {
+    race: String(formData.get("race") ?? ""),
+    horse: String(formData.get("horse") ?? ""),
+    type: String(formData.get("type") ?? "Win"),
+    confidence: String(formData.get("confidence") ?? "High"),
+    note: String(formData.get("note") ?? ""),
+    commentary: String(formData.get("commentary") ?? ""),
+    result_comment: String(formData.get("result_comment") ?? ""),
+    race_start_at: raceStartAt,
+    race_timezone: raceTimezone,
+    finishing_position: finishingPositionRaw ? Number(finishingPositionRaw) : null,
+    successful,
+    settled_at: typeof successful === "boolean" ? new Date().toISOString() : null,
+    created_by: profile.id,
+    updated_at: new Date().toISOString(),
+  };
+
+  const supabase = await createClient();
+
+  if (id) {
+    const { error } = await supabase
+      .from("suggested_tips")
+      .update(payload)
+      .eq("id", Number(id));
+
+    if (error) throw new Error(error.message);
+  } else {
+    const { data, error } = await supabase
+      .from("suggested_tips")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    if (isNew && sendNotification && data) {
+      try {
+        await sendSuggestedTipNotifications({
+          race: data.race || payload.race,
+          horse: data.horse || payload.horse,
+          type: data.type || payload.type,
+          confidence: data.confidence || payload.confidence,
+          note: data.note || payload.note,
+          commentary: data.commentary || payload.commentary,
+        });
+      } catch (notificationError) {
+        console.error(notificationError);
+      }
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath("/resulted-tips");
+  revalidatePath("/my-resulted-tips");
+}
+
+export async function deleteSuggestedTipAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("suggested_tips").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+  revalidatePath("/resulted-tips");
+  revalidatePath("/my-resulted-tips");
+}
+
+export async function upsertWatchItem(formData: FormData): Promise<void> {
+  const profile = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+
+  const payload = {
+    race: String(formData.get("race") ?? ""),
+    horse: String(formData.get("horse") ?? ""),
+    label: String(formData.get("label") ?? "Horse to Watch"),
+    commentary: String(formData.get("commentary") ?? ""),
+    created_by: profile.id,
+    updated_at: new Date().toISOString(),
+  };
+
+  const supabase = await createClient();
+  const query = id
+    ? supabase.from("watchlist_items").update(payload).eq("id", Number(id))
+    : supabase.from("watchlist_items").insert(payload);
+
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+}
+
+export async function deleteWatchItemAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("watchlist_items").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+}
+
+export async function upsertLongTermBet(formData: FormData): Promise<void> {
+  const profile = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+
+  const payload = {
+    title: String(formData.get("title") ?? ""),
+    horse: String(formData.get("horse") ?? ""),
+    bet_type: String(formData.get("bet_type") ?? "Win"),
+    odds: String(formData.get("odds") ?? ""),
+    commentary: String(formData.get("commentary") ?? ""),
+    created_by: profile.id,
+    updated_at: new Date().toISOString(),
+  };
+
+  const supabase = await createClient();
+  const query = id
+    ? supabase.from("long_term_bets").update(payload).eq("id", Number(id))
+    : supabase.from("long_term_bets").insert(payload);
+
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
+}
+
+export async function deleteLongTermBetAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = Number(formData.get("id"));
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("long_term_bets").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/");
 }
