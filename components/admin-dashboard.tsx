@@ -240,15 +240,6 @@ export default function AdminDashboard({
       }
 
       setTipCommentary(data.commentary || "");
-
-      const detected = detectBestTag({
-        confidence: tipConfidence,
-        type: tipType,
-        notes: tipperNotes,
-      });
-
-      setSuggestedTag(detected);
-      setTipNote(detected);
     } catch (error) {
       setGenerateError(
         error instanceof Error ? error.message : "Failed to generate commentary.",
@@ -691,6 +682,15 @@ export default function AdminDashboard({
                     </p>
                     <p className="mt-2 text-sm leading-6 text-zinc-700">
                       Once a live tip is ready to settle, hit <span className="font-semibold">Finalise Race</span> from the live tip list. That opens a separate result window so you can record the finish cleanly without touching the original tip builder.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
+                      AI generation locked down
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-700">
+                      Generate Commentary now only updates the write-up. Your tag stays exactly as you set it unless you manually change it or hit Suggest Tag.
                     </p>
                   </div>
 
