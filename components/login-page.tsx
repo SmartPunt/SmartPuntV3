@@ -13,7 +13,7 @@ export default function LoginPage() {
       <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-6 lg:px-8">
         <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,rgba(17,17,17,0.96),rgba(39,39,42,0.96),rgba(202,138,4,0.20))] shadow-2xl backdrop-blur">
 
-          {/* LOGO */}
+          {/* LOGO ONLY */}
           <div className="flex justify-center px-2 pt-2">
             <img
               src="/header-logo.png"
@@ -22,18 +22,13 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* CONTENT */}
+          {/* FORM */}
           <div className="px-8 pb-6">
-            <div className="text-center">
-              <h1 className="bg-[linear-gradient(180deg,#f8fafc_0%,#d4d4d8_35%,#a1a1aa_70%,#f5f5f5_100%)] bg-clip-text font-serif text-3xl font-semibold tracking-[0.05em] text-transparent">
-                SmartPunt
-              </h1>
-              <p className="mt-1 text-base font-medium text-amber-300">
-                Premium Racing Tips
-              </p>
-            </div>
+            <p className="text-center text-base font-medium text-amber-300">
+              Premium Racing Tips
+            </p>
 
-            <form action={formAction} className="mt-5 space-y-4">
+            <form action={formAction} className="mt-4 space-y-4">
               <div>
                 <label className="text-sm font-medium text-amber-100/85">Email</label>
                 <input
