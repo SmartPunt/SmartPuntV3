@@ -23,12 +23,8 @@ export default function LoginPage() {
           </div>
 
           {/* FORM */}
-          <div className="px-8 pb-6">
-            <p className="text-center text-base font-medium text-amber-300">
-              Premium Racing Tips
-            </p>
-
-            <form action={formAction} className="mt-4 space-y-4">
+          <div className="px-8 pb-6 pt-2">
+            <form action={formAction} className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-amber-100/85">Email</label>
                 <input
@@ -57,7 +53,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                className="w-full rounded-2xl bg-black px-4 py-2.5 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                className="w-full rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-2.5 text-sm font-semibold text-black shadow-md transition hover:brightness-110 active:scale-[0.98]"
               >
                 Log in
               </button>
