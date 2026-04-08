@@ -13,20 +13,18 @@ export default function LoginPage() {
       <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10 lg:px-8">
         <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,rgba(17,17,17,0.96),rgba(39,39,42,0.96),rgba(202,138,4,0.20))] shadow-2xl backdrop-blur">
 
-          {/* HEAVILY SCALED LOGO (~90% DOMINANCE) */}
-          <div className="relative overflow-hidden pt-4">
-            <div className="flex justify-center">
-              <img
-                src="/header-logo.png"
-                alt="Fortune on 5"
-                className="h-auto w-[155%] max-w-none object-contain translate-x-[-12%]"
-              />
-            </div>
+          {/* CONTROLLED LARGE LOGO */}
+          <div className="pt-6 flex justify-center">
+            <img
+              src="/header-logo.png"
+              alt="Fortune on 5"
+              className="h-auto w-[115%] max-w-none object-contain"
+            />
           </div>
 
           {/* CONTENT */}
           <div className="px-8 pb-8">
-            <div className="mt-1 text-center">
+            <div className="mt-3 text-center">
               <h1 className="text-2xl font-semibold text-white">Fortune on 5</h1>
               <p className="mt-1 text-sm text-amber-300">Premium Racing Tips</p>
             </div>
