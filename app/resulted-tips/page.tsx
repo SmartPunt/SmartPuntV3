@@ -130,10 +130,13 @@ function StatCard({
 
 function groupResultedTips(tips: any[]) {
   const now = new Date();
-
   const today: any[] = [];
   const lastMonth: any[] = [];
   const older: any[] = [];
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const thirtyDaysAgo = new Date(startOfToday);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   tips.forEach((tip) => {
     const rawDate = getTipDate(tip);
@@ -155,16 +158,12 @@ function groupResultedTips(tips: any[]) {
       date.getMonth() === now.getMonth() &&
       date.getDate() === now.getDate();
 
-    const isThisMonth =
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth();
-
     if (isToday) {
       today.push(tip);
       return;
     }
 
-    if (isThisMonth) {
+    if (date >= thirtyDaysAgo && date < startOfToday) {
       lastMonth.push(tip);
       return;
     }
@@ -177,9 +176,7 @@ function groupResultedTips(tips: any[]) {
 
 function CompactResultCard({ tip }: { tip: any }) {
   return (
-    <div
-      className={`rounded-[20px] border p-4 shadow-sm ${getTipCardStyle(tip.type)}`}
-    >
+    <div className={`rounded-[20px] border p-4 shadow-sm ${getTipCardStyle(tip.type)}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">
@@ -223,6 +220,38 @@ function CompactResultCard({ tip }: { tip: any }) {
         </p>
       </details>
     </div>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  subtitle,
+  count,
+  tone,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  count: number;
+  tone: "blue" | "slate";
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="rounded-[24px] border border-white/10 bg-white/5 open:bg-white/[0.07]">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-white">{title}</h2>
+          <p className="mt-1 text-sm text-amber-100/70">{subtitle}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge tone={tone}>
+            {count} {count === 1 ? "tip" : "tips"}
+          </Badge>
+          <span className="text-sm font-semibold text-amber-100/80">Open</span>
+        </div>
+      </summary>
+      <div className="px-5 pb-5">{children}</div>
+    </details>
   );
 }
 
@@ -284,7 +313,7 @@ export default async function ResultedTipsPage() {
           />
         </div>
 
-        <div className="mt-8 space-y-10">
+        <div className="mt-8 space-y-6">
           {safeResultedTips.length ? (
             <>
               <section>
@@ -367,20 +396,12 @@ export default async function ResultedTipsPage() {
                 )}
               </section>
 
-              <section>
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-white">Last Month</h2>
-                    <p className="mt-1 text-sm text-amber-100/70">
-                      Settled tips from earlier this month.
-                    </p>
-                  </div>
-                  <Badge tone="blue">
-                    {groupedTips.lastMonth.length}{" "}
-                    {groupedTips.lastMonth.length === 1 ? "tip" : "tips"}
-                  </Badge>
-                </div>
-
+              <CollapsibleSection
+                title="Last Month"
+                subtitle="Settled tips from the last 30 days before today."
+                count={groupedTips.lastMonth.length}
+                tone="blue"
+              >
                 {groupedTips.lastMonth.length ? (
                   <div className="grid gap-4 md:grid-cols-2">
                     {groupedTips.lastMonth.map((tip: any) => (
@@ -389,24 +410,17 @@ export default async function ResultedTipsPage() {
                   </div>
                 ) : (
                   <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 text-sm text-amber-100/70">
-                    No earlier results this month.
+                    No resulted tips in the last month.
                   </div>
                 )}
-              </section>
+              </CollapsibleSection>
 
-              <section>
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-white">Older</h2>
-                    <p className="mt-1 text-sm text-amber-100/70">
-                      Older settled tips kept in a tighter view.
-                    </p>
-                  </div>
-                  <Badge tone="slate">
-                    {groupedTips.older.length} {groupedTips.older.length === 1 ? "tip" : "tips"}
-                  </Badge>
-                </div>
-
+              <CollapsibleSection
+                title="Older"
+                subtitle="Older settled tips kept tucked away in a tighter view."
+                count={groupedTips.older.length}
+                tone="slate"
+              >
                 {groupedTips.older.length ? (
                   <div className="grid gap-4 md:grid-cols-2">
                     {groupedTips.older.map((tip: any) => (
@@ -418,7 +432,7 @@ export default async function ResultedTipsPage() {
                     No older resulted tips yet.
                   </div>
                 )}
-              </section>
+              </CollapsibleSection>
             </>
           ) : (
             <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
