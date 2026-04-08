@@ -127,6 +127,24 @@ function pickBestBet(tips: any[]) {
   return tips[0];
 }
 
+function NavCount({
+  count,
+  active = false,
+}: {
+  count: number;
+  active?: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex min-w-[28px] items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold ${
+        active ? "bg-zinc-950 text-amber-300" : "bg-white/15 text-white"
+      }`}
+    >
+      {count}
+    </span>
+  );
+}
+
 function CollapsibleTipCard({
   tip,
   expanded,
@@ -264,6 +282,12 @@ export default function SubscriberDashboard({
   const availableTips = filteredTips.filter((tip: any) => !activeTipIds.includes(tip.id));
   const bestBetTip = useMemo(() => pickBestBet(filteredTips), [filteredTips]);
 
+  const availableLiveTipsCount = suggestedTips.filter(
+    (tip: any) => !activeTipIds.includes(tip.id),
+  ).length;
+  const watchlistCount = watchlistItems.length;
+  const longTermCount = longTermBets.length;
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
       <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
@@ -318,21 +342,24 @@ export default function SubscriberDashboard({
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link
                     href="/"
-                    className="rounded-2xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-zinc-950"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-zinc-950"
                   >
-                    Live Tips
+                    <span>Live Tips</span>
+                    <NavCount count={availableLiveTipsCount} active />
                   </Link>
                   <Link
                     href="/watchlist"
-                    className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
                   >
-                    Horses / Races to Watch
+                    <span>Horses / Races to Watch</span>
+                    <NavCount count={watchlistCount} />
                   </Link>
                   <Link
                     href="/long-term-bets"
-                    className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
                   >
-                    Long-Term Bets
+                    <span>Long-Term Bets</span>
+                    <NavCount count={longTermCount} />
                   </Link>
                 </div>
               </div>
@@ -366,7 +393,9 @@ export default function SubscriberDashboard({
                     {bestBetTip.horse}
                   </h2>
 
-                  <p className="mt-2 text-base text-zinc-300">{bestBetTip.race}</p>
+                  <p className="mt-2 text-base text-zinc-300">
+                    {bestBetTip.race}
+                  </p>
 
                   <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-200">
                     {bestBetTip.commentary || bestBetTip.note || "Today’s standout play."}
@@ -411,7 +440,9 @@ export default function SubscriberDashboard({
                       </div>
                     </>
                   ) : (
-                    <p className="mt-4 text-sm text-zinc-300">Race time not set yet.</p>
+                    <p className="mt-4 text-sm text-zinc-300">
+                      Race time not set yet.
+                    </p>
                   )}
 
                   <div className="mt-6 rounded-2xl bg-white/5 p-4">
@@ -419,9 +450,7 @@ export default function SubscriberDashboard({
                       Why this is featured
                     </p>
                     <p className="mt-3 text-sm leading-7 text-zinc-200">
-                      Highest-priority play surfaced for quick action. Strongest match is chosen
-                      from today’s visible tips, preferring explicit Best Bet tags first, then
-                      high-confidence win selections.
+                      Highest-priority play surfaced for quick action. Strongest match is chosen from today’s visible tips, preferring explicit Best Bet tags first, then high-confidence win selections.
                     </p>
                   </div>
                 </div>
@@ -477,24 +506,15 @@ export default function SubscriberDashboard({
             <div>
               <h2 className="text-2xl font-semibold text-white">Today’s Suggested Tips</h2>
               <p className="mt-1 text-sm text-zinc-300">
-                Settled tips are moved off this page. Open commentary when needed and save the tips
-                you’re taking.
+                Settled tips are moved off this page. Open commentary when needed and save the tips you’re taking.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <FilterButton label="All" active={filter === "All"} onClick={() => setFilter("All")} />
               <FilterButton label="Win" active={filter === "Win"} onClick={() => setFilter("Win")} />
-              <FilterButton
-                label="Place"
-                active={filter === "Place"}
-                onClick={() => setFilter("Place")}
-              />
-              <FilterButton
-                label="All Up"
-                active={filter === "All Up"}
-                onClick={() => setFilter("All Up")}
-              />
+              <FilterButton label="Place" active={filter === "Place"} onClick={() => setFilter("Place")} />
+              <FilterButton label="All Up" active={filter === "All Up"} onClick={() => setFilter("All Up")} />
             </div>
           </div>
 
