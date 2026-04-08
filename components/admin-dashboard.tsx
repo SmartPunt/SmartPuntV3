@@ -136,6 +136,7 @@ export default function AdminDashboard({
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
   const [tipEdit, setTipEdit] = useState<any | null>(null);
+  const [resultEdit, setResultEdit] = useState<any | null>(null);
   const [watchEdit, setWatchEdit] = useState<any | null>(null);
   const [longEdit, setLongEdit] = useState<any | null>(null);
 
@@ -149,12 +150,13 @@ export default function AdminDashboard({
   const [tipRaceDate, setTipRaceDate] = useState("");
   const [tipRaceTime, setTipRaceTime] = useState("");
   const [tipRaceTimezone, setTipRaceTimezone] = useState("Australia/Perth");
-  const [tipFinishingPosition, setTipFinishingPosition] = useState("");
-  const [tipSuccessful, setTipSuccessful] = useState("");
-  const [tipResultComment, setTipResultComment] = useState("");
   const [suggestedTag, setSuggestedTag] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
+
+  const [resultFinishingPosition, setResultFinishingPosition] = useState("");
+  const [resultSuccessful, setResultSuccessful] = useState("");
+  const [resultComment, setResultComment] = useState("");
 
   const [userState, createUserFormAction] = useActionState(createSubscriberUserAction, {
     error: null,
@@ -174,15 +176,7 @@ export default function AdminDashboard({
     setTipRaceDate(formatDateForInput(tip.race_start_at));
     setTipRaceTime(formatTimeForInput(tip.race_start_at));
     setTipRaceTimezone(tip.race_timezone || "Australia/Perth");
-    setTipFinishingPosition(
-      tip.finishing_position === null || tip.finishing_position === undefined
-        ? ""
-        : String(tip.finishing_position),
-    );
-    setTipSuccessful(
-      typeof tip.successful === "boolean" ? String(tip.successful) : "",
-    );
-    setTipResultComment(tip.result_comment || "");
+    setGenerateError("");
   }
 
   function clearTipForm() {
@@ -197,11 +191,26 @@ export default function AdminDashboard({
     setTipRaceDate("");
     setTipRaceTime("");
     setTipRaceTimezone("Australia/Perth");
-    setTipFinishingPosition("");
-    setTipSuccessful("");
-    setTipResultComment("");
     setSuggestedTag("");
     setGenerateError("");
+  }
+
+  function loadTipIntoResultForm(tip: any) {
+    setResultEdit(tip);
+    setResultFinishingPosition(
+      tip.finishing_position === null || tip.finishing_position === undefined
+        ? ""
+        : String(tip.finishing_position),
+    );
+    setResultSuccessful(typeof tip.successful === "boolean" ? String(tip.successful) : "");
+    setResultComment(tip.result_comment || "");
+  }
+
+  function clearResultForm() {
+    setResultEdit(null);
+    setResultFinishingPosition("");
+    setResultSuccessful("");
+    setResultComment("");
   }
 
   async function generateCommentary() {
@@ -311,11 +320,11 @@ export default function AdminDashboard({
         </aside>
 
         <main className="p-4 lg:p-8">
-          <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-2xl min-h-[200px] lg:min-h-[280px]">
+          <div className="relative min-h-[200px] overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-2xl lg:min-h-[280px]">
             <img
               src="/header-logo.png"
               alt="Fortune on 5"
-              className="absolute left-1/2 top-[45%] w-[260px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-95 pointer-events-none select-none sm:w-[420px] lg:top-[42%] lg:w-[900px]"
+              className="pointer-events-none absolute left-1/2 top-[45%] w-[260px] max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-95 sm:w-[420px] lg:top-[42%] lg:w-[900px]"
             />
 
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.22)_0%,rgba(0,0,0,0.06)_30%,rgba(0,0,0,0.52)_100%)]" />
@@ -427,14 +436,15 @@ export default function AdminDashboard({
                 <div className="p-6 text-zinc-950">
                   <h3 className="text-xl font-semibold">Live Tip Notes</h3>
                   <div className="mt-4 space-y-3 text-sm text-zinc-600">
-                    <p>Once a tip is settled, set:</p>
+                    <p>Tips are now managed in two clean steps:</p>
                     <div className="flex flex-wrap gap-2">
-                      <Badge tone="blue">Finishing position</Badge>
-                      <Badge tone="green">Successful</Badge>
-                      <Badge tone="rose">Unsuccessful</Badge>
+                      <Badge tone="amber">Build tip</Badge>
+                      <Badge tone="blue">Publish live</Badge>
+                      <Badge tone="green">Finalise separately</Badge>
                     </div>
                     <p className="pt-2">
-                      Settled tips disappear from this page and move into the separate Resulted Tips page.
+                      When a race is over, use the separate finaliser window to record finishing
+                      place, success, and post-race comments.
                     </p>
                   </div>
                 </div>
@@ -444,7 +454,8 @@ export default function AdminDashboard({
             <div>
               <h2 className="text-2xl font-semibold text-white">Build Your Tip</h2>
               <p className="text-sm text-amber-100/70">
-                Enter the tip, add rough thoughts, let Fortune on 5 draft the write-up, then publish.
+                Enter the tip, add rough thoughts, let Fortune on 5 draft the write-up, then
+                publish.
               </p>
             </div>
 
@@ -452,16 +463,20 @@ export default function AdminDashboard({
               <Panel className="bg-white/95">
                 <form action={upsertSuggestedTip} className="space-y-6 p-6 text-zinc-950">
                   <input type="hidden" name="id" value={tipEdit?.id || ""} readOnly />
+                  <input type="hidden" name="finishing_position" value="" readOnly />
+                  <input type="hidden" name="successful" value="" readOnly />
+                  <input type="hidden" name="result_comment" value="" readOnly />
 
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="text-xl font-semibold">Fortune on 5 tip builder</h3>
                       <p className="text-sm text-zinc-500">
-                        Live tips only appear here. Settled tips move off this page.
+                        Build and update live tips here. Resulting happens in its own separate
+                        window below.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {tipEdit ? <Badge tone="blue">Editing</Badge> : null}
+                      {tipEdit ? <Badge tone="blue">Editing live tip</Badge> : null}
                       <Badge tone="green">{suggestedTips.length} live</Badge>
                     </div>
                   </div>
@@ -551,41 +566,6 @@ export default function AdminDashboard({
                     </Field>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Finishing position">
-                      <Input
-                        name="finishing_position"
-                        type="number"
-                        placeholder="e.g. 1"
-                        value={tipFinishingPosition}
-                        onChange={setTipFinishingPosition}
-                      />
-                    </Field>
-
-                    <Field label="Successful tip?">
-                      <select
-                        name="successful"
-                        value={tipSuccessful}
-                        onChange={(e) => setTipSuccessful(e.target.value)}
-                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                      >
-                        <option value="">Not settled yet</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-                    </Field>
-                  </div>
-
-                  <Field label="Post-race analysis">
-                    <Textarea
-                      name="result_comment"
-                      placeholder="What actually happened? Example: got held up, right run but no finish, wrong tempo, huge run in defeat..."
-                      value={tipResultComment}
-                      onChange={setTipResultComment}
-                      minHeight="120px"
-                    />
-                  </Field>
-
                   <Field label="Head tipper notes for AI">
                     <Textarea
                       name="tipper_notes_preview_only"
@@ -659,13 +639,13 @@ export default function AdminDashboard({
                       {tipEdit ? "Update Tip" : "Publish Tip"}
                     </button>
 
-                    {(tipEdit || tipRace || tipHorse || tipCommentary || tipperNotes || tipResultComment) ? (
+                    {(tipEdit || tipRace || tipHorse || tipCommentary || tipperNotes) ? (
                       <button
                         type="button"
                         onClick={clearTipForm}
                         className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                       >
-                        Clear Form
+                        Clear Builder
                       </button>
                     ) : null}
                   </div>
@@ -673,7 +653,7 @@ export default function AdminDashboard({
               </Panel>
 
               <Panel className="bg-white/95">
-                <div className="p-6 space-y-5 text-zinc-950">
+                <div className="space-y-5 p-6 text-zinc-950">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <h3 className="text-xl font-semibold">Live Preview</h3>
@@ -698,25 +678,20 @@ export default function AdminDashboard({
                           {tipRaceDate} {tipRaceTime} ({tipRaceTimezone})
                         </Badge>
                       ) : null}
-                      {tipFinishingPosition ? (
-                        <Badge tone="slate">Placed {tipFinishingPosition}</Badge>
-                      ) : null}
-                      {tipSuccessful === "true" ? <Badge tone="green">Successful</Badge> : null}
-                      {tipSuccessful === "false" ? <Badge tone="rose">Unsuccessful</Badge> : null}
                     </div>
 
                     <p className="mt-4 text-sm leading-6 text-zinc-700">
                       {tipCommentary || "Your Fortune on 5 commentary will appear here."}
                     </p>
+                  </div>
 
-                    {tipResultComment ? (
-                      <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                          Post-race analysis
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-700">{tipResultComment}</p>
-                      </div>
-                    ) : null}
+                  <div className="rounded-[24px] border border-amber-200/40 bg-amber-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                      Resulting workflow
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-700">
+                      Once a live tip is ready to settle, hit <span className="font-semibold">Finalise Race</span> from the live tip list. That opens a separate result window so you can record the finish cleanly without touching the original tip builder.
+                    </p>
                   </div>
 
                   <div>
@@ -746,24 +721,21 @@ export default function AdminDashboard({
                             {tip.commentary || ""}
                           </p>
 
-                          {tip.result_comment ? (
-                            <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                                Post-race analysis
-                              </p>
-                              <p className="mt-2 text-sm leading-6 text-zinc-700">
-                                {tip.result_comment}
-                              </p>
-                            </div>
-                          ) : null}
-
-                          <div className="mt-4 flex gap-2">
+                          <div className="mt-4 flex flex-wrap gap-2">
                             <button
                               type="button"
                               onClick={() => loadTipIntoForm(tip)}
                               className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                             >
-                              Edit / Settle
+                              Edit Tip
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => loadTipIntoResultForm(tip)}
+                              className="rounded-2xl bg-black px-4 py-2.5 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                            >
+                              Finalise Race
                             </button>
 
                             <form action={deleteSuggestedTipAction}>
@@ -776,6 +748,208 @@ export default function AdminDashboard({
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+              </Panel>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-semibold text-white">Finalise a Resulted Tip</h2>
+              <p className="text-sm text-amber-100/70">
+                Record the finish, mark whether it landed, and add post-race analysis in a separate
+                clean window.
+              </p>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+              <Panel className="bg-white/95">
+                <form action={upsertSuggestedTip} className="space-y-6 p-6 text-zinc-950">
+                  <input type="hidden" name="id" value={resultEdit?.id || ""} readOnly />
+                  <input type="hidden" name="race" value={resultEdit?.race || ""} readOnly />
+                  <input type="hidden" name="horse" value={resultEdit?.horse || ""} readOnly />
+                  <input type="hidden" name="type" value={resultEdit?.type || "Win"} readOnly />
+                  <input
+                    type="hidden"
+                    name="confidence"
+                    value={resultEdit?.confidence || "High"}
+                    readOnly
+                  />
+                  <input type="hidden" name="note" value={resultEdit?.note || ""} readOnly />
+                  <input
+                    type="hidden"
+                    name="commentary"
+                    value={resultEdit?.commentary || ""}
+                    readOnly
+                  />
+                  <input
+                    type="hidden"
+                    name="race_date"
+                    value={formatDateForInput(resultEdit?.race_start_at)}
+                    readOnly
+                  />
+                  <input
+                    type="hidden"
+                    name="race_time"
+                    value={formatTimeForInput(resultEdit?.race_start_at)}
+                    readOnly
+                  />
+                  <input
+                    type="hidden"
+                    name="race_timezone"
+                    value={resultEdit?.race_timezone || "Australia/Perth"}
+                    readOnly
+                  />
+
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xl font-semibold">Race finaliser</h3>
+                      <p className="text-sm text-zinc-500">
+                        Use this window only for race result data and post-race comments.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {resultEdit ? <Badge tone="green">Finalising</Badge> : null}
+                      <Badge tone="amber">Separate workflow</Badge>
+                    </div>
+                  </div>
+
+                  {resultEdit ? (
+                    <div className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(resultEdit.type)}`}>
+                      <p className="text-sm text-zinc-500">{resultEdit.race}</p>
+                      <h3 className="mt-1 text-2xl font-bold text-zinc-950">{resultEdit.horse}</h3>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {resultEdit.confidence ? (
+                          <Badge tone="blue">{resultEdit.confidence} confidence</Badge>
+                        ) : null}
+                        {resultEdit.note ? <Badge tone="amber">{resultEdit.note}</Badge> : null}
+                        <TipPill type={resultEdit.type} />
+                      </div>
+
+                      <p className="mt-4 text-sm leading-6 text-zinc-700">
+                        {resultEdit.commentary || "No original commentary added."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-[24px] border border-amber-200/30 bg-amber-50 p-5 text-sm text-zinc-700">
+                      Choose <span className="font-semibold">Finalise Race</span> from a live tip to
+                      load it into this result window.
+                    </div>
+                  )}
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Finishing position">
+                      <Input
+                        name="finishing_position"
+                        type="number"
+                        placeholder="e.g. 1"
+                        value={resultFinishingPosition}
+                        onChange={setResultFinishingPosition}
+                      />
+                    </Field>
+
+                    <Field label="Successful tip?">
+                      <select
+                        name="successful"
+                        value={resultSuccessful}
+                        onChange={(e) => setResultSuccessful(e.target.value)}
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                      >
+                        <option value="">Not settled yet</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  <Field label="Post-race analysis">
+                    <Textarea
+                      name="result_comment"
+                      placeholder="What actually happened? Example: got held up, right run but no finish, wrong tempo, huge run in defeat..."
+                      value={resultComment}
+                      onChange={setResultComment}
+                      minHeight="140px"
+                    />
+                  </Field>
+
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="submit"
+                      disabled={!resultEdit}
+                      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Finalise Tip
+                    </button>
+
+                    {(resultEdit || resultFinishingPosition || resultSuccessful || resultComment) ? (
+                      <button
+                        type="button"
+                        onClick={clearResultForm}
+                        className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                      >
+                        Clear Finaliser
+                      </button>
+                    ) : null}
+                  </div>
+                </form>
+              </Panel>
+
+              <Panel className="bg-white/95">
+                <div className="space-y-5 p-6 text-zinc-950">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-semibold">Result Preview</h3>
+                      <p className="text-sm text-zinc-500">
+                        This shows how the settled tip data will read once recorded.
+                      </p>
+                    </div>
+                    {resultEdit ? <TipPill type={resultEdit.type} /> : <Badge tone="slate">Waiting</Badge>}
+                  </div>
+
+                  <div
+                    className={`rounded-[24px] border p-5 shadow-sm ${
+                      resultEdit ? getTipCardStyle(resultEdit.type) : "border-amber-200/30 bg-white"
+                    }`}
+                  >
+                    <p className="text-sm text-zinc-500">{resultEdit?.race || "Race"}</p>
+                    <h3 className="mt-1 text-2xl font-bold text-zinc-950">
+                      {resultEdit?.horse || "Horse"}
+                    </h3>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {resultEdit?.confidence ? (
+                        <Badge tone="blue">{resultEdit.confidence} confidence</Badge>
+                      ) : null}
+                      {resultEdit?.note ? <Badge tone="amber">{resultEdit.note}</Badge> : null}
+                      {resultFinishingPosition ? (
+                        <Badge tone="slate">Placed {resultFinishingPosition}</Badge>
+                      ) : null}
+                      {resultSuccessful === "true" ? <Badge tone="green">Successful</Badge> : null}
+                      {resultSuccessful === "false" ? <Badge tone="rose">Unsuccessful</Badge> : null}
+                    </div>
+
+                    <p className="mt-4 text-sm leading-6 text-zinc-700">
+                      {resultEdit?.commentary || "Original tip commentary will stay exactly as published."}
+                    </p>
+
+                    {resultComment ? (
+                      <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                          Post-race analysis
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-700">{resultComment}</p>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                      Cleaner admin flow
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-zinc-700">
+                      Editing the tip and resulting the race are now split. That means less clutter,
+                      less chance of accidental changes, and a cleaner workflow for race-day admin.
+                    </p>
                   </div>
                 </div>
               </Panel>
