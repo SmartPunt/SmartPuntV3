@@ -99,6 +99,97 @@ function zonedDateTimeToUtcIso(
   return new Date(utcGuess).toISOString();
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function nl2br(value: string) {
+  return escapeHtml(value).replace(/\n/g, "<br />");
+}
+
+function getAlertLabel(type: string, confidence: string) {
+  const normalType = String(type || "").toLowerCase();
+  const normalConfidence = String(confidence || "").toLowerCase();
+
+  if (normalType === "win" && normalConfidence === "high") return "BEST BET";
+  if (normalType === "win") return "TOP PLAY";
+  if (normalType === "place") return "SAFE PLAY";
+  if (normalType === "all up") return "MULTI WATCH";
+  return "SMARTPUNT ALERT";
+}
+
+function getSuggestedPlayLine(type: string, confidence: string, note: string) {
+  const safeType = type || "Win";
+  const safeConfidence = confidence || "High";
+  const trimmedNote = String(note || "").trim();
+
+  if (trimmedNote) {
+    return `${safeType} bet • ${safeConfidence} confidence • ${trimmedNote}`;
+  }
+
+  return `${safeType} bet • ${safeConfidence} confidence`;
+}
+
+function formatRaceTimeDisplay(raceStartAt?: string | null, raceTimezone?: string | null) {
+  if (!raceStartAt) return null;
+
+  try {
+    const date = new Date(raceStartAt);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const timeZone = raceTimezone || "Australia/Perth";
+
+    return new Intl.DateTimeFormat("en-AU", {
+      timeZone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  } catch {
+    return null;
+  }
+}
+
+function formatCountdownLabel(raceStartAt?: string | null) {
+  if (!raceStartAt) return null;
+
+  const raceTime = new Date(raceStartAt).getTime();
+  if (Number.isNaN(raceTime)) return null;
+
+  const now = Date.now();
+  const diffMs = raceTime - now;
+
+  if (diffMs <= 0) return "Jumping soon";
+
+  const diffMinutes = Math.round(diffMs / 60000);
+
+  if (diffMinutes < 60) return `Jump in ${diffMinutes} min`;
+
+  const hours = Math.floor(diffMinutes / 60);
+  const minutes = diffMinutes % 60;
+
+  if (hours < 24) {
+    return minutes > 0 ? `Jump in ${hours}h ${minutes}m` : `Jump in ${hours}h`;
+  }
+
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+
+  if (remainingHours > 0) {
+    return `Jump in ${days}d ${remainingHours}h`;
+  }
+
+  return `Jump in ${days}d`;
+}
+
 async function sendSuggestedTipNotifications({
   race,
   horse,
@@ -106,6 +197,8 @@ async function sendSuggestedTipNotifications({
   confidence,
   note,
   commentary,
+  raceStartAt,
+  raceTimezone,
 }: {
   race: string;
   horse: string;
@@ -113,6 +206,8 @@ async function sendSuggestedTipNotifications({
   confidence: string;
   note: string;
   commentary: string;
+  raceStartAt?: string | null;
+  raceTimezone?: string | null;
 }) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
@@ -138,74 +233,144 @@ async function sendSuggestedTipNotifications({
 
   if (!recipients.length) return;
 
-  const subject = `🔥 ${horse} – ${race}`;
-  const preview = commentary?.trim() || `${horse} has been tipped.`;
+  const safeRace = escapeHtml(race || "");
+  const safeHorse = escapeHtml(horse || "");
+  const safeType = escapeHtml(type || "Win");
+  const safeConfidence = escapeHtml(confidence || "High");
+  const safeNote = escapeHtml(note || "");
+  const safeCommentary = String(commentary || "").trim();
+  const preview = safeCommentary || `${horse} has been tipped.`;
+
+  const alertLabel = getAlertLabel(type, confidence);
+  const safeAlertLabel = escapeHtml(alertLabel);
+  const suggestedPlayLine = escapeHtml(getSuggestedPlayLine(type, confidence, note));
+  const countdownLabel = formatCountdownLabel(raceStartAt);
+  const formattedRaceTime = formatRaceTimeDisplay(raceStartAt, raceTimezone);
+
+  const subjectPrefix =
+    alertLabel === "BEST BET"
+      ? "🔥 BEST BET"
+      : alertLabel === "SAFE PLAY"
+        ? "🛡️ SAFE PLAY"
+        : alertLabel === "MULTI WATCH"
+          ? "🎯 MULTI WATCH"
+          : "🔥 SMARTPUNT ALERT";
+
+  const subject = `${subjectPrefix} — ${horse} (${race})`;
 
   const html = (email: string) => `
-    <div style="background:#0a0a0a;padding:24px 12px;font-family:Arial,sans-serif;">
-      <div style="max-width:640px;margin:0 auto;background:#111111;border-radius:20px;overflow:hidden;border:1px solid rgba(251,191,36,0.15);">
+    <div style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
+      <div style="padding:24px 12px;background:#050505;">
+        <div style="max-width:640px;margin:0 auto;background:#0b0b0b;border:1px solid rgba(251,191,36,0.18);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.45);">
 
-        <div style="position:relative;background:#000000;padding:0;margin:0;line-height:0;">
-          ${
-            appUrl
-              ? `<img
-                  src="${appUrl}/header-logo.png"
-                  alt="Fortune on 5"
-                  style="display:block;width:100%;height:auto;margin:0;padding:0;border:0;"
-                />`
-              : ""
-          }
-          <div style="position:relative;background:linear-gradient(180deg,rgba(0,0,0,0.00) 0%,rgba(0,0,0,0.38) 100%);padding:14px 20px 16px 20px;text-align:left;">
-            <div style="color:#fbbf24;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;font-weight:700;">
-              Fortune on 5
-            </div>
-            <div style="color:#d4d4d8;font-size:12px;margin-top:6px;">
-              Premium racing club alert
-            </div>
-          </div>
-        </div>
-
-        <div style="padding:24px;color:#ffffff;">
-          <div style="color:#a1a1aa;font-size:13px;">${race}</div>
-
-          <div style="font-size:28px;font-weight:700;line-height:1.2;margin-top:4px;color:#ffffff;">
-            ${horse}
-          </div>
-
-          <div style="margin-top:16px;">
-            <span style="display:inline-block;background:#052e16;color:#86efac;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-right:6px;margin-bottom:6px;">
-              ${type}
-            </span>
-            <span style="display:inline-block;background:#082f49;color:#7dd3fc;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-right:6px;margin-bottom:6px;">
-              ${confidence} confidence
-            </span>
+          <div style="background:#000000;line-height:0;">
             ${
-              note
-                ? `<span style="display:inline-block;background:#451a03;color:#fcd34d;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;margin-bottom:6px;">
-                    ${note}
-                  </span>`
+              appUrl
+                ? `<img
+                    src="${appUrl}/header-logo.png"
+                    alt="SmartPunt"
+                    style="display:block;width:100%;height:auto;margin:0;padding:0;border:0;"
+                  />`
                 : ""
             }
           </div>
 
-          <div style="margin-top:20px;background:#18181b;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:18px;">
-            <div style="font-size:15px;line-height:1.7;color:#e4e4e7;">
-              ${preview}
+          <div style="padding:18px 22px 0 22px;background:linear-gradient(180deg,#0b0b0b 0%,#111111 100%);">
+            <div style="display:inline-block;background:#f59e0b;color:#111111;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">
+              New SmartPunt Drop
             </div>
           </div>
 
-          ${
-            appUrl
-              ? `<div style="margin-top:24px;">
-                  <a href="${appUrl}" style="display:inline-block;background:#000000;color:#fbbf24;padding:12px 18px;border-radius:12px;text-decoration:none;font-weight:700;border:1px solid rgba(251,191,36,0.30);">
-                    View Full Tips
-                  </a>
-                </div>`
-              : ""
-          }
+          <div style="padding:18px 22px 10px 22px;background:linear-gradient(180deg,#111111 0%,#0b0b0b 100%);">
+            <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
+              ${safeAlertLabel}
+            </div>
 
-          <div style="margin-top:24px;font-size:11px;color:#71717a;">
-            Sent to ${email} because you’re an active SmartPunt subscriber.
+            <div style="font-size:34px;line-height:1.08;font-weight:900;color:#ffffff;margin-top:10px;">
+              🔥 ${safeHorse}
+            </div>
+
+            <div style="font-size:15px;line-height:1.5;color:#d4d4d8;margin-top:10px;">
+              ${safeRace}
+            </div>
+
+            ${
+              countdownLabel || formattedRaceTime
+                ? `<div style="margin-top:18px;">
+                    ${
+                      countdownLabel
+                        ? `<span style="display:inline-block;background:#1f2937;color:#fde68a;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:800;margin-right:8px;margin-bottom:8px;border:1px solid rgba(251,191,36,0.18);">
+                            ⏱ ${escapeHtml(countdownLabel)}
+                          </span>`
+                        : ""
+                    }
+                    ${
+                      formattedRaceTime
+                        ? `<span style="display:inline-block;background:#111827;color:#cbd5e1;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700;margin-right:8px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);">
+                            📍 ${escapeHtml(formattedRaceTime)}
+                          </span>`
+                        : ""
+                    }
+                  </div>`
+                : ""
+            }
+          </div>
+
+          <div style="padding:0 22px 22px 22px;background:#0b0b0b;">
+            <div style="background:linear-gradient(180deg,#171717 0%,#101010 100%);border:1px solid rgba(251,191,36,0.16);border-radius:20px;padding:18px 18px 16px 18px;">
+              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
+                Suggested Play
+              </div>
+              <div style="font-size:18px;line-height:1.5;color:#ffffff;font-weight:800;margin-top:10px;">
+                ${suggestedPlayLine}
+              </div>
+
+              <div style="margin-top:14px;">
+                <span style="display:inline-block;background:#052e16;color:#86efac;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-right:6px;margin-bottom:6px;">
+                  ${safeType}
+                </span>
+                <span style="display:inline-block;background:#082f49;color:#7dd3fc;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-right:6px;margin-bottom:6px;">
+                  ${safeConfidence} confidence
+                </span>
+                ${
+                  safeNote
+                    ? `<span style="display:inline-block;background:#451a03;color:#fcd34d;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-bottom:6px;">
+                        ${safeNote}
+                      </span>`
+                    : ""
+                }
+              </div>
+            </div>
+
+            <div style="margin-top:16px;background:#151515;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:18px;">
+              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
+                Mickey’s Call
+              </div>
+              <div style="font-size:16px;line-height:1.75;color:#f4f4f5;margin-top:10px;">
+                ${nl2br(preview)}
+              </div>
+            </div>
+
+            ${
+              appUrl
+                ? `<div style="margin-top:20px;">
+                    <a
+                      href="${appUrl}"
+                      style="display:block;width:100%;box-sizing:border-box;background:#f59e0b;color:#111111;text-decoration:none;text-align:center;padding:16px 18px;border-radius:16px;font-size:16px;font-weight:900;letter-spacing:0.02em;border:1px solid rgba(245,158,11,0.60);"
+                    >
+                      👉 Open SmartPunt
+                    </a>
+                  </div>`
+                : ""
+            }
+
+            <div style="margin-top:18px;font-size:13px;line-height:1.7;color:#a1a1aa;">
+              You’re getting this because you’re inside SmartPunt. Stay sharp — the next edge lands fast.
+            </div>
+
+            <div style="margin-top:10px;font-size:11px;line-height:1.6;color:#6b7280;">
+              Sent to ${escapeHtml(email)}.
+            </div>
           </div>
         </div>
       </div>
@@ -449,6 +614,8 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
           confidence: data.confidence || payload.confidence,
           note: data.note || payload.note,
           commentary: data.commentary || payload.commentary,
+          raceStartAt: data.race_start_at || payload.race_start_at,
+          raceTimezone: data.race_timezone || payload.race_timezone,
         });
       } catch (notificationError) {
         console.error(notificationError);
