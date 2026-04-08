@@ -210,45 +210,6 @@ function CollapsibleTipCard({
   );
 }
 
-function WatchCard({ item }: { item: any }) {
-  return (
-    <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-zinc-500">{item.race || "Watchlist"}</p>
-          <h4 className="mt-1 text-xl font-semibold text-zinc-950">
-            {item.horse || "Race note"}
-          </h4>
-        </div>
-        <TipPill type={item.label} />
-      </div>
-
-      <p className="mt-4 text-sm leading-6 text-zinc-600">{item.commentary || ""}</p>
-    </div>
-  );
-}
-
-function LongTermCard({ item }: { item: any }) {
-  return (
-    <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-zinc-500">{item.title}</p>
-          <h4 className="mt-1 text-xl font-semibold text-zinc-950">{item.horse}</h4>
-        </div>
-        <TipPill type="Long Term" />
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {item.bet_type ? <Badge tone="rose">{item.bet_type}</Badge> : null}
-        {item.odds ? <Badge tone="slate">{item.odds}</Badge> : null}
-      </div>
-
-      <p className="mt-4 text-sm leading-6 text-zinc-600">{item.commentary || ""}</p>
-    </div>
-  );
-}
-
 export default function SubscriberDashboard({
   currentUser,
   initialSuggestedTips,
@@ -353,6 +314,27 @@ export default function SubscriberDashboard({
                     Logged in as {currentUser.full_name || currentUser.email}
                   </p>
                 </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href="/"
+                    className="rounded-2xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-zinc-950"
+                  >
+                    Live Tips
+                  </Link>
+                  <Link
+                    href="/watchlist"
+                    className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+                  >
+                    Horses / Races to Watch
+                  </Link>
+                  <Link
+                    href="/long-term-bets"
+                    className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+                  >
+                    Long-Term Bets
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -384,9 +366,7 @@ export default function SubscriberDashboard({
                     {bestBetTip.horse}
                   </h2>
 
-                  <p className="mt-2 text-base text-zinc-300">
-                    {bestBetTip.race}
-                  </p>
+                  <p className="mt-2 text-base text-zinc-300">{bestBetTip.race}</p>
 
                   <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-200">
                     {bestBetTip.commentary || bestBetTip.note || "Today’s standout play."}
@@ -431,9 +411,7 @@ export default function SubscriberDashboard({
                       </div>
                     </>
                   ) : (
-                    <p className="mt-4 text-sm text-zinc-300">
-                      Race time not set yet.
-                    </p>
+                    <p className="mt-4 text-sm text-zinc-300">Race time not set yet.</p>
                   )}
 
                   <div className="mt-6 rounded-2xl bg-white/5 p-4">
@@ -441,7 +419,9 @@ export default function SubscriberDashboard({
                       Why this is featured
                     </p>
                     <p className="mt-3 text-sm leading-7 text-zinc-200">
-                      Highest-priority play surfaced for quick action. Strongest match is chosen from today’s visible tips, preferring explicit Best Bet tags first, then high-confidence win selections.
+                      Highest-priority play surfaced for quick action. Strongest match is chosen
+                      from today’s visible tips, preferring explicit Best Bet tags first, then
+                      high-confidence win selections.
                     </p>
                   </div>
                 </div>
@@ -450,7 +430,7 @@ export default function SubscriberDashboard({
           </div>
         ) : null}
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
           <Panel className="text-zinc-950">
             <div className="p-4">
               <p className="text-sm text-zinc-500">Live Tips</p>
@@ -473,7 +453,17 @@ export default function SubscriberDashboard({
 
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Long-term live</p>
+              <p className="text-sm text-zinc-500">Watchlist Live</p>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-2xl font-semibold">{watchlistItems.length}</p>
+                <Badge tone="blue">Track</Badge>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel className="text-zinc-950">
+            <div className="p-4">
+              <p className="text-sm text-zinc-500">Long-Term Live</p>
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-2xl font-semibold">{longTermBets.length}</p>
                 <Badge tone="rose">Futures</Badge>
@@ -487,15 +477,24 @@ export default function SubscriberDashboard({
             <div>
               <h2 className="text-2xl font-semibold text-white">Today’s Suggested Tips</h2>
               <p className="mt-1 text-sm text-zinc-300">
-                Settled tips are moved off this page. Open commentary when needed and save the tips you’re taking.
+                Settled tips are moved off this page. Open commentary when needed and save the tips
+                you’re taking.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <FilterButton label="All" active={filter === "All"} onClick={() => setFilter("All")} />
               <FilterButton label="Win" active={filter === "Win"} onClick={() => setFilter("Win")} />
-              <FilterButton label="Place" active={filter === "Place"} onClick={() => setFilter("Place")} />
-              <FilterButton label="All Up" active={filter === "All Up"} onClick={() => setFilter("All Up")} />
+              <FilterButton
+                label="Place"
+                active={filter === "Place"}
+                onClick={() => setFilter("Place")}
+              />
+              <FilterButton
+                label="All Up"
+                active={filter === "All Up"}
+                onClick={() => setFilter("All Up")}
+              />
             </div>
           </div>
 
@@ -561,27 +560,32 @@ export default function SubscriberDashboard({
             </div>
           </Panel>
 
-          <div className="grid gap-8 xl:grid-cols-2">
+          <div className="grid gap-6 xl:grid-cols-2">
             <Panel className="text-zinc-950">
               <div className="p-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h3 className="text-xl font-semibold">Horses / races to watch</h3>
                     <p className="text-sm text-zinc-500">
-                      Smart observations, forgive runs, and runners to keep on side.
+                      This section has moved to its own page for a cleaner subscriber feed.
                     </p>
                   </div>
                   <Badge tone="amber">{watchlistItems.length} live</Badge>
                 </div>
 
-                <div className="mt-5 space-y-4">
-                  {watchlistItems.length ? (
-                    watchlistItems.map((item: any) => <WatchCard key={item.id} item={item} />)
-                  ) : (
-                    <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
-                      No watchlist items posted yet.
-                    </div>
-                  )}
+                <div className="mt-5 rounded-[24px] border border-amber-200/30 bg-white p-5">
+                  <p className="text-sm leading-6 text-zinc-600">
+                    Smart observations, forgive runs, and runners to keep on side now live on their
+                    own dedicated page.
+                  </p>
+                  <div className="mt-4">
+                    <Link
+                      href="/watchlist"
+                      className="inline-flex rounded-2xl bg-black px-4 py-2.5 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                    >
+                      Open Watchlist Page
+                    </Link>
+                  </div>
                 </div>
               </div>
             </Panel>
@@ -592,20 +596,25 @@ export default function SubscriberDashboard({
                   <div>
                     <h3 className="text-xl font-semibold">Long-term bets</h3>
                     <p className="text-sm text-zinc-500">
-                      Longer-range betting angles and futures worth tracking.
+                      Longer-range betting angles now have their own dedicated page too.
                     </p>
                   </div>
                   <Badge tone="rose">{longTermBets.length} live</Badge>
                 </div>
 
-                <div className="mt-5 space-y-4">
-                  {longTermBets.length ? (
-                    longTermBets.map((item: any) => <LongTermCard key={item.id} item={item} />)
-                  ) : (
-                    <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
-                      No long-term bets posted yet.
-                    </div>
-                  )}
+                <div className="mt-5 rounded-[24px] border border-amber-200/30 bg-white p-5">
+                  <p className="text-sm leading-6 text-zinc-600">
+                    Futures and longer-range plays are now separated from the daily tips feed so the
+                    main page stays sharper.
+                  </p>
+                  <div className="mt-4">
+                    <Link
+                      href="/long-term-bets"
+                      className="inline-flex rounded-2xl bg-black px-4 py-2.5 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                    >
+                      Open Long-Term Bets Page
+                    </Link>
+                  </div>
                 </div>
               </div>
             </Panel>
