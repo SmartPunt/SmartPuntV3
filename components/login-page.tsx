@@ -12,10 +12,18 @@ export default function LoginPage() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
       <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10 lg:px-8">
         <div className="w-full max-w-md rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,rgba(17,17,17,0.96),rgba(39,39,42,0.96),rgba(202,138,4,0.20))] p-8 shadow-2xl backdrop-blur">
-          <div className="mb-10 flex flex-col items-center">
-            <img src="/logo.png" alt="Fortune on 5" className="mb-4 h-24 w-auto" />
-            <h1 className="text-2xl font-semibold text-white">Fortune on 5</h1>
-            <p className="mt-1 text-sm text-amber-300">Premium Racing Tips</p>
+          <div className="mb-10">
+            <div className="flex justify-center">
+              <img
+                src="/header-logo.png"
+                alt="Fortune on 5"
+                className="mb-4 h-auto w-[92%] max-w-none object-contain"
+              />
+            </div>
+            <div className="mt-1 text-center">
+              <h1 className="text-2xl font-semibold text-white">Fortune on 5</h1>
+              <p className="mt-1 text-sm text-amber-300">Premium Racing Tips</p>
+            </div>
           </div>
 
           <form action={formAction} className="space-y-5">
