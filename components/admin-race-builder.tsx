@@ -1,39 +1,56 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge, Panel } from "@/components/ui";
+import {
+  createMeetingAction,
+  createRaceAction,
+  createRaceRunnerAction,
+} from "@/lib/actions";
 
 type Horse = {
-  id: string;
-  name: string;
+  id: number;
+  horse_name: string;
+  normalised_name: string;
+  created_at: string;
+  updated_at: string;
 };
 
 type Meeting = {
-  id: string;
-  name: string;
-  date: string;
-  trackCondition: string;
+  id: number;
+  meeting_name: string;
+  meeting_date: string;
+  track_condition: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 type Race = {
-  id: string;
-  meetingId: string;
-  raceNumber: string;
-  raceName: string;
-  distance: string;
+  id: number;
+  meeting_id: number;
+  race_number: number;
+  race_name: string;
+  distance_m: number | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 type Runner = {
-  id: string;
-  raceId: string;
-  horseId: string;
-  horseName: string;
-  jockeyName: string;
-  trainerName: string;
-  barrier: string;
-  marketPrice: string;
-  formLast3: string;
+  id: number;
+  race_id: number;
+  horse_id: number;
+  jockey_name: string | null;
+  trainer_name: string | null;
+  barrier: number | null;
+  market_price: number | null;
+  form_last_3: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 function Field({
@@ -96,41 +113,33 @@ function Select({
   );
 }
 
-function createId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return "Something went wrong. Please try again.";
 }
 
-function normaliseHorseName(value: string) {
-  return value.trim().replace(/\s+/g, " ");
+function formatMeetingLabel(meeting: Meeting) {
+  return `${meeting.meeting_name} — ${meeting.meeting_date}`;
 }
 
-export default function RaceBuilderPage() {
-  const [horses, setHorses] = useState<Horse[]>([
-    { id: "horse_1", name: "Private Harry" },
-    { id: "horse_2", name: "Bold Tempo" },
-    { id: "horse_3", name: "Track Legend" },
-  ]);
+export default function RaceBuilderPage({
+  currentUser,
+  initialMeetings,
+  initialRaces,
+  initialHorses,
+  initialRunners,
+}: {
+  currentUser: any;
+  initialMeetings: Meeting[];
+  initialRaces: Race[];
+  initialHorses: Horse[];
+  initialRunners: Runner[];
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
-  const [meetings, setMeetings] = useState<Meeting[]>([
-    {
-      id: "meeting_1",
-      name: "Randwick",
-      date: "2026-04-09",
-      trackCondition: "Soft 6",
-    },
-  ]);
-
-  const [races, setRaces] = useState<Race[]>([
-    {
-      id: "race_1",
-      meetingId: "meeting_1",
-      raceNumber: "6",
-      raceName: "Sprint Handicap",
-      distance: "1200",
-    },
-  ]);
-
-  const [runners, setRunners] = useState<Runner[]>([]);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [statusTone, setStatusTone] = useState<"success" | "error">("success");
 
   const [meetingName, setMeetingName] = useState("");
   const [meetingDate, setMeetingDate] = useState("");
@@ -151,23 +160,29 @@ export default function RaceBuilderPage() {
   const [marketPrice, setMarketPrice] = useState("");
   const [formLast3, setFormLast3] = useState("");
 
-  const [statusMessage, setStatusMessage] = useState("");
-
   const filteredHorseSuggestions = useMemo(() => {
     const query = horseQuery.trim().toLowerCase();
-    if (!query) return horses.slice(0, 8);
 
-    return horses
-      .filter((horse) => horse.name.toLowerCase().includes(query))
+    if (!query) {
+      return initialHorses.slice(0, 8);
+    }
+
+    return initialHorses
+      .filter((horse) => horse.horse_name.toLowerCase().includes(query))
       .slice(0, 8);
-  }, [horseQuery, horses]);
+  }, [horseQuery, initialHorses]);
 
   const racesForSelectedMeeting = useMemo(() => {
     if (!selectedMeetingIdForRunner) return [];
-    return races.filter((race) => race.meetingId === selectedMeetingIdForRunner);
-  }, [selectedMeetingIdForRunner, races]);
 
-  const selectedRace = races.find((race) => race.id === selectedRaceIdForRunner);
+    return initialRaces.filter(
+      (race) => String(race.meeting_id) === selectedMeetingIdForRunner,
+    );
+  }, [initialRaces, selectedMeetingIdForRunner]);
+
+  const selectedRace = initialRaces.find(
+    (race) => String(race.id) === selectedRaceIdForRunner,
+  );
 
   function clearMeetingForm() {
     setMeetingName("");
@@ -194,121 +209,87 @@ export default function RaceBuilderPage() {
     setFormLast3("");
   }
 
+  function setSuccess(message: string) {
+    setStatusTone("success");
+    setStatusMessage(message);
+  }
+
+  function setError(message: string) {
+    setStatusTone("error");
+    setStatusMessage(message);
+  }
+
   function handleAddMeeting() {
-    if (!meetingName.trim() || !meetingDate) {
-      setStatusMessage("Add a meeting name and date first.");
-      return;
-    }
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.set("meeting_name", meetingName);
+        formData.set("meeting_date", meetingDate);
+        formData.set("track_condition", meetingTrackCondition);
 
-    const newMeeting: Meeting = {
-      id: createId("meeting"),
-      name: meetingName.trim(),
-      date: meetingDate,
-      trackCondition: meetingTrackCondition,
-    };
-
-    setMeetings((prev) => [newMeeting, ...prev]);
-    clearMeetingForm();
-    setStatusMessage("Meeting added to Race Builder.");
+        await createMeetingAction(formData);
+        clearMeetingForm();
+        setSuccess("Meeting added to Race Builder.");
+        router.refresh();
+      } catch (error) {
+        setError(getErrorMessage(error));
+      }
+    });
   }
 
   function handleAddRace() {
-    if (!selectedMeetingIdForRace || !raceNumber.trim() || !raceDistance.trim()) {
-      setStatusMessage("Choose a meeting, then add race number and distance.");
-      return;
-    }
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.set("meeting_id", selectedMeetingIdForRace);
+        formData.set("race_number", raceNumber);
+        formData.set("race_name", raceName);
+        formData.set("distance_m", raceDistance);
 
-    const newRace: Race = {
-      id: createId("race"),
-      meetingId: selectedMeetingIdForRace,
-      raceNumber: raceNumber.trim(),
-      raceName: raceName.trim() || `Race ${raceNumber.trim()}`,
-      distance: raceDistance.trim(),
-    };
-
-    setRaces((prev) => [newRace, ...prev]);
-    clearRaceForm();
-    setStatusMessage("Race added to the selected meeting.");
+        await createRaceAction(formData);
+        clearRaceForm();
+        setSuccess("Race added to the selected meeting.");
+        router.refresh();
+      } catch (error) {
+        setError(getErrorMessage(error));
+      }
+    });
   }
 
   function handleSelectHorse(horse: Horse) {
-    setSelectedHorseId(horse.id);
-    setHorseQuery(horse.name);
-  }
-
-  function ensureHorse(): Horse | null {
-    const trimmed = normaliseHorseName(horseQuery);
-    if (!trimmed) return null;
-
-    if (selectedHorseId) {
-      const existing = horses.find((horse) => horse.id === selectedHorseId);
-      if (existing) return existing;
-    }
-
-    const exact = horses.find(
-      (horse) => horse.name.toLowerCase() === trimmed.toLowerCase(),
-    );
-
-    if (exact) {
-      setSelectedHorseId(exact.id);
-      setHorseQuery(exact.name);
-      return exact;
-    }
-
-    const newHorse: Horse = {
-      id: createId("horse"),
-      name: trimmed,
-    };
-
-    setHorses((prev) => [newHorse, ...prev]);
-    setSelectedHorseId(newHorse.id);
-    setHorseQuery(newHorse.name);
-    return newHorse;
+    setSelectedHorseId(String(horse.id));
+    setHorseQuery(horse.horse_name);
   }
 
   function handleAddRunner() {
-    if (!selectedMeetingIdForRunner || !selectedRaceIdForRunner) {
-      setStatusMessage("Choose a meeting and race first.");
-      return;
-    }
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.set("race_id", selectedRaceIdForRunner);
+        formData.set("selected_horse_id", selectedHorseId);
+        formData.set("horse_name", horseQuery);
+        formData.set("jockey_name", jockeyName);
+        formData.set("trainer_name", trainerName);
+        formData.set("barrier", barrier);
+        formData.set("market_price", marketPrice);
+        formData.set("form_last_3", formLast3);
 
-    const horse = ensureHorse();
-
-    if (!horse) {
-      setStatusMessage("Add or select a horse first.");
-      return;
-    }
-
-    const duplicateRunner = runners.find(
-      (runner) =>
-        runner.raceId === selectedRaceIdForRunner &&
-        runner.horseId === horse.id,
-    );
-
-    if (duplicateRunner) {
-      setStatusMessage("That horse is already loaded into this race.");
-      return;
-    }
-
-    const newRunner: Runner = {
-      id: createId("runner"),
-      raceId: selectedRaceIdForRunner,
-      horseId: horse.id,
-      horseName: horse.name,
-      jockeyName: jockeyName.trim(),
-      trainerName: trainerName.trim(),
-      barrier: barrier.trim(),
-      marketPrice: marketPrice.trim(),
-      formLast3: formLast3.trim(),
-    };
-
-    setRunners((prev) => [newRunner, ...prev]);
-    clearRunnerForm();
-    setStatusMessage("Runner added to race.");
+        await createRaceRunnerAction(formData);
+        clearRunnerForm();
+        setSuccess("Runner added to race.");
+        router.refresh();
+      } catch (error) {
+        setError(getErrorMessage(error));
+      }
+    });
   }
 
-  function runnersForRace(raceId: string) {
-    return runners.filter((runner) => runner.raceId === raceId);
+  function runnersForRace(raceId: number) {
+    return initialRunners.filter((runner) => runner.race_id === raceId);
+  }
+
+  function findHorseName(horseId: number) {
+    return initialHorses.find((horse) => horse.id === horseId)?.horse_name || "Unknown horse";
   }
 
   return (
@@ -350,19 +331,28 @@ export default function RaceBuilderPage() {
                 <p className="text-sm text-zinc-200 lg:text-base">
                   Build meetings, races, horses, and runners cleanly before the calculator goes live.
                 </p>
+                <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
+                  Logged in as {currentUser.full_name || currentUser.email}
+                </p>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="green">Phase 1</Badge>
-                <Badge tone="blue">No live DB yet</Badge>
-                <Badge tone="amber">Safe standalone build</Badge>
+                <Badge tone="green">Live database</Badge>
+                <Badge tone="blue">Admin only</Badge>
+                <Badge tone="amber">Horse matching active</Badge>
               </div>
             </div>
           </div>
         </div>
 
         {statusMessage ? (
-          <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-100 px-4 py-3 text-sm font-medium text-amber-950">
+          <div
+            className={`mt-6 rounded-2xl border px-4 py-3 text-sm font-medium ${
+              statusTone === "success"
+                ? "border-emerald-300/20 bg-emerald-100 text-emerald-950"
+                : "border-red-300/20 bg-red-100 text-red-900"
+            }`}
+          >
             {statusMessage}
           </div>
         ) : null}
@@ -377,7 +367,7 @@ export default function RaceBuilderPage() {
                     Start with the meeting shell so races can sit under it.
                   </p>
                 </div>
-                <Badge tone="amber">{meetings.length} meetings</Badge>
+                <Badge tone="amber">{initialMeetings.length} meetings</Badge>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
@@ -419,14 +409,16 @@ export default function RaceBuilderPage() {
                 <button
                   type="button"
                   onClick={handleAddMeeting}
-                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                  disabled={isPending}
+                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
                 >
-                  Add Meeting
+                  {isPending ? "Saving..." : "Add Meeting"}
                 </button>
                 <button
                   type="button"
                   onClick={clearMeetingForm}
-                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  disabled={isPending}
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
                 >
                   Clear
                 </button>
@@ -442,22 +434,26 @@ export default function RaceBuilderPage() {
               </div>
 
               <div className="space-y-3">
-                {meetings.map((meeting) => (
-                  <div
-                    key={meeting.id}
-                    className="rounded-[24px] border border-amber-200/30 bg-white p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-lg font-semibold text-zinc-950">
-                          {meeting.name}
-                        </p>
-                        <p className="text-sm text-zinc-500">{meeting.date}</p>
+                {initialMeetings.length > 0 ? (
+                  initialMeetings.map((meeting) => (
+                    <div
+                      key={meeting.id}
+                      className="rounded-[24px] border border-amber-200/30 bg-white p-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-lg font-semibold text-zinc-950">
+                            {meeting.meeting_name}
+                          </p>
+                          <p className="text-sm text-zinc-500">{meeting.meeting_date}</p>
+                        </div>
+                        <Badge tone="amber">{meeting.track_condition || "—"}</Badge>
                       </div>
-                      <Badge tone="amber">{meeting.trackCondition}</Badge>
                     </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-sm text-zinc-500">No meetings loaded yet.</p>
+                )}
               </div>
             </div>
           </Panel>
@@ -473,7 +469,7 @@ export default function RaceBuilderPage() {
                     Build races under a meeting before loading runners.
                   </p>
                 </div>
-                <Badge tone="green">{races.length} races</Badge>
+                <Badge tone="green">{initialRaces.length} races</Badge>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -483,9 +479,9 @@ export default function RaceBuilderPage() {
                     onChange={setSelectedMeetingIdForRace}
                   >
                     <option value="">Select meeting</option>
-                    {meetings.map((meeting) => (
-                      <option key={meeting.id} value={meeting.id}>
-                        {meeting.name} — {meeting.date}
+                    {initialMeetings.map((meeting) => (
+                      <option key={meeting.id} value={String(meeting.id)}>
+                        {formatMeetingLabel(meeting)}
                       </option>
                     ))}
                   </Select>
@@ -522,14 +518,16 @@ export default function RaceBuilderPage() {
                 <button
                   type="button"
                   onClick={handleAddRace}
-                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                  disabled={isPending}
+                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
                 >
-                  Add Race
+                  {isPending ? "Saving..." : "Add Race"}
                 </button>
                 <button
                   type="button"
                   onClick={clearRaceForm}
-                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  disabled={isPending}
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
                 >
                   Clear
                 </button>
@@ -545,30 +543,34 @@ export default function RaceBuilderPage() {
               </div>
 
               <div className="space-y-3">
-                {races.map((race) => {
-                  const meeting = meetings.find((item) => item.id === race.meetingId);
+                {initialRaces.length > 0 ? (
+                  initialRaces.map((race) => {
+                    const meeting = initialMeetings.find((item) => item.id === race.meeting_id);
 
-                  return (
-                    <div
-                      key={race.id}
-                      className="rounded-[24px] border border-amber-200/30 bg-white p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="text-lg font-semibold text-zinc-950">
-                            R{race.raceNumber} {race.raceName}
-                          </p>
-                          <p className="text-sm text-zinc-500">
-                            {meeting?.name || "Unknown meeting"} · {race.distance}m
-                          </p>
+                    return (
+                      <div
+                        key={race.id}
+                        className="rounded-[24px] border border-amber-200/30 bg-white p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-lg font-semibold text-zinc-950">
+                              R{race.race_number} {race.race_name}
+                            </p>
+                            <p className="text-sm text-zinc-500">
+                              {meeting?.meeting_name || "Unknown meeting"} · {race.distance_m || "—"}m
+                            </p>
+                          </div>
+                          <Badge tone="blue">
+                            {runnersForRace(race.id).length} runners
+                          </Badge>
                         </div>
-                        <Badge tone="blue">
-                          {runnersForRace(race.id).length} runners
-                        </Badge>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-zinc-500">No races loaded yet.</p>
+                )}
               </div>
             </div>
           </Panel>
@@ -581,10 +583,10 @@ export default function RaceBuilderPage() {
                 <div>
                   <h2 className="text-xl font-semibold">3. Add runner</h2>
                   <p className="text-sm text-zinc-500">
-                    Search for an existing horse first. If it’s new, the master list grows automatically.
+                    Search saved horses first. If it’s new, SmartPunt adds it to the master list automatically.
                   </p>
                 </div>
-                <Badge tone="rose">{horses.length} horses</Badge>
+                <Badge tone="rose">{initialHorses.length} horses</Badge>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -597,9 +599,9 @@ export default function RaceBuilderPage() {
                     }}
                   >
                     <option value="">Select meeting</option>
-                    {meetings.map((meeting) => (
-                      <option key={meeting.id} value={meeting.id}>
-                        {meeting.name} — {meeting.date}
+                    {initialMeetings.map((meeting) => (
+                      <option key={meeting.id} value={String(meeting.id)}>
+                        {formatMeetingLabel(meeting)}
                       </option>
                     ))}
                   </Select>
@@ -612,8 +614,8 @@ export default function RaceBuilderPage() {
                   >
                     <option value="">Select race</option>
                     {racesForSelectedMeeting.map((race) => (
-                      <option key={race.id} value={race.id}>
-                        R{race.raceNumber} {race.raceName} — {race.distance}m
+                      <option key={race.id} value={String(race.id)}>
+                        R{race.race_number} {race.race_name} — {race.distance_m || "—"}m
                       </option>
                     ))}
                   </Select>
@@ -622,7 +624,7 @@ export default function RaceBuilderPage() {
 
               <Field
                 label="Horse search"
-                hint="Start typing to match an existing horse. If no match is right, keep typing and add it as a new one."
+                hint="Select a saved horse if it’s the right one. If not, leave the typed name and add runner."
               >
                 <TextInput
                   value={horseQuery}
@@ -648,17 +650,17 @@ export default function RaceBuilderPage() {
                           type="button"
                           onClick={() => handleSelectHorse(horse)}
                           className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
-                            selectedHorseId === horse.id
+                            selectedHorseId === String(horse.id)
                               ? "bg-black text-amber-300"
                               : "border border-amber-300/40 bg-white text-zinc-800 hover:bg-amber-100"
                           }`}
                         >
-                          {horse.name}
+                          {horse.horse_name}
                         </button>
                       ))
                     ) : (
                       <p className="text-sm text-zinc-600">
-                        No match found yet. Add runner to create this horse in the master list.
+                        No saved horse matched. Add runner to create this horse in the master list.
                       </p>
                     )}
                   </div>
@@ -715,7 +717,7 @@ export default function RaceBuilderPage() {
                 </p>
                 <p className="mt-2 text-sm text-zinc-700">
                   {selectedRace
-                    ? `R${selectedRace.raceNumber} ${selectedRace.raceName} — ${selectedRace.distance}m`
+                    ? `R${selectedRace.race_number} ${selectedRace.race_name} — ${selectedRace.distance_m || "—"}m`
                     : "Choose a meeting and race to load runners cleanly."}
                 </p>
               </div>
@@ -724,14 +726,16 @@ export default function RaceBuilderPage() {
                 <button
                   type="button"
                   onClick={handleAddRunner}
-                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                  disabled={isPending}
+                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
                 >
-                  Add Runner
+                  {isPending ? "Saving..." : "Add Runner"}
                 </button>
                 <button
                   type="button"
                   onClick={clearRunnerForm}
-                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  disabled={isPending}
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
                 >
                   Clear
                 </button>
@@ -743,72 +747,76 @@ export default function RaceBuilderPage() {
             <div className="space-y-5 p-6 text-zinc-950">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold">4. Runner board</h2>
-                <Badge tone="green">{runners.length} loaded</Badge>
+                <Badge tone="green">{initialRunners.length} loaded</Badge>
               </div>
 
               <div className="space-y-4">
-                {races.map((race) => {
-                  const meeting = meetings.find((item) => item.id === race.meetingId);
-                  const raceRunners = runnersForRace(race.id);
+                {initialRaces.length > 0 ? (
+                  initialRaces.map((race) => {
+                    const meeting = initialMeetings.find((item) => item.id === race.meeting_id);
+                    const raceRunners = runnersForRace(race.id);
 
-                  return (
-                    <div
-                      key={race.id}
-                      className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="text-lg font-semibold text-zinc-950">
-                            {meeting?.name || "Meeting"} · R{race.raceNumber}
-                          </p>
-                          <p className="text-sm text-zinc-500">
-                            {race.raceName} · {race.distance}m
-                          </p>
+                    return (
+                      <div
+                        key={race.id}
+                        className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="text-lg font-semibold text-zinc-950">
+                              {meeting?.meeting_name || "Meeting"} · R{race.race_number}
+                            </p>
+                            <p className="text-sm text-zinc-500">
+                              {race.race_name} · {race.distance_m || "—"}m
+                            </p>
+                          </div>
+                          <Badge tone="amber">{raceRunners.length} runners</Badge>
                         </div>
-                        <Badge tone="amber">{raceRunners.length} runners</Badge>
-                      </div>
 
-                      <div className="mt-4 space-y-3">
-                        {raceRunners.length > 0 ? (
-                          raceRunners.map((runner) => (
-                            <div
-                              key={runner.id}
-                              className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div>
-                                  <p className="font-semibold text-zinc-950">
-                                    {runner.horseName}
-                                  </p>
-                                  <p className="text-sm text-zinc-500">
-                                    Jockey: {runner.jockeyName || "—"} · Trainer:{" "}
-                                    {runner.trainerName || "—"}
-                                  </p>
-                                </div>
+                        <div className="mt-4 space-y-3">
+                          {raceRunners.length > 0 ? (
+                            raceRunners.map((runner) => (
+                              <div
+                                key={runner.id}
+                                className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div>
+                                    <p className="font-semibold text-zinc-950">
+                                      {findHorseName(runner.horse_id)}
+                                    </p>
+                                    <p className="text-sm text-zinc-500">
+                                      Jockey: {runner.jockey_name || "—"} · Trainer:{" "}
+                                      {runner.trainer_name || "—"}
+                                    </p>
+                                  </div>
 
-                                <div className="flex flex-wrap gap-2">
-                                  {runner.barrier ? (
-                                    <Badge tone="blue">Barrier {runner.barrier}</Badge>
-                                  ) : null}
-                                  {runner.marketPrice ? (
-                                    <Badge tone="green">${runner.marketPrice}</Badge>
-                                  ) : null}
-                                  {runner.formLast3 ? (
-                                    <Badge tone="slate">{runner.formLast3}</Badge>
-                                  ) : null}
+                                  <div className="flex flex-wrap gap-2">
+                                    {runner.barrier ? (
+                                      <Badge tone="blue">Barrier {runner.barrier}</Badge>
+                                    ) : null}
+                                    {runner.market_price !== null ? (
+                                      <Badge tone="green">${runner.market_price}</Badge>
+                                    ) : null}
+                                    {runner.form_last_3 ? (
+                                      <Badge tone="slate">{runner.form_last_3}</Badge>
+                                    ) : null}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-zinc-500">
-                            No runners loaded into this race yet.
-                          </p>
-                        )}
+                            ))
+                          ) : (
+                            <p className="text-sm text-zinc-500">
+                              No runners loaded into this race yet.
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-zinc-500">No races available yet.</p>
+                )}
               </div>
             </div>
           </Panel>
@@ -820,9 +828,9 @@ export default function RaceBuilderPage() {
               <h3 className="text-lg font-semibold">What this gives us now</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
                 <p>• Separate Race Builder route</p>
-                <p>• Master horse list growth over time</p>
+                <p>• Persistent horse master list</p>
                 <p>• Meeting → Race → Runner structure</p>
-                <p>• Reduced spelling issues with horse suggestions</p>
+                <p>• Reduced spelling issues with horse matching</p>
               </div>
             </div>
           </Panel>
@@ -831,9 +839,9 @@ export default function RaceBuilderPage() {
             <div className="p-6 text-zinc-950">
               <h3 className="text-lg font-semibold">Next backend step</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Add Supabase tables for horses, meetings, races, and runners</p>
-                <p>• Replace local state with real inserts and reads</p>
-                <p>• Add duplicate checks server-side</p>
+                <p>• Add edit/delete controls</p>
+                <p>• Add CSV upload into meetings or runners</p>
+                <p>• Add more race-day attributes</p>
               </div>
             </div>
           </Panel>
