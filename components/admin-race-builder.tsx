@@ -8,6 +8,10 @@ import {
   createMeetingAction,
   createRaceAction,
   createRaceRunnerAction,
+  deleteMeetingAction,
+  deleteRaceAction,
+  deleteRaceRunnerAction,
+  toggleRacePublishAction,
 } from "@/lib/actions";
 
 type Horse = {
@@ -34,6 +38,8 @@ type Race = {
   race_number: number;
   race_name: string;
   distance_m: number | null;
+  status: "draft" | "published" | "closed";
+  published_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -115,6 +121,12 @@ function Select({
 
 function formatMeetingLabel(meeting: Meeting) {
   return `${meeting.meeting_name} — ${meeting.meeting_date}`;
+}
+
+function getRaceStatusTone(status: Race["status"]) {
+  if (status === "published") return "green";
+  if (status === "closed") return "rose";
+  return "amber";
 }
 
 export default function RaceBuilderPage({
@@ -234,6 +246,23 @@ export default function RaceBuilderPage({
     });
   }
 
+  function handleDeleteMeeting(meetingId: number) {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("meeting_id", String(meetingId));
+
+      const result = await deleteMeetingAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to delete meeting.");
+        return;
+      }
+
+      setSuccess("Meeting deleted.");
+      router.refresh();
+    });
+  }
+
   function handleAddRace() {
     startTransition(async () => {
       const formData = new FormData();
@@ -251,6 +280,42 @@ export default function RaceBuilderPage({
 
       clearRaceForm();
       setSuccess("Race added to the selected meeting.");
+      router.refresh();
+    });
+  }
+
+  function handleTogglePublish(raceId: number, currentStatus: Race["status"]) {
+    startTransition(async () => {
+      const nextStatus = currentStatus === "published" ? "draft" : "published";
+      const formData = new FormData();
+      formData.set("race_id", String(raceId));
+      formData.set("next_status", nextStatus);
+
+      const result = await toggleRacePublishAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to update race status.");
+        return;
+      }
+
+      setSuccess(nextStatus === "published" ? "Race published." : "Race moved back to draft.");
+      router.refresh();
+    });
+  }
+
+  function handleDeleteRace(raceId: number) {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("race_id", String(raceId));
+
+      const result = await deleteRaceAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to delete race.");
+        return;
+      }
+
+      setSuccess("Race deleted.");
       router.refresh();
     });
   }
@@ -281,6 +346,23 @@ export default function RaceBuilderPage({
 
       clearRunnerForm();
       setSuccess("Runner added to race.");
+      router.refresh();
+    });
+  }
+
+  function handleDeleteRunner(runnerId: number) {
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("runner_id", String(runnerId));
+
+      const result = await deleteRaceRunnerAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to delete runner.");
+        return;
+      }
+
+      setSuccess("Runner deleted.");
       router.refresh();
     });
   }
@@ -340,7 +422,7 @@ export default function RaceBuilderPage({
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="green">Live database</Badge>
                 <Badge tone="blue">Admin only</Badge>
-                <Badge tone="amber">Horse matching active</Badge>
+                <Badge tone="amber">Publish control active</Badge>
               </div>
             </div>
           </div>
@@ -441,14 +523,25 @@ export default function RaceBuilderPage({
                       key={meeting.id}
                       className="rounded-[24px] border border-amber-200/30 bg-white p-4"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
                           <p className="text-lg font-semibold text-zinc-950">
                             {meeting.meeting_name}
                           </p>
                           <p className="text-sm text-zinc-500">{meeting.meeting_date}</p>
                         </div>
-                        <Badge tone="amber">{meeting.track_condition || "—"}</Badge>
+
+                        <div className="flex flex-wrap gap-2">
+                          <Badge tone="amber">{meeting.track_condition || "—"}</Badge>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMeeting(meeting.id)}
+                            disabled={isPending}
+                            className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -553,18 +646,49 @@ export default function RaceBuilderPage({
                         key={race.id}
                         className="rounded-[24px] border border-amber-200/30 bg-white p-4"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <p className="text-lg font-semibold text-zinc-950">
-                              R{race.race_number} {race.race_name}
-                            </p>
-                            <p className="text-sm text-zinc-500">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-lg font-semibold text-zinc-950">
+                                R{race.race_number} {race.race_name}
+                              </p>
+                              <Badge tone={getRaceStatusTone(race.status)}>
+                                {race.status}
+                              </Badge>
+                            </div>
+
+                            <p className="mt-1 text-sm text-zinc-500">
                               {meeting?.meeting_name || "Unknown meeting"} · {race.distance_m || "—"}m
                             </p>
                           </div>
-                          <Badge tone="blue">
-                            {runnersForRace(race.id).length} runners
-                          </Badge>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Badge tone="blue">
+                              {runnersForRace(race.id).length} runners
+                            </Badge>
+
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePublish(race.id, race.status)}
+                              disabled={isPending}
+                              className={`rounded-2xl px-3 py-2 text-xs font-semibold transition disabled:opacity-60 ${
+                                race.status === "published"
+                                  ? "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                                  : "bg-black text-amber-300 hover:bg-zinc-900"
+                              }`}
+                            >
+                              {race.status === "published" ? "Unpublish" : "Publish"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRace(race.id)}
+                              disabled={isPending}
+                              className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -764,9 +888,14 @@ export default function RaceBuilderPage({
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>
-                            <p className="text-lg font-semibold text-zinc-950">
-                              {meeting?.meeting_name || "Meeting"} · R{race.race_number}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-lg font-semibold text-zinc-950">
+                                {meeting?.meeting_name || "Meeting"} · R{race.race_number}
+                              </p>
+                              <Badge tone={getRaceStatusTone(race.status)}>
+                                {race.status}
+                              </Badge>
+                            </div>
                             <p className="text-sm text-zinc-500">
                               {race.race_name} · {race.distance_m || "—"}m
                             </p>
@@ -792,7 +921,7 @@ export default function RaceBuilderPage({
                                     </p>
                                   </div>
 
-                                  <div className="flex flex-wrap gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     {runner.barrier ? (
                                       <Badge tone="blue">Barrier {runner.barrier}</Badge>
                                     ) : null}
@@ -802,6 +931,14 @@ export default function RaceBuilderPage({
                                     {runner.form_last_3 ? (
                                       <Badge tone="slate">{runner.form_last_3}</Badge>
                                     ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteRunner(runner.id)}
+                                      disabled={isPending}
+                                      className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+                                    >
+                                      Delete
+                                    </button>
                                   </div>
                                 </div>
                               </div>
@@ -831,7 +968,7 @@ export default function RaceBuilderPage({
                 <p>• Separate Race Builder route</p>
                 <p>• Persistent horse master list</p>
                 <p>• Meeting → Race → Runner structure</p>
-                <p>• Reduced spelling issues with horse matching</p>
+                <p>• Publish / unpublish control</p>
               </div>
             </div>
           </Panel>
@@ -840,7 +977,7 @@ export default function RaceBuilderPage({
             <div className="p-6 text-zinc-950">
               <h3 className="text-lg font-semibold">Next backend step</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Add edit/delete controls</p>
+                <p>• Add edit controls</p>
                 <p>• Add CSV upload into meetings or runners</p>
                 <p>• Add more race-day attributes</p>
               </div>
@@ -849,11 +986,11 @@ export default function RaceBuilderPage({
 
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <h3 className="text-lg font-semibold">Then calculator layer</h3>
+              <h3 className="text-lg font-semibold">Subscriber release path</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Add SmartPunt scoring inputs to each runner</p>
-                <p>• Save final score and recommendation</p>
-                <p>• Power the subscriber calculator from stored runners</p>
+                <p>• Show published races only</p>
+                <p>• Let subscribers pick meeting → race → horse</p>
+                <p>• Then run SmartPunt calculator from stored runners</p>
               </div>
             </div>
           </Panel>
