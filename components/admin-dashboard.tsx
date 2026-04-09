@@ -1094,9 +1094,9 @@ export default function AdminDashboard({
 
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h3 className="text-xl font-semibold">Long-term bets</h3>
+                      <h3 className="text-xl font-semibold">Get On Early 🔥</h3>
                       <p className="text-sm text-zinc-500">
-                        Enter futures and longer-range betting opportunities.
+                        Early edge plays. Prices won’t last — get on before the market moves.
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1106,11 +1106,11 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Long-term bet title">
+                    <Field label="Tip title">
                       <input
                         name="title"
                         defaultValue={longEdit?.title || ""}
-                        placeholder="Autumn futures"
+                        placeholder="Get On Early at the odds"
                         className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       />
                     </Field>
@@ -1148,11 +1148,11 @@ export default function AdminDashboard({
                     </Field>
                   </div>
 
-                  <Field label="Commentary">
+                  <Field label="Why get on now">
                     <textarea
                       name="commentary"
                       defaultValue={longEdit?.commentary || ""}
-                      placeholder="Add your long-term angle here."
+                      placeholder="Why is this worth taking early? What’s the edge? Why might the market shorten?"
                       className="min-h-[120px] w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     />
                   </Field>
@@ -1162,7 +1162,7 @@ export default function AdminDashboard({
                       type="submit"
                       className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
                     >
-                      {longEdit ? "Update Long-Term Bet" : "Publish Long-Term Bet"}
+                      {longEdit ? "Update Early Tip" : "Publish Get On Early Tip"}
                     </button>
 
                     {longEdit ? (
@@ -1180,7 +1180,7 @@ export default function AdminDashboard({
 
               <Panel className="bg-white/95">
                 <div className="p-6 text-zinc-950">
-                  <h3 className="text-xl font-semibold">Manage long-term bets</h3>
+                  <h3 className="text-xl font-semibold">Manage Get On Early Tips</h3>
                   <div className="mt-5 space-y-4">
                     {longTermBets.map((item: any) => (
                       <div
@@ -1192,7 +1192,7 @@ export default function AdminDashboard({
                             <p className="text-sm text-zinc-500">{item.title}</p>
                             <p className="mt-1 text-lg font-semibold text-zinc-950">{item.horse}</p>
                           </div>
-                          <TipPill type="Long Term" />
+                          <Badge tone="rose">Get On Early 🔥</Badge>
                         </div>
 
                         <p className="mt-3 text-sm leading-6 text-zinc-600">
