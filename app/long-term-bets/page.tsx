@@ -4,23 +4,29 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Badge, Panel, TipPill } from "@/components/ui";
 
-function LongTermCard({ item }: { item: any }) {
+function EarlyCard({ item }: { item: any }) {
   return (
-    <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
+    <div className="rounded-[24px] border border-amber-300/40 bg-[linear-gradient(135deg,rgba(255,251,235,0.9),rgba(255,243,199,0.9))] p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-zinc-500">{item.title}</p>
-          <h4 className="mt-1 text-xl font-semibold text-zinc-950">{item.horse}</h4>
+          <p className="text-sm text-zinc-600">{item.title}</p>
+          <h4 className="mt-1 text-xl font-semibold text-zinc-950">
+            {item.horse}
+          </h4>
         </div>
-        <TipPill type="Long Term" />
+        <TipPill type="Get On Early" />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         {item.bet_type ? <Badge tone="rose">{item.bet_type}</Badge> : null}
-        {item.odds ? <Badge tone="slate">{item.odds}</Badge> : null}
+        {item.odds ? <Badge tone="slate">Taken: {item.odds}</Badge> : null}
+        <Badge tone="amber">Early Price</Badge>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-zinc-600">{item.commentary || ""}</p>
+      <p className="mt-4 text-sm leading-6 text-zinc-700">
+        {item.commentary ||
+          "SmartPunt has marked this as an early-value play. Worth getting on before the market adjusts."}
+      </p>
     </div>
   );
 }
@@ -51,7 +57,7 @@ export default async function LongTermBetsPage() {
         <div className="relative overflow-hidden rounded-[32px] bg-black shadow-xl border border-white/10 min-h-[180px] lg:min-h-[300px]">
           <img
             src="/header-logo.png"
-            alt="Fortune on 5"
+            alt="SmartPunt"
             className="absolute left-1/2 top-[45%] w-[260px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-95 pointer-events-none select-none sm:w-[400px] lg:top-[42%] lg:w-[943px]"
           />
 
@@ -59,7 +65,7 @@ export default async function LongTermBetsPage() {
 
           <div className="relative z-10 flex h-full min-h-[180px] flex-col justify-between p-4 lg:min-h-[300px] lg:p-8">
             <div className="flex items-start justify-between gap-3">
-              <Badge tone="rose">Subscriber Futures</Badge>
+              <Badge tone="amber">Early Edge Alerts</Badge>
 
               <div className="ml-auto flex flex-col items-end gap-2 lg:gap-3">
                 <Link
@@ -81,10 +87,10 @@ export default async function LongTermBetsPage() {
               <div className="rounded-2xl bg-black/18 px-4 py-3 backdrop-blur-[1px] lg:px-5 lg:py-4">
                 <div className="flex flex-wrap items-end gap-x-4 gap-y-2 text-white lg:gap-x-5">
                   <h1 className="text-xl font-bold tracking-tight sm:text-2xl lg:text-4xl">
-                    Long-Term Bets
+                    Get On Early 🔥
                   </h1>
                   <p className="text-sm text-zinc-200 lg:text-base">
-                    Longer-range betting angles and futures worth tracking.
+                    Early market plays identified before the price firms. These are the ones to lock in.
                   </p>
                   <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                     Logged in as {profile.full_name || profile.email}
@@ -105,7 +111,7 @@ export default async function LongTermBetsPage() {
                     Horses / Races to Watch
                   </Link>
                   <span className="rounded-2xl bg-amber-300 px-4 py-2.5 text-sm font-semibold text-zinc-950">
-                    Long-Term Bets
+                    Get On Early 🔥
                   </span>
                 </div>
               </div>
@@ -116,20 +122,20 @@ export default async function LongTermBetsPage() {
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Long-Term Plays</p>
+              <p className="text-sm text-zinc-500">Early Plays Live</p>
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-2xl font-semibold">{items.length}</p>
-                <Badge tone="rose">Live</Badge>
+                <Badge tone="amber">Active</Badge>
               </div>
             </div>
           </Panel>
 
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Feed Style</p>
+              <p className="text-sm text-zinc-500">Edge Type</p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">Focused</p>
-                <Badge tone="blue">Separate Page</Badge>
+                <p className="text-2xl font-semibold">Market Value</p>
+                <Badge tone="rose">Early Position</Badge>
               </div>
             </div>
           </Panel>
@@ -139,20 +145,22 @@ export default async function LongTermBetsPage() {
           <div className="p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">Live Long-Term Bets Feed</h2>
+                <h2 className="text-xl font-semibold">Live Early Plays</h2>
                 <p className="text-sm text-zinc-500">
-                  Longer-range plays separated from the daily tips feed.
+                  These are positions SmartPunt wants taken before the market catches up.
                 </p>
               </div>
-              <Badge tone="rose">{items.length} live</Badge>
+              <Badge tone="amber">{items.length} live</Badge>
             </div>
 
             <div className="mt-5 space-y-4">
               {items.length ? (
-                items.map((item: any) => <LongTermCard key={item.id} item={item} />)
+                items.map((item: any) => (
+                  <EarlyCard key={item.id} item={item} />
+                ))
               ) : (
                 <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
-                  No long-term bets posted yet.
+                  No early plays posted yet. When SmartPunt spots value early, it will land here.
                 </div>
               )}
             </div>
