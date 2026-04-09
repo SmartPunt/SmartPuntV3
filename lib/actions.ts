@@ -271,7 +271,6 @@ async function sendSuggestedTipNotifications({
     <div style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
       <div style="padding:24px 12px;background:#050505;">
         <div style="max-width:640px;margin:0 auto;background:#0b0b0b;border:1px solid rgba(251,191,36,0.18);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.45);">
-
           <div style="background:#000000;line-height:0;">
             ${
               appUrl
@@ -756,6 +755,33 @@ export async function createMeetingAction(formData: FormData): Promise<ActionRes
   }
 }
 
+export async function deleteMeetingAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+
+    const meetingId = Number(formData.get("meeting_id"));
+
+    if (!meetingId) {
+      return { success: false, error: "Meeting is required." };
+    }
+
+    const { error } = await supabase.from("meetings").delete().eq("id", meetingId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/race-builder");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete meeting.",
+    };
+  }
+}
+
 export async function createRaceAction(formData: FormData): Promise<ActionResult> {
   try {
     const profile = await requireAdmin();
@@ -778,6 +804,8 @@ export async function createRaceAction(formData: FormData): Promise<ActionResult
       race_number: raceNumber,
       race_name: raceName,
       distance_m: Number.isNaN(distanceValue as number) ? null : distanceValue,
+      status: "draft",
+      published_at: null,
       created_by: profile.id,
       updated_at: new Date().toISOString(),
     });
@@ -795,6 +823,72 @@ export async function createRaceAction(formData: FormData): Promise<ActionResult
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create race.",
+    };
+  }
+}
+
+export async function toggleRacePublishAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+
+    const raceId = Number(formData.get("race_id"));
+    const nextStatus = String(formData.get("next_status") ?? "").trim();
+
+    if (!raceId || !nextStatus) {
+      return { success: false, error: "Race and status are required." };
+    }
+
+    if (!["draft", "published", "closed"].includes(nextStatus)) {
+      return { success: false, error: "Invalid race status." };
+    }
+
+    const payload = {
+      status: nextStatus,
+      published_at: nextStatus === "published" ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from("races").update(payload).eq("id", raceId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/race-builder");
+    revalidatePath("/");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update race status.",
+    };
+  }
+}
+
+export async function deleteRaceAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+
+    const raceId = Number(formData.get("race_id"));
+
+    if (!raceId) {
+      return { success: false, error: "Race is required." };
+    }
+
+    const { error } = await supabase.from("races").delete().eq("id", raceId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/race-builder");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete race.",
     };
   }
 }
@@ -907,6 +1001,33 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create runner.",
+    };
+  }
+}
+
+export async function deleteRaceRunnerAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+
+    const runnerId = Number(formData.get("runner_id"));
+
+    if (!runnerId) {
+      return { success: false, error: "Runner is required." };
+    }
+
+    const { error } = await supabase.from("race_runners").delete().eq("id", runnerId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/race-builder");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete runner.",
     };
   }
 }
