@@ -113,11 +113,6 @@ function Select({
   );
 }
 
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-  return "Something went wrong. Please try again.";
-}
-
 function formatMeetingLabel(meeting: Meeting) {
   return `${meeting.meeting_name} — ${meeting.meeting_date}`;
 }
@@ -221,38 +216,42 @@ export default function RaceBuilderPage({
 
   function handleAddMeeting() {
     startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.set("meeting_name", meetingName);
-        formData.set("meeting_date", meetingDate);
-        formData.set("track_condition", meetingTrackCondition);
+      const formData = new FormData();
+      formData.set("meeting_name", meetingName);
+      formData.set("meeting_date", meetingDate);
+      formData.set("track_condition", meetingTrackCondition);
 
-        await createMeetingAction(formData);
-        clearMeetingForm();
-        setSuccess("Meeting added to Race Builder.");
-        router.refresh();
-      } catch (error) {
-        setError(getErrorMessage(error));
+      const result = await createMeetingAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to create meeting.");
+        return;
       }
+
+      clearMeetingForm();
+      setSuccess("Meeting added to Race Builder.");
+      router.refresh();
     });
   }
 
   function handleAddRace() {
     startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.set("meeting_id", selectedMeetingIdForRace);
-        formData.set("race_number", raceNumber);
-        formData.set("race_name", raceName);
-        formData.set("distance_m", raceDistance);
+      const formData = new FormData();
+      formData.set("meeting_id", selectedMeetingIdForRace);
+      formData.set("race_number", raceNumber);
+      formData.set("race_name", raceName);
+      formData.set("distance_m", raceDistance);
 
-        await createRaceAction(formData);
-        clearRaceForm();
-        setSuccess("Race added to the selected meeting.");
-        router.refresh();
-      } catch (error) {
-        setError(getErrorMessage(error));
+      const result = await createRaceAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to create race.");
+        return;
       }
+
+      clearRaceForm();
+      setSuccess("Race added to the selected meeting.");
+      router.refresh();
     });
   }
 
@@ -263,24 +262,26 @@ export default function RaceBuilderPage({
 
   function handleAddRunner() {
     startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.set("race_id", selectedRaceIdForRunner);
-        formData.set("selected_horse_id", selectedHorseId);
-        formData.set("horse_name", horseQuery);
-        formData.set("jockey_name", jockeyName);
-        formData.set("trainer_name", trainerName);
-        formData.set("barrier", barrier);
-        formData.set("market_price", marketPrice);
-        formData.set("form_last_3", formLast3);
+      const formData = new FormData();
+      formData.set("race_id", selectedRaceIdForRunner);
+      formData.set("selected_horse_id", selectedHorseId);
+      formData.set("horse_name", horseQuery);
+      formData.set("jockey_name", jockeyName);
+      formData.set("trainer_name", trainerName);
+      formData.set("barrier", barrier);
+      formData.set("market_price", marketPrice);
+      formData.set("form_last_3", formLast3);
 
-        await createRaceRunnerAction(formData);
-        clearRunnerForm();
-        setSuccess("Runner added to race.");
-        router.refresh();
-      } catch (error) {
-        setError(getErrorMessage(error));
+      const result = await createRaceRunnerAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to create runner.");
+        return;
       }
+
+      clearRunnerForm();
+      setSuccess("Runner added to race.");
+      router.refresh();
     });
   }
 
