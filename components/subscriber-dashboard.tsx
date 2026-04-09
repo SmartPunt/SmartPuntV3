@@ -332,7 +332,7 @@ export default function SubscriberDashboard({
                     Premium Racing Club
                   </h1>
                   <p className="text-sm text-zinc-200 lg:text-base">
-                    Sharp daily tips, expert insight, and longer-range plays.
+                    Sharp daily tips, expert insight, and early-value specials.
                   </p>
                   <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                     Logged in as {currentUser.full_name || currentUser.email}
@@ -358,7 +358,7 @@ export default function SubscriberDashboard({
                     href="/long-term-bets"
                     className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
                   >
-                    <span>Long-Term Bets</span>
+                    <span>Get On Early 🔥</span>
                     <NavCount count={longTermCount} />
                   </Link>
                 </div>
@@ -492,10 +492,10 @@ export default function SubscriberDashboard({
 
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Long-Term Live</p>
+              <p className="text-sm text-zinc-500">Get On Early Live</p>
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-2xl font-semibold">{longTermBets.length}</p>
-                <Badge tone="rose">Futures</Badge>
+                <Badge tone="rose">Early Value</Badge>
               </div>
             </div>
           </Panel>
@@ -614,9 +614,9 @@ export default function SubscriberDashboard({
               <div className="p-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-xl font-semibold">Long-term bets</h3>
+                    <h3 className="text-xl font-semibold">Get On Early 🔥</h3>
                     <p className="text-sm text-zinc-500">
-                      Longer-range betting angles now have their own dedicated page too.
+                      Early market edges. These are the ones to grab before the price firms.
                     </p>
                   </div>
                   <Badge tone="rose">{longTermBets.length} live</Badge>
@@ -624,15 +624,14 @@ export default function SubscriberDashboard({
 
                 <div className="mt-5 rounded-[24px] border border-amber-200/30 bg-white p-5">
                   <p className="text-sm leading-6 text-zinc-600">
-                    Futures and longer-range plays are now separated from the daily tips feed so the
-                    main page stays sharper.
+                    These are early plays the tipper wants you on before the market catches up. Sit on them, beat the price, and let them unfold.
                   </p>
                   <div className="mt-4">
                     <Link
                       href="/long-term-bets"
                       className="inline-flex rounded-2xl bg-black px-4 py-2.5 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
                     >
-                      Open Long-Term Bets Page
+                      Open Get On Early Page
                     </Link>
                   </div>
                 </div>
