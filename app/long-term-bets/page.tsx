@@ -2,31 +2,89 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { Badge, Panel, TipPill } from "@/components/ui";
+import { Badge, Panel } from "@/components/ui";
 
 function EarlyCard({ item }: { item: any }) {
   return (
-    <div className="rounded-[24px] border border-amber-300/40 bg-[linear-gradient(135deg,rgba(255,251,235,0.9),rgba(255,243,199,0.9))] p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-zinc-600">{item.title}</p>
-          <h4 className="mt-1 text-xl font-semibold text-zinc-950">
-            {item.horse}
-          </h4>
+    <div className="overflow-hidden rounded-[28px] border border-amber-300/35 bg-[linear-gradient(135deg,rgba(20,20,20,0.98),rgba(48,34,8,0.96))] shadow-[0_18px_50px_rgba(0,0,0,0.30)]">
+      <div className="border-b border-white/10 bg-[linear-gradient(90deg,rgba(251,191,36,0.16),rgba(251,191,36,0.04))] px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="amber">VIP Alert</Badge>
+            <Badge tone="rose">Get On Early 🔥</Badge>
+          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-100/80">
+            Price may not last
+          </p>
         </div>
-        <TipPill type="Get On Early" />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {item.bet_type ? <Badge tone="rose">{item.bet_type}</Badge> : null}
-        {item.odds ? <Badge tone="slate">Taken: {item.odds}</Badge> : null}
-        <Badge tone="amber">Early Price</Badge>
-      </div>
+      <div className="p-5 lg:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm uppercase tracking-[0.18em] text-amber-200/75">
+              {item.title || "Early edge play"}
+            </p>
+            <h4 className="mt-2 text-2xl font-bold tracking-tight text-white">
+              {item.horse}
+            </h4>
+          </div>
 
-      <p className="mt-4 text-sm leading-6 text-zinc-700">
-        {item.commentary ||
-          "SmartPunt has marked this as an early-value play. Worth getting on before the market adjusts."}
-      </p>
+          <div className="rounded-2xl border border-amber-300/25 bg-black/25 px-4 py-3 text-right">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              Price taken
+            </p>
+            <p className="mt-1 text-2xl font-bold text-amber-300">
+              {item.odds || "TBC"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {item.bet_type ? <Badge tone="rose">{item.bet_type}</Badge> : null}
+          <Badge tone="amber">Early Market Edge</Badge>
+          <Badge tone="blue">Worth Locking In</Badge>
+        </div>
+
+        <div className="mt-5 rounded-[24px] border border-white/10 bg-white/5 p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+            Why SmartPunt likes it early
+          </p>
+          <p className="mt-3 text-sm leading-7 text-zinc-200">
+            {item.commentary ||
+              "SmartPunt has marked this as an early-value play worth taking before the market adjusts."}
+          </p>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              Alert Type
+            </p>
+            <p className="mt-2 text-sm font-semibold text-white">
+              Early price special
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              Best Use
+            </p>
+            <p className="mt-2 text-sm font-semibold text-white">
+              Beat the market
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              SmartPunt View
+            </p>
+            <p className="mt-2 text-sm font-semibold text-white">
+              Get set early
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -122,7 +180,7 @@ export default async function LongTermBetsPage() {
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Panel className="text-zinc-950">
             <div className="p-4">
-              <p className="text-sm text-zinc-500">Early Plays Live</p>
+              <p className="text-sm text-zinc-500">VIP Alerts Live</p>
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-2xl font-semibold">{items.length}</p>
                 <Badge tone="amber">Active</Badge>
