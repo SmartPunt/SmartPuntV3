@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 
+type ActionResult = {
+  success: boolean;
+  error: string | null;
+};
+
 async function requireAdmin() {
   const profile = await getCurrentProfile();
 
@@ -716,163 +721,192 @@ export async function deleteLongTermBetAction(formData: FormData): Promise<void>
   revalidatePath("/");
 }
 
-export async function createMeetingAction(formData: FormData): Promise<void> {
-  const profile = await requireAdmin();
-  const supabase = await createClient();
+export async function createMeetingAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const profile = await requireAdmin();
+    const supabase = await createClient();
 
-  const meetingName = String(formData.get("meeting_name") ?? "").trim();
-  const meetingDate = String(formData.get("meeting_date") ?? "").trim();
-  const trackCondition = String(formData.get("track_condition") ?? "").trim();
+    const meetingName = String(formData.get("meeting_name") ?? "").trim();
+    const meetingDate = String(formData.get("meeting_date") ?? "").trim();
+    const trackCondition = String(formData.get("track_condition") ?? "").trim();
 
-  if (!meetingName || !meetingDate) {
-    throw new Error("Meeting name and date are required.");
+    if (!meetingName || !meetingDate) {
+      return { success: false, error: "Meeting name and date are required." };
+    }
+
+    const { error } = await supabase.from("meetings").insert({
+      meeting_name: meetingName,
+      meeting_date: meetingDate,
+      track_condition: trackCondition || null,
+      created_by: profile.id,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/race-builder");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create meeting.",
+    };
   }
-
-  const { error } = await supabase.from("meetings").insert({
-    meeting_name: meetingName,
-    meeting_date: meetingDate,
-    track_condition: trackCondition || null,
-    created_by: profile.id,
-    updated_at: new Date().toISOString(),
-  });
-
-  if (error) throw new Error(error.message);
-
-  revalidatePath("/admin/race-builder");
 }
 
-export async function createRaceAction(formData: FormData): Promise<void> {
-  const profile = await requireAdmin();
-  const supabase = await createClient();
+export async function createRaceAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const profile = await requireAdmin();
+    const supabase = await createClient();
 
-  const meetingId = Number(formData.get("meeting_id"));
-  const raceNumber = Number(formData.get("race_number"));
-  const raceNameRaw = String(formData.get("race_name") ?? "").trim();
-  const distanceRaw = String(formData.get("distance_m") ?? "").trim();
+    const meetingId = Number(formData.get("meeting_id"));
+    const raceNumber = Number(formData.get("race_number"));
+    const raceNameRaw = String(formData.get("race_name") ?? "").trim();
+    const distanceRaw = String(formData.get("distance_m") ?? "").trim();
 
-  if (!meetingId || !raceNumber) {
-    throw new Error("Meeting and race number are required.");
-  }
-
-  const distanceValue = distanceRaw ? Number(distanceRaw) : null;
-  const raceName = raceNameRaw || `Race ${raceNumber}`;
-
-  const { error } = await supabase.from("races").insert({
-    meeting_id: meetingId,
-    race_number: raceNumber,
-    race_name: raceName,
-    distance_m: Number.isNaN(distanceValue as number) ? null : distanceValue,
-    created_by: profile.id,
-    updated_at: new Date().toISOString(),
-  });
-
-  if (error) {
-    if (error.code === "23505") {
-      throw new Error("That race number already exists for this meeting.");
+    if (!meetingId || !raceNumber) {
+      return { success: false, error: "Meeting and race number are required." };
     }
-    throw new Error(error.message);
-  }
 
-  revalidatePath("/admin/race-builder");
+    const distanceValue = distanceRaw ? Number(distanceRaw) : null;
+    const raceName = raceNameRaw || `Race ${raceNumber}`;
+
+    const { error } = await supabase.from("races").insert({
+      meeting_id: meetingId,
+      race_number: raceNumber,
+      race_name: raceName,
+      distance_m: Number.isNaN(distanceValue as number) ? null : distanceValue,
+      created_by: profile.id,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      if (error.code === "23505") {
+        return { success: false, error: "That race number already exists for this meeting." };
+      }
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/admin/race-builder");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create race.",
+    };
+  }
 }
 
-export async function createRaceRunnerAction(formData: FormData): Promise<void> {
-  const profile = await requireAdmin();
-  const supabase = await createClient();
+export async function createRaceRunnerAction(formData: FormData): Promise<ActionResult> {
+  try {
+    const profile = await requireAdmin();
+    const supabase = await createClient();
 
-  const raceId = Number(formData.get("race_id"));
-  const selectedHorseIdRaw = String(formData.get("selected_horse_id") ?? "").trim();
-  const horseNameRaw = String(formData.get("horse_name") ?? "").trim();
-  const jockeyName = String(formData.get("jockey_name") ?? "").trim();
-  const trainerName = String(formData.get("trainer_name") ?? "").trim();
-  const barrierRaw = String(formData.get("barrier") ?? "").trim();
-  const marketPriceRaw = String(formData.get("market_price") ?? "").trim();
-  const formLast3 = String(formData.get("form_last_3") ?? "").trim();
+    const raceId = Number(formData.get("race_id"));
+    const selectedHorseIdRaw = String(formData.get("selected_horse_id") ?? "").trim();
+    const horseNameRaw = String(formData.get("horse_name") ?? "").trim();
+    const jockeyName = String(formData.get("jockey_name") ?? "").trim();
+    const trainerName = String(formData.get("trainer_name") ?? "").trim();
+    const barrierRaw = String(formData.get("barrier") ?? "").trim();
+    const marketPriceRaw = String(formData.get("market_price") ?? "").trim();
+    const formLast3 = String(formData.get("form_last_3") ?? "").trim();
 
-  if (!raceId) {
-    throw new Error("Race is required.");
-  }
-
-  if (!selectedHorseIdRaw && !horseNameRaw) {
-    throw new Error("Select or enter a horse first.");
-  }
-
-  let horseId = selectedHorseIdRaw ? Number(selectedHorseIdRaw) : 0;
-
-  if (!horseId) {
-    const normalisedName = normaliseHorseName(horseNameRaw);
-
-    if (!normalisedName) {
-      throw new Error("Horse name is required.");
+    if (!raceId) {
+      return { success: false, error: "Race is required." };
     }
 
-    const { data: existingHorse, error: existingHorseError } = await supabase
-      .from("horses")
-      .select("id, horse_name")
-      .eq("normalised_name", normalisedName)
-      .maybeSingle();
-
-    if (existingHorseError) {
-      throw new Error(existingHorseError.message);
+    if (!selectedHorseIdRaw && !horseNameRaw) {
+      return { success: false, error: "Select or enter a horse first." };
     }
 
-    if (existingHorse?.id) {
-      horseId = existingHorse.id;
-    } else {
-      const { data: insertedHorse, error: insertHorseError } = await supabase
+    let horseId = selectedHorseIdRaw ? Number(selectedHorseIdRaw) : 0;
+
+    if (!horseId) {
+      const normalisedName = normaliseHorseName(horseNameRaw);
+
+      if (!normalisedName) {
+        return { success: false, error: "Horse name is required." };
+      }
+
+      const { data: existingHorse, error: existingHorseError } = await supabase
         .from("horses")
-        .insert({
-          horse_name: horseNameRaw.replace(/\s+/g, " ").trim(),
-          normalised_name: normalisedName,
-          updated_at: new Date().toISOString(),
-        })
-        .select("id")
-        .single();
+        .select("id, horse_name")
+        .eq("normalised_name", normalisedName)
+        .maybeSingle();
 
-      if (insertHorseError) {
-        if (insertHorseError.code === "23505") {
-          const { data: retryHorse, error: retryHorseError } = await supabase
-            .from("horses")
-            .select("id")
-            .eq("normalised_name", normalisedName)
-            .maybeSingle();
+      if (existingHorseError) {
+        return { success: false, error: existingHorseError.message };
+      }
 
-          if (retryHorseError || !retryHorse?.id) {
-            throw new Error(retryHorseError?.message || "Unable to match existing horse.");
-          }
-
-          horseId = retryHorse.id;
-        } else {
-          throw new Error(insertHorseError.message);
-        }
+      if (existingHorse?.id) {
+        horseId = existingHorse.id;
       } else {
-        horseId = insertedHorse.id;
+        const { data: insertedHorse, error: insertHorseError } = await supabase
+          .from("horses")
+          .insert({
+            horse_name: horseNameRaw.replace(/\s+/g, " ").trim(),
+            normalised_name: normalisedName,
+            updated_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+
+        if (insertHorseError) {
+          if (insertHorseError.code === "23505") {
+            const { data: retryHorse, error: retryHorseError } = await supabase
+              .from("horses")
+              .select("id")
+              .eq("normalised_name", normalisedName)
+              .maybeSingle();
+
+            if (retryHorseError || !retryHorse?.id) {
+              return {
+                success: false,
+                error: retryHorseError?.message || "Unable to match existing horse.",
+              };
+            }
+
+            horseId = retryHorse.id;
+          } else {
+            return { success: false, error: insertHorseError.message };
+          }
+        } else {
+          horseId = insertedHorse.id;
+        }
       }
     }
-  }
 
-  const barrierValue = barrierRaw ? Number(barrierRaw) : null;
-  const marketPriceValue = marketPriceRaw ? Number(marketPriceRaw) : null;
+    const barrierValue = barrierRaw ? Number(barrierRaw) : null;
+    const marketPriceValue = marketPriceRaw ? Number(marketPriceRaw) : null;
 
-  const { error } = await supabase.from("race_runners").insert({
-    race_id: raceId,
-    horse_id: horseId,
-    jockey_name: jockeyName || null,
-    trainer_name: trainerName || null,
-    barrier: barrierValue && !Number.isNaN(barrierValue) ? barrierValue : null,
-    market_price:
-      marketPriceValue !== null && !Number.isNaN(marketPriceValue) ? marketPriceValue : null,
-    form_last_3: formLast3 || null,
-    created_by: profile.id,
-    updated_at: new Date().toISOString(),
-  });
+    const { error } = await supabase.from("race_runners").insert({
+      race_id: raceId,
+      horse_id: horseId,
+      jockey_name: jockeyName || null,
+      trainer_name: trainerName || null,
+      barrier: barrierValue && !Number.isNaN(barrierValue) ? barrierValue : null,
+      market_price:
+        marketPriceValue !== null && !Number.isNaN(marketPriceValue) ? marketPriceValue : null,
+      form_last_3: formLast3 || null,
+      created_by: profile.id,
+      updated_at: new Date().toISOString(),
+    });
 
-  if (error) {
-    if (error.code === "23505") {
-      throw new Error("That horse is already loaded into this race.");
+    if (error) {
+      if (error.code === "23505") {
+        return { success: false, error: "That horse is already loaded into this race." };
+      }
+      return { success: false, error: error.message };
     }
-    throw new Error(error.message);
-  }
 
-  revalidatePath("/admin/race-builder");
+    revalidatePath("/admin/race-builder");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create runner.",
+    };
+  }
 }
