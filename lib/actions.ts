@@ -199,6 +199,54 @@ function normaliseHorseName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+async function sendBatchEmails(
+  emails: Array<{
+    from: string;
+    to: string[];
+    subject: string;
+    html: string;
+  }>,
+) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey || !emails.length) return;
+
+  for (let i = 0; i < emails.length; i += 100) {
+    const batch = emails.slice(i, i + 100);
+
+    const response = await fetch("https://api.resend.com/emails/batch", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(batch),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to send notification emails: ${errorText}`);
+    }
+  }
+}
+
+async function getActiveSubscriberEmails() {
+  const supabase = await createClient();
+
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("role", "user")
+    .eq("status", "active");
+
+  if (error) {
+    throw new Error(`Failed to load subscriber emails: ${error.message}`);
+  }
+
+  return (profiles || [])
+    .map((profile: any) => String(profile.email || "").trim())
+    .filter(Boolean);
+}
+
 async function sendSuggestedTipNotifications({
   race,
   horse,
@@ -218,28 +266,13 @@ async function sendSuggestedTipNotifications({
   raceStartAt?: string | null;
   raceTimezone?: string | null;
 }) {
-  const resendApiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   const appUrl = process.env.SMARTPUNT_APP_URL || "";
+  const resendApiKey = process.env.RESEND_API_KEY;
 
   if (!resendApiKey || !fromEmail) return;
 
-  const supabase = await createClient();
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("email")
-    .eq("role", "user")
-    .eq("status", "active");
-
-  if (profilesError) {
-    throw new Error(`Failed to load subscriber emails: ${profilesError.message}`);
-  }
-
-  const recipients = (profiles || [])
-    .map((profile: any) => String(profile.email || "").trim())
-    .filter(Boolean);
-
+  const recipients = await getActiveSubscriberEmails();
   if (!recipients.length) return;
 
   const safeRace = escapeHtml(race || "");
@@ -271,6 +304,7 @@ async function sendSuggestedTipNotifications({
     <div style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
       <div style="padding:24px 12px;background:#050505;">
         <div style="max-width:640px;margin:0 auto;background:#0b0b0b;border:1px solid rgba(251,191,36,0.18);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.45);">
+
           <div style="background:#000000;line-height:0;">
             ${
               appUrl
@@ -392,23 +426,141 @@ async function sendSuggestedTipNotifications({
     html: html(email),
   }));
 
-  for (let i = 0; i < emails.length; i += 100) {
-    const batch = emails.slice(i, i + 100);
+  await sendBatchEmails(emails);
+}
 
-    const response = await fetch("https://api.resend.com/emails/batch", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(batch),
-    });
+async function sendGetOnEarlyNotifications({
+  title,
+  horse,
+  betType,
+  odds,
+  commentary,
+}: {
+  title: string;
+  horse: string;
+  betType: string;
+  odds: string;
+  commentary: string;
+}) {
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  const appUrl = process.env.SMARTPUNT_APP_URL || "";
+  const resendApiKey = process.env.RESEND_API_KEY;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to send notification emails: ${errorText}`);
-    }
-  }
+  if (!resendApiKey || !fromEmail) return;
+
+  const recipients = await getActiveSubscriberEmails();
+  if (!recipients.length) return;
+
+  const safeTitle = escapeHtml(title || "Get On Early");
+  const safeHorse = escapeHtml(horse || "");
+  const safeBetType = escapeHtml(betType || "Win");
+  const safeOdds = escapeHtml(odds || "TBC");
+  const safeCommentary = String(commentary || "").trim();
+
+  const subject = `🔥 GET ON EARLY — ${horse}${odds ? ` (${odds})` : ""}`;
+
+  const html = (email: string) => `
+    <div style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
+      <div style="padding:24px 12px;background:#050505;">
+        <div style="max-width:640px;margin:0 auto;background:#0b0b0b;border:1px solid rgba(251,191,36,0.18);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.45);">
+
+          <div style="background:#000000;line-height:0;">
+            ${
+              appUrl
+                ? `<img
+                    src="${appUrl}/header-logo.png"
+                    alt="SmartPunt"
+                    style="display:block;width:100%;height:auto;margin:0;padding:0;border:0;"
+                  />`
+                : ""
+            }
+          </div>
+
+          <div style="padding:18px 22px 0 22px;background:linear-gradient(180deg,#0b0b0b 0%,#111111 100%);">
+            <div style="display:inline-block;background:#f59e0b;color:#111111;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">
+              VIP Early Alert
+            </div>
+          </div>
+
+          <div style="padding:18px 22px 10px 22px;background:linear-gradient(180deg,#111111 0%,#0b0b0b 100%);">
+            <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
+              GET ON EARLY 🔥
+            </div>
+
+            <div style="font-size:34px;line-height:1.08;font-weight:900;color:#ffffff;margin-top:10px;">
+              ${safeHorse}
+            </div>
+
+            <div style="font-size:15px;line-height:1.5;color:#d4d4d8;margin-top:10px;">
+              ${safeTitle}
+            </div>
+          </div>
+
+          <div style="padding:0 22px 22px 22px;background:#0b0b0b;">
+            <div style="background:linear-gradient(180deg,#171717 0%,#101010 100%);border:1px solid rgba(251,191,36,0.16);border-radius:20px;padding:18px 18px 16px 18px;">
+              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
+                Why act now
+              </div>
+              <div style="font-size:18px;line-height:1.5;color:#ffffff;font-weight:800;margin-top:10px;">
+                SmartPunt wants this taken before the market catches up.
+              </div>
+
+              <div style="margin-top:14px;">
+                <span style="display:inline-block;background:#451a03;color:#fcd34d;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-right:6px;margin-bottom:6px;">
+                  ${safeBetType}
+                </span>
+                <span style="display:inline-block;background:#111827;color:#e5e7eb;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-right:6px;margin-bottom:6px;">
+                  Taken: ${safeOdds}
+                </span>
+                <span style="display:inline-block;background:#7c2d12;color:#fdba74;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-bottom:6px;">
+                  Price may not last
+                </span>
+              </div>
+            </div>
+
+            <div style="margin-top:16px;background:#151515;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:18px;">
+              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
+                Tipster’s angle
+              </div>
+              <div style="font-size:16px;line-height:1.75;color:#f4f4f5;margin-top:10px;">
+                ${nl2br(safeCommentary || "SmartPunt has marked this as an early-value play worth locking in before the market firms.")}
+              </div>
+            </div>
+
+            ${
+              appUrl
+                ? `<div style="margin-top:20px;">
+                    <a
+                      href="${appUrl}/long-term-bets"
+                      style="display:block;width:100%;box-sizing:border-box;background:#f59e0b;color:#111111;text-decoration:none;text-align:center;padding:16px 18px;border-radius:16px;font-size:16px;font-weight:900;letter-spacing:0.02em;border:1px solid rgba(245,158,11,0.60);"
+                    >
+                      👉 Open Get On Early
+                    </a>
+                  </div>`
+                : ""
+            }
+
+            <div style="margin-top:18px;font-size:13px;line-height:1.7;color:#a1a1aa;">
+              This is a premium early-position alert. If the market trims, you’ll be glad you were on early.
+            </div>
+
+            <div style="margin-top:10px;font-size:11px;line-height:1.6;color:#6b7280;">
+              Sent to ${escapeHtml(email)}.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const emails = recipients.map((email) => ({
+    from: fromEmail,
+    to: [email],
+    subject,
+    html: html(email),
+  }));
+
+  await sendBatchEmails(emails);
 }
 
 export async function createSubscriberUserAction(
@@ -687,6 +839,7 @@ export async function deleteWatchItemAction(formData: FormData): Promise<void> {
 export async function upsertLongTermBet(formData: FormData): Promise<void> {
   const profile = await requireAdmin();
   const id = String(formData.get("id") ?? "");
+  const isNew = !id;
 
   const payload = {
     title: String(formData.get("title") ?? ""),
@@ -699,14 +852,40 @@ export async function upsertLongTermBet(formData: FormData): Promise<void> {
   };
 
   const supabase = await createClient();
-  const query = id
-    ? supabase.from("long_term_bets").update(payload).eq("id", Number(id))
-    : supabase.from("long_term_bets").insert(payload);
 
-  const { error } = await query;
-  if (error) throw new Error(error.message);
+  if (id) {
+    const { error } = await supabase
+      .from("long_term_bets")
+      .update(payload)
+      .eq("id", Number(id));
+
+    if (error) throw new Error(error.message);
+  } else {
+    const { data, error } = await supabase
+      .from("long_term_bets")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+
+    if (isNew && data) {
+      try {
+        await sendGetOnEarlyNotifications({
+          title: data.title || payload.title,
+          horse: data.horse || payload.horse,
+          betType: data.bet_type || payload.bet_type,
+          odds: data.odds || payload.odds,
+          commentary: data.commentary || payload.commentary,
+        });
+      } catch (notificationError) {
+        console.error(notificationError);
+      }
+    }
+  }
 
   revalidatePath("/");
+  revalidatePath("/long-term-bets");
 }
 
 export async function deleteLongTermBetAction(formData: FormData): Promise<void> {
@@ -718,6 +897,7 @@ export async function deleteLongTermBetAction(formData: FormData): Promise<void>
   if (error) throw new Error(error.message);
 
   revalidatePath("/");
+  revalidatePath("/long-term-bets");
 }
 
 export async function createMeetingAction(formData: FormData): Promise<ActionResult> {
