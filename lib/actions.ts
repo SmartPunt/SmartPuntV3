@@ -1211,3 +1211,103 @@ export async function deleteRaceRunnerAction(formData: FormData): Promise<Action
     };
   }
 }
+
+export async function settleRaceRunnersAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+
+    const raceId = Number(formData.get("race_id"));
+
+    if (!raceId) {
+      return { success: false, error: "Race is required." };
+    }
+
+    const updates: Array<{
+      id: number;
+      finishing_position: number | null;
+      starting_price: number | null;
+      won: boolean | null;
+      placed: boolean | null;
+      settled_at: string | null;
+      updated_at: string;
+    }> = [];
+
+    for (const [key, value] of formData.entries()) {
+      if (!key.startsWith("finishing_position_")) continue;
+
+      const runnerId = Number(key.replace("finishing_position_", ""));
+      const finishingPositionRaw = String(value ?? "").trim();
+
+      if (!runnerId) continue;
+
+      const finishingPosition = finishingPositionRaw
+        ? Number(finishingPositionRaw)
+        : null;
+
+      const startingPriceRaw = String(
+        formData.get(`starting_price_${runnerId}`) ?? "",
+      ).trim();
+
+      const startingPrice = startingPriceRaw
+        ? Number(startingPriceRaw)
+        : null;
+
+      const hasFinish =
+        finishingPosition !== null && !Number.isNaN(finishingPosition);
+
+      updates.push({
+        id: runnerId,
+        finishing_position: hasFinish ? finishingPosition : null,
+        starting_price:
+          startingPrice !== null && !Number.isNaN(startingPrice)
+            ? startingPrice
+            : null,
+        won: hasFinish ? finishingPosition === 1 : null,
+        placed: hasFinish ? finishingPosition <= 3 : null,
+        settled_at: hasFinish ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    for (const update of updates) {
+      const { error } = await supabase
+        .from("race_runners")
+        .update({
+          finishing_position: update.finishing_position,
+          starting_price: update.starting_price,
+          won: update.won,
+          placed: update.placed,
+          settled_at: update.settled_at,
+          updated_at: update.updated_at,
+        })
+        .eq("id", update.id);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+    }
+
+    const { error: raceError } = await supabase
+      .from("races")
+      .update({
+        status: "closed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", raceId);
+
+    if (raceError) {
+      return { success: false, error: raceError.message };
+    }
+
+    revalidatePath("/admin/race-builder");
+    revalidatePath("/admin/horses");
+
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to settle race.",
+    };
+  }
+}
