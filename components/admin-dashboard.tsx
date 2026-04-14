@@ -333,6 +333,13 @@ export default function AdminDashboard({
                   </Link>
 
                   <Link
+                    href="/admin/horses"
+                    className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm"
+                  >
+                    Saved Horses
+                  </Link>
+
+                  <Link
                     href="/resulted-tips"
                     className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm"
                   >
