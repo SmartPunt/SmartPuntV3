@@ -392,6 +392,12 @@ export default function RaceBuilderPage({
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 <Link
+                  href="/admin/horses"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Saved Horses
+                </Link>
+                <Link
                   href="/"
                   className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 >
