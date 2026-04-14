@@ -4,6 +4,68 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Badge, Panel } from "@/components/ui";
 
+type Horse = {
+  id: number;
+  horse_name: string;
+  normalised_name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type Runner = {
+  id: number;
+  race_id: number;
+  horse_id: number;
+  jockey_name: string | null;
+  trainer_name: string | null;
+  barrier: number | null;
+  market_price: number | null;
+  form_last_3: string | null;
+  finishing_position: number | null;
+  starting_price: number | null;
+  won: boolean | null;
+  placed: boolean | null;
+  settled_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type Race = {
+  id: number;
+  meeting_id: number;
+  race_number: number;
+  race_name: string;
+  distance_m: number | null;
+  status: "draft" | "published" | "closed";
+  published_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type Meeting = {
+  id: number;
+  meeting_name: string;
+  meeting_date: string;
+  track_condition: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type EnrichedRunner = Runner & {
+  race: Race | null;
+  meeting: Meeting | null;
+};
+
+type StatRow = {
+  label: string;
+  runs: number;
+  wins: number;
+  places: number;
+};
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
   const date = new Date(value);
@@ -14,6 +76,123 @@ function formatDate(value?: string | null) {
     month: "short",
     year: "numeric",
   }).format(date);
+}
+
+function formatFormLine(runs: EnrichedRunner[]) {
+  if (!runs.length) return "—";
+
+  return runs
+    .slice(0, 5)
+    .map((run) => {
+      if (run.finishing_position === null || run.finishing_position === undefined) return "—";
+      return String(run.finishing_position);
+    })
+    .join(" • ");
+}
+
+function getConditionBucket(condition?: string | null) {
+  const value = String(condition || "").toLowerCase();
+
+  if (value.startsWith("good")) return "Good";
+  if (value.startsWith("soft")) return "Soft";
+  if (value.startsWith("heavy")) return "Heavy";
+  return "Other";
+}
+
+function getDistanceBucket(distance?: number | null) {
+  if (!distance) return "Unknown";
+
+  if (distance <= 1200) return "1000–1200m";
+  if (distance <= 1400) return "1201–1400m";
+  if (distance <= 1600) return "1401–1600m";
+  if (distance <= 1800) return "1601–1800m";
+  if (distance <= 2200) return "1801–2200m";
+  return "2200m+";
+}
+
+function buildStatRows(
+  runs: EnrichedRunner[],
+  getLabel: (run: EnrichedRunner) => string | null,
+): StatRow[] {
+  const map = new Map<string, StatRow>();
+
+  runs.forEach((run) => {
+    const label = getLabel(run);
+    if (!label) return;
+
+    const current = map.get(label) || {
+      label,
+      runs: 0,
+      wins: 0,
+      places: 0,
+    };
+
+    current.runs += 1;
+    if (run.finishing_position === 1) current.wins += 1;
+    if (
+      run.finishing_position !== null &&
+      run.finishing_position !== undefined &&
+      run.finishing_position <= 3
+    ) {
+      current.places += 1;
+    }
+
+    map.set(label, current);
+  });
+
+  return Array.from(map.values()).sort((a, b) => b.runs - a.runs || a.label.localeCompare(b.label));
+}
+
+function getRaceStatusTone(status?: Race["status"] | null) {
+  if (status === "published") return "green";
+  if (status === "closed") return "rose";
+  return "amber";
+}
+
+function StatCard({
+  title,
+  rows,
+  emptyLabel,
+}: {
+  title: string;
+  rows: StatRow[];
+  emptyLabel: string;
+}) {
+  return (
+    <Panel className="bg-white/95">
+      <div className="p-6 text-zinc-950">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <Badge tone="amber">{rows.length}</Badge>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {rows.length > 0 ? (
+            rows.map((row) => (
+              <div
+                key={row.label}
+                className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-zinc-900">{row.label}</p>
+                  <Badge tone="blue">
+                    {row.runs}:{row.wins}-{row.places}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-sm text-zinc-600">
+                  {row.runs} runs • {row.wins} wins • {row.places} places
+                </p>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+              {emptyLabel}
+            </div>
+          )}
+        </div>
+      </div>
+    </Panel>
+  );
 }
 
 export default async function Page({
@@ -67,27 +246,79 @@ export default async function Page({
     .select("*")
     .order("meeting_date", { ascending: false });
 
-  const runners = allRunners || [];
-  const raceList = races || [];
-  const meetingList = meetings || [];
+  const runners: Runner[] = allRunners || [];
+  const raceList: Race[] = races || [];
+  const meetingList: Meeting[] = meetings || [];
 
-  const latestRunner = runners[0] || null;
+  const enrichedRuns: EnrichedRunner[] = runners.map((runner) => {
+    const race = raceList.find((item) => item.id === runner.race_id) || null;
+    const meeting = race
+      ? meetingList.find((item) => item.id === race.meeting_id) || null
+      : null;
+
+    return {
+      ...runner,
+      race,
+      meeting,
+    };
+  });
+
+  const resultedRuns = enrichedRuns.filter(
+    (run) => run.finishing_position !== null && run.finishing_position !== undefined,
+  );
+
+  const sortedResultedRuns = [...resultedRuns].sort((a, b) => {
+    const aDate = a.meeting?.meeting_date
+      ? new Date(a.meeting.meeting_date).getTime()
+      : 0;
+    const bDate = b.meeting?.meeting_date
+      ? new Date(b.meeting.meeting_date).getTime()
+      : 0;
+
+    if (bDate !== aDate) return bDate - aDate;
+
+    const aRaceNo = a.race?.race_number || 0;
+    const bRaceNo = b.race?.race_number || 0;
+
+    return bRaceNo - aRaceNo;
+  });
+
+  const latestRunner = sortedResultedRuns[0] || enrichedRuns[0] || null;
+
+  const totalRuns = sortedResultedRuns.length;
+  const totalWins = sortedResultedRuns.filter((run) => run.finishing_position === 1).length;
+  const totalPlaces = sortedResultedRuns.filter(
+    (run) =>
+      run.finishing_position !== null &&
+      run.finishing_position !== undefined &&
+      run.finishing_position <= 3,
+  ).length;
 
   const uniqueJockeys = Array.from(
     new Set(
-      runners
-        .map((runner: any) => runner.jockey_name)
-        .filter(Boolean),
+      enrichedRuns.map((runner) => runner.jockey_name).filter(Boolean),
     ),
   );
 
   const uniqueTrainers = Array.from(
     new Set(
-      runners
-        .map((runner: any) => runner.trainer_name)
-        .filter(Boolean),
+      enrichedRuns.map((runner) => runner.trainer_name).filter(Boolean),
     ),
   );
+
+  const distanceStats = buildStatRows(sortedResultedRuns, (run) =>
+    getDistanceBucket(run.race?.distance_m),
+  );
+
+  const trackStats = buildStatRows(sortedResultedRuns, (run) =>
+    run.meeting?.meeting_name || null,
+  );
+
+  const conditionStats = buildStatRows(sortedResultedRuns, (run) =>
+    getConditionBucket(run.meeting?.track_condition),
+  );
+
+  const recentFormLine = formatFormLine(sortedResultedRuns);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
@@ -133,10 +364,21 @@ export default async function Page({
                 </p>
               </div>
 
+              <div className="mt-4 rounded-2xl border border-amber-300/20 bg-black/20 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+                  Recent form
+                </p>
+                <p className="mt-2 text-2xl font-bold tracking-wide text-white">
+                  {recentFormLine}
+                </p>
+              </div>
+
               <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="green">{runners.length} runner records</Badge>
-                <Badge tone="blue">{uniqueJockeys.length} jockeys used</Badge>
-                <Badge tone="amber">{uniqueTrainers.length} trainers used</Badge>
+                <Badge tone="green">{totalRuns} runs</Badge>
+                <Badge tone="blue">{totalWins} wins</Badge>
+                <Badge tone="amber">{totalPlaces} places</Badge>
+                <Badge tone="slate">{uniqueJockeys.length} jockeys</Badge>
+                <Badge tone="rose">{uniqueTrainers.length} trainers</Badge>
               </div>
             </div>
           </div>
@@ -184,6 +426,24 @@ export default async function Page({
           </Panel>
         </div>
 
+        <div className="mt-6 grid gap-6 xl:grid-cols-3">
+          <StatCard
+            title="Distance record"
+            rows={distanceStats}
+            emptyLabel="No resulted distance history yet."
+          />
+          <StatCard
+            title="Track record"
+            rows={trackStats}
+            emptyLabel="No resulted track history yet."
+          />
+          <StatCard
+            title="Condition record"
+            rows={conditionStats}
+            emptyLabel="No resulted condition history yet."
+          />
+        </div>
+
         <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
@@ -201,10 +461,13 @@ export default async function Page({
 
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    Total runner records
+                    Overall record
                   </p>
                   <p className="mt-2 text-sm font-semibold text-zinc-900">
-                    {runners.length}
+                    {totalRuns}:{totalWins}-{totalPlaces}
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    Runs : Wins - Places
                   </p>
                 </div>
 
@@ -254,97 +517,111 @@ export default async function Page({
                     This is the saved in-app history for this horse from Race Builder.
                   </p>
                 </div>
-                <Badge tone="green">{runners.length} records</Badge>
+                <Badge tone="green">{enrichedRuns.length} records</Badge>
               </div>
 
               <div className="mt-5 space-y-4">
-                {runners.length > 0 ? (
-                  runners.map((runner: any) => {
-                    const race = raceList.find((item: any) => item.id === runner.race_id);
-                    const meeting = race
-                      ? meetingList.find((item: any) => item.id === race.meeting_id)
-                      : null;
-
-                    return (
-                      <div
-                        key={runner.id}
-                        className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div>
-                            <p className="text-sm text-zinc-500">
-                              {meeting
-                                ? `${meeting.meeting_name} · ${meeting.meeting_date}`
-                                : "Unknown meeting"}
-                            </p>
-                            <h3 className="mt-1 text-lg font-semibold text-zinc-950">
-                              {race
-                                ? `R${race.race_number} ${race.race_name}`
-                                : "Unknown race"}
-                            </h3>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            {race?.status ? (
-                              <Badge tone={race.status === "published" ? "green" : race.status === "closed" ? "rose" : "amber"}>
-                                {race.status}
-                              </Badge>
-                            ) : null}
-                            {race?.distance_m ? (
-                              <Badge tone="blue">{race.distance_m}m</Badge>
-                            ) : null}
-                          </div>
+                {enrichedRuns.length > 0 ? (
+                  enrichedRuns.map((runner) => (
+                    <div
+                      key={runner.id}
+                      className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                          <p className="text-sm text-zinc-500">
+                            {runner.meeting
+                              ? `${runner.meeting.meeting_name} · ${runner.meeting.meeting_date}`
+                              : "Unknown meeting"}
+                          </p>
+                          <h3 className="mt-1 text-lg font-semibold text-zinc-950">
+                            {runner.race
+                              ? `R${runner.race.race_number} ${runner.race.race_name}`
+                              : "Unknown race"}
+                          </h3>
                         </div>
 
-                        <div className="mt-4 grid gap-3 md:grid-cols-4">
-                          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                              Jockey
-                            </p>
-                            <p className="mt-2 text-sm font-semibold text-zinc-900">
-                              {runner.jockey_name || "—"}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                              Trainer
-                            </p>
-                            <p className="mt-2 text-sm font-semibold text-zinc-900">
-                              {runner.trainer_name || "—"}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                              Barrier
-                            </p>
-                            <p className="mt-2 text-sm font-semibold text-zinc-900">
-                              {runner.barrier ?? "—"}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                              Market
-                            </p>
-                            <p className="mt-2 text-sm font-semibold text-zinc-900">
-                              {runner.market_price !== null ? `$${runner.market_price}` : "—"}
-                            </p>
-                          </div>
+                        <div className="flex flex-wrap gap-2">
+                          {runner.race?.status ? (
+                            <Badge tone={getRaceStatusTone(runner.race.status)}>
+                              {runner.race.status}
+                            </Badge>
+                          ) : null}
+                          {runner.race?.distance_m ? (
+                            <Badge tone="blue">{runner.race.distance_m}m</Badge>
+                          ) : null}
+                          {runner.meeting?.track_condition ? (
+                            <Badge tone="amber">{runner.meeting.track_condition}</Badge>
+                          ) : null}
+                          {runner.finishing_position !== null &&
+                          runner.finishing_position !== undefined ? (
+                            <Badge
+                              tone={
+                                runner.finishing_position === 1
+                                  ? "green"
+                                  : runner.finishing_position <= 3
+                                    ? "blue"
+                                    : "rose"
+                              }
+                            >
+                              Fin: {runner.finishing_position}
+                            </Badge>
+                          ) : null}
                         </div>
+                      </div>
 
-                        <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                      <div className="mt-4 grid gap-3 md:grid-cols-5">
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                            Last 3 starts snapshot
+                            Jockey
                           </p>
                           <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {runner.form_last_3 || "—"}
+                            {runner.jockey_name || "—"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                            Trainer
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.trainer_name || "—"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                            Barrier
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.barrier ?? "—"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                            Market
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.starting_price !== null && runner.starting_price !== undefined
+                              ? `$${runner.starting_price}`
+                              : runner.market_price !== null && runner.market_price !== undefined
+                                ? `$${runner.market_price}`
+                                : "—"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                            Settled
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {formatDate(runner.settled_at)}
                           </p>
                         </div>
                       </div>
-                    );
-                  })
+                    </div>
+                  ))
                 ) : (
                   <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
                     No runner history saved for this horse yet.
