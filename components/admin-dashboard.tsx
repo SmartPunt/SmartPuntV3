@@ -340,6 +340,13 @@ export default function AdminDashboard({
                   </Link>
 
                   <Link
+                    href="/admin/calculator"
+                    className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm"
+                  >
+                    Calculator Lab
+                  </Link>
+
+                  <Link
                     href="/resulted-tips"
                     className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm"
                   >
@@ -360,7 +367,7 @@ export default function AdminDashboard({
                       Fortune on 5 tipper backend
                     </h2>
                     <p className="text-sm text-zinc-200 lg:text-base">
-                      Build tips, settle races, and manage the premium racing club feed.
+                      Build tips, settle races, manage the premium racing club feed, and test the calculator engine.
                     </p>
                     <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                       Logged in as {currentUser.full_name || currentUser.email}
