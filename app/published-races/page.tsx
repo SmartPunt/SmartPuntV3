@@ -54,31 +54,6 @@ type Meeting = {
   updated_at: string;
 };
 
-function groupByMeeting(races: Race[], meetings: Meeting[]) {
-  const grouped = new Map<
-    number,
-    {
-      meeting: Meeting | null;
-      races: Race[];
-    }
-  >();
-
-  races.forEach((race) => {
-    const meeting = meetings.find((item) => item.id === race.meeting_id) || null;
-
-    if (!grouped.has(race.meeting_id)) {
-      grouped.set(race.meeting_id, {
-        meeting,
-        races: [],
-      });
-    }
-
-    grouped.get(race.meeting_id)!.races.push(race);
-  });
-
-  return Array.from(grouped.values());
-}
-
 export default async function PublishedRacesPage() {
   const profile = await getCurrentProfile();
 
@@ -88,24 +63,24 @@ export default async function PublishedRacesPage() {
 
   const supabase = await createClient();
 
-  const { data: races } = await supabase
+  const { data: races, error: racesError } = await supabase
     .from("races")
     .select("*")
     .eq("status", "published")
-    .order("meeting_id", { ascending: false })
+    .order("published_at", { ascending: false, nullsFirst: false })
     .order("race_number", { ascending: true });
 
-  const { data: meetings } = await supabase
+  const { data: meetings, error: meetingsError } = await supabase
     .from("meetings")
     .select("*")
     .order("meeting_date", { ascending: false });
 
-  const { data: runners } = await supabase
+  const { data: runners, error: runnersError } = await supabase
     .from("race_runners")
     .select("*")
     .order("created_at", { ascending: true });
 
-  const { data: horses } = await supabase
+  const { data: horses, error: horsesError } = await supabase
     .from("horses")
     .select("*")
     .order("horse_name", { ascending: true });
@@ -114,8 +89,6 @@ export default async function PublishedRacesPage() {
   const meetingRows: Meeting[] = meetings || [];
   const runnerRows: Runner[] = runners || [];
   const horseRows: Horse[] = horses || [];
-
-  const groupedMeetings = groupByMeeting(publishedRaces, meetingRows);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
@@ -159,108 +132,107 @@ export default async function PublishedRacesPage() {
 
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge tone="amber">{publishedRaces.length} published races</Badge>
+                  <Badge tone="blue">{runnerRows.length} visible runners</Badge>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
+        {(racesError || meetingsError || runnersError || horsesError) ? (
+          <Panel className="mt-6 bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <h2 className="text-xl font-semibold">Data check</h2>
+              <div className="mt-4 space-y-2 text-sm text-zinc-700">
+                {racesError ? <p>Races error: {racesError.message}</p> : null}
+                {meetingsError ? <p>Meetings error: {meetingsError.message}</p> : null}
+                {runnersError ? <p>Runners error: {runnersError.message}</p> : null}
+                {horsesError ? <p>Horses error: {horsesError.message}</p> : null}
+              </div>
+            </div>
+          </Panel>
+        ) : null}
+
         <div className="mt-6 space-y-6">
-          {groupedMeetings.length > 0 ? (
-            groupedMeetings.map(({ meeting, races }) => (
-              <Panel key={meeting?.id || `meeting-${races[0]?.meeting_id}`} className="bg-white/95">
-                <div className="p-6 text-zinc-950">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-2xl font-bold">
-                        {meeting?.meeting_name || "Meeting"}
-                      </h2>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        {meeting?.meeting_date || "Date TBC"}
-                        {meeting?.track_condition ? ` · ${meeting.track_condition}` : ""}
-                      </p>
+          {publishedRaces.length > 0 ? (
+            publishedRaces.map((race) => {
+              const meeting =
+                meetingRows.find((item) => item.id === race.meeting_id) || null;
+              const raceRunners = runnerRows.filter((runner) => runner.race_id === race.id);
+
+              return (
+                <Panel key={race.id} className="bg-white/95">
+                  <div className="p-6 text-zinc-950">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-zinc-500">
+                          {meeting?.meeting_name || "Meeting"}
+                          {meeting?.meeting_date ? ` · ${meeting.meeting_date}` : ""}
+                        </p>
+                        <h2 className="mt-1 text-2xl font-bold">
+                          R{race.race_number} {race.race_name}
+                        </h2>
+                        <p className="mt-2 text-sm text-zinc-600">
+                          {race.distance_m ? `${race.distance_m}m` : "Distance TBC"}
+                          {meeting?.track_condition ? ` · ${meeting.track_condition}` : ""}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Badge tone="green">Published</Badge>
+                        <Badge tone="blue">{raceRunners.length} runners</Badge>
+                      </div>
                     </div>
 
-                    <Badge tone="green">{races.length} races live</Badge>
-                  </div>
+                    <div className="mt-5 grid gap-3 md:grid-cols-2">
+                      {raceRunners.length > 0 ? (
+                        raceRunners.map((runner) => {
+                          const horse =
+                            horseRows.find((item) => item.id === runner.horse_id) || null;
 
-                  <div className="mt-5 space-y-5">
-                    {races.map((race) => {
-                      const raceRunners = runnerRows.filter((runner) => runner.race_id === race.id);
+                          return (
+                            <div
+                              key={runner.id}
+                              className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-base font-semibold text-zinc-950">
+                                    {horse?.horse_name || "Unknown horse"}
+                                  </p>
+                                  <p className="mt-1 text-sm text-zinc-500">
+                                    Jockey: {runner.jockey_name || "—"}
+                                  </p>
+                                </div>
 
-                      return (
-                        <div
-                          key={race.id}
-                          className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm text-zinc-500">
-                                R{race.race_number}
-                              </p>
-                              <h3 className="mt-1 text-xl font-semibold text-zinc-950">
-                                {race.race_name}
-                              </h3>
-                              <p className="mt-2 text-sm text-zinc-600">
-                                {race.distance_m ? `${race.distance_m}m` : "Distance TBC"}
-                              </p>
-                            </div>
-
-                            <Badge tone="blue">{raceRunners.length} runners</Badge>
-                          </div>
-
-                          <div className="mt-4 grid gap-3 md:grid-cols-2">
-                            {raceRunners.length > 0 ? (
-                              raceRunners.map((runner) => {
-                                const horse =
-                                  horseRows.find((item) => item.id === runner.horse_id) || null;
-
-                                return (
-                                  <div
-                                    key={runner.id}
-                                    className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
-                                  >
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div>
-                                        <p className="text-base font-semibold text-zinc-950">
-                                          {horse?.horse_name || "Unknown horse"}
-                                        </p>
-                                        <p className="mt-1 text-sm text-zinc-500">
-                                          Jockey: {runner.jockey_name || "—"}
-                                        </p>
-                                      </div>
-
-                                      <div className="flex flex-wrap gap-2">
-                                        {runner.barrier !== null && runner.barrier !== undefined ? (
-                                          <Badge tone="amber">Barrier {runner.barrier}</Badge>
-                                        ) : null}
-                                        {runner.market_price !== null && runner.market_price !== undefined ? (
-                                          <Badge tone="green">${runner.market_price}</Badge>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
-                                No runners loaded into this race yet.
+                                <div className="flex flex-wrap gap-2">
+                                  {runner.barrier !== null && runner.barrier !== undefined ? (
+                                    <Badge tone="amber">Barrier {runner.barrier}</Badge>
+                                  ) : null}
+                                  {runner.market_price !== null && runner.market_price !== undefined ? (
+                                    <Badge tone="green">${runner.market_price}</Badge>
+                                  ) : null}
+                                </div>
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+                          This race is published, but no runners are visible yet.
                         </div>
-                      );
-                    })}
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Panel>
-            ))
+                </Panel>
+              );
+            })
           ) : (
             <Panel className="bg-white/95">
               <div className="p-6 text-zinc-950">
                 <h2 className="text-xl font-semibold">No published races yet</h2>
                 <p className="mt-2 text-sm text-zinc-500">
-                  Once the head tipper publishes race fields, they’ll appear here.
+                  If you have just published one and this still shows empty, the problem is almost certainly data access rather than page layout.
                 </p>
               </div>
             </Panel>
