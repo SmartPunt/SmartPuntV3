@@ -199,6 +199,217 @@ function normaliseHorseName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function renderPill(text: string, background: string, color: string, border = "none") {
+  return `
+    <span style="
+      display:inline-block;
+      background:${background};
+      color:${color};
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+      line-height:1;
+      margin-right:6px;
+      margin-bottom:6px;
+      border:${border};
+      mso-line-height-rule:exactly;
+      text-decoration:none;
+      white-space:nowrap;
+    ">
+      ${text}
+    </span>
+  `;
+}
+
+function renderEmailCard(title: string, bodyHtml: string) {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-spacing:0;background:#151515;border:1px solid rgba(255,255,255,0.06);border-radius:20px;">
+      <tr>
+        <td style="padding:18px;">
+          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;line-height:1.4;mso-line-height-rule:exactly;">
+            ${title}
+          </div>
+          <div style="font-size:16px;line-height:1.75;color:#f4f4f5;margin-top:10px;mso-line-height-rule:exactly;">
+            ${bodyHtml}
+          </div>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+function renderEmailShell({
+  appUrl,
+  introPill,
+  eyebrow,
+  heading,
+  subheading,
+  heroBadgesHtml = "",
+  primaryCardTitle,
+  primaryCardBody,
+  primaryPillsHtml = "",
+  secondaryCardTitle,
+  secondaryCardBody,
+  ctaHref,
+  ctaLabel,
+  footerNote,
+  email,
+}: {
+  appUrl: string;
+  introPill: string;
+  eyebrow: string;
+  heading: string;
+  subheading: string;
+  heroBadgesHtml?: string;
+  primaryCardTitle: string;
+  primaryCardBody: string;
+  primaryPillsHtml?: string;
+  secondaryCardTitle: string;
+  secondaryCardBody: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+  footerNote: string;
+  email: string;
+}) {
+  const logoHtml = appUrl
+    ? `
+      <tr>
+        <td style="background:#000000;line-height:0;font-size:0;">
+          <img
+            src="${appUrl}/header-logo.png"
+            alt="SmartPunt"
+            style="display:block;width:100%;height:auto;border:0;outline:none;text-decoration:none;"
+          />
+        </td>
+      </tr>
+    `
+    : "";
+
+  const ctaHtml =
+    ctaHref && ctaLabel
+      ? `
+      <tr>
+        <td style="padding:20px 22px 0 22px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-spacing:0;">
+            <tr>
+              <td align="center" bgcolor="#f59e0b" style="border-radius:16px;border:1px solid rgba(245,158,11,0.60);">
+                <a
+                  href="${ctaHref}"
+                  style="
+                    display:block;
+                    width:100%;
+                    box-sizing:border-box;
+                    color:#111111;
+                    text-decoration:none;
+                    text-align:center;
+                    padding:16px 18px;
+                    border-radius:16px;
+                    font-size:16px;
+                    font-weight:900;
+                    letter-spacing:0.02em;
+                    line-height:1.2;
+                    mso-line-height-rule:exactly;
+                  "
+                >
+                  ${ctaLabel}
+                </a>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    `
+      : "";
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <body style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-spacing:0;background:#050505;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+          <tr>
+            <td align="center" style="padding:24px 12px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:640px;border-collapse:collapse;border-spacing:0;background:#0b0b0b;border:1px solid rgba(251,191,36,0.18);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.45);mso-table-lspace:0pt;mso-table-rspace:0pt;">
+                ${logoHtml}
+
+                <tr>
+                  <td style="padding:18px 22px 0 22px;background:#0b0b0b;">
+                    ${renderPill(introPill, "#f59e0b", "#111111")}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:18px 22px 10px 22px;background:#111111;">
+                    <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#fbbf24;font-weight:800;line-height:1.4;mso-line-height-rule:exactly;">
+                      ${eyebrow}
+                    </div>
+
+                    <div style="font-size:34px;line-height:1.08;font-weight:900;color:#ffffff;margin-top:10px;mso-line-height-rule:exactly;">
+                      ${heading}
+                    </div>
+
+                    <div style="font-size:15px;line-height:1.5;color:#d4d4d8;margin-top:10px;mso-line-height-rule:exactly;">
+                      ${subheading}
+                    </div>
+
+                    ${
+                      heroBadgesHtml
+                        ? `<div style="margin-top:18px;line-height:1.8;mso-line-height-rule:exactly;">${heroBadgesHtml}</div>`
+                        : ""
+                    }
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:0 22px 0 22px;background:#0b0b0b;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;border-spacing:0;background:#171717;border:1px solid rgba(251,191,36,0.16);border-radius:20px;">
+                      <tr>
+                        <td style="padding:18px 18px 16px 18px;">
+                          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;line-height:1.4;mso-line-height-rule:exactly;">
+                            ${primaryCardTitle}
+                          </div>
+                          <div style="font-size:18px;line-height:1.5;color:#ffffff;font-weight:800;margin-top:10px;mso-line-height-rule:exactly;">
+                            ${primaryCardBody}
+                          </div>
+                          ${
+                            primaryPillsHtml
+                              ? `<div style="margin-top:14px;line-height:1.8;mso-line-height-rule:exactly;">${primaryPillsHtml}</div>`
+                              : ""
+                          }
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:16px 22px 0 22px;background:#0b0b0b;">
+                    ${renderEmailCard(secondaryCardTitle, secondaryCardBody)}
+                  </td>
+                </tr>
+
+                ${ctaHtml}
+
+                <tr>
+                  <td style="padding:18px 22px 0 22px;background:#0b0b0b;font-size:13px;line-height:1.7;color:#a1a1aa;mso-line-height-rule:exactly;">
+                    ${footerNote}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style="padding:10px 22px 22px 22px;background:#0b0b0b;font-size:11px;line-height:1.6;color:#6b7280;mso-line-height-rule:exactly;">
+                    Sent to ${escapeHtml(email)}.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+}
+
 async function sendBatchEmails(
   emails: Array<{
     from: string;
@@ -284,7 +495,6 @@ async function sendSuggestedTipNotifications({
   const preview = safeCommentary || `${horse} has been tipped.`;
 
   const alertLabel = getAlertLabel(type, confidence);
-  const safeAlertLabel = escapeHtml(alertLabel);
   const suggestedPlayLine = escapeHtml(getSuggestedPlayLine(type, confidence, note));
   const countdownLabel = formatCountdownLabel(raceStartAt);
   const formattedRaceTime = formatRaceTimeDisplay(raceStartAt, raceTimezone);
@@ -300,123 +510,40 @@ async function sendSuggestedTipNotifications({
 
   const subject = `${subjectPrefix} — ${horse} (${race})`;
 
-  const html = (email: string) => `
-    <div style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
-      <div style="padding:24px 12px;background:#050505;">
-        <div style="max-width:640px;margin:0 auto;background:#0b0b0b;border:1px solid rgba(251,191,36,0.18);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.45);">
-          <div style="background:#000000;line-height:0;">
-            ${
-              appUrl
-                ? `<img
-                    src="${appUrl}/header-logo.png"
-                    alt="SmartPunt"
-                    style="display:block;width:100%;height:auto;margin:0;padding:0;border:0;"
-                  />`
-                : ""
-            }
-          </div>
+  const heroBadges = [
+    countdownLabel
+      ? renderPill(`⏱ ${escapeHtml(countdownLabel)}`, "#1f2937", "#fde68a", "1px solid rgba(251,191,36,0.18)")
+      : "",
+    formattedRaceTime
+      ? renderPill(`📍 ${escapeHtml(formattedRaceTime)}`, "#111827", "#cbd5e1", "1px solid rgba(255,255,255,0.08)")
+      : "",
+  ].join("");
 
-          <div style="padding:18px 22px 0 22px;background:linear-gradient(180deg,#0b0b0b 0%,#111111 100%);">
-            <div style="display:inline-block;background:#f59e0b;color:#111111;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">
-              New SmartPunt Drop
-            </div>
-          </div>
+  const playPills = [
+    renderPill(safeType, "#052e16", "#86efac"),
+    renderPill(`${safeConfidence} confidence`, "#082f49", "#7dd3fc"),
+    safeNote ? renderPill(safeNote, "#451a03", "#fcd34d") : "",
+  ].join("");
 
-          <div style="padding:18px 22px 10px 22px;background:linear-gradient(180deg,#111111 0%,#0b0b0b 100%);">
-            <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
-              ${safeAlertLabel}
-            </div>
-
-            <div style="font-size:34px;line-height:1.08;font-weight:900;color:#ffffff;margin-top:10px;">
-              🔥 ${safeHorse}
-            </div>
-
-            <div style="font-size:15px;line-height:1.5;color:#d4d4d8;margin-top:10px;">
-              ${safeRace}
-            </div>
-
-            ${
-              countdownLabel || formattedRaceTime
-                ? `<div style="margin-top:18px;">
-                    ${
-                      countdownLabel
-                        ? `<span style="display:inline-block;background:#1f2937;color:#fde68a;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:800;margin-right:8px;margin-bottom:8px;border:1px solid rgba(251,191,36,0.18);">
-                            ⏱ ${escapeHtml(countdownLabel)}
-                          </span>`
-                        : ""
-                    }
-                    ${
-                      formattedRaceTime
-                        ? `<span style="display:inline-block;background:#111827;color:#cbd5e1;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700;margin-right:8px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);">
-                            📍 ${escapeHtml(formattedRaceTime)}
-                          </span>`
-                        : ""
-                    }
-                  </div>`
-                : ""
-            }
-          </div>
-
-          <div style="padding:0 22px 22px 22px;background:#0b0b0b;">
-            <div style="background:linear-gradient(180deg,#171717 0%,#101010 100%);border:1px solid rgba(251,191,36,0.16);border-radius:20px;padding:18px 18px 16px 18px;">
-              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
-                Suggested Play
-              </div>
-              <div style="font-size:18px;line-height:1.5;color:#ffffff;font-weight:800;margin-top:10px;">
-                ${suggestedPlayLine}
-              </div>
-
-              <div style="margin-top:14px;">
-                <span style="display:inline-block;background:#052e16;color:#86efac;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-right:6px;margin-bottom:6px;">
-                  ${safeType}
-                </span>
-                <span style="display:inline-block;background:#082f49;color:#7dd3fc;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-right:6px;margin-bottom:6px;">
-                  ${safeConfidence} confidence
-                </span>
-                ${
-                  safeNote
-                    ? `<span style="display:inline-block;background:#451a03;color:#fcd34d;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-bottom:6px;">
-                        ${safeNote}
-                      </span>`
-                    : ""
-                }
-              </div>
-            </div>
-
-            <div style="margin-top:16px;background:#151515;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:18px;">
-              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
-                Tipster’s Tag
-              </div>
-              <div style="font-size:16px;line-height:1.75;color:#f4f4f5;margin-top:10px;">
-                ${nl2br(preview)}
-              </div>
-            </div>
-
-            ${
-              appUrl
-                ? `<div style="margin-top:20px;">
-                    <a
-                      href="${appUrl}"
-                      style="display:block;width:100%;box-sizing:border-box;background:#f59e0b;color:#111111;text-decoration:none;text-align:center;padding:16px 18px;border-radius:16px;font-size:16px;font-weight:900;letter-spacing:0.02em;border:1px solid rgba(245,158,11,0.60);"
-                    >
-                      👉 Open SmartPunt
-                    </a>
-                  </div>`
-                : ""
-            }
-
-            <div style="margin-top:18px;font-size:13px;line-height:1.7;color:#a1a1aa;">
-              You’re getting this because you’re inside SmartPunt. Stay sharp — the next edge lands fast.
-            </div>
-
-            <div style="margin-top:10px;font-size:11px;line-height:1.6;color:#6b7280;">
-              Sent to ${escapeHtml(email)}.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  const html = (email: string) =>
+    renderEmailShell({
+      appUrl,
+      introPill: "New SmartPunt Drop",
+      eyebrow: escapeHtml(alertLabel),
+      heading: `🔥 ${safeHorse}`,
+      subheading: safeRace,
+      heroBadgesHtml: heroBadges,
+      primaryCardTitle: "Suggested Play",
+      primaryCardBody: suggestedPlayLine,
+      primaryPillsHtml: playPills,
+      secondaryCardTitle: "Tipster’s Tag",
+      secondaryCardBody: nl2br(preview),
+      ctaHref: appUrl || undefined,
+      ctaLabel: appUrl ? "👉 Open SmartPunt" : undefined,
+      footerNote:
+        "You’re getting this because you’re inside SmartPunt. Stay sharp — the next edge lands fast.",
+      email,
+    });
 
   const emails = recipients.map((email) => ({
     from: fromEmail,
@@ -458,98 +585,33 @@ async function sendGetOnEarlyNotifications({
 
   const subject = `🔥 GET ON EARLY — ${horse}${odds ? ` (${odds})` : ""}`;
 
-  const html = (email: string) => `
-    <div style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
-      <div style="padding:24px 12px;background:#050505;">
-        <div style="max-width:640px;margin:0 auto;background:#0b0b0b;border:1px solid rgba(251,191,36,0.18);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.45);">
-          <div style="background:#000000;line-height:0;">
-            ${
-              appUrl
-                ? `<img
-                    src="${appUrl}/header-logo.png"
-                    alt="SmartPunt"
-                    style="display:block;width:100%;height:auto;margin:0;padding:0;border:0;"
-                  />`
-                : ""
-            }
-          </div>
+  const playPills = [
+    renderPill(safeBetType, "#451a03", "#fcd34d"),
+    renderPill(`Taken: ${safeOdds}`, "#111827", "#e5e7eb"),
+    renderPill("Price may not last", "#7c2d12", "#fdba74"),
+  ].join("");
 
-          <div style="padding:18px 22px 0 22px;background:linear-gradient(180deg,#0b0b0b 0%,#111111 100%);">
-            <div style="display:inline-block;background:#f59e0b;color:#111111;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">
-              VIP Early Alert
-            </div>
-          </div>
-
-          <div style="padding:18px 22px 10px 22px;background:linear-gradient(180deg,#111111 0%,#0b0b0b 100%);">
-            <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
-              GET ON EARLY 🔥
-            </div>
-
-            <div style="font-size:34px;line-height:1.08;font-weight:900;color:#ffffff;margin-top:10px;">
-              ${safeHorse}
-            </div>
-
-            <div style="font-size:15px;line-height:1.5;color:#d4d4d8;margin-top:10px;">
-              ${safeTitle}
-            </div>
-          </div>
-
-          <div style="padding:0 22px 22px 22px;background:#0b0b0b;">
-            <div style="background:linear-gradient(180deg,#171717 0%,#101010 100%);border:1px solid rgba(251,191,36,0.16);border-radius:20px;padding:18px 18px 16px 18px;">
-              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
-                Why act now
-              </div>
-              <div style="font-size:18px;line-height:1.5;color:#ffffff;font-weight:800;margin-top:10px;">
-                SmartPunt wants this taken before the market catches up.
-              </div>
-
-              <div style="margin-top:14px;">
-                <span style="display:inline-block;background:#451a03;color:#fcd34d;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-right:6px;margin-bottom:6px;">
-                  ${safeBetType}
-                </span>
-                <span style="display:inline-block;background:#111827;color:#e5e7eb;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-right:6px;margin-bottom:6px;">
-                  Taken: ${safeOdds}
-                </span>
-                <span style="display:inline-block;background:#7c2d12;color:#fdba74;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;margin-bottom:6px;">
-                  Price may not last
-                </span>
-              </div>
-            </div>
-
-            <div style="margin-top:16px;background:#151515;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:18px;">
-              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
-                Tipster’s angle
-              </div>
-              <div style="font-size:16px;line-height:1.75;color:#f4f4f5;margin-top:10px;">
-                ${nl2br(safeCommentary || "SmartPunt has marked this as an early-value play worth locking in before the market firms.")}
-              </div>
-            </div>
-
-            ${
-              appUrl
-                ? `<div style="margin-top:20px;">
-                    <a
-                      href="${appUrl}/long-term-bets"
-                      style="display:block;width:100%;box-sizing:border-box;background:#f59e0b;color:#111111;text-decoration:none;text-align:center;padding:16px 18px;border-radius:16px;font-size:16px;font-weight:900;letter-spacing:0.02em;border:1px solid rgba(245,158,11,0.60);"
-                    >
-                      👉 Open Get On Early
-                    </a>
-                  </div>`
-                : ""
-            }
-
-            <div style="margin-top:18px;font-size:13px;line-height:1.7;color:#a1a1aa;">
-              This is a premium early-position alert. If the market trims, you’ll be glad you were on early.
-            </div>
-
-            <div style="margin-top:10px;font-size:11px;line-height:1.6;color:#6b7280;">
-              Sent to ${escapeHtml(email)}.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  const html = (email: string) =>
+    renderEmailShell({
+      appUrl,
+      introPill: "VIP Early Alert",
+      eyebrow: "GET ON EARLY 🔥",
+      heading: safeHorse,
+      subheading: safeTitle,
+      primaryCardTitle: "Why act now",
+      primaryCardBody: "SmartPunt wants this taken before the market catches up.",
+      primaryPillsHtml: playPills,
+      secondaryCardTitle: "Tipster’s angle",
+      secondaryCardBody: nl2br(
+        safeCommentary ||
+          "SmartPunt has marked this as an early-value play worth locking in before the market firms.",
+      ),
+      ctaHref: appUrl ? `${appUrl}/long-term-bets` : undefined,
+      ctaLabel: appUrl ? "👉 Open Get On Early" : undefined,
+      footerNote:
+        "This is a premium early-position alert. If the market trims, you’ll be glad you were on early.",
+      email,
+    });
 
   const emails = recipients.map((email) => ({
     from: fromEmail,
@@ -587,73 +649,24 @@ async function sendPublishedRaceNotification({
 
   const subject = `📣 New Race Field — ${meetingName} R${raceNumber}`;
 
-  const html = (email: string) => `
-    <div style="margin:0;padding:0;background:#050505;font-family:Arial,sans-serif;">
-      <div style="padding:24px 12px;background:#050505;">
-        <div style="max-width:640px;margin:0 auto;background:#0b0b0b;border:1px solid rgba(251,191,36,0.18);border-radius:24px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.45);">
-          <div style="background:#000000;line-height:0;">
-            ${
-              appUrl
-                ? `<img
-                    src="${appUrl}/header-logo.png"
-                    alt="SmartPunt"
-                    style="display:block;width:100%;height:auto;margin:0;padding:0;border:0;"
-                  />`
-                : ""
-            }
-          </div>
-
-          <div style="padding:18px 22px 0 22px;background:linear-gradient(180deg,#0b0b0b 0%,#111111 100%);">
-            <div style="display:inline-block;background:#f59e0b;color:#111111;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">
-              New Race Field
-            </div>
-          </div>
-
-          <div style="padding:18px 22px 10px 22px;background:linear-gradient(180deg,#111111 0%,#0b0b0b 100%);">
-            <div style="font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
-              PUBLISHED RACE
-            </div>
-
-            <div style="font-size:32px;line-height:1.08;font-weight:900;color:#ffffff;margin-top:10px;">
-              ${safeMeeting}
-            </div>
-
-            <div style="font-size:16px;line-height:1.6;color:#d4d4d8;margin-top:10px;">
-              R${raceNumber} ${safeRaceName} · ${escapeHtml(safeDistance)}
-            </div>
-          </div>
-
-          <div style="padding:0 22px 22px 22px;background:#0b0b0b;">
-            <div style="background:#151515;border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:18px;">
-              <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#fbbf24;font-weight:800;">
-                What’s live now
-              </div>
-              <div style="font-size:16px;line-height:1.75;color:#f4f4f5;margin-top:10px;">
-                A new published race field is now available inside SmartPunt. Jump in to view the runners.
-              </div>
-            </div>
-
-            ${
-              appUrl
-                ? `<div style="margin-top:20px;">
-                    <a
-                      href="${appUrl}/published-races"
-                      style="display:block;width:100%;box-sizing:border-box;background:#f59e0b;color:#111111;text-decoration:none;text-align:center;padding:16px 18px;border-radius:16px;font-size:16px;font-weight:900;letter-spacing:0.02em;border:1px solid rgba(245,158,11,0.60);"
-                    >
-                      👉 View Published Races
-                    </a>
-                  </div>`
-                : ""
-            }
-
-            <div style="margin-top:18px;font-size:13px;line-height:1.7;color:#a1a1aa;">
-              Sent to ${escapeHtml(email)}.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  const html = (email: string) =>
+    renderEmailShell({
+      appUrl,
+      introPill: "New Race Field",
+      eyebrow: "PUBLISHED RACE",
+      heading: safeMeeting,
+      subheading: `R${raceNumber} ${safeRaceName} · ${escapeHtml(safeDistance)}`,
+      primaryCardTitle: "What’s live now",
+      primaryCardBody:
+        "A new published race field is now available inside SmartPunt. Jump in to view the runners.",
+      secondaryCardTitle: "Race update",
+      secondaryCardBody:
+        "The field has been loaded and is ready to view inside SmartPunt.",
+      ctaHref: appUrl ? `${appUrl}/published-races` : undefined,
+      ctaLabel: appUrl ? "👉 View Published Races" : undefined,
+      footerNote: "New race fields are ready for review inside SmartPunt.",
+      email,
+    });
 
   const emails = recipients.map((email) => ({
     from: fromEmail,
@@ -1137,8 +1150,13 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
 
     const meeting =
       raceData?.meeting_id
-        ? (await supabase.from("meetings").select("*").eq("id", raceData.meeting_id).maybeSingle())
-            .data
+        ? (
+            await supabase
+              .from("meetings")
+              .select("*")
+              .eq("id", raceData.meeting_id)
+              .maybeSingle()
+          ).data
         : null;
 
     const payload = {
