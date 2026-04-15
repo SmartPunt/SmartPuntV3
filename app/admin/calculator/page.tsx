@@ -39,7 +39,6 @@ export default async function Page() {
 
   return (
     <AdminCalculator
-      currentUser={profile}
       races={races || []}
       runners={runners || []}
       horses={horses || []}
