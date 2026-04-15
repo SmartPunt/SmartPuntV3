@@ -54,6 +54,47 @@ type Meeting = {
   updated_at: string;
 };
 
+function clamp(value: number, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function calculateScore(runner: Runner) {
+  let score = 50;
+
+  if (runner.market_price !== null && runner.market_price !== undefined) {
+    const price = Number(runner.market_price);
+
+    if (price <= 2) score += 25;
+    else if (price <= 4) score += 15;
+    else if (price <= 8) score += 5;
+    else score -= 5;
+  }
+
+  if (runner.barrier !== null && runner.barrier !== undefined) {
+    const barrier = Number(runner.barrier);
+
+    if (barrier <= 4) score += 10;
+    else if (barrier <= 8) score += 5;
+    else score -= 5;
+  }
+
+  if (runner.form_last_3) {
+    const form = runner.form_last_3
+      .replace(/[^0-9]/g, "")
+      .split("")
+      .map(Number)
+      .filter((num) => !Number.isNaN(num));
+
+    form.forEach((pos) => {
+      if (pos === 1) score += 5;
+      else if (pos <= 3) score += 2;
+      else if (pos >= 8) score -= 2;
+    });
+  }
+
+  return clamp(score);
+}
+
 export default async function PublishedRacesPage() {
   const profile = await getCurrentProfile();
 
@@ -133,6 +174,7 @@ export default async function PublishedRacesPage() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge tone="amber">{publishedRaces.length} published races</Badge>
                   <Badge tone="blue">{runnerRows.length} visible runners</Badge>
+                  <Badge tone="green">SmartPunt ratings live</Badge>
                 </div>
               </div>
             </div>
@@ -158,7 +200,16 @@ export default async function PublishedRacesPage() {
             publishedRaces.map((race) => {
               const meeting =
                 meetingRows.find((item) => item.id === race.meeting_id) || null;
-              const raceRunners = runnerRows.filter((runner) => runner.race_id === race.id);
+
+              const raceRunners = runnerRows
+                .filter((runner) => runner.race_id === race.id)
+                .map((runner) => ({
+                  ...runner,
+                  score: calculateScore(runner),
+                }))
+                .sort((a, b) => b.score - a.score);
+
+              const topScore = raceRunners[0]?.score ?? null;
 
               return (
                 <Panel key={race.id} className="bg-white/95">
@@ -186,26 +237,46 @@ export default async function PublishedRacesPage() {
 
                     <div className="mt-5 grid gap-3 md:grid-cols-2">
                       {raceRunners.length > 0 ? (
-                        raceRunners.map((runner) => {
+                        raceRunners.map((runner, index) => {
                           const horse =
                             horseRows.find((item) => item.id === runner.horse_id) || null;
+
+                          const isTopRated = topScore !== null && runner.score === topScore && index === 0;
 
                           return (
                             <div
                               key={runner.id}
-                              className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                              className={`rounded-2xl border p-4 ${
+                                isTopRated
+                                  ? "border-amber-300/50 bg-amber-50"
+                                  : "border-zinc-200 bg-zinc-50"
+                              }`}
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div>
-                                  <p className="text-base font-semibold text-zinc-950">
-                                    {horse?.horse_name || "Unknown horse"}
-                                  </p>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-base font-semibold text-zinc-950">
+                                      {horse?.horse_name || "Unknown horse"}
+                                    </p>
+                                    {isTopRated ? <Badge tone="amber">Top Rated</Badge> : null}
+                                  </div>
+
                                   <p className="mt-1 text-sm text-zinc-500">
                                     Jockey: {runner.jockey_name || "—"}
                                   </p>
+
+                                  <div className="mt-3 flex items-center gap-2">
+                                    <span className="text-2xl font-bold text-amber-700">
+                                      {runner.score}%
+                                    </span>
+                                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                                      SmartPunt Rating
+                                    </span>
+                                  </div>
                                 </div>
 
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-2 justify-end">
+                                  <Badge tone="slate">Rank #{index + 1}</Badge>
                                   {runner.barrier !== null && runner.barrier !== undefined ? (
                                     <Badge tone="amber">Barrier {runner.barrier}</Badge>
                                   ) : null}
@@ -214,6 +285,17 @@ export default async function PublishedRacesPage() {
                                   ) : null}
                                 </div>
                               </div>
+
+                              {runner.form_last_3 ? (
+                                <div className="mt-4 rounded-2xl bg-white/70 px-4 py-3">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                                    Recent snapshot used in rating
+                                  </p>
+                                  <p className="mt-2 text-sm font-semibold text-zinc-900">
+                                    {runner.form_last_3}
+                                  </p>
+                                </div>
+                              ) : null}
                             </div>
                           );
                         })
@@ -232,7 +314,7 @@ export default async function PublishedRacesPage() {
               <div className="p-6 text-zinc-950">
                 <h2 className="text-xl font-semibold">No published races yet</h2>
                 <p className="mt-2 text-sm text-zinc-500">
-                  If you have just published one and this still shows empty, the problem is almost certainly data access rather than page layout.
+                  Once the head tipper publishes race fields, they’ll appear here.
                 </p>
               </div>
             </Panel>
