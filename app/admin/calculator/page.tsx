@@ -19,7 +19,6 @@ export default async function Page() {
   const { data: races } = await supabase
     .from("races")
     .select("*")
-    .eq("status", "published")
     .order("meeting_id", { ascending: false })
     .order("race_number", { ascending: true });
 
