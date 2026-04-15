@@ -1,13 +1,90 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import Link from "next/link";
 import { Badge, Panel } from "@/components/ui";
 
-export default async function Page() {
+type Race = {
+  id: number;
+  meeting_id: number;
+  race_number: number;
+  race_name: string;
+  distance_m: number | null;
+  status: "draft" | "published" | "closed";
+  published_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type Runner = {
+  id: number;
+  race_id: number;
+  horse_id: number;
+  jockey_name: string | null;
+  trainer_name: string | null;
+  barrier: number | null;
+  market_price: number | null;
+  form_last_3: string | null;
+  finishing_position?: number | null;
+  starting_price?: number | null;
+  won?: boolean | null;
+  placed?: boolean | null;
+  settled_at?: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type Horse = {
+  id: number;
+  horse_name: string;
+  normalised_name: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type Meeting = {
+  id: number;
+  meeting_name: string;
+  meeting_date: string;
+  track_condition: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function groupByMeeting(races: Race[], meetings: Meeting[]) {
+  const grouped = new Map<
+    number,
+    {
+      meeting: Meeting | null;
+      races: Race[];
+    }
+  >();
+
+  races.forEach((race) => {
+    const meeting = meetings.find((item) => item.id === race.meeting_id) || null;
+
+    if (!grouped.has(race.meeting_id)) {
+      grouped.set(race.meeting_id, {
+        meeting,
+        races: [],
+      });
+    }
+
+    grouped.get(race.meeting_id)!.races.push(race);
+  });
+
+  return Array.from(grouped.values());
+}
+
+export default async function PublishedRacesPage() {
   const profile = await getCurrentProfile();
 
-  if (!profile) redirect("/login");
+  if (!profile) {
+    redirect("/login");
+  }
 
   const supabase = await createClient();
 
@@ -20,72 +97,174 @@ export default async function Page() {
 
   const { data: meetings } = await supabase
     .from("meetings")
-    .select("*");
+    .select("*")
+    .order("meeting_date", { ascending: false });
 
   const { data: runners } = await supabase
     .from("race_runners")
-    .select("*");
+    .select("*")
+    .order("created_at", { ascending: true });
 
   const { data: horses } = await supabase
     .from("horses")
-    .select("*");
+    .select("*")
+    .order("horse_name", { ascending: true });
+
+  const publishedRaces: Race[] = races || [];
+  const meetingRows: Meeting[] = meetings || [];
+  const runnerRows: Runner[] = runners || [];
+  const horseRows: Horse[] = horses || [];
+
+  const groupedMeetings = groupByMeeting(publishedRaces, meetingRows);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black to-zinc-900 text-white">
-      <div className="mx-auto max-w-6xl p-4 lg:p-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
+        <div className="relative overflow-hidden rounded-[32px] bg-black shadow-xl border border-white/10 min-h-[180px] lg:min-h-[260px]">
+          <img
+            src="/header-logo.png"
+            alt="Fortune on 5"
+            className="absolute left-1/2 top-[45%] w-[260px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-95 pointer-events-none select-none sm:w-[400px] lg:top-[42%] lg:w-[943px]"
+          />
 
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Published Races</h1>
-          <Link
-            href="/"
-            className="rounded-2xl border border-white/10 px-4 py-2 text-sm"
-          >
-            Back
-          </Link>
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.18)_0%,rgba(0,0,0,0.06)_30%,rgba(0,0,0,0.46)_100%)]" />
+
+          <div className="relative z-10 flex h-full min-h-[180px] flex-col justify-between p-4 lg:min-h-[260px] lg:p-8">
+            <div className="flex items-start justify-between gap-3">
+              <Badge tone="green">Published race fields</Badge>
+
+              <div className="ml-auto flex flex-col items-end gap-2 lg:gap-3">
+                <Link
+                  href="/"
+                  className="w-fit rounded-2xl border border-white/15 bg-black/45 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/15 lg:px-4 lg:py-2.5 lg:text-sm"
+                >
+                  Back to Live Tips
+                </Link>
+              </div>
+            </div>
+
+            <div className="mt-auto">
+              <div className="rounded-2xl bg-black/18 px-4 py-3 backdrop-blur-[1px] lg:px-5 lg:py-4">
+                <div className="flex flex-wrap items-end gap-x-4 gap-y-2 text-white lg:gap-x-5">
+                  <h1 className="text-xl font-bold tracking-tight sm:text-2xl lg:text-4xl">
+                    Race Fields
+                  </h1>
+                  <p className="text-sm text-zinc-200 lg:text-base">
+                    View published races and loaded fields in one place.
+                  </p>
+                  <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
+                    Logged in as {profile.full_name || profile.email}
+                  </p>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge tone="amber">{publishedRaces.length} published races</Badge>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-5">
-          {(races || []).map((race) => {
-            const meeting = meetings?.find(m => m.id === race.meeting_id);
-            const field = runners?.filter(r => r.race_id === race.id) || [];
-
-            return (
-              <Panel key={race.id}>
-                <div className="p-5 text-zinc-900">
-                  <div className="flex justify-between items-start">
+        <div className="mt-6 space-y-6">
+          {groupedMeetings.length > 0 ? (
+            groupedMeetings.map(({ meeting, races }) => (
+              <Panel key={meeting?.id || `meeting-${races[0]?.meeting_id}`} className="bg-white/95">
+                <div className="p-6 text-zinc-950">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm text-zinc-500">
-                        {meeting?.meeting_name}
-                      </p>
-                      <h2 className="text-xl font-bold">
-                        R{race.race_number} {race.race_name}
+                      <h2 className="text-2xl font-bold">
+                        {meeting?.meeting_name || "Meeting"}
                       </h2>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {meeting?.meeting_date || "Date TBC"}
+                        {meeting?.track_condition ? ` · ${meeting.track_condition}` : ""}
+                      </p>
                     </div>
 
-                    <Badge tone="green">Live Field</Badge>
+                    <Badge tone="green">{races.length} races live</Badge>
                   </div>
 
-                  <div className="mt-4 space-y-2">
-                    {field.map((runner) => {
-                      const horse = horses?.find(h => h.id === runner.horse_id);
+                  <div className="mt-5 space-y-5">
+                    {races.map((race) => {
+                      const raceRunners = runnerRows.filter((runner) => runner.race_id === race.id);
 
                       return (
                         <div
-                          key={runner.id}
-                          className="flex justify-between text-sm border-b border-zinc-200 pb-2"
+                          key={race.id}
+                          className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
                         >
-                          <span>{horse?.horse_name}</span>
-                          <span className="text-zinc-500">
-                            Barrier {runner.barrier ?? "-"}
-                          </span>
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm text-zinc-500">
+                                R{race.race_number}
+                              </p>
+                              <h3 className="mt-1 text-xl font-semibold text-zinc-950">
+                                {race.race_name}
+                              </h3>
+                              <p className="mt-2 text-sm text-zinc-600">
+                                {race.distance_m ? `${race.distance_m}m` : "Distance TBC"}
+                              </p>
+                            </div>
+
+                            <Badge tone="blue">{raceRunners.length} runners</Badge>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            {raceRunners.length > 0 ? (
+                              raceRunners.map((runner) => {
+                                const horse =
+                                  horseRows.find((item) => item.id === runner.horse_id) || null;
+
+                                return (
+                                  <div
+                                    key={runner.id}
+                                    className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div>
+                                        <p className="text-base font-semibold text-zinc-950">
+                                          {horse?.horse_name || "Unknown horse"}
+                                        </p>
+                                        <p className="mt-1 text-sm text-zinc-500">
+                                          Jockey: {runner.jockey_name || "—"}
+                                        </p>
+                                      </div>
+
+                                      <div className="flex flex-wrap gap-2">
+                                        {runner.barrier !== null && runner.barrier !== undefined ? (
+                                          <Badge tone="amber">Barrier {runner.barrier}</Badge>
+                                        ) : null}
+                                        {runner.market_price !== null && runner.market_price !== undefined ? (
+                                          <Badge tone="green">${runner.market_price}</Badge>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+                                No runners loaded into this race yet.
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               </Panel>
-            );
-          })}
+            ))
+          ) : (
+            <Panel className="bg-white/95">
+              <div className="p-6 text-zinc-950">
+                <h2 className="text-xl font-semibold">No published races yet</h2>
+                <p className="mt-2 text-sm text-zinc-500">
+                  Once the head tipper publishes race fields, they’ll appear here.
+                </p>
+              </div>
+            </Panel>
+          )}
         </div>
       </div>
     </div>
