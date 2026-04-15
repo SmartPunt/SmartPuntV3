@@ -54,6 +54,11 @@ type Meeting = {
   updated_at: string;
 };
 
+type HistoryRun = Runner & {
+  race: Race | null;
+  meeting: Meeting | null;
+};
+
 type ScoredRunner = Runner & {
   horse_name: string;
   meeting_name: string;
@@ -67,42 +72,73 @@ type ScoredRunner = Runner & {
   placePercent: number;
   verdict: string;
   rank: number;
+  components: {
+    recentForm: number;
+    distance: number;
+    track: number;
+    condition: number;
+    barrier: number;
+    market: number;
+  };
 };
 
 function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
 }
 
-function scoreRunner(runner: Runner) {
-  let score = 50;
+function getConditionBucket(condition?: string | null) {
+  const value = String(condition || "").toLowerCase();
 
-  if (runner.barrier !== null && runner.barrier !== undefined) {
-    if (runner.barrier <= 4) score += 8;
-    else if (runner.barrier <= 8) score += 4;
-    else if (runner.barrier >= 12) score -= 5;
-    else score -= 2;
+  if (value.startsWith("good")) return "Good";
+  if (value.startsWith("soft")) return "Soft";
+  if (value.startsWith("heavy")) return "Heavy";
+  return "Other";
+}
+
+function getDistanceBucket(distance?: number | null) {
+  if (!distance) return "Unknown";
+  if (distance <= 1200) return "1000–1200m";
+  if (distance <= 1400) return "1201–1400m";
+  if (distance <= 1600) return "1401–1600m";
+  if (distance <= 1800) return "1601–1800m";
+  if (distance <= 2200) return "1801–2200m";
+  return "2200m+";
+}
+
+function parseMeetingDate(value?: string | null) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function sortHistoryRuns(a: HistoryRun, b: HistoryRun) {
+  const aDate = parseMeetingDate(a.meeting?.meeting_date);
+  const bDate = parseMeetingDate(b.meeting?.meeting_date);
+
+  if (bDate !== aDate) return bDate - aDate;
+
+  const aRace = a.race?.race_number || 0;
+  const bRace = b.race?.race_number || 0;
+
+  return bRace - aRace;
+}
+
+function normalisePercentages(scores: number[]) {
+  const total = scores.reduce((sum, score) => sum + score, 0);
+
+  if (total <= 0) {
+    return scores.map(() => ({ winPercent: 0, placePercent: 0 }));
   }
 
-  if (runner.market_price !== null && runner.market_price !== undefined) {
-    if (runner.market_price < 3) score += 15;
-    else if (runner.market_price < 5) score += 10;
-    else if (runner.market_price < 8) score += 5;
-    else if (runner.market_price > 15) score -= 8;
-    else if (runner.market_price > 10) score -= 4;
-  }
+  return scores.map((score) => {
+    const winPercent = Math.round((score / total) * 100);
+    const placePercent = Math.min(95, Math.round(winPercent * 1.65 + 18));
 
-  if (runner.form_last_3) {
-    const form = runner.form_last_3.replace(/\s+/g, "");
-    const wins = (form.match(/1/g) || []).length;
-    const seconds = (form.match(/2/g) || []).length;
-    const thirds = (form.match(/3/g) || []).length;
-
-    score += wins * 6;
-    score += seconds * 3;
-    score += thirds * 2;
-  }
-
-  return clamp(score);
+    return {
+      winPercent: clamp(winPercent),
+      placePercent: clamp(placePercent),
+    };
+  });
 }
 
 function getVerdict(score: number) {
@@ -112,22 +148,159 @@ function getVerdict(score: number) {
   return "Pass";
 }
 
-function normalisePercentages(scores: number[]) {
-  const total = scores.reduce((sum, score) => sum + score, 0);
-  if (total <= 0) {
-    return scores.map(() => ({ winPercent: 0, placePercent: 0 }));
-  }
+function scoreRecentForm(historyRuns: HistoryRun[]) {
+  const recent = historyRuns.slice(0, 5);
+  if (!recent.length) return 50;
 
-  return scores.map((score) => {
-    const winPercent = Math.round((score / total) * 100);
+  let points = 0;
 
-    const placeBase = Math.min(95, Math.round(winPercent * 1.9 + 12));
+  recent.forEach((run, index) => {
+    const pos = run.finishing_position;
+    if (pos === null || pos === undefined) return;
 
-    return {
-      winPercent: clamp(winPercent),
-      placePercent: clamp(placeBase),
-    };
+    const recencyWeight = index === 0 ? 1.2 : index === 1 ? 1.05 : 1;
+
+    if (pos === 1) points += 18 * recencyWeight;
+    else if (pos === 2) points += 14 * recencyWeight;
+    else if (pos === 3) points += 10 * recencyWeight;
+    else if (pos <= 5) points += 6 * recencyWeight;
+    else if (pos <= 8) points += 2 * recencyWeight;
+    else points -= 4 * recencyWeight;
   });
+
+  const avg = points / recent.length;
+  return clamp(Math.round(50 + avg), 20, 95);
+}
+
+function scoreDistanceSuitability(
+  historyRuns: HistoryRun[],
+  currentDistance: number | null | undefined,
+) {
+  if (!currentDistance) return 50;
+
+  const targetBucket = getDistanceBucket(currentDistance);
+  const matchingRuns = historyRuns.filter(
+    (run) => getDistanceBucket(run.race?.distance_m) === targetBucket,
+  );
+
+  if (!matchingRuns.length) return 50;
+
+  const places = matchingRuns.filter((run) => {
+    const pos = run.finishing_position;
+    return pos !== null && pos !== undefined && pos <= 3;
+  }).length;
+
+  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
+  const placeRate = places / matchingRuns.length;
+  const winRate = wins / matchingRuns.length;
+
+  return clamp(Math.round(40 + placeRate * 35 + winRate * 20), 25, 95);
+}
+
+function scoreTrackSuitability(
+  historyRuns: HistoryRun[],
+  currentTrack: string | null | undefined,
+) {
+  if (!currentTrack) return 50;
+
+  const matchingRuns = historyRuns.filter(
+    (run) => run.meeting?.meeting_name === currentTrack,
+  );
+
+  if (!matchingRuns.length) return 50;
+
+  const places = matchingRuns.filter((run) => {
+    const pos = run.finishing_position;
+    return pos !== null && pos !== undefined && pos <= 3;
+  }).length;
+
+  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
+  const placeRate = places / matchingRuns.length;
+  const winRate = wins / matchingRuns.length;
+
+  return clamp(Math.round(40 + placeRate * 35 + winRate * 18), 25, 95);
+}
+
+function scoreConditionSuitability(
+  historyRuns: HistoryRun[],
+  currentCondition: string | null | undefined,
+) {
+  if (!currentCondition) return 50;
+
+  const target = getConditionBucket(currentCondition);
+  const matchingRuns = historyRuns.filter(
+    (run) => getConditionBucket(run.meeting?.track_condition) === target,
+  );
+
+  if (!matchingRuns.length) return 50;
+
+  const places = matchingRuns.filter((run) => {
+    const pos = run.finishing_position;
+    return pos !== null && pos !== undefined && pos <= 3;
+  }).length;
+
+  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
+  const placeRate = places / matchingRuns.length;
+  const winRate = wins / matchingRuns.length;
+
+  return clamp(Math.round(40 + placeRate * 34 + winRate * 18), 25, 95);
+}
+
+function scoreBarrier(barrier: number | null | undefined) {
+  if (barrier === null || barrier === undefined) return 50;
+
+  if (barrier <= 3) return 72;
+  if (barrier <= 6) return 65;
+  if (barrier <= 9) return 58;
+  if (barrier <= 12) return 50;
+  return 42;
+}
+
+function scoreMarket(marketPrice: number | null | undefined) {
+  if (marketPrice === null || marketPrice === undefined) return 50;
+
+  if (marketPrice < 2.5) return 82;
+  if (marketPrice < 4) return 72;
+  if (marketPrice < 6) return 64;
+  if (marketPrice < 10) return 56;
+  if (marketPrice < 15) return 48;
+  return 40;
+}
+
+function buildHorseHistory(
+  horseId: number,
+  runners: Runner[],
+  racesById: Map<number, Race>,
+  meetingsById: Map<number, Meeting>,
+  excludeRaceId?: number,
+) {
+  return runners
+    .filter((runner) => runner.horse_id === horseId)
+    .filter((runner) => runner.finishing_position !== null && runner.finishing_position !== undefined)
+    .filter((runner) => (excludeRaceId ? runner.race_id !== excludeRaceId : true))
+    .map((runner) => {
+      const race = racesById.get(runner.race_id) || null;
+      const meeting = race ? meetingsById.get(race.meeting_id) || null : null;
+
+      return {
+        ...runner,
+        race,
+        meeting,
+      };
+    })
+    .sort(sortHistoryRuns);
+}
+
+function formatFormLine(historyRuns: HistoryRun[]) {
+  if (!historyRuns.length) return "—";
+
+  return historyRuns
+    .slice(0, 5)
+    .map((run) => {
+      if (run.finishing_position === null || run.finishing_position === undefined) return "—";
+      return String(run.finishing_position);
+    })
+    .join(" • ");
 }
 
 export default function AdminCalculator({
@@ -145,6 +318,18 @@ export default function AdminCalculator({
 }) {
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
+  const [alertThreshold, setAlertThreshold] = useState("80");
+
+  const racesById = useMemo(() => new Map(races.map((race) => [race.id, race])), [races]);
+  const meetingsById = useMemo(
+    () => new Map(meetings.map((meeting) => [meeting.id, meeting])),
+    [meetings],
+  );
+
+  const publishedRaces = useMemo(
+    () => races.filter((race) => race.status === "published"),
+    [races],
+  );
 
   const matchingHorses = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -168,61 +353,97 @@ export default function AdminCalculator({
   const horseRace = useMemo(() => {
     if (!selectedHorse) return null;
 
-    const publishedRaceIds = new Set(races.map((race) => race.id));
+    const publishedRaceIds = new Set(publishedRaces.map((race) => race.id));
     const runner = runners.find(
       (item) => item.horse_id === selectedHorse.id && publishedRaceIds.has(item.race_id),
     );
 
     if (!runner) return null;
 
-    return races.find((race) => race.id === runner.race_id) || null;
-  }, [races, runners, selectedHorse]);
+    return publishedRaces.find((race) => race.id === runner.race_id) || null;
+  }, [publishedRaces, runners, selectedHorse]);
 
   const activeRace = useMemo(() => {
     if (selectedRaceId) {
-      return races.find((race) => String(race.id) === selectedRaceId) || null;
+      return publishedRaces.find((race) => String(race.id) === selectedRaceId) || null;
     }
 
     return horseRace;
-  }, [horseRace, races, selectedRaceId]);
+  }, [horseRace, publishedRaces, selectedRaceId]);
 
   const scoredRunners = useMemo<ScoredRunner[]>(() => {
     if (!activeRace) return [];
 
-    const raceMeeting =
-      meetings.find((meeting) => meeting.id === activeRace.meeting_id) || null;
-
+    const raceMeeting = meetingsById.get(activeRace.meeting_id) || null;
     const field = runners.filter((runner) => runner.race_id === activeRace.id);
 
-    const baseScores = field.map((runner) => scoreRunner(runner));
-    const percentages = normalisePercentages(baseScores);
+    const baseScored = field.map((runner) => {
+      const horse = horses.find((item) => item.id === runner.horse_id);
+      const historyRuns = buildHorseHistory(
+        runner.horse_id,
+        runners,
+        racesById,
+        meetingsById,
+        activeRace.id,
+      );
 
-    return field
-      .map((runner, index) => {
-        const horse = horses.find((item) => item.id === runner.horse_id);
+      const recentForm = scoreRecentForm(historyRuns);
+      const distance = scoreDistanceSuitability(historyRuns, activeRace.distance_m);
+      const track = scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name);
+      const condition = scoreConditionSuitability(historyRuns, raceMeeting?.track_condition);
+      const barrier = scoreBarrier(runner.barrier);
+      const market = scoreMarket(runner.market_price);
 
-        return {
-          ...runner,
-          horse_name: horse?.horse_name || "Unknown horse",
-          meeting_name: raceMeeting?.meeting_name || "Unknown meeting",
-          meeting_date: raceMeeting?.meeting_date || "",
-          track_condition: raceMeeting?.track_condition || null,
-          race_name: activeRace.race_name,
-          race_number: activeRace.race_number,
-          distance_m: activeRace.distance_m,
-          score: baseScores[index],
-          winPercent: percentages[index].winPercent,
-          placePercent: percentages[index].placePercent,
-          verdict: getVerdict(baseScores[index]),
-          rank: 0,
-        };
-      })
+      const score = clamp(
+        Math.round(
+          recentForm * 0.28 +
+            distance * 0.18 +
+            track * 0.14 +
+            condition * 0.14 +
+            barrier * 0.10 +
+            market * 0.16,
+        ),
+      );
+
+      return {
+        ...runner,
+        horse_name: horse?.horse_name || "Unknown horse",
+        meeting_name: raceMeeting?.meeting_name || "Unknown meeting",
+        meeting_date: raceMeeting?.meeting_date || "",
+        track_condition: raceMeeting?.track_condition || null,
+        race_name: activeRace.race_name,
+        race_number: activeRace.race_number,
+        distance_m: activeRace.distance_m,
+        score,
+        winPercent: 0,
+        placePercent: 0,
+        verdict: getVerdict(score),
+        rank: 0,
+        components: {
+          recentForm,
+          distance,
+          track,
+          condition,
+          barrier,
+          market,
+        },
+      };
+    });
+
+    const percentages = normalisePercentages(baseScored.map((runner) => runner.score));
+
+    return baseScored
+      .map((runner, index) => ({
+        ...runner,
+        winPercent: percentages[index].winPercent,
+        placePercent: percentages[index].placePercent,
+      }))
       .sort((a, b) => b.score - a.score)
       .map((runner, index) => ({
         ...runner,
         rank: index + 1,
       }));
-  }, [activeRace, horses, meetings, runners]);
+  }, [activeRace, horses, meetingsById, racesById, runners]);
 
   const selectedHorseScore = useMemo(() => {
     if (!selectedHorse) return null;
@@ -233,6 +454,18 @@ export default function AdminCalculator({
   const topPlaceChances = [...scoredRunners]
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
+
+  const alertCandidates = useMemo(() => {
+    const threshold = Number(alertThreshold);
+    if (Number.isNaN(threshold)) return [];
+
+    return scoredRunners.filter((runner) => runner.score >= threshold);
+  }, [alertThreshold, scoredRunners]);
+
+  const selectedHorseHistory = useMemo(() => {
+    if (!selectedHorse) return [];
+    return buildHorseHistory(selectedHorse.id, runners, racesById, meetingsById);
+  }, [meetingsById, racesById, runners, selectedHorse]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
@@ -279,15 +512,15 @@ export default function AdminCalculator({
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="green">{races.length} published races</Badge>
+                <Badge tone="green">{publishedRaces.length} published races</Badge>
                 <Badge tone="blue">{horses.length} saved horses</Badge>
-                <Badge tone="amber">Admin only</Badge>
+                <Badge tone="amber">History-backed scoring</Badge>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <Panel className="bg-white/95">
             <div className="space-y-5 p-6 text-zinc-950">
               <div>
@@ -343,7 +576,7 @@ export default function AdminCalculator({
                     className="w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
                   >
                     <option value="">Auto-detect from horse</option>
-                    {races.map((race) => {
+                    {publishedRaces.map((race) => {
                       const meeting = meetings.find((item) => item.id === race.meeting_id);
                       return (
                         <option key={race.id} value={String(race.id)}>
@@ -355,15 +588,34 @@ export default function AdminCalculator({
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
-                  Current calculator mode
-                </p>
-                <p className="mt-2 text-sm text-zinc-700">
-                  This first version scores the field using a simple v1 model:
-                  barrier, market expectation, and recent form snapshot.
+              <div>
+                <label className="text-sm font-medium text-zinc-700">Alert threshold</label>
+                <div className="mt-2">
+                  <input
+                    type="number"
+                    value={alertThreshold}
+                    onChange={(e) => setAlertThreshold(e.target.value)}
+                    className="w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-zinc-500">
+                  Later this can trigger alerts to the head tipper for strong-rated runners.
                 </p>
               </div>
+
+              {selectedHorse ? (
+                <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
+                    Selected horse snapshot
+                  </p>
+                  <h3 className="mt-2 text-lg font-bold text-zinc-950">
+                    {selectedHorse.horse_name}
+                  </h3>
+                  <p className="mt-2 text-sm text-zinc-700">
+                    Recent form: {formatFormLine(selectedHorseHistory)}
+                  </p>
+                </div>
+              ) : null}
             </div>
           </Panel>
 
@@ -373,7 +625,7 @@ export default function AdminCalculator({
                 <div>
                   <h2 className="text-xl font-semibold">Race summary</h2>
                   <p className="text-sm text-zinc-500">
-                    Race-wide scoring always runs across the full published field.
+                    The selected race is always scored as a full field.
                   </p>
                 </div>
                 <Badge tone="amber">{scoredRunners.length} runners</Badge>
@@ -408,7 +660,7 @@ export default function AdminCalculator({
                         {topWinChance?.horse_name || "—"}
                       </p>
                       <p className="mt-1 text-sm text-zinc-700">
-                        Win chance: {topWinChance?.winPercent ?? 0}%
+                        Win chance: {topWinChance?.winPercent ?? 0}% · Score: {topWinChance?.score ?? 0}
                       </p>
                     </div>
 
@@ -443,6 +695,23 @@ export default function AdminCalculator({
                       </div>
                     </div>
                   ) : null}
+
+                  <div className="rounded-[24px] border border-rose-200/40 bg-rose-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-800">
+                      Alert candidates
+                    </p>
+                    <div className="mt-2 space-y-1 text-sm text-zinc-700">
+                      {alertCandidates.length > 0 ? (
+                        alertCandidates.map((runner) => (
+                          <p key={runner.id}>
+                            {runner.horse_name} — Score {runner.score}
+                          </p>
+                        ))
+                      ) : (
+                        <p>No runners currently exceed the threshold.</p>
+                      )}
+                    </div>
+                  </div>
                 </>
               ) : (
                 <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
@@ -459,7 +728,7 @@ export default function AdminCalculator({
               <div>
                 <h2 className="text-xl font-semibold">Field scoring</h2>
                 <p className="text-sm text-zinc-500">
-                  This is the first skeleton view of how SmartPunt can rank a whole race field.
+                  This version now scores on recent form, distance, track, conditions, barrier, and market.
                 </p>
               </div>
               <Badge tone="green">{scoredRunners.length} ranked</Badge>
@@ -481,9 +750,7 @@ export default function AdminCalculator({
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                          <p className="text-sm text-zinc-500">
-                            Rank #{runner.rank}
-                          </p>
+                          <p className="text-sm text-zinc-500">Rank #{runner.rank}</p>
                           <h3 className="mt-1 text-xl font-bold text-zinc-950">
                             {runner.horse_name}
                           </h3>
@@ -497,6 +764,62 @@ export default function AdminCalculator({
                           <Badge tone="blue">Place {runner.placePercent}%</Badge>
                           <Badge tone="amber">{runner.verdict}</Badge>
                           <Badge tone="slate">Score {runner.score}</Badge>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Form
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.components.recentForm}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Distance
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.components.distance}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Track
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.components.track}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Conditions
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.components.condition}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Barrier
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.components.barrier}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Market
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.components.market}
+                          </p>
                         </div>
                       </div>
 
@@ -525,34 +848,34 @@ export default function AdminCalculator({
         <div className="mt-6 grid gap-6 xl:grid-cols-3">
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <h3 className="text-lg font-semibold">What this version does</h3>
+              <h3 className="text-lg font-semibold">What this version adds</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Horse-triggered race lookup</p>
-                <p>• Published race selection</p>
-                <p>• Full field ranking</p>
-                <p>• Win and place percentages</p>
+                <p>• Resulted form scoring</p>
+                <p>• Distance suitability</p>
+                <p>• Track suitability</p>
+                <p>• Good / Soft / Heavy suitability</p>
               </div>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <h3 className="text-lg font-semibold">What comes next</h3>
+              <h3 className="text-lg font-semibold">Still to come</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Distance suitability scoring</p>
-                <p>• Track and condition scoring</p>
-                <p>• Horse-history-backed form scoring</p>
+                <p>• Better place modelling</p>
+                <p>• Jockey and trainer history</p>
+                <p>• More race-shape logic</p>
               </div>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <h3 className="text-lg font-semibold">Alert path later</h3>
+              <h3 className="text-lg font-semibold">Release path</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Threshold alerts for head tipper</p>
-                <p>• Review before publishing official tips</p>
-                <p>• Subscriber alerts later on</p>
+                <p>• Keep testing in admin lab</p>
+                <p>• Tighten thresholds and verdicts</p>
+                <p>• Then move into subscriber published races</p>
               </div>
             </div>
           </Panel>
