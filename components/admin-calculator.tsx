@@ -82,6 +82,12 @@ type ScoredRunner = Runner & {
   };
 };
 
+type RaceVerdict = {
+  type: "Win" | "Place" | "No Bet";
+  confidence: "Strong" | "Safe" | "Low Edge";
+  reason: string;
+};
+
 function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
 }
@@ -146,6 +152,36 @@ function getVerdict(score: number) {
   if (score >= 70) return "Strong Bet";
   if (score >= 60) return "Speculative";
   return "Pass";
+}
+
+function getRaceVerdict(runners: ScoredRunner[]): RaceVerdict | null {
+  if (!runners.length) return null;
+
+  const top = runners[0];
+  const second = runners[1];
+  const scoreGap = second ? top.score - second.score : 0;
+
+  if (top.winPercent >= 30 && scoreGap >= 5) {
+    return {
+      type: "Win",
+      confidence: "Strong",
+      reason: "Clear top-rated runner with strong win profile and separation from the field.",
+    };
+  }
+
+  if (top.placePercent >= 55) {
+    return {
+      type: "Place",
+      confidence: "Safe",
+      reason: "Rates consistently above the field and profiles better to place than win.",
+    };
+  }
+
+  return {
+    type: "No Bet",
+    confidence: "Low Edge",
+    reason: "Race is too competitive with no strong edge identified.",
+  };
 }
 
 function scoreRecentForm(historyRuns: HistoryRun[]) {
@@ -276,7 +312,10 @@ function buildHorseHistory(
 ) {
   return runners
     .filter((runner) => runner.horse_id === horseId)
-    .filter((runner) => runner.finishing_position !== null && runner.finishing_position !== undefined)
+    .filter(
+      (runner) =>
+        runner.finishing_position !== null && runner.finishing_position !== undefined,
+    )
     .filter((runner) => (excludeRaceId ? runner.race_id !== excludeRaceId : true))
     .map((runner) => {
       const race = racesById.get(runner.race_id) || null;
@@ -454,6 +493,8 @@ export default function AdminCalculator({
   const topPlaceChances = [...scoredRunners]
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
+
+  const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
 
   const alertCandidates = useMemo(() => {
     const threshold = Number(alertThreshold);
@@ -637,7 +678,8 @@ export default function AdminCalculator({
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-sm text-zinc-500">
-                          {topWinChance?.meeting_name || "Meeting"} {topWinChance?.meeting_date ? `· ${topWinChance.meeting_date}` : ""}
+                          {topWinChance?.meeting_name || "Meeting"}{" "}
+                          {topWinChance?.meeting_date ? `· ${topWinChance.meeting_date}` : ""}
                         </p>
                         <h3 className="mt-1 text-2xl font-bold text-zinc-950">
                           R{activeRace.race_number} {activeRace.race_name}
@@ -651,6 +693,27 @@ export default function AdminCalculator({
                     </div>
                   </div>
 
+                  {raceVerdict ? (
+                    <div className="rounded-[24px] border border-amber-300/40 bg-amber-50 p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                        SmartPunt race verdict
+                      </p>
+
+                      <h3 className="mt-2 text-2xl font-bold text-zinc-950">
+                        Best Bet: {raceVerdict.type}
+                      </h3>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Badge tone="green">{raceVerdict.confidence}</Badge>
+                        {topWinChance ? (
+                          <Badge tone="blue">Top Rated: {topWinChance.horse_name}</Badge>
+                        ) : null}
+                      </div>
+
+                      <p className="mt-3 text-sm text-zinc-700">{raceVerdict.reason}</p>
+                    </div>
+                  ) : null}
+
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
@@ -660,7 +723,8 @@ export default function AdminCalculator({
                         {topWinChance?.horse_name || "—"}
                       </p>
                       <p className="mt-1 text-sm text-zinc-700">
-                        Win chance: {topWinChance?.winPercent ?? 0}% · Score: {topWinChance?.score ?? 0}
+                        Win chance: {topWinChance?.winPercent ?? 0}% · Score:{" "}
+                        {topWinChance?.score ?? 0}
                       </p>
                     </div>
 
@@ -854,6 +918,7 @@ export default function AdminCalculator({
                 <p>• Distance suitability</p>
                 <p>• Track suitability</p>
                 <p>• Good / Soft / Heavy suitability</p>
+                <p>• Race verdict logic</p>
               </div>
             </div>
           </Panel>
@@ -865,6 +930,7 @@ export default function AdminCalculator({
                 <p>• Better place modelling</p>
                 <p>• Jockey and trainer history</p>
                 <p>• More race-shape logic</p>
+                <p>• Subscriber calculator flow</p>
               </div>
             </div>
           </Panel>
@@ -876,6 +942,7 @@ export default function AdminCalculator({
                 <p>• Keep testing in admin lab</p>
                 <p>• Tighten thresholds and verdicts</p>
                 <p>• Then move into subscriber published races</p>
+                <p>• Later feed My Active Tips</p>
               </div>
             </div>
           </Panel>
