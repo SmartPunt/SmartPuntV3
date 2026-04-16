@@ -20,10 +20,7 @@ export default function AppEntryLoader({
 
     const handleEnded = () => {
       setFadeOut(true);
-
-      setTimeout(() => {
-        setShowIntro(false);
-      }, 400); // fade duration
+      setTimeout(() => setShowIntro(false), 400);
     };
 
     video.addEventListener("ended", handleEnded);
@@ -33,7 +30,6 @@ export default function AppEntryLoader({
     };
   }, []);
 
-  // fallback: if video doesn't end (safety)
   useEffect(() => {
     const fallback = setTimeout(() => {
       setFadeOut(true);
@@ -64,7 +60,13 @@ export default function AppEntryLoader({
             playsInline
             preload="auto"
             onError={() => setVideoFailed(true)}
-            className="w-[80vw] max-w-[700px] lg:max-w-[900px]"
+            className="
+              w-[95vw]           /* 🔥 bigger on phone */
+              max-w-none         /* remove cap on small screens */
+              sm:max-w-[600px]
+              md:max-w-[750px]
+              lg:max-w-[900px]
+            "
           >
             <source src="/logo-animated.mp4" type="video/mp4" />
           </video>
@@ -72,7 +74,13 @@ export default function AppEntryLoader({
           <img
             src="/header-logo.png"
             alt="SmartPunt"
-            className="w-[80vw] max-w-[700px] lg:max-w-[900px]"
+            className="
+              w-[95vw]
+              max-w-none
+              sm:max-w-[600px]
+              md:max-w-[750px]
+              lg:max-w-[900px]
+            "
           />
         )}
       </div>
