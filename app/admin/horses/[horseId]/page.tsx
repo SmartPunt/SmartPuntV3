@@ -8,6 +8,8 @@ type Horse = {
   id: number;
   horse_name: string;
   normalised_name: string;
+  sex: string | null;
+  age: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -20,7 +22,12 @@ type Runner = {
   trainer_name: string | null;
   barrier: number | null;
   market_price: number | null;
-  form_last_3: string | null;
+  weight_kg: number | null;
+  is_apprentice: boolean | null;
+  apprentice_claim_kg: number | null;
+  form_last_6: string | null;
+  track_form_last_6: string | null;
+  distance_form_last_6: string | null;
   finishing_position: number | null;
   starting_price: number | null;
   won: boolean | null;
@@ -82,12 +89,19 @@ function formatFormLine(runs: EnrichedRunner[]) {
   if (!runs.length) return "—";
 
   return runs
-    .slice(0, 5)
+    .slice(0, 6)
     .map((run) => {
       if (run.finishing_position === null || run.finishing_position === undefined) return "—";
       return String(run.finishing_position);
     })
     .join(" • ");
+}
+
+function formatHorseMeta(horse: Horse) {
+  const parts: string[] = [];
+  if (horse.sex) parts.push(horse.sex);
+  if (horse.age !== null && horse.age !== undefined) parts.push(`${horse.age}yo`);
+  return parts.join(" · ");
 }
 
 function getConditionBucket(condition?: string | null) {
@@ -364,6 +378,16 @@ export default async function Page({
                 </p>
               </div>
 
+              <div className="mt-3 flex flex-wrap gap-2">
+                {horse.sex ? <Badge tone="blue">{horse.sex}</Badge> : null}
+                {horse.age !== null && horse.age !== undefined ? (
+                  <Badge tone="amber">{horse.age}yo</Badge>
+                ) : null}
+                <Badge tone="green">{totalRuns} runs</Badge>
+                <Badge tone="blue">{totalWins} wins</Badge>
+                <Badge tone="amber">{totalPlaces} places</Badge>
+              </div>
+
               <div className="mt-4 rounded-2xl border border-amber-300/20 bg-black/20 px-4 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
                   Recent form
@@ -372,19 +396,11 @@ export default async function Page({
                   {recentFormLine}
                 </p>
               </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="green">{totalRuns} runs</Badge>
-                <Badge tone="blue">{totalWins} wins</Badge>
-                <Badge tone="amber">{totalPlaces} places</Badge>
-                <Badge tone="slate">{uniqueJockeys.length} jockeys</Badge>
-                <Badge tone="rose">{uniqueTrainers.length} trainers</Badge>
-              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-4">
+        <div className="mt-6 grid gap-4 md:grid-cols-5">
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
               <p className="text-sm text-zinc-500">Horse Name</p>
@@ -397,10 +413,22 @@ export default async function Page({
 
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">First Added</p>
+              <p className="text-sm text-zinc-500">Horse Type</p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-lg font-semibold">{formatDate(horse.created_at)}</p>
-                <Badge tone="blue">Library</Badge>
+                <p className="text-lg font-semibold">{horse.sex || "—"}</p>
+                <Badge tone="blue">Profile</Badge>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Age</p>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-lg font-semibold">
+                  {horse.age !== null && horse.age !== undefined ? `${horse.age}yo` : "—"}
+                </p>
+                <Badge tone="amber">Profile</Badge>
               </div>
             </div>
           </Panel>
@@ -450,6 +478,15 @@ export default async function Page({
               <h2 className="text-xl font-semibold">Horse summary</h2>
 
               <div className="mt-5 space-y-4">
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    Profile
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-zinc-900">
+                    {formatHorseMeta(horse) || "Profile still being built"}
+                  </p>
+                </div>
+
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                     Normalised name
@@ -578,6 +615,15 @@ export default async function Page({
                           <p className="mt-2 text-sm font-semibold text-zinc-900">
                             {runner.jockey_name || "—"}
                           </p>
+                          {runner.is_apprentice ? (
+                            <p className="mt-1 text-xs text-zinc-600">
+                              Apprentice
+                              {runner.apprentice_claim_kg !== null &&
+                              runner.apprentice_claim_kg !== undefined
+                                ? ` · -${runner.apprentice_claim_kg}kg`
+                                : ""}
+                            </p>
+                          ) : null}
                         </div>
 
                         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
@@ -591,10 +637,13 @@ export default async function Page({
 
                         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                            Barrier
+                            Barrier / Weight
                           </p>
                           <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {runner.barrier ?? "—"}
+                            {runner.barrier ?? "—"} /{" "}
+                            {runner.weight_kg !== null && runner.weight_kg !== undefined
+                              ? `${runner.weight_kg}kg`
+                              : "—"}
                           </p>
                         </div>
 
@@ -617,6 +666,35 @@ export default async function Page({
                           </p>
                           <p className="mt-2 text-sm font-semibold text-zinc-900">
                             {formatDate(runner.settled_at)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                            Last 6
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.form_last_6 || "—"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                            Track form
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.track_form_last_6 || "—"}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                            Distance form
+                          </p>
+                          <p className="mt-2 text-sm font-semibold text-zinc-900">
+                            {runner.distance_form_last_6 || "—"}
                           </p>
                         </div>
                       </div>
