@@ -116,6 +116,54 @@ function normaliseText(value: string) {
     .trim();
 }
 
+async function getActiveSubscriberEmails() {
+  const supabase = await createClient();
+
+  const { data: profiles, error } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("role", "user")
+    .eq("status", "active");
+
+  if (error) {
+    throw new Error(`Failed to load subscriber emails: ${error.message}`);
+  }
+
+  return (profiles || [])
+    .map((profile: any) => String(profile.email || "").trim())
+    .filter(Boolean);
+}
+
+async function sendBatchEmails(
+  emails: Array<{
+    from: string;
+    to: string[];
+    subject: string;
+    html: string;
+  }>,
+) {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey || !emails.length) return;
+
+  for (let i = 0; i < emails.length; i += 100) {
+    const batch = emails.slice(i, i + 100);
+
+    const response = await fetch("https://api.resend.com/emails/batch", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(batch),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to send notification emails: ${errorText}`);
+    }
+  }
+}
+
 async function sendSuggestedTipNotifications({
   race,
   horse,
@@ -131,32 +179,15 @@ async function sendSuggestedTipNotifications({
   note: string;
   commentary: string;
 }) {
-  const resendApiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   const appUrl = process.env.SMARTPUNT_APP_URL || "";
 
-  if (!resendApiKey || !fromEmail) return;
+  if (!fromEmail) return;
 
-  const supabase = await createClient();
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("email")
-    .eq("role", "user")
-    .eq("status", "active");
-
-  if (profilesError) {
-    throw new Error(`Failed to load subscriber emails: ${profilesError.message}`);
-  }
-
-  const recipients = (profiles || [])
-    .map((profile: any) => String(profile.email || "").trim())
-    .filter(Boolean);
-
+  const recipients = await getActiveSubscriberEmails();
   if (!recipients.length) return;
 
   const subject = `New SmartPunt Tip: ${race} - ${horse}`;
-  const preview = commentary?.trim() || `${horse} has been added as a new SmartPunt tip.`;
 
   const html = (email: string) => `
     <div style="font-family: Arial, sans-serif; background: #f8fafc; padding: 24px; color: #111827;">
@@ -182,7 +213,7 @@ async function sendSuggestedTipNotifications({
           </div>
 
           <p style="margin: 20px 0 0; font-size: 15px; line-height: 1.7; color: #374151;">
-            ${preview}
+            ${commentary || `${horse} has been added as a new SmartPunt tip.`}
           </p>
 
           ${
@@ -210,23 +241,7 @@ async function sendSuggestedTipNotifications({
     html: html(email),
   }));
 
-  for (let i = 0; i < emails.length; i += 100) {
-    const batch = emails.slice(i, i + 100);
-
-    const response = await fetch("https://api.resend.com/emails/batch", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(batch),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to send notification emails: ${errorText}`);
-    }
-  }
+  await sendBatchEmails(emails);
 }
 
 async function sendGetOnEarlyNotifications({
@@ -242,28 +257,12 @@ async function sendGetOnEarlyNotifications({
   odds: string;
   commentary: string;
 }) {
-  const resendApiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   const appUrl = process.env.SMARTPUNT_APP_URL || "";
 
-  if (!resendApiKey || !fromEmail) return;
+  if (!fromEmail) return;
 
-  const supabase = await createClient();
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("email")
-    .eq("role", "user")
-    .eq("status", "active");
-
-  if (profilesError) {
-    throw new Error(`Failed to load subscriber emails: ${profilesError.message}`);
-  }
-
-  const recipients = (profiles || [])
-    .map((profile: any) => String(profile.email || "").trim())
-    .filter(Boolean);
-
+  const recipients = await getActiveSubscriberEmails();
   if (!recipients.length) return;
 
   const subject = `Get On Early: ${horse} ${odds ? `(${odds})` : ""}`;
@@ -274,7 +273,6 @@ async function sendGetOnEarlyNotifications({
         <div style="padding: 24px; background: linear-gradient(135deg, #171717, #3f3f46, #ca8a04); color: white;">
           <div style="font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.8;">SmartPunt</div>
           <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2;">Get On Early</h1>
-          <p style="margin: 10px 0 0; opacity: 0.9;">Premium racing club alert</p>
         </div>
 
         <div style="padding: 24px;">
@@ -319,23 +317,7 @@ async function sendGetOnEarlyNotifications({
     html: html(email),
   }));
 
-  for (let i = 0; i < emails.length; i += 100) {
-    const batch = emails.slice(i, i + 100);
-
-    const response = await fetch("https://api.resend.com/emails/batch", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(batch),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to send notification emails: ${errorText}`);
-    }
-  }
+  await sendBatchEmails(emails);
 }
 
 async function sendPublishedRaceNotification({
@@ -349,28 +331,12 @@ async function sendPublishedRaceNotification({
   raceNumber: number;
   distanceM: number | null;
 }) {
-  const resendApiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   const appUrl = process.env.SMARTPUNT_APP_URL || "";
 
-  if (!resendApiKey || !fromEmail) return;
+  if (!fromEmail) return;
 
-  const supabase = await createClient();
-
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("email")
-    .eq("role", "user")
-    .eq("status", "active");
-
-  if (profilesError) {
-    throw new Error(`Failed to load subscriber emails: ${profilesError.message}`);
-  }
-
-  const recipients = (profiles || [])
-    .map((profile: any) => String(profile.email || "").trim())
-    .filter(Boolean);
-
+  const recipients = await getActiveSubscriberEmails();
   if (!recipients.length) return;
 
   const subject = `Published Race: ${meetingName} R${raceNumber}`;
@@ -382,11 +348,9 @@ async function sendPublishedRaceNotification({
         <div style="padding: 24px; background: linear-gradient(135deg, #171717, #3f3f46, #ca8a04); color: white;">
           <div style="font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.8;">SmartPunt</div>
           <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2;">New Published Race</h1>
-          <p style="margin: 10px 0 0; opacity: 0.9;">Premium racing club alert</p>
         </div>
 
         <div style="padding: 24px;">
-          <p style="margin: 0; font-size: 14px; color: #6b7280;">Race field now live</p>
           <h2 style="margin: 6px 0 0; font-size: 28px; color: #111827;">${raceLabel}</h2>
 
           ${
@@ -414,23 +378,7 @@ async function sendPublishedRaceNotification({
     html: html(email),
   }));
 
-  for (let i = 0; i < emails.length; i += 100) {
-    const batch = emails.slice(i, i + 100);
-
-    const response = await fetch("https://api.resend.com/emails/batch", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(batch),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to send notification emails: ${errorText}`);
-    }
-  }
+  await sendBatchEmails(emails);
 }
 
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
@@ -466,7 +414,6 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
   }
 
   const activeRunnerRows = (runnerRows || []).filter((runner: any) => !runner.scratched);
-
   const runnerIds = activeRunnerRows.map((runner: any) => Number(runner.id));
   const horseIds = activeRunnerRows.map((runner: any) => Number(runner.horse_id)).filter(Boolean);
 
@@ -501,7 +448,6 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
   const normalisedMeetingName = normaliseText(meetingName);
   const normalisedRaceName = normaliseText(raceName);
-
   const raceMarkers = [`r${raceNumber}`, `race ${raceNumber}`, `race${raceNumber}`].map(
     normaliseText,
   );
@@ -515,9 +461,7 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
   for (const tip of suggestedTips || []) {
     const tipType = String(tip.type || "").toLowerCase().trim();
-    if (!["win", "place"].includes(tipType)) {
-      continue;
-    }
+    if (!["win", "place"].includes(tipType)) continue;
 
     let matchedRunner: any | null = null;
 
@@ -531,9 +475,7 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
       const tipHorse = normaliseHorseName(String(tip.horse || ""));
       const tipRace = normaliseText(String(tip.race || ""));
 
-      if (!tipHorse || !tipRace) {
-        continue;
-      }
+      if (!tipHorse || !tipRace) continue;
 
       matchedRunner =
         activeRunnerRows.find((runner: any) => {
@@ -548,11 +490,9 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
       const raceTextMatchesMeeting =
         !!normalisedMeetingName && tipRace.includes(normalisedMeetingName);
-
       const raceTextMatchesNumber = raceMarkers.some(
         (marker) => marker && tipRace.includes(marker),
       );
-
       const raceTextMatchesRaceName =
         !!normalisedRaceName && tipRace.includes(normalisedRaceName);
 
@@ -762,16 +702,16 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   const raceTimezone = String(formData.get("race_timezone") ?? "Australia/Perth");
   const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
 
+  const meetingIdRaw = String(formData.get("meeting_id") ?? "").trim();
+  const raceIdRaw = String(formData.get("race_id") ?? "").trim();
+  const horseIdRaw = String(formData.get("horse_id") ?? "").trim();
+  const raceRunnerIdRaw = String(formData.get("race_runner_id") ?? "").trim();
+
   const finishingPositionRaw = String(formData.get("finishing_position") ?? "").trim();
   const successfulRaw = String(formData.get("successful") ?? "").trim();
 
   const successful =
     successfulRaw === "true" ? true : successfulRaw === "false" ? false : null;
-
-  const meetingIdRaw = String(formData.get("meeting_id") ?? "").trim();
-  const raceIdRaw = String(formData.get("race_id") ?? "").trim();
-  const horseIdRaw = String(formData.get("horse_id") ?? "").trim();
-  const raceRunnerIdRaw = String(formData.get("race_runner_id") ?? "").trim();
 
   const payload = {
     meeting_id: meetingIdRaw ? Number(meetingIdRaw) : null,
@@ -898,7 +838,8 @@ export async function upsertLongTermBet(formData: FormData): Promise<void> {
     title: String(formData.get("title") ?? ""),
     horse: String(formData.get("horse") ?? ""),
     meeting: String(formData.get("meeting") ?? "").trim() || null,
-    race_number: raceNumber !== null && !Number.isNaN(raceNumber) ? raceNumber : null,
+    race_number:
+      raceNumber !== null && !Number.isNaN(raceNumber) ? raceNumber : null,
     race_start_at: raceStartAt,
     race_timezone: raceTimezone || null,
     bet_type: String(formData.get("bet_type") ?? "Win"),
@@ -1511,13 +1452,16 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
       const startingPriceRaw = String(formData.get(`starting_price_${runnerId}`) ?? "").trim();
       const startingPrice = startingPriceRaw ? Number(startingPriceRaw) : null;
 
-      const hasFinish = finishingPosition !== null && !Number.isNaN(finishingPosition);
+      const hasFinish =
+        finishingPosition !== null && !Number.isNaN(finishingPosition);
 
       updates.push({
         id: runnerId,
         finishing_position: hasFinish ? finishingPosition : null,
         starting_price:
-          startingPrice !== null && !Number.isNaN(startingPrice) ? startingPrice : null,
+          startingPrice !== null && !Number.isNaN(startingPrice)
+            ? startingPrice
+            : null,
         won: hasFinish ? finishingPosition === 1 : false,
         placed: hasFinish ? finishingPosition <= 3 : false,
         settled_at: new Date().toISOString(),
