@@ -47,7 +47,7 @@ export default function AppEntryLoader({
       <div className="min-h-screen">{children}</div>
 
       <div
-        className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 ${
+        className={`fixed inset-0 z-[9999] bg-black flex items-center justify-center transition-opacity duration-500 ${
           fadeOut ? "opacity-0" : "opacity-100"
         }`}
       >
@@ -60,15 +60,14 @@ export default function AppEntryLoader({
             preload="auto"
             onError={() => setVideoFailed(true)}
             className="
-              absolute inset-0
+              /* 📱 Mobile */
+              w-[115vw] h-auto object-contain
               
-              /* 🔥 MOBILE (unchanged) */
-              w-[115vw] h-auto
+              /* 💻 Desktop safe default (no crop) */
+              sm:w-[90vw] sm:h-auto sm:object-contain
               
-              /* 🔥 DESKTOP FULL SCREEN */
-              sm:w-full sm:h-full
-              
-              object-contain sm:object-cover
+              /* 🖥️ Only go cinematic on very tall screens */
+              xl:w-full xl:h-full xl:object-cover
             "
           >
             <source src="/logo-animated.mp4" type="video/mp4" />
@@ -78,10 +77,9 @@ export default function AppEntryLoader({
             src="/header-logo.png"
             alt="SmartPunt"
             className="
-              absolute inset-0
-              w-[115vw] h-auto
-              sm:w-full sm:h-full
-              object-contain sm:object-cover
+              w-[115vw] h-auto object-contain
+              sm:w-[90vw] sm:h-auto sm:object-contain
+              xl:w-full xl:h-full xl:object-cover
             "
           />
         )}
