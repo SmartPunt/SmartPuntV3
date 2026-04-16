@@ -1378,6 +1378,7 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
       form_last_6: formLast6 || null,
       track_form_last_6: trackFormLast6 || null,
       distance_form_last_6: distanceFormLast6 || null,
+      scratched: false,
       created_by: profile.id,
       updated_at: new Date().toISOString(),
     });
@@ -1429,6 +1430,116 @@ export async function deleteRaceRunnerAction(formData: FormData): Promise<Action
   }
 }
 
+export async function updateRaceRunnerDetailsAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+
+    const runnerId = Number(formData.get("runner_id"));
+
+    if (!runnerId) {
+      return { success: false, error: "Runner is required." };
+    }
+
+    const jockeyName = String(formData.get("jockey_name") ?? "").trim();
+    const trainerName = String(formData.get("trainer_name") ?? "").trim();
+    const barrierRaw = String(formData.get("barrier") ?? "").trim();
+    const marketPriceRaw = String(formData.get("market_price") ?? "").trim();
+    const weightKgRaw = String(formData.get("weight_kg") ?? "").trim();
+    const isApprenticeRaw = String(formData.get("is_apprentice") ?? "").trim();
+    const apprenticeClaimRaw = String(formData.get("apprentice_claim_kg") ?? "").trim();
+    const formLast6 = String(formData.get("form_last_6") ?? "").trim();
+    const trackFormLast6 = String(formData.get("track_form_last_6") ?? "").trim();
+    const distanceFormLast6 = String(formData.get("distance_form_last_6") ?? "").trim();
+
+    const barrierValue = barrierRaw ? Number(barrierRaw) : null;
+    const marketPriceValue = marketPriceRaw ? Number(marketPriceRaw) : null;
+    const weightKgValue = weightKgRaw ? Number(weightKgRaw) : null;
+    const apprenticeClaimValue = apprenticeClaimRaw ? Number(apprenticeClaimRaw) : null;
+
+    const isApprentice =
+      isApprenticeRaw === "true"
+        ? true
+        : isApprenticeRaw === "false"
+          ? false
+          : null;
+
+    const { error } = await supabase
+      .from("race_runners")
+      .update({
+        jockey_name: jockeyName || null,
+        trainer_name: trainerName || null,
+        barrier: barrierValue !== null && !Number.isNaN(barrierValue) ? barrierValue : null,
+        market_price:
+          marketPriceValue !== null && !Number.isNaN(marketPriceValue) ? marketPriceValue : null,
+        weight_kg:
+          weightKgValue !== null && !Number.isNaN(weightKgValue) ? weightKgValue : null,
+        is_apprentice: isApprentice,
+        apprentice_claim_kg:
+          apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
+            ? apprenticeClaimValue
+            : null,
+        form_last_6: formLast6 || null,
+        track_form_last_6: trackFormLast6 || null,
+        distance_form_last_6: distanceFormLast6 || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", runnerId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/current-races");
+    revalidatePath("/admin/race-builder");
+    revalidatePath("/race-archive");
+    revalidatePath("/admin/horses");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update runner details.",
+    };
+  }
+}
+
+export async function toggleRaceRunnerScratchAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+
+    const runnerId = Number(formData.get("runner_id"));
+    const scratchedRaw = String(formData.get("scratched") ?? "").trim();
+
+    if (!runnerId) {
+      return { success: false, error: "Runner is required." };
+    }
+
+    const scratched = scratchedRaw === "true";
+
+    const { error } = await supabase
+      .from("race_runners")
+      .update({
+        scratched,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", runnerId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update scratch status.",
+    };
+  }
+}
+
 export async function settleRaceRunnersAction(formData: FormData): Promise<ActionResult> {
   try {
     await requireAdmin();
@@ -1438,6 +1549,20 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
 
     if (!raceId) {
       return { success: false, error: "Race is required." };
+    }
+
+    const { data: raceRunners, error: runnersError } = await supabase
+      .from("race_runners")
+      .select("id, scratched")
+      .eq("race_id", raceId);
+
+    if (runnersError) {
+      return { success: false, error: runnersError.message };
+    }
+
+    const scratchedMap = new Map<number, boolean>();
+    for (const runner of raceRunners || []) {
+      scratchedMap.set(Number(runner.id), Boolean((runner as any).scratched));
     }
 
     const updates: Array<{
@@ -1458,17 +1583,28 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
 
       if (!runnerId) continue;
 
-      const finishingPosition = finishingPositionRaw
-        ? Number(finishingPositionRaw)
-        : null;
+      const isScratched = scratchedMap.get(runnerId) === true;
+
+      if (isScratched) {
+        updates.push({
+          id: runnerId,
+          finishing_position: null,
+          starting_price: null,
+          won: false,
+          placed: false,
+          settled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        continue;
+      }
+
+      const finishingPosition = finishingPositionRaw ? Number(finishingPositionRaw) : null;
 
       const startingPriceRaw = String(
         formData.get(`starting_price_${runnerId}`) ?? "",
       ).trim();
 
-      const startingPrice = startingPriceRaw
-        ? Number(startingPriceRaw)
-        : null;
+      const startingPrice = startingPriceRaw ? Number(startingPriceRaw) : null;
 
       const hasFinish =
         finishingPosition !== null && !Number.isNaN(finishingPosition);
@@ -1477,12 +1613,10 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
         id: runnerId,
         finishing_position: hasFinish ? finishingPosition : null,
         starting_price:
-          startingPrice !== null && !Number.isNaN(startingPrice)
-            ? startingPrice
-            : null,
-        won: hasFinish ? finishingPosition === 1 : null,
-        placed: hasFinish ? finishingPosition <= 3 : null,
-        settled_at: hasFinish ? new Date().toISOString() : null,
+          startingPrice !== null && !Number.isNaN(startingPrice) ? startingPrice : null,
+        won: hasFinish ? finishingPosition === 1 : false,
+        placed: hasFinish ? finishingPosition <= 3 : false,
+        settled_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
     }
