@@ -1,488 +1,77 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { Badge, Panel, TipPill } from "@/components/ui";
+import ResultedTipsBoard from "@/components/resulted-tips-board";
 
-function getTipCardStyle(type: string) {
-  if (type === "Win") return "border-emerald-300/50 bg-emerald-100";
-  if (type === "Place") return "border-sky-300/50 bg-sky-100";
-  if (type === "All Up") return "border-pink-300/50 bg-pink-100";
-  return "border-amber-200/30 bg-white";
-}
-
-function getTipDate(tip: any) {
-  return tip.settled_at || tip.race_start_at || tip.updated_at || tip.created_at || null;
-}
-
-function formatTipDate(dateStr?: string | null) {
-  if (!dateStr) return "Date unavailable";
-
-  const date = new Date(dateStr);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Date unavailable";
-  }
-
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
-function calculateSuccessStats(tips: any[]) {
-  const now = new Date();
-
-  const isToday = (dateStr?: string | null) => {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    return (
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth() &&
-      date.getDate() === now.getDate()
-    );
-  };
-
-  const isThisMonth = (dateStr?: string | null) => {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    return (
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth()
-    );
-  };
-
-  const settled = tips.filter((tip) => typeof tip.successful === "boolean");
-  const settledToday = settled.filter((tip) => isToday(getTipDate(tip)));
-  const settledThisMonth = settled.filter((tip) => isThisMonth(getTipDate(tip)));
-
-  const makeStat = (items: any[]) => {
-    const total = items.length;
-    const won = items.filter((tip) => tip.successful).length;
-
-    return {
-      total,
-      won,
-      rate: total ? Math.round((won / total) * 100) : null,
-    };
-  };
-
-  return {
-    day: makeStat(settledToday),
-    month: makeStat(settledThisMonth),
-    all: makeStat(settled),
-  };
-}
-
-function getVerdictIcon(tip: any) {
-  if (tip.successful === true) {
-    return <span className="text-emerald-600 text-xl font-bold">✔</span>;
-  }
-
-  if (tip.successful === false) {
-    const text = String(tip.result_comment || "").toLowerCase();
-
-    if (
-      text.includes("luck") ||
-      text.includes("blocked") ||
-      text.includes("held up") ||
-      text.includes("unlucky") ||
-      text.includes("wide") ||
-      text.includes("traffic")
-    ) {
-      return <span className="text-amber-500 text-xl font-bold">⚠</span>;
-    }
-
-    return <span className="text-rose-600 text-xl font-bold">✖</span>;
-  }
-
-  return null;
-}
-
-function StatCard({
-  title,
-  stat,
-  emptyLabel,
-  tone,
-}: {
-  title: string;
-  stat: { total: number; won: number; rate: number | null };
-  emptyLabel: string;
-  tone: "green" | "amber" | "rose" | "blue";
-}) {
-  const value = stat.total ? `${stat.rate}% (${stat.won}/${stat.total})` : emptyLabel;
-
-  return (
-    <Panel className="text-zinc-950">
-      <div className="p-4">
-        <p className="text-sm text-zinc-500">{title}</p>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="text-2xl font-semibold">{value}</p>
-          <Badge tone={tone}>
-            {stat.total ? `${stat.total} settled` : "No bets"}
-          </Badge>
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
-function groupResultedTips(tips: any[]) {
-  const now = new Date();
-  const today: any[] = [];
-  const lastMonth: any[] = [];
-  const older: any[] = [];
-
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const thirtyDaysAgo = new Date(startOfToday);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  tips.forEach((tip) => {
-    const rawDate = getTipDate(tip);
-
-    if (!rawDate) {
-      older.push(tip);
-      return;
-    }
-
-    const date = new Date(rawDate);
-
-    if (Number.isNaN(date.getTime())) {
-      older.push(tip);
-      return;
-    }
-
-    const isToday =
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth() &&
-      date.getDate() === now.getDate();
-
-    if (isToday) {
-      today.push(tip);
-      return;
-    }
-
-    if (date >= thirtyDaysAgo && date < startOfToday) {
-      lastMonth.push(tip);
-      return;
-    }
-
-    older.push(tip);
-  });
-
-  return { today, lastMonth, older };
-}
-
-function CompactResultCard({ tip }: { tip: any }) {
-  return (
-    <div className={`rounded-[20px] border p-4 shadow-sm ${getTipCardStyle(tip.type)}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">
-            {formatTipDate(getTipDate(tip))}
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">{tip.race}</p>
-          <h3 className="mt-1 text-lg font-semibold text-zinc-950">{tip.horse}</h3>
-        </div>
-
-        <div className="flex flex-col items-end gap-2">
-          <TipPill type={tip.type} />
-          {getVerdictIcon(tip)}
-        </div>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
-        {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-        {tip.finishing_position ? (
-          <Badge tone="slate">Placed {tip.finishing_position}</Badge>
-        ) : null}
-        {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
-        {tip.successful === false ? <Badge tone="rose">Unsuccessful</Badge> : null}
-      </div>
-
-      {tip.result_comment ? (
-        <div className="mt-3 rounded-2xl border border-amber-200/40 bg-amber-50 p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800">
-            Post-race analysis
-          </p>
-          <p className="mt-2 text-sm leading-6 text-zinc-800">{tip.result_comment}</p>
-        </div>
-      ) : null}
-
-      <details className="mt-3 rounded-2xl border border-zinc-300/60 bg-white/70 p-3 text-zinc-800">
-        <summary className="cursor-pointer text-sm font-semibold text-zinc-700">
-          View original tip write-up
-        </summary>
-        <p className="mt-3 text-sm leading-6 text-zinc-700">
-          {tip.commentary || "No original commentary added."}
-        </p>
-      </details>
-    </div>
-  );
-}
-
-function CollapsibleSection({
-  title,
-  subtitle,
-  count,
-  tone,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  count: number;
-  tone: "blue" | "slate";
-  children: React.ReactNode;
-}) {
-  return (
-    <details className="rounded-[24px] border border-white/10 bg-white/5 open:bg-white/[0.07]">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-white">{title}</h2>
-          <p className="mt-1 text-sm text-amber-100/70">{subtitle}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge tone={tone}>
-            {count} {count === 1 ? "tip" : "tips"}
-          </Badge>
-          <span className="text-sm font-semibold text-amber-100/80">Open</span>
-        </div>
-      </summary>
-      <div className="px-5 pb-5">{children}</div>
-    </details>
-  );
-}
-
-export default async function MyResultedTipsPage() {
+export default async function Page() {
   const profile = await getCurrentProfile();
 
   if (!profile) {
     redirect("/login");
   }
 
-  if (profile.role !== "user") {
-    redirect("/");
-  }
-
   const supabase = await createClient();
 
-  const { data: activeSelections, error: activeSelectionsError } = await supabase
+  const activeTipIdsQuery = await supabase
     .from("user_active_tips")
     .select("tip_id")
     .eq("user_id", profile.id);
 
-  if (activeSelectionsError) {
-    throw new Error(`Failed to load saved tips: ${activeSelectionsError.message}`);
-  }
+  const activeTipIds = (activeTipIdsQuery.data || []).map((row: any) => row.tip_id);
 
-  const tipIds = (activeSelections || []).map((row: any) => row.tip_id);
+  let tips: any[] = [];
 
-  let resultedTips: any[] = [];
-
-  if (tipIds.length) {
-    const { data, error } = await supabase
+  if (activeTipIds.length > 0) {
+    const tipsQuery = await supabase
       .from("suggested_tips")
       .select("*")
-      .in("id", tipIds)
-      .not("successful", "is", null)
-      .order("settled_at", { ascending: false, nullsFirst: false });
+      .in("id", activeTipIds)
+      .not("settled_at", "is", null)
+      .order("settled_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
 
-    if (error) {
-      throw new Error(`Failed to load resulted tips: ${error.message}`);
-    }
-
-    resultedTips = data || [];
+    tips = tipsQuery.data || [];
   }
 
-  const { data: allResultedTips, error: allResultedError } = await supabase
-    .from("suggested_tips")
+  const meetingsQuery = await supabase
+    .from("meetings")
     .select("*")
-    .not("successful", "is", null);
+    .order("meeting_date", { ascending: false });
 
-  if (allResultedError) {
-    throw new Error(`Failed to load head tipper stats: ${allResultedError.message}`);
-  }
+  const racesQuery = await supabase
+    .from("races")
+    .select("*")
+    .order("updated_at", { ascending: false });
 
-  const myStats = calculateSuccessStats(resultedTips);
-  const headTipperStats = calculateSuccessStats(allResultedTips || []);
-  const groupedTips = groupResultedTips(resultedTips);
+  const runnersQuery = await supabase
+    .from("race_runners")
+    .select("*")
+    .order("updated_at", { ascending: false });
+
+  const horsesQuery = await supabase
+    .from("horses")
+    .select("*")
+    .order("horse_name", { ascending: true });
+
+  const meetings = meetingsQuery.data || [];
+  const races = racesQuery.data || [];
+  const runners = runnersQuery.data || [];
+  const horses = horsesQuery.data || [];
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
-      <div className="mx-auto max-w-7xl px-4 py-8 lg:px-8">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-amber-100/80">SmartPunt</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight">My Resulted Tips</h1>
-            <p className="mt-2 text-sm text-amber-100/70">
-              Only tips you saved as active and that have now been settled.
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white hover:bg-white/15"
-          >
-            Back to Live Tips
-          </Link>
-        </div>
-
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            title="My Success Today"
-            stat={myStats.day}
-            emptyLabel="No bets today"
-            tone="green"
-          />
-          <StatCard
-            title="My Success This Month"
-            stat={myStats.month}
-            emptyLabel="No bets this month"
-            tone="amber"
-          />
-          <StatCard
-            title="My Success All Time"
-            stat={myStats.all}
-            emptyLabel="No bets yet"
-            tone="rose"
-          />
-          <StatCard
-            title="Head Tipper All Time"
-            stat={headTipperStats.all}
-            emptyLabel="No bets yet"
-            tone="blue"
-          />
-        </div>
-
-        <div className="mt-8 space-y-6">
-          {resultedTips.length ? (
-            <>
-              <section>
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-white">Today</h2>
-                    <p className="mt-1 text-sm text-amber-100/70">
-                      Resulted tips from your active plays today.
-                    </p>
-                  </div>
-                  <Badge tone="amber">
-                    {groupedTips.today.length} {groupedTips.today.length === 1 ? "tip" : "tips"}
-                  </Badge>
-                </div>
-
-                {groupedTips.today.length ? (
-                  <div className="space-y-4">
-                    {groupedTips.today.map((tip: any) => (
-                      <div
-                        key={tip.id}
-                        className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tip.type)}`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-500">
-                              {formatTipDate(getTipDate(tip))}
-                            </p>
-                            <p className="mt-2 text-sm text-zinc-500">{tip.race}</p>
-                            <h3 className="mt-1 text-2xl font-semibold text-zinc-950">
-                              {tip.horse}
-                            </h3>
-                          </div>
-
-                          <div className="flex flex-col items-end gap-2">
-                            <TipPill type={tip.type} />
-                            {getVerdictIcon(tip)}
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {tip.confidence ? (
-                            <Badge tone="blue">{tip.confidence} confidence</Badge>
-                          ) : null}
-                          {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                          {tip.finishing_position ? (
-                            <Badge tone="slate">Placed {tip.finishing_position}</Badge>
-                          ) : null}
-                          {tip.successful === true ? <Badge tone="green">Successful</Badge> : null}
-                          {tip.successful === false ? (
-                            <Badge tone="rose">Unsuccessful</Badge>
-                          ) : null}
-                        </div>
-
-                        {tip.result_comment ? (
-                          <div className="mt-4 rounded-2xl border border-amber-200/40 bg-amber-50 p-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
-                              Post-race analysis
-                            </p>
-                            <p className="mt-2 text-sm leading-6 text-zinc-800">
-                              {tip.result_comment}
-                            </p>
-                          </div>
-                        ) : null}
-
-                        <details className="mt-4 rounded-2xl border border-zinc-300/60 bg-white/70 p-4 text-zinc-800">
-                          <summary className="cursor-pointer text-sm font-semibold text-zinc-700">
-                            View original tip write-up
-                          </summary>
-                          <p className="mt-3 text-sm leading-6 text-zinc-700">
-                            {tip.commentary || "No original commentary added."}
-                          </p>
-                        </details>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 text-sm text-amber-100/70">
-                    No resulted tips from today.
-                  </div>
-                )}
-              </section>
-
-              <CollapsibleSection
-                title="Last Month"
-                subtitle="Your settled active tips from the last 30 days before today."
-                count={groupedTips.lastMonth.length}
-                tone="blue"
-              >
-                {groupedTips.lastMonth.length ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {groupedTips.lastMonth.map((tip: any) => (
-                      <CompactResultCard key={tip.id} tip={tip} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 text-sm text-amber-100/70">
-                    No resulted tips in the last month.
-                  </div>
-                )}
-              </CollapsibleSection>
-
-              <CollapsibleSection
-                title="Older"
-                subtitle="Older settled active tips kept tucked away in a tighter view."
-                count={groupedTips.older.length}
-                tone="slate"
-              >
-                {groupedTips.older.length ? (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {groupedTips.older.map((tip: any) => (
-                      <CompactResultCard key={tip.id} tip={tip} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-[24px] border border-white/10 bg-white/5 p-5 text-sm text-amber-100/70">
-                    No older resulted tips yet.
-                  </div>
-                )}
-              </CollapsibleSection>
-            </>
-          ) : (
-            <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
-              No resulted tips yet from your active selections.
-            </div>
-          )}
-        </div>
-      </div>
-    </main>
+    <ResultedTipsBoard
+      title="My resulted tips"
+      subtitle="Your settled plays, now showing linked runner detail where available."
+      currentUser={profile}
+      tips={tips}
+      meetings={meetings}
+      races={races}
+      runners={runners}
+      horses={horses}
+      backHref="/"
+      backLabel="Back to Dashboard"
+      emptyTitle="No resulted active tips yet."
+      emptyText="Once one of your marked active tips is settled, it’ll show here."
+    />
   );
 }
