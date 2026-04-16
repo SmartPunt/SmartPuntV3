@@ -15,7 +15,6 @@ export default function AppEntryLoader({
 
   useEffect(() => {
     const video = videoRef.current;
-
     if (!video) return;
 
     const handleEnded = () => {
@@ -30,12 +29,11 @@ export default function AppEntryLoader({
     };
   }, []);
 
-  // ✅ fallback — now longer than your 6s video
   useEffect(() => {
     const fallback = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => setShowIntro(false), 400);
-    }, 7000); // 🔥 was 4500 → now 7000
+    }, 7000);
 
     return () => clearTimeout(fallback);
   }, []);
@@ -49,7 +47,7 @@ export default function AppEntryLoader({
       <div className="min-h-screen">{children}</div>
 
       <div
-        className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black transition-opacity duration-500 ${
+        className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 ${
           fadeOut ? "opacity-0" : "opacity-100"
         }`}
       >
@@ -62,12 +60,15 @@ export default function AppEntryLoader({
             preload="auto"
             onError={() => setVideoFailed(true)}
             className="
-              w-[115vw]
-              sm:w-[95vw]
-              max-w-none
-              sm:max-w-[600px]
-              md:max-w-[750px]
-              lg:max-w-[900px]
+              absolute inset-0
+              
+              /* 🔥 MOBILE (unchanged) */
+              w-[115vw] h-auto
+              
+              /* 🔥 DESKTOP FULL SCREEN */
+              sm:w-full sm:h-full
+              
+              object-contain sm:object-cover
             "
           >
             <source src="/logo-animated.mp4" type="video/mp4" />
@@ -77,12 +78,10 @@ export default function AppEntryLoader({
             src="/header-logo.png"
             alt="SmartPunt"
             className="
-              w-[115vw]
-              sm:w-[95vw]
-              max-w-none
-              sm:max-w-[600px]
-              md:max-w-[750px]
-              lg:max-w-[900px]
+              absolute inset-0
+              w-[115vw] h-auto
+              sm:w-full sm:h-full
+              object-contain sm:object-cover
             "
           />
         )}
