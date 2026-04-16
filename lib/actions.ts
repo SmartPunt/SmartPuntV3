@@ -1267,7 +1267,12 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
     const trainerName = String(formData.get("trainer_name") ?? "").trim();
     const barrierRaw = String(formData.get("barrier") ?? "").trim();
     const marketPriceRaw = String(formData.get("market_price") ?? "").trim();
-    const formLast3 = String(formData.get("form_last_3") ?? "").trim();
+    const weightKgRaw = String(formData.get("weight_kg") ?? "").trim();
+    const isApprenticeRaw = String(formData.get("is_apprentice") ?? "").trim();
+    const apprenticeClaimRaw = String(formData.get("apprentice_claim_kg") ?? "").trim();
+    const formLast6 = String(formData.get("form_last_6") ?? "").trim();
+    const trackFormLast6 = String(formData.get("track_form_last_6") ?? "").trim();
+    const distanceFormLast6 = String(formData.get("distance_form_last_6") ?? "").trim();
 
     if (!raceId) {
       return { success: false, error: "Race is required." };
@@ -1336,6 +1341,14 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
 
     const barrierValue = barrierRaw ? Number(barrierRaw) : null;
     const marketPriceValue = marketPriceRaw ? Number(marketPriceRaw) : null;
+    const weightKgValue = weightKgRaw ? Number(weightKgRaw) : null;
+    const isApprentice =
+      isApprenticeRaw === "true"
+        ? true
+        : isApprenticeRaw === "false"
+          ? false
+          : null;
+    const apprenticeClaimValue = apprenticeClaimRaw ? Number(apprenticeClaimRaw) : null;
 
     const { error } = await supabase.from("race_runners").insert({
       race_id: raceId,
@@ -1345,7 +1358,16 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
       barrier: barrierValue && !Number.isNaN(barrierValue) ? barrierValue : null,
       market_price:
         marketPriceValue !== null && !Number.isNaN(marketPriceValue) ? marketPriceValue : null,
-      form_last_3: formLast3 || null,
+      weight_kg:
+        weightKgValue !== null && !Number.isNaN(weightKgValue) ? weightKgValue : null,
+      is_apprentice: isApprentice,
+      apprentice_claim_kg:
+        apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
+          ? apprenticeClaimValue
+          : null,
+      form_last_6: formLast6 || null,
+      track_form_last_6: trackFormLast6 || null,
+      distance_form_last_6: distanceFormLast6 || null,
       created_by: profile.id,
       updated_at: new Date().toISOString(),
     });
@@ -1358,6 +1380,7 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/admin/horses");
     return { success: true, error: null };
   } catch (error) {
     return {
