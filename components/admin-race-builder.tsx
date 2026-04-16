@@ -11,7 +11,6 @@ import {
   deleteMeetingAction,
   deleteRaceAction,
   deleteRaceRunnerAction,
-  settleRaceRunnersAction,
   toggleRacePublishAction,
 } from "@/lib/actions";
 
@@ -143,7 +142,8 @@ function getRaceStatusTone(status: Race["status"]) {
   return "amber";
 }
 
-function formatHorseMeta(horse: Horse) {
+function formatHorseMeta(horse: Horse | null) {
+  if (!horse) return "";
   const parts: string[] = [];
   if (horse.sex) parts.push(horse.sex);
   if (horse.age !== null && horse.age !== undefined) parts.push(`${horse.age}yo`);
@@ -193,9 +193,20 @@ export default function RaceBuilderPage({
   const [trackFormLast6, setTrackFormLast6] = useState("");
   const [distanceFormLast6, setDistanceFormLast6] = useState("");
 
-  const [raceResultState, setRaceResultState] = useState<
-    Record<number, Record<number, { finishingPosition: string; startingPrice: string }>>
-  >({});
+  const draftRaces = useMemo(
+    () => initialRaces.filter((race) => race.status === "draft"),
+    [initialRaces],
+  );
+
+  const publishedRaces = useMemo(
+    () => initialRaces.filter((race) => race.status === "published"),
+    [initialRaces],
+  );
+
+  const closedRaces = useMemo(
+    () => initialRaces.filter((race) => race.status === "closed"),
+    [initialRaces],
+  );
 
   const filteredHorseSuggestions = useMemo(() => {
     const query = horseQuery.trim().toLowerCase();
@@ -212,12 +223,12 @@ export default function RaceBuilderPage({
   const racesForSelectedMeeting = useMemo(() => {
     if (!selectedMeetingIdForRunner) return [];
 
-    return initialRaces.filter(
+    return draftRaces.filter(
       (race) => String(race.meeting_id) === selectedMeetingIdForRunner,
     );
-  }, [initialRaces, selectedMeetingIdForRunner]);
+  }, [draftRaces, selectedMeetingIdForRunner]);
 
-  const selectedRace = initialRaces.find(
+  const selectedRace = draftRaces.find(
     (race) => String(race.id) === selectedRaceIdForRunner,
   );
 
@@ -333,7 +344,11 @@ export default function RaceBuilderPage({
         return;
       }
 
-      setSuccess(nextStatus === "published" ? "Race published." : "Race moved back to draft.");
+      setSuccess(
+        nextStatus === "published"
+          ? "Race sent to Current Races."
+          : "Race moved back to Race Builder.",
+      );
       router.refresh();
     });
   }
@@ -407,91 +422,6 @@ export default function RaceBuilderPage({
     });
   }
 
-  function handleRaceResultChange(
-    raceId: number,
-    runnerId: number,
-    field: "finishingPosition" | "startingPrice",
-    value: string,
-  ) {
-    setRaceResultState((prev) => ({
-      ...prev,
-      [raceId]: {
-        ...(prev[raceId] || {}),
-        [runnerId]: {
-          finishingPosition:
-            field === "finishingPosition"
-              ? value
-              : prev[raceId]?.[runnerId]?.finishingPosition ||
-                getExistingFinishingPosition(runnerId),
-          startingPrice:
-            field === "startingPrice"
-              ? value
-              : prev[raceId]?.[runnerId]?.startingPrice ||
-                getExistingStartingPrice(runnerId),
-        },
-      },
-    }));
-  }
-
-  function getExistingFinishingPosition(runnerId: number) {
-    const runner = initialRunners.find((item) => item.id === runnerId);
-    if (!runner || runner.finishing_position === null || runner.finishing_position === undefined) {
-      return "";
-    }
-    return String(runner.finishing_position);
-  }
-
-  function getExistingStartingPrice(runnerId: number) {
-    const runner = initialRunners.find((item) => item.id === runnerId);
-    if (!runner || runner.starting_price === null || runner.starting_price === undefined) {
-      return "";
-    }
-    return String(runner.starting_price);
-  }
-
-  function getRaceResultValue(
-    raceId: number,
-    runnerId: number,
-    field: "finishingPosition" | "startingPrice",
-  ) {
-    const saved = raceResultState[raceId]?.[runnerId]?.[field];
-    if (saved !== undefined) return saved;
-
-    return field === "finishingPosition"
-      ? getExistingFinishingPosition(runnerId)
-      : getExistingStartingPrice(runnerId);
-  }
-
-  function handleSettleRace(raceId: number) {
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("race_id", String(raceId));
-
-      const runners = initialRunners.filter((runner) => runner.race_id === raceId);
-
-      runners.forEach((runner) => {
-        formData.set(
-          `finishing_position_${runner.id}`,
-          getRaceResultValue(raceId, runner.id, "finishingPosition"),
-        );
-        formData.set(
-          `starting_price_${runner.id}`,
-          getRaceResultValue(raceId, runner.id, "startingPrice"),
-        );
-      });
-
-      const result = await settleRaceRunnersAction(formData);
-
-      if (!result.success) {
-        setError(result.error || "Failed to settle race.");
-        return;
-      }
-
-      setSuccess("Race settled and runner form saved.");
-      router.refresh();
-    });
-  }
-
   function runnersForRace(raceId: number) {
     return initialRunners.filter((runner) => runner.race_id === raceId);
   }
@@ -521,6 +451,12 @@ export default function RaceBuilderPage({
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 <Link
+                  href="/current-races"
+                  className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-400/15"
+                >
+                  Current Races
+                </Link>
+                <Link
                   href="/admin/horses"
                   className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 >
@@ -547,7 +483,7 @@ export default function RaceBuilderPage({
                   Fortune on 5 race builder
                 </h1>
                 <p className="text-sm text-zinc-200 lg:text-base">
-                  Build meetings, races, horses, runners, and now settle the full field for form history.
+                  Build meetings, races, and runners here. Once a race is ready, send it to Current Races for management and settlement.
                 </p>
                 <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                   Logged in as {currentUser.full_name || currentUser.email}
@@ -557,7 +493,7 @@ export default function RaceBuilderPage({
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="green">Live database</Badge>
                 <Badge tone="blue">Admin only</Badge>
-                <Badge tone="amber">Full-field resulting active</Badge>
+                <Badge tone="amber">Draft races only</Badge>
               </div>
             </div>
           </div>
@@ -574,6 +510,44 @@ export default function RaceBuilderPage({
             {statusMessage}
           </div>
         ) : null}
+
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <Panel className="bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                Draft races
+              </p>
+              <p className="mt-2 text-3xl font-bold">{draftRaces.length}</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                These stay in Race Builder until they’re ready to go live.
+              </p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                Current races
+              </p>
+              <p className="mt-2 text-3xl font-bold">{publishedRaces.length}</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                Published races are now managed from the Current Races page.
+              </p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                Archived races
+              </p>
+              <p className="mt-2 text-3xl font-bold">{closedRaces.length}</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                Closed races should live in archive, not in the builder.
+              </p>
+            </div>
+          </Panel>
+        </div>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <Panel className="bg-white/95">
@@ -698,7 +672,7 @@ export default function RaceBuilderPage({
                     Build races under a meeting before loading runners.
                   </p>
                 </div>
-                <Badge tone="green">{initialRaces.length} races</Badge>
+                <Badge tone="green">{draftRaces.length} draft races</Badge>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -767,13 +741,13 @@ export default function RaceBuilderPage({
           <Panel className="bg-white/95">
             <div className="space-y-4 p-6 text-zinc-950">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-semibold">Races loaded</h2>
-                <Badge tone="violet">Meeting-linked</Badge>
+                <h2 className="text-xl font-semibold">Draft races loaded</h2>
+                <Badge tone="violet">Builder only</Badge>
               </div>
 
               <div className="space-y-3">
-                {initialRaces.length > 0 ? (
-                  initialRaces.map((race) => {
+                {draftRaces.length > 0 ? (
+                  draftRaces.map((race) => {
                     const meeting = initialMeetings.find((item) => item.id === race.meeting_id);
 
                     return (
@@ -806,13 +780,9 @@ export default function RaceBuilderPage({
                               type="button"
                               onClick={() => handleTogglePublish(race.id, race.status)}
                               disabled={isPending}
-                              className={`rounded-2xl px-3 py-2 text-xs font-semibold transition disabled:opacity-60 ${
-                                race.status === "published"
-                                  ? "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-                                  : "bg-black text-amber-300 hover:bg-zinc-900"
-                              }`}
+                              className="rounded-2xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
                             >
-                              {race.status === "published" ? "Unpublish" : "Publish"}
+                              Send to Current Races
                             </button>
 
                             <button
@@ -829,7 +799,7 @@ export default function RaceBuilderPage({
                     );
                   })
                 ) : (
-                  <p className="text-sm text-zinc-500">No races loaded yet.</p>
+                  <p className="text-sm text-zinc-500">No draft races loaded yet.</p>
                 )}
               </div>
             </div>
@@ -1040,7 +1010,7 @@ export default function RaceBuilderPage({
                 <p className="mt-2 text-sm text-zinc-700">
                   {selectedRace
                     ? `R${selectedRace.race_number} ${selectedRace.race_name} — ${selectedRace.distance_m || "—"}m`
-                    : "Choose a meeting and race to load runners cleanly."}
+                    : "Choose a meeting and draft race to load runners cleanly."}
                 </p>
               </div>
 
@@ -1068,13 +1038,17 @@ export default function RaceBuilderPage({
           <Panel className="bg-white/95">
             <div className="space-y-5 p-6 text-zinc-950">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-semibold">4. Race board + results</h2>
+                <h2 className="text-xl font-semibold">4. Draft race board</h2>
                 <Badge tone="green">{initialRunners.length} loaded</Badge>
               </div>
 
+              <div className="rounded-[24px] border border-amber-200/30 bg-amber-50 p-4 text-sm text-zinc-700">
+                Race Builder is now for building only. Once a race is ready, send it to Current Races to manage results and close it out properly.
+              </div>
+
               <div className="space-y-4">
-                {initialRaces.length > 0 ? (
-                  initialRaces.map((race) => {
+                {draftRaces.length > 0 ? (
+                  draftRaces.map((race) => {
                     const meeting = initialMeetings.find((item) => item.id === race.meeting_id);
                     const raceRunners = runnersForRace(race.id);
 
@@ -1097,7 +1071,18 @@ export default function RaceBuilderPage({
                               {race.race_name} · {race.distance_m || "—"}m
                             </p>
                           </div>
-                          <Badge tone="amber">{raceRunners.length} runners</Badge>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge tone="amber">{raceRunners.length} runners</Badge>
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePublish(race.id, race.status)}
+                              disabled={isPending}
+                              className="rounded-2xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+                            >
+                              Send to Current Races
+                            </button>
+                          </div>
                         </div>
 
                         <div className="mt-4 space-y-3">
@@ -1116,12 +1101,17 @@ export default function RaceBuilderPage({
                                         {findHorseName(runner.horse_id)}
                                       </p>
                                       <p className="text-sm text-zinc-500">
-                                        {formatHorseMeta(horse as Horse) || "Horse profile not loaded yet"}
+                                        {formatHorseMeta(horse) || "Horse profile not loaded yet"}
                                       </p>
                                       <p className="mt-1 text-sm text-zinc-500">
                                         Jockey: {runner.jockey_name || "—"}
                                         {runner.is_apprentice
-                                          ? ` (Apprentice${runner.apprentice_claim_kg !== null && runner.apprentice_claim_kg !== undefined ? `, -${runner.apprentice_claim_kg}kg` : ""})`
+                                          ? ` (Apprentice${
+                                              runner.apprentice_claim_kg !== null &&
+                                              runner.apprentice_claim_kg !== undefined
+                                                ? `, -${runner.apprentice_claim_kg}kg`
+                                                : ""
+                                            })`
                                           : ""}
                                         {" · "}Trainer: {runner.trainer_name || "—"}
                                       </p>
@@ -1139,20 +1129,6 @@ export default function RaceBuilderPage({
                                       ) : null}
                                       {runner.form_last_6 ? (
                                         <Badge tone="slate">{runner.form_last_6}</Badge>
-                                      ) : null}
-                                      {runner.finishing_position !== null &&
-                                      runner.finishing_position !== undefined ? (
-                                        <Badge
-                                          tone={
-                                            runner.finishing_position === 1
-                                              ? "green"
-                                              : runner.finishing_position <= 3
-                                                ? "blue"
-                                                : "rose"
-                                          }
-                                        >
-                                          Fin: {runner.finishing_position}
-                                        </Badge>
                                       ) : null}
                                       <button
                                         type="button"
@@ -1193,49 +1169,6 @@ export default function RaceBuilderPage({
                                       </p>
                                     </div>
                                   </div>
-
-                                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                    <div>
-                                      <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                        Finishing position
-                                      </label>
-                                      <input
-                                        type="number"
-                                        value={getRaceResultValue(race.id, runner.id, "finishingPosition")}
-                                        onChange={(e) =>
-                                          handleRaceResultChange(
-                                            race.id,
-                                            runner.id,
-                                            "finishingPosition",
-                                            e.target.value,
-                                          )
-                                        }
-                                        placeholder="1"
-                                        className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                        Starting price
-                                      </label>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={getRaceResultValue(race.id, runner.id, "startingPrice")}
-                                        onChange={(e) =>
-                                          handleRaceResultChange(
-                                            race.id,
-                                            runner.id,
-                                            "startingPrice",
-                                            e.target.value,
-                                          )
-                                        }
-                                        placeholder="4.20"
-                                        className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                      />
-                                    </div>
-                                  </div>
                                 </div>
                               );
                             })
@@ -1245,28 +1178,11 @@ export default function RaceBuilderPage({
                             </p>
                           )}
                         </div>
-
-                        {raceRunners.length > 0 ? (
-                          <div className="mt-5 flex flex-wrap items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => handleSettleRace(race.id)}
-                              disabled={isPending}
-                              className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
-                            >
-                              {isPending ? "Saving..." : "Save Results + Close Race"}
-                            </button>
-
-                            <div className="rounded-2xl border border-blue-200/40 bg-blue-50 px-4 py-3 text-sm text-zinc-700">
-                              Save the whole field here to build real horse form, distance stats, track stats, and condition stats.
-                            </div>
-                          </div>
-                        ) : null}
                       </div>
                     );
                   })
                 ) : (
-                  <p className="text-sm text-zinc-500">No races available yet.</p>
+                  <p className="text-sm text-zinc-500">No draft races available yet.</p>
                 )}
               </div>
             </div>
@@ -1276,23 +1192,23 @@ export default function RaceBuilderPage({
         <div className="mt-6 grid gap-6 xl:grid-cols-3">
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <h3 className="text-lg font-semibold">What this gives us now</h3>
+              <h3 className="text-lg font-semibold">What Race Builder does now</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Separate Race Builder route</p>
-                <p>• Persistent horse master list</p>
-                <p>• Meeting → Race → Runner structure</p>
-                <p>• Full-field race resulting</p>
+                <p>• Build meetings</p>
+                <p>• Build draft races</p>
+                <p>• Add runners to draft races</p>
+                <p>• Send ready races to Current Races</p>
               </div>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <h3 className="text-lg font-semibold">Horse form engine</h3>
+              <h3 className="text-lg font-semibold">What moved out</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Finishing positions now save to runners</p>
-                <p>• Starting prices now save to runners</p>
-                <p>• Wins and places auto-calculate</p>
+                <p>• Result entry</p>
+                <p>• Settlement workflow</p>
+                <p>• Closing races</p>
               </div>
             </div>
           </Panel>
@@ -1301,9 +1217,9 @@ export default function RaceBuilderPage({
             <div className="p-6 text-zinc-950">
               <h3 className="text-lg font-semibold">Next build step</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Show true recent form line on horse profiles</p>
-                <p>• Add distance stats</p>
-                <p>• Add track and condition stats</p>
+                <p>• Current Races page</p>
+                <p>• Save results and close race</p>
+                <p>• Auto-finalise matching tips</p>
               </div>
             </div>
           </Panel>
