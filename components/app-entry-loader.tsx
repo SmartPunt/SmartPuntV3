@@ -30,11 +30,12 @@ export default function AppEntryLoader({
     };
   }, []);
 
+  // ✅ fallback — now longer than your 6s video
   useEffect(() => {
     const fallback = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => setShowIntro(false), 400);
-    }, 4500);
+    }, 7000); // 🔥 was 4500 → now 7000
 
     return () => clearTimeout(fallback);
   }, []);
@@ -61,8 +62,8 @@ export default function AppEntryLoader({
             preload="auto"
             onError={() => setVideoFailed(true)}
             className="
-              w-[115vw]          /* 🔥 bigger than screen on phone */
-              sm:w-[95vw]        /* normal from small screens up */
+              w-[115vw]
+              sm:w-[95vw]
               max-w-none
               sm:max-w-[600px]
               md:max-w-[750px]
