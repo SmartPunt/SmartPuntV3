@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import AdminDashboard from "@/components/admin-dashboard";
 import SubscriberDashboard from "@/components/subscriber-dashboard";
+import AppEntryLoader from "@/components/app-entry-loader";
 
 export default async function HomePage() {
   const profile = await getCurrentProfile();
@@ -34,12 +35,14 @@ export default async function HomePage() {
 
   if (profile.role === "admin") {
     return (
-      <AdminDashboard
-        currentUser={profile}
-        initialSuggestedTips={liveTips}
-        initialWatchlistItems={watchlistItems || []}
-        initialLongTermBets={longTermBets || []}
-      />
+      <AppEntryLoader>
+        <AdminDashboard
+          currentUser={profile}
+          initialSuggestedTips={liveTips}
+          initialWatchlistItems={watchlistItems || []}
+          initialLongTermBets={longTermBets || []}
+        />
+      </AppEntryLoader>
     );
   }
 
@@ -48,15 +51,19 @@ export default async function HomePage() {
     .select("tip_id")
     .eq("user_id", profile.id);
 
-  const activeTipIds = (activeSelections || []).map((row: any) => row.tip_id);
+  const activeTipIds = (activeSelections || []).map(
+    (row: any) => row.tip_id,
+  );
 
   return (
-    <SubscriberDashboard
-      currentUser={profile}
-      initialSuggestedTips={liveTips}
-      initialWatchlistItems={watchlistItems || []}
-      initialLongTermBets={longTermBets || []}
-      initialActiveTipIds={activeTipIds}
-    />
+    <AppEntryLoader>
+      <SubscriberDashboard
+        currentUser={profile}
+        initialSuggestedTips={liveTips}
+        initialWatchlistItems={watchlistItems || []}
+        initialLongTermBets={longTermBets || []}
+        initialActiveTipIds={activeTipIds}
+      />
+    </AppEntryLoader>
   );
 }
