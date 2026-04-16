@@ -261,10 +261,27 @@ export default async function Page() {
     tips = (data || []) as ResultedTip[];
   }
 
+  const { data: allSettledTipsData } = await supabase
+    .from("suggested_tips")
+    .select("id, successful")
+    .not("successful", "is", null);
+
+  const allSettledTips = allSettledTipsData || [];
+
   const total = tips.length;
   const wins = tips.filter((t) => t.successful === true).length;
   const losses = tips.filter((t) => t.successful === false).length;
   const strikeRate = total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0";
+
+  const headTipperTotal = allSettledTips.length;
+  const headTipperWins = allSettledTips.filter((t) => t.successful === true).length;
+  const headTipperStrikeRate =
+    headTipperTotal > 0 ? ((headTipperWins / headTipperTotal) * 100).toFixed(1) : "0.0";
+
+  const strikeRateDelta =
+    total > 0 && headTipperTotal > 0
+      ? (Number(strikeRate) - Number(headTipperStrikeRate)).toFixed(1)
+      : null;
 
   const { todaysTips, lastMonthsTips, olderTips } = groupTips(tips);
 
@@ -292,7 +309,7 @@ export default async function Page() {
       </div>
 
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
               <p className="text-sm text-zinc-500">My Tips</p>
@@ -320,10 +337,29 @@ export default async function Page() {
 
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Strike Rate</p>
+              <p className="text-sm text-zinc-500">My Strike Rate</p>
               <p className="mt-2 text-2xl font-semibold text-amber-700">
                 {strikeRate}%
               </p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Head Tipper</p>
+              <p className="mt-2 text-2xl font-semibold text-blue-700">
+                {headTipperStrikeRate}%
+              </p>
+              {strikeRateDelta !== null ? (
+                <p className="mt-2 text-xs font-medium text-zinc-500">
+                  {Number(strikeRateDelta) >= 0 ? "You’re up" : "You’re down"}{" "}
+                  {Math.abs(Number(strikeRateDelta)).toFixed(1)} pts
+                </p>
+              ) : (
+                <p className="mt-2 text-xs font-medium text-zinc-500">
+                  Comparison builds once both sets have results.
+                </p>
+              )}
             </div>
           </Panel>
         </div>
