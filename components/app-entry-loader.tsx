@@ -12,6 +12,35 @@ export default function AppEntryLoader({
   const [showIntro, setShowIntro] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
+  const [useDesktopCover, setUseDesktopCover] = useState(false);
+
+  useEffect(() => {
+    function updateViewportMode() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      const isPhone = width < 640;
+      if (isPhone) {
+        setUseDesktopCover(false);
+        return;
+      }
+
+      const aspectRatio = width / height;
+
+      // Use cinematic full-screen only when the window is tall enough.
+      // Wider / shorter windows stay on contain so the logo does not crop.
+      const shouldUseCover = aspectRatio <= 1.8 && height >= 800;
+
+      setUseDesktopCover(shouldUseCover);
+    }
+
+    updateViewportMode();
+    window.addEventListener("resize", updateViewportMode);
+
+    return () => {
+      window.removeEventListener("resize", updateViewportMode);
+    };
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -42,12 +71,16 @@ export default function AppEntryLoader({
     return <>{children}</>;
   }
 
+  const mediaClassName = useDesktopCover
+    ? "absolute inset-0 h-full w-full object-cover"
+    : "w-[115vw] h-auto object-contain sm:w-[90vw]";
+
   return (
     <>
       <div className="min-h-screen">{children}</div>
 
       <div
-        className={`fixed inset-0 z-[9999] bg-black flex items-center justify-center transition-opacity duration-500 ${
+        className={`fixed inset-0 z-[9999] flex items-center justify-center bg-black transition-opacity duration-500 ${
           fadeOut ? "opacity-0" : "opacity-100"
         }`}
       >
@@ -59,16 +92,7 @@ export default function AppEntryLoader({
             playsInline
             preload="auto"
             onError={() => setVideoFailed(true)}
-            className="
-              /* 📱 Mobile */
-              w-[115vw] h-auto object-contain
-              
-              /* 💻 Desktop safe default (no crop) */
-              sm:w-[90vw] sm:h-auto sm:object-contain
-              
-              /* 🖥️ Only go cinematic on very tall screens */
-              xl:w-full xl:h-full xl:object-cover
-            "
+            className={mediaClassName}
           >
             <source src="/logo-animated.mp4" type="video/mp4" />
           </video>
@@ -76,11 +100,7 @@ export default function AppEntryLoader({
           <img
             src="/header-logo.png"
             alt="SmartPunt"
-            className="
-              w-[115vw] h-auto object-contain
-              sm:w-[90vw] sm:h-auto sm:object-contain
-              xl:w-full xl:h-full xl:object-cover
-            "
+            className={mediaClassName}
           />
         )}
       </div>
