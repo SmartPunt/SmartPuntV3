@@ -31,45 +31,49 @@ export default async function Page() {
     .order("race_start_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
+  const publishedRacesQuery = await supabase
+    .from("races")
+    .select("*")
+    .eq("status", "published")
+    .order("meeting_id", { ascending: false })
+    .order("race_number", { ascending: true });
+
+  const publishedRunnersQuery = await supabase
+    .from("race_runners")
+    .select("*")
+    .order("race_id", { ascending: true })
+    .order("barrier", { ascending: true, nullsFirst: false });
+
+  const horsesQuery = await supabase
+    .from("horses")
+    .select("*")
+    .order("horse_name", { ascending: true });
+
+  const meetingsQuery = await supabase
+    .from("meetings")
+    .select("*")
+    .order("meeting_date", { ascending: false })
+    .order("meeting_name", { ascending: true });
+
   const suggestedTips = suggestedTipsQuery.data || [];
   const watchlistItems = watchlistItemsQuery.data || [];
   const longTermBets = longTermBetsQuery.data || [];
+  const publishedRaces = publishedRacesQuery.data || [];
+  const publishedRunners = publishedRunnersQuery.data || [];
+  const horses = horsesQuery.data || [];
+  const meetings = meetingsQuery.data || [];
 
   if (profile.role === "admin") {
-    const publishedRacesQuery = await supabase
-      .from("races")
-      .select("*")
-      .eq("status", "published")
-      .order("meeting_id", { ascending: false })
-      .order("race_number", { ascending: true });
-
-    const publishedRunnersQuery = await supabase
-      .from("race_runners")
-      .select("*")
-      .order("race_id", { ascending: true })
-      .order("barrier", { ascending: true, nullsFirst: false });
-
-    const horsesQuery = await supabase
-      .from("horses")
-      .select("*")
-      .order("horse_name", { ascending: true });
-
-    const meetingsQuery = await supabase
-      .from("meetings")
-      .select("*")
-      .order("meeting_date", { ascending: false })
-      .order("meeting_name", { ascending: true });
-
     return (
       <AdminDashboard
         currentUser={profile}
         initialSuggestedTips={suggestedTips}
         initialWatchlistItems={watchlistItems}
         initialLongTermBets={longTermBets}
-        initialPublishedRaces={publishedRacesQuery.data || []}
-        initialPublishedRunners={publishedRunnersQuery.data || []}
-        initialHorses={horsesQuery.data || []}
-        initialMeetings={meetingsQuery.data || []}
+        initialPublishedRaces={publishedRaces}
+        initialPublishedRunners={publishedRunners}
+        initialHorses={horses}
+        initialMeetings={meetings}
       />
     );
   }
@@ -88,6 +92,10 @@ export default async function Page() {
       initialWatchlistItems={watchlistItems}
       initialLongTermBets={longTermBets}
       initialActiveTipIds={activeTipIds}
+      initialPublishedRaces={publishedRaces}
+      initialPublishedRunners={publishedRunners}
+      initialHorses={horses}
+      initialMeetings={meetings}
     />
   );
 }
