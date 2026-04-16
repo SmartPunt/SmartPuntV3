@@ -19,6 +19,8 @@ type Horse = {
   id: number;
   horse_name: string;
   normalised_name: string;
+  sex: string | null;
+  age: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -54,7 +56,13 @@ type Runner = {
   trainer_name: string | null;
   barrier: number | null;
   market_price: number | null;
-  form_last_3: string | null;
+  weight_kg: number | null;
+  is_apprentice: boolean | null;
+  apprentice_claim_kg: number | null;
+  form_last_6: string | null;
+  track_form_last_6: string | null;
+  distance_form_last_6: string | null;
+  form_last_3?: string | null;
   finishing_position?: number | null;
   starting_price?: number | null;
   won?: boolean | null;
@@ -135,6 +143,13 @@ function getRaceStatusTone(status: Race["status"]) {
   return "amber";
 }
 
+function formatHorseMeta(horse: Horse) {
+  const parts: string[] = [];
+  if (horse.sex) parts.push(horse.sex);
+  if (horse.age !== null && horse.age !== undefined) parts.push(`${horse.age}yo`);
+  return parts.join(" · ");
+}
+
 export default function RaceBuilderPage({
   currentUser,
   initialMeetings,
@@ -171,7 +186,12 @@ export default function RaceBuilderPage({
   const [trainerName, setTrainerName] = useState("");
   const [barrier, setBarrier] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
-  const [formLast3, setFormLast3] = useState("");
+  const [weightKg, setWeightKg] = useState("");
+  const [isApprentice, setIsApprentice] = useState(false);
+  const [apprenticeClaim, setApprenticeClaim] = useState("");
+  const [formLast6, setFormLast6] = useState("");
+  const [trackFormLast6, setTrackFormLast6] = useState("");
+  const [distanceFormLast6, setDistanceFormLast6] = useState("");
 
   const [raceResultState, setRaceResultState] = useState<
     Record<number, Record<number, { finishingPosition: string; startingPrice: string }>>
@@ -223,7 +243,12 @@ export default function RaceBuilderPage({
     setTrainerName("");
     setBarrier("");
     setMarketPrice("");
-    setFormLast3("");
+    setWeightKg("");
+    setIsApprentice(false);
+    setApprenticeClaim("");
+    setFormLast6("");
+    setTrackFormLast6("");
+    setDistanceFormLast6("");
   }
 
   function setSuccess(message: string) {
@@ -345,7 +370,12 @@ export default function RaceBuilderPage({
       formData.set("trainer_name", trainerName);
       formData.set("barrier", barrier);
       formData.set("market_price", marketPrice);
-      formData.set("form_last_3", formLast3);
+      formData.set("weight_kg", weightKg);
+      formData.set("is_apprentice", String(isApprentice));
+      formData.set("apprentice_claim_kg", apprenticeClaim);
+      formData.set("form_last_6", formLast6);
+      formData.set("track_form_last_6", trackFormLast6);
+      formData.set("distance_form_last_6", distanceFormLast6);
 
       const result = await createRaceRunnerAction(formData);
 
@@ -466,8 +496,12 @@ export default function RaceBuilderPage({
     return initialRunners.filter((runner) => runner.race_id === raceId);
   }
 
+  function findHorse(horseId: number) {
+    return initialHorses.find((horse) => horse.id === horseId) || null;
+  }
+
   function findHorseName(horseId: number) {
-    return initialHorses.find((horse) => horse.id === horseId)?.horse_name || "Unknown horse";
+    return findHorse(horseId)?.horse_name || "Unknown horse";
   }
 
   return (
@@ -882,6 +916,7 @@ export default function RaceBuilderPage({
                           }`}
                         >
                           {horse.horse_name}
+                          {formatHorseMeta(horse) ? ` · ${formatHorseMeta(horse)}` : ""}
                         </button>
                       ))
                     ) : (
@@ -928,11 +963,72 @@ export default function RaceBuilderPage({
                   />
                 </Field>
 
-                <Field label="Last 3 starts">
+                <Field label="Weight (kg)">
                   <TextInput
-                    value={formLast3}
-                    onChange={setFormLast3}
-                    placeholder="1-2-1"
+                    value={weightKg}
+                    onChange={setWeightKg}
+                    placeholder="56.5"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Apprentice jockey">
+                  <Select
+                    value={isApprentice ? "yes" : "no"}
+                    onChange={(value) => {
+                      const apprentice = value === "yes";
+                      setIsApprentice(apprentice);
+                      if (!apprentice) {
+                        setApprenticeClaim("");
+                      }
+                    }}
+                  >
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                  </Select>
+                </Field>
+
+                <Field label="Claim (kg)">
+                  <Select
+                    value={apprenticeClaim}
+                    onChange={setApprenticeClaim}
+                  >
+                    <option value="">No claim</option>
+                    <option value="0.5">0.5kg</option>
+                    <option value="1">1.0kg</option>
+                    <option value="1.5">1.5kg</option>
+                    <option value="2">2.0kg</option>
+                    <option value="2.5">2.5kg</option>
+                    <option value="3">3.0kg</option>
+                    <option value="3.5">3.5kg</option>
+                    <option value="4">4.0kg</option>
+                  </Select>
+                </Field>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Last 6 starts" hint="Overall recent form">
+                  <TextInput
+                    value={formLast6}
+                    onChange={setFormLast6}
+                    placeholder="1-2-1-3-2-1"
+                  />
+                </Field>
+
+                <Field label="Track form (last 6)" hint="At this track">
+                  <TextInput
+                    value={trackFormLast6}
+                    onChange={setTrackFormLast6}
+                    placeholder="1-1-2-3-1-2"
+                  />
+                </Field>
+
+                <Field label="Distance form (last 6)" hint="At this trip">
+                  <TextInput
+                    value={distanceFormLast6}
+                    onChange={setDistanceFormLast6}
+                    placeholder="2-3-1-1-2-4"
                   />
                 </Field>
               </div>
@@ -1006,93 +1102,143 @@ export default function RaceBuilderPage({
 
                         <div className="mt-4 space-y-3">
                           {raceRunners.length > 0 ? (
-                            raceRunners.map((runner) => (
-                              <div
-                                key={runner.id}
-                                className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
-                              >
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                  <div>
-                                    <p className="font-semibold text-zinc-950">
-                                      {findHorseName(runner.horse_id)}
-                                    </p>
-                                    <p className="text-sm text-zinc-500">
-                                      Jockey: {runner.jockey_name || "—"} · Trainer:{" "}
-                                      {runner.trainer_name || "—"}
-                                    </p>
+                            raceRunners.map((runner) => {
+                              const horse = findHorse(runner.horse_id);
+
+                              return (
+                                <div
+                                  key={runner.id}
+                                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                                >
+                                  <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                      <p className="font-semibold text-zinc-950">
+                                        {findHorseName(runner.horse_id)}
+                                      </p>
+                                      <p className="text-sm text-zinc-500">
+                                        {formatHorseMeta(horse as Horse) || "Horse profile not loaded yet"}
+                                      </p>
+                                      <p className="mt-1 text-sm text-zinc-500">
+                                        Jockey: {runner.jockey_name || "—"}
+                                        {runner.is_apprentice
+                                          ? ` (Apprentice${runner.apprentice_claim_kg !== null && runner.apprentice_claim_kg !== undefined ? `, -${runner.apprentice_claim_kg}kg` : ""})`
+                                          : ""}
+                                        {" · "}Trainer: {runner.trainer_name || "—"}
+                                      </p>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      {runner.barrier ? (
+                                        <Badge tone="blue">Barrier {runner.barrier}</Badge>
+                                      ) : null}
+                                      {runner.weight_kg !== null && runner.weight_kg !== undefined ? (
+                                        <Badge tone="amber">{runner.weight_kg}kg</Badge>
+                                      ) : null}
+                                      {runner.market_price !== null ? (
+                                        <Badge tone="green">${runner.market_price}</Badge>
+                                      ) : null}
+                                      {runner.form_last_6 ? (
+                                        <Badge tone="slate">{runner.form_last_6}</Badge>
+                                      ) : null}
+                                      {runner.finishing_position !== null &&
+                                      runner.finishing_position !== undefined ? (
+                                        <Badge
+                                          tone={
+                                            runner.finishing_position === 1
+                                              ? "green"
+                                              : runner.finishing_position <= 3
+                                                ? "blue"
+                                                : "rose"
+                                          }
+                                        >
+                                          Fin: {runner.finishing_position}
+                                        </Badge>
+                                      ) : null}
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteRunner(runner.id)}
+                                        disabled={isPending}
+                                        className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
                                   </div>
 
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    {runner.barrier ? (
-                                      <Badge tone="blue">Barrier {runner.barrier}</Badge>
-                                    ) : null}
-                                    {runner.market_price !== null ? (
-                                      <Badge tone="green">${runner.market_price}</Badge>
-                                    ) : null}
-                                    {runner.form_last_3 ? (
-                                      <Badge tone="slate">{runner.form_last_3}</Badge>
-                                    ) : null}
-                                    {runner.finishing_position !== null &&
-                                    runner.finishing_position !== undefined ? (
-                                      <Badge tone={runner.finishing_position === 1 ? "green" : runner.finishing_position <= 3 ? "blue" : "rose"}>
-                                        Fin: {runner.finishing_position}
-                                      </Badge>
-                                    ) : null}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteRunner(runner.id)}
-                                      disabled={isPending}
-                                      className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
-                                    >
-                                      Delete
-                                    </button>
+                                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                        Last 6
+                                      </p>
+                                      <p className="mt-2 text-sm font-semibold text-zinc-900">
+                                        {runner.form_last_6 || "—"}
+                                      </p>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                        Track form
+                                      </p>
+                                      <p className="mt-2 text-sm font-semibold text-zinc-900">
+                                        {runner.track_form_last_6 || "—"}
+                                      </p>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                        Distance form
+                                      </p>
+                                      <p className="mt-2 text-sm font-semibold text-zinc-900">
+                                        {runner.distance_form_last_6 || "—"}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                    <div>
+                                      <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                        Finishing position
+                                      </label>
+                                      <input
+                                        type="number"
+                                        value={getRaceResultValue(race.id, runner.id, "finishingPosition")}
+                                        onChange={(e) =>
+                                          handleRaceResultChange(
+                                            race.id,
+                                            runner.id,
+                                            "finishingPosition",
+                                            e.target.value,
+                                          )
+                                        }
+                                        placeholder="1"
+                                        className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                        Starting price
+                                      </label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={getRaceResultValue(race.id, runner.id, "startingPrice")}
+                                        onChange={(e) =>
+                                          handleRaceResultChange(
+                                            race.id,
+                                            runner.id,
+                                            "startingPrice",
+                                            e.target.value,
+                                          )
+                                        }
+                                        placeholder="4.20"
+                                        className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                      />
+                                    </div>
                                   </div>
                                 </div>
-
-                                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                  <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                      Finishing position
-                                    </label>
-                                    <input
-                                      type="number"
-                                      value={getRaceResultValue(race.id, runner.id, "finishingPosition")}
-                                      onChange={(e) =>
-                                        handleRaceResultChange(
-                                          race.id,
-                                          runner.id,
-                                          "finishingPosition",
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder="1"
-                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                      Starting price
-                                    </label>
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      value={getRaceResultValue(race.id, runner.id, "startingPrice")}
-                                      onChange={(e) =>
-                                        handleRaceResultChange(
-                                          race.id,
-                                          runner.id,
-                                          "startingPrice",
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder="4.20"
-                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            ))
+                              );
+                            })
                           ) : (
                             <p className="text-sm text-zinc-500">
                               No runners loaded into this race yet.
