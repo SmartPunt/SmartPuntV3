@@ -8,6 +8,8 @@ type Horse = {
   id: number;
   horse_name: string;
   normalised_name: string;
+  sex: string | null;
+  age: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -20,7 +22,12 @@ type Runner = {
   trainer_name: string | null;
   barrier: number | null;
   market_price: number | null;
-  form_last_3: string | null;
+  weight_kg: number | null;
+  is_apprentice: boolean | null;
+  apprentice_claim_kg: number | null;
+  form_last_6: string | null;
+  track_form_last_6: string | null;
+  distance_form_last_6: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -63,6 +70,13 @@ function formatDate(value?: string | null) {
   }).format(date);
 }
 
+function formatHorseMeta(horse: Horse) {
+  const parts: string[] = [];
+  if (horse.sex) parts.push(horse.sex);
+  if (horse.age !== null && horse.age !== undefined) parts.push(`${horse.age}yo`);
+  return parts.join(" · ");
+}
+
 export default function AdminHorsesPage({
   currentUser,
   initialHorses,
@@ -96,6 +110,10 @@ export default function AdminHorsesPage({
         latestRunnerDate: latestRunner?.created_at || horse.created_at,
         latestJockey: latestRunner?.jockey_name || null,
         latestTrainer: latestRunner?.trainer_name || null,
+        latestWeight:
+          latestRunner?.weight_kg !== null && latestRunner?.weight_kg !== undefined
+            ? `${latestRunner.weight_kg}kg`
+            : null,
         latestRaceLabel: latestRace
           ? `R${latestRace.race_number} ${latestRace.race_name}`
           : null,
@@ -268,6 +286,9 @@ export default function AdminHorsesPage({
                           {horse.horse_name}
                         </h3>
                         <p className="mt-1 text-sm text-zinc-500">
+                          {formatHorseMeta(horse) || "Profile still building"}
+                        </p>
+                        <p className="mt-1 text-sm text-zinc-500">
                           Added {formatDate(horse.created_at)}
                         </p>
                       </div>
@@ -281,7 +302,7 @@ export default function AdminHorsesPage({
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <div className="mt-4 grid gap-3 md:grid-cols-4">
                       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                           Latest meeting
@@ -306,6 +327,15 @@ export default function AdminHorsesPage({
                         </p>
                         <p className="mt-2 text-sm font-semibold text-zinc-900">
                           {horse.latestTrainer || "—"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                          Latest weight
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-zinc-900">
+                          {horse.latestWeight || "—"}
                         </p>
                       </div>
                     </div>
