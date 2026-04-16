@@ -1073,6 +1073,8 @@ export async function createMeetingAction(formData: FormData): Promise<ActionRes
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1100,6 +1102,8 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1145,6 +1149,8 @@ export async function createRaceAction(formData: FormData): Promise<ActionResult
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1217,6 +1223,8 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
     revalidatePath("/");
     revalidatePath("/published-races");
     return { success: true, error: null };
@@ -1246,6 +1254,8 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1380,6 +1390,7 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
     revalidatePath("/admin/horses");
     return { success: true, error: null };
   } catch (error) {
@@ -1408,6 +1419,7 @@ export async function deleteRaceRunnerAction(formData: FormData): Promise<Action
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1506,6 +1518,8 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
     }
 
     revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
     revalidatePath("/admin/horses");
 
     return { success: true, error: null };
