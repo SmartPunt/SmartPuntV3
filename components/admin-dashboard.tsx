@@ -120,6 +120,24 @@ function formatTimeForInput(iso?: string | null) {
   return date.toISOString().slice(11, 16);
 }
 
+function formatLongTermRaceMeta(item: any) {
+  const parts: string[] = [];
+
+  if (item.meeting) parts.push(item.meeting);
+  if (item.race_number) parts.push(`R${item.race_number}`);
+
+  const dateValue = formatDateForInput(item.race_start_at);
+  const timeValue = formatTimeForInput(item.race_start_at);
+
+  if (dateValue && timeValue) {
+    parts.push(`${dateValue} ${timeValue}`);
+  } else if (dateValue) {
+    parts.push(dateValue);
+  }
+
+  return parts.join(" · ");
+}
+
 export default function AdminDashboard({
   currentUser,
   initialSuggestedTips,
@@ -157,6 +175,12 @@ export default function AdminDashboard({
   const [resultFinishingPosition, setResultFinishingPosition] = useState("");
   const [resultSuccessful, setResultSuccessful] = useState("");
   const [resultComment, setResultComment] = useState("");
+
+  const [longMeeting, setLongMeeting] = useState("");
+  const [longRaceNumber, setLongRaceNumber] = useState("");
+  const [longRaceDate, setLongRaceDate] = useState("");
+  const [longRaceTime, setLongRaceTime] = useState("");
+  const [longRaceTimezone, setLongRaceTimezone] = useState("Australia/Perth");
 
   const [userState, createUserFormAction] = useActionState(createSubscriberUserAction, {
     error: null,
@@ -211,6 +235,26 @@ export default function AdminDashboard({
     setResultFinishingPosition("");
     setResultSuccessful("");
     setResultComment("");
+  }
+
+  function loadLongTermIntoForm(item: any) {
+    setLongEdit(item);
+    setLongMeeting(item.meeting || "");
+    setLongRaceNumber(
+      item.race_number === null || item.race_number === undefined ? "" : String(item.race_number),
+    );
+    setLongRaceDate(formatDateForInput(item.race_start_at));
+    setLongRaceTime(formatTimeForInput(item.race_start_at));
+    setLongRaceTimezone(item.race_timezone || "Australia/Perth");
+  }
+
+  function clearLongTermForm() {
+    setLongEdit(null);
+    setLongMeeting("");
+    setLongRaceNumber("");
+    setLongRaceDate("");
+    setLongRaceTime("");
+    setLongRaceTimezone("Australia/Perth");
   }
 
   async function generateCommentary() {
@@ -1140,6 +1184,66 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Meeting">
+                      <Input
+                        name="meeting"
+                        placeholder="Ascot"
+                        value={longMeeting}
+                        onChange={setLongMeeting}
+                      />
+                    </Field>
+
+                    <Field label="Race number">
+                      <Input
+                        name="race_number"
+                        type="number"
+                        placeholder="3"
+                        value={longRaceNumber}
+                        onChange={setLongRaceNumber}
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Field label="Race date">
+                      <Input
+                        name="race_date"
+                        type="date"
+                        placeholder=""
+                        value={longRaceDate}
+                        onChange={setLongRaceDate}
+                      />
+                    </Field>
+
+                    <Field label="Race time">
+                      <Input
+                        name="race_time"
+                        type="time"
+                        placeholder=""
+                        value={longRaceTime}
+                        onChange={setLongRaceTime}
+                      />
+                    </Field>
+
+                    <Field label="Track timezone">
+                      <select
+                        name="race_timezone"
+                        value={longRaceTimezone}
+                        onChange={(e) => setLongRaceTimezone(e.target.value)}
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                      >
+                        <option value="Australia/Perth">Australia/Perth</option>
+                        <option value="Australia/Adelaide">Australia/Adelaide</option>
+                        <option value="Australia/Darwin">Australia/Darwin</option>
+                        <option value="Australia/Brisbane">Australia/Brisbane</option>
+                        <option value="Australia/Sydney">Australia/Sydney</option>
+                        <option value="Australia/Melbourne">Australia/Melbourne</option>
+                        <option value="Australia/Hobart">Australia/Hobart</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Bet type">
                       <select
                         name="bet_type"
@@ -1179,13 +1283,17 @@ export default function AdminDashboard({
                       {longEdit ? "Update Early Tip" : "Publish Get On Early Tip"}
                     </button>
 
-                    {longEdit ? (
+                    {(longEdit ||
+                      longMeeting ||
+                      longRaceNumber ||
+                      longRaceDate ||
+                      longRaceTime) ? (
                       <button
                         type="button"
-                        onClick={() => setLongEdit(null)}
+                        onClick={clearLongTermForm}
                         className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                       >
-                        Cancel Edit
+                        Clear Early Tip Form
                       </button>
                     ) : null}
                   </div>
@@ -1205,8 +1313,18 @@ export default function AdminDashboard({
                           <div>
                             <p className="text-sm text-zinc-500">{item.title}</p>
                             <p className="mt-1 text-lg font-semibold text-zinc-950">{item.horse}</p>
+                            {formatLongTermRaceMeta(item) ? (
+                              <p className="mt-2 text-sm text-zinc-500">
+                                {formatLongTermRaceMeta(item)}
+                              </p>
+                            ) : null}
                           </div>
                           <Badge tone="rose">Get On Early 🔥</Badge>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.bet_type ? <Badge tone="amber">{item.bet_type}</Badge> : null}
+                          {item.odds ? <Badge tone="green">{item.odds}</Badge> : null}
                         </div>
 
                         <p className="mt-3 text-sm leading-6 text-zinc-600">
@@ -1216,7 +1334,7 @@ export default function AdminDashboard({
                         <div className="mt-4 flex gap-2">
                           <button
                             type="button"
-                            onClick={() => setLongEdit(item)}
+                            onClick={() => loadLongTermIntoForm(item)}
                             className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                           >
                             Edit
