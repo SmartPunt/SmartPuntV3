@@ -265,11 +265,8 @@ export default function AdminDashboard({
     const meeting = meetingMap.get(race.meeting_id) || null;
     const horse = horseMap.get(runner.horse_id) || null;
 
-    const raceLabel = buildRaceLabel(race, meeting);
-    const horseLabel = horse?.horse_name || "Unknown horse";
-
-    setTipRace(raceLabel);
-    setTipHorse(horseLabel);
+    setTipRace(buildRaceLabel(race, meeting));
+    setTipHorse(horse?.horse_name || "Unknown horse");
 
     if (!tipRaceDate) {
       setTipRaceDate(meeting?.meeting_date || "");
@@ -404,10 +401,10 @@ export default function AdminDashboard({
             <Panel className="bg-white/95">
               <div className="p-4 text-zinc-950">
                 <Link
-                  href="/resulted-tips"
+                  href="/current-races"
                   className="block rounded-2xl bg-black px-4 py-3 text-center text-sm font-semibold text-amber-300 hover:bg-zinc-900"
                 >
-                  View Resulted Tips
+                  Current Races
                 </Link>
               </div>
             </Panel>
@@ -574,11 +571,14 @@ export default function AdminDashboard({
                           setSelectedRunnerId("");
                           setTipRace("");
                           setTipHorse("");
+
                           const race =
                             initialPublishedRaces.find((item) => String(item.id) === nextRaceId) || null;
+
                           if (race) {
                             const meeting = meetingMap.get(race.meeting_id) || null;
                             setTipRace(buildRaceLabel(race, meeting));
+
                             if (!tipEdit) {
                               setTipRaceDate(meeting?.meeting_date || "");
                             }
@@ -624,10 +624,23 @@ export default function AdminDashboard({
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Race">
-                      <Input name="race" placeholder="Published race selection required" value={tipRace} onChange={setTipRace} readOnly />
+                      <Input
+                        name="race"
+                        placeholder="Published race selection required"
+                        value={tipRace}
+                        onChange={setTipRace}
+                        readOnly
+                      />
                     </Field>
+
                     <Field label="Horse / Selection">
-                      <Input name="horse" placeholder="Runner selection required" value={tipHorse} onChange={setTipHorse} readOnly />
+                      <Input
+                        name="horse"
+                        placeholder="Runner selection required"
+                        value={tipHorse}
+                        onChange={setTipHorse}
+                        readOnly
+                      />
                     </Field>
                   </div>
 
@@ -839,7 +852,7 @@ export default function AdminDashboard({
               </Panel>
 
               <Panel className="bg-white/95">
-                <div className="p-6 space-y-5 text-zinc-950">
+                <div className="space-y-5 p-6 text-zinc-950">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <h3 className="text-xl font-semibold">Live Preview</h3>
@@ -906,7 +919,7 @@ export default function AdminDashboard({
                           <div className="mt-3 flex flex-wrap gap-2">
                             {tip.confidence ? <Badge tone="blue">{tip.confidence}</Badge> : null}
                             {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                            {tip.race_id ? <Badge tone="green">Linked</Badge> : <Badge tone="rose">Legacy</Badge>}
+                            {tip.race_runner_id ? <Badge tone="green">Linked</Badge> : <Badge tone="rose">Legacy</Badge>}
                           </div>
 
                           <p className="mt-3 text-sm leading-6 text-zinc-700">
