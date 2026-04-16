@@ -199,6 +199,14 @@ function normaliseHorseName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+function normaliseText(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function renderPill(text: string, background: string, color: string, border = "none") {
   return `
     <span style="
@@ -691,6 +699,161 @@ async function sendPublishedRaceNotification({
   }));
 
   await sendBatchEmails(emails);
+}
+
+async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
+  const supabase = await createClient();
+
+  const { data: raceData, error: raceError } = await supabase
+    .from("races")
+    .select("*")
+    .eq("id", raceId)
+    .maybeSingle();
+
+  if (raceError || !raceData) {
+    throw new Error(raceError?.message || "Race not found for tip settlement.");
+  }
+
+  const { data: meetingData, error: meetingError } = await supabase
+    .from("meetings")
+    .select("*")
+    .eq("id", raceData.meeting_id)
+    .maybeSingle();
+
+  if (meetingError) {
+    throw new Error(meetingError.message);
+  }
+
+  const { data: runnerRows, error: runnerError } = await supabase
+    .from("race_runners")
+    .select("*")
+    .eq("race_id", raceId);
+
+  if (runnerError) {
+    throw new Error(runnerError.message);
+  }
+
+  const activeRunnerRows = (runnerRows || []).filter((runner: any) => !runner.scratched);
+
+  const horseIds = activeRunnerRows.map((runner: any) => runner.horse_id).filter(Boolean);
+
+  const horseMap = new Map<number, any>();
+  if (horseIds.length > 0) {
+    const { data: horseRows, error: horseError } = await supabase
+      .from("horses")
+      .select("id, horse_name, normalised_name")
+      .in("id", horseIds);
+
+    if (horseError) {
+      throw new Error(horseError.message);
+    }
+
+    for (const horse of horseRows || []) {
+      horseMap.set(Number(horse.id), horse);
+    }
+  }
+
+  const { data: suggestedTips, error: tipsError } = await supabase
+    .from("suggested_tips")
+    .select("*")
+    .is("settled_at", null);
+
+  if (tipsError) {
+    throw new Error(tipsError.message);
+  }
+
+  const meetingName = String(meetingData?.meeting_name || "");
+  const raceName = String(raceData.race_name || "");
+  const raceNumber = Number(raceData.race_number || 0);
+
+  const normalisedMeetingName = normaliseText(meetingName);
+  const normalisedRaceName = normaliseText(raceName);
+
+  const raceMarkers = [
+    `r${raceNumber}`,
+    `race ${raceNumber}`,
+    `race${raceNumber}`,
+  ].map(normaliseText);
+
+  const updates: Array<{
+    id: number;
+    finishing_position: number | null;
+    successful: boolean | null;
+    settled_at: string;
+  }> = [];
+
+  for (const tip of suggestedTips || []) {
+    const tipType = String(tip.type || "").toLowerCase().trim();
+    if (!["win", "place"].includes(tipType)) {
+      continue;
+    }
+
+    const tipHorse = normaliseHorseName(String(tip.horse || ""));
+    const tipRace = normaliseText(String(tip.race || ""));
+
+    if (!tipHorse || !tipRace) continue;
+
+    const runnerMatch = activeRunnerRows.find((runner: any) => {
+      const horse = horseMap.get(Number(runner.horse_id));
+      const horseName = horse?.normalised_name
+        ? String(horse.normalised_name)
+        : normaliseHorseName(String(horse?.horse_name || ""));
+      return horseName === tipHorse;
+    });
+
+    if (!runnerMatch) continue;
+
+    const raceTextMatchesMeeting =
+      !!normalisedMeetingName && tipRace.includes(normalisedMeetingName);
+
+    const raceTextMatchesNumber = raceMarkers.some((marker) => marker && tipRace.includes(marker));
+
+    const raceTextMatchesRaceName =
+      !!normalisedRaceName && tipRace.includes(normalisedRaceName);
+
+    if (!raceTextMatchesMeeting || (!raceTextMatchesNumber && !raceTextMatchesRaceName)) {
+      continue;
+    }
+
+    const finishingPosition =
+      runnerMatch.finishing_position !== null &&
+      runnerMatch.finishing_position !== undefined &&
+      !Number.isNaN(Number(runnerMatch.finishing_position))
+        ? Number(runnerMatch.finishing_position)
+        : null;
+
+    let successful: boolean | null = null;
+
+    if (tipType === "win") {
+      successful = finishingPosition === 1;
+    } else if (tipType === "place") {
+      successful =
+        finishingPosition !== null ? finishingPosition <= 3 : false;
+    }
+
+    updates.push({
+      id: Number(tip.id),
+      finishing_position: finishingPosition,
+      successful,
+      settled_at: new Date().toISOString(),
+    });
+  }
+
+  for (const update of updates) {
+    const { error } = await supabase
+      .from("suggested_tips")
+      .update({
+        finishing_position: update.finishing_position,
+        successful: update.successful,
+        settled_at: update.settled_at,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", update.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
 }
 
 export async function createSubscriberUserAction(
@@ -1562,7 +1725,7 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
 
     const scratchedMap = new Map<number, boolean>();
     for (const runner of raceRunners || []) {
-      scratchedMap.set(Number(runner.id), Boolean((runner as any).scratched));
+      scratchedMap.set(Number((runner as any).id), Boolean((runner as any).scratched));
     }
 
     const updates: Array<{
@@ -1598,13 +1761,17 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
         continue;
       }
 
-      const finishingPosition = finishingPositionRaw ? Number(finishingPositionRaw) : null;
+      const finishingPosition = finishingPositionRaw
+        ? Number(finishingPositionRaw)
+        : null;
 
       const startingPriceRaw = String(
         formData.get(`starting_price_${runnerId}`) ?? "",
       ).trim();
 
-      const startingPrice = startingPriceRaw ? Number(startingPriceRaw) : null;
+      const startingPrice = startingPriceRaw
+        ? Number(startingPriceRaw)
+        : null;
 
       const hasFinish =
         finishingPosition !== null && !Number.isNaN(finishingPosition);
@@ -1613,7 +1780,9 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
         id: runnerId,
         finishing_position: hasFinish ? finishingPosition : null,
         starting_price:
-          startingPrice !== null && !Number.isNaN(startingPrice) ? startingPrice : null,
+          startingPrice !== null && !Number.isNaN(startingPrice)
+            ? startingPrice
+            : null,
         won: hasFinish ? finishingPosition === 1 : false,
         placed: hasFinish ? finishingPosition <= 3 : false,
         settled_at: new Date().toISOString(),
@@ -1651,10 +1820,25 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
       return { success: false, error: raceError.message };
     }
 
+    try {
+      await autoFinaliseMatchingSuggestedTipsForRace(raceId);
+    } catch (tipSettlementError) {
+      return {
+        success: false,
+        error:
+          tipSettlementError instanceof Error
+            ? `Race settled, but tip auto-finalisation failed: ${tipSettlementError.message}`
+            : "Race settled, but tip auto-finalisation failed.",
+      };
+    }
+
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
     revalidatePath("/admin/horses");
+    revalidatePath("/resulted-tips");
+    revalidatePath("/my-resulted-tips");
+    revalidatePath("/");
 
     return { success: true, error: null };
   } catch (error) {
