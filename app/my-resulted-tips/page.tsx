@@ -1,7 +1,20 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { Badge, Panel, TipPill } from "@/components/ui";
+import { Badge, Panel } from "@/components/ui";
+
+function formatDate(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
 
 export default async function Page() {
   const profile = await getCurrentProfile();
@@ -12,240 +25,159 @@ export default async function Page() {
 
   const supabase = await createClient();
 
-  const activeTipIdsQuery = await supabase
+  // Get user's active tips
+  const { data: userTips } = await supabase
     .from("user_active_tips")
     .select("tip_id")
     .eq("user_id", profile.id);
 
-  const activeTipIds = (activeTipIdsQuery.data || []).map((row: any) => row.tip_id);
+  const tipIds = (userTips || []).map((t) => t.tip_id);
 
   let tips: any[] = [];
 
-  if (activeTipIds.length > 0) {
-    const tipsQuery = await supabase
+  if (tipIds.length > 0) {
+    const { data } = await supabase
       .from("suggested_tips")
       .select("*")
-      .in("id", activeTipIds)
-      .not("settled_at", "is", null)
+      .in("id", tipIds)
+      .not("successful", "is", null)
       .order("settled_at", { ascending: false });
 
-    tips = tipsQuery.data || [];
+    tips = data || [];
   }
 
-  const racesQuery = await supabase.from("races").select("*");
-  const meetingsQuery = await supabase.from("meetings").select("*");
-  const runnersQuery = await supabase.from("race_runners").select("*");
-  const horsesQuery = await supabase.from("horses").select("*");
-
-  const races = racesQuery.data || [];
-  const meetings = meetingsQuery.data || [];
-  const runners = runnersQuery.data || [];
-  const horses = horsesQuery.data || [];
-
-  const raceMap = new Map(races.map((r) => [r.id, r]));
-  const meetingMap = new Map(meetings.map((m) => [m.id, m]));
-  const runnerMap = new Map(runners.map((r) => [r.id, r]));
-  const horseMap = new Map(horses.map((h) => [h.id, h]));
-
-  function getLinkedData(tip: any) {
-    const runner = tip.race_runner_id ? runnerMap.get(tip.race_runner_id) : null;
-    const race = tip.race_id ? raceMap.get(tip.race_id) : null;
-    const meeting = tip.meeting_id ? meetingMap.get(tip.meeting_id) : null;
-    const horse = tip.horse_id ? horseMap.get(tip.horse_id) : null;
-
-    return { runner, race, meeting, horse };
-  }
-
-  function getResultTone(pos: number | null) {
-    if (!pos) return "slate";
-    if (pos === 1) return "green";
-    if (pos <= 3) return "blue";
-    return "rose";
-  }
-
-  const settledCount = tips.length;
-  const winCount = tips.filter((tip) => tip.successful === true).length;
-  const lossCount = tips.filter((tip) => tip.successful === false).length;
-  const strikeRate = settledCount > 0 ? ((winCount / settledCount) * 100).toFixed(1) : "0.0";
+  const total = tips.length;
+  const wins = tips.filter((t) => t.successful === true).length;
+  const losses = tips.filter((t) => t.successful === false).length;
+  const strikeRate =
+    total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0";
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-6xl p-4 lg:p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">My Resulted Tips</h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Your settled active tips and personal strike rate.
-            </p>
-          </div>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
 
-          <a
+      {/* HEADER */}
+      <div className="relative overflow-hidden border-b border-white/10 bg-black">
+        <img
+          src="/header-logo.png"
+          alt="SmartPunt"
+          className="pointer-events-none absolute left-1/2 top-1/2 w-[320px] -translate-x-1/2 -translate-y-1/2 opacity-20 sm:w-[500px] lg:w-[900px]"
+        />
+
+        <div className="relative z-10 flex items-center justify-between px-4 py-4 lg:px-8">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+            My Resulted Tips
+          </h1>
+
+          <Link
             href="/"
-            className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+            className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur transition hover:bg-white/20"
           >
-            Back
-          </a>
+            Back to Dashboard
+          </Link>
         </div>
+      </div>
 
-        {/* STATS PANEL */}
-        <div className="mb-6 grid gap-4 md:grid-cols-4">
+      <div className="mx-auto max-w-7xl p-4 lg:p-8">
+
+        {/* STATS */}
+        <div className="grid gap-4 md:grid-cols-4">
           <Panel className="bg-white/95">
-            <div className="p-6 text-zinc-950">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                Settled bets
-              </p>
-              <p className="mt-2 text-3xl font-bold">{settledCount}</p>
-              <p className="mt-2 text-sm text-zinc-500">
-                Your active tips that have been settled.
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">My Tips</p>
+              <p className="mt-2 text-2xl font-semibold">{total}</p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Wins</p>
+              <p className="mt-2 text-2xl font-semibold text-emerald-700">
+                {wins}
               </p>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
-            <div className="p-6 text-zinc-950">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                Winners
-              </p>
-              <p className="mt-2 text-3xl font-bold text-emerald-700">{winCount}</p>
-              <p className="mt-2 text-sm text-zinc-500">
-                Active plays that landed.
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Losses</p>
+              <p className="mt-2 text-2xl font-semibold text-rose-700">
+                {losses}
               </p>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
-            <div className="p-6 text-zinc-950">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                Misses
-              </p>
-              <p className="mt-2 text-3xl font-bold text-rose-700">{lossCount}</p>
-              <p className="mt-2 text-sm text-zinc-500">
-                Active plays that missed.
-              </p>
-            </div>
-          </Panel>
-
-          <Panel className="bg-white/95">
-            <div className="p-6 text-zinc-950">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                Strike rate
-              </p>
-              <p className="mt-2 text-3xl font-bold text-amber-700">{strikeRate}%</p>
-              <p className="mt-2 text-sm text-zinc-500">
-                Your settled active performance.
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Strike Rate</p>
+              <p className="mt-2 text-2xl font-semibold text-amber-700">
+                {strikeRate}%
               </p>
             </div>
           </Panel>
         </div>
 
-        <Panel className="bg-white/95">
-          <div className="p-6 space-y-6 text-zinc-950">
-            {tips.length === 0 && (
-              <p className="text-sm text-zinc-500">
-                No resulted active tips yet.
-              </p>
-            )}
+        {/* LIST */}
+        <div className="mt-6 space-y-4">
+          {tips.length > 0 ? (
+            tips.map((tip) => (
+              <Panel
+                key={tip.id}
+                className="bg-white/95 transition hover:shadow-md"
+              >
+                <div className="p-5 text-zinc-950">
 
-            {tips.map((tip) => {
-              const { runner, race, meeting, horse } = getLinkedData(tip);
-
-              const linkedLabel =
-                race && meeting
-                  ? `${meeting.meeting_name} R${race.race_number} ${race.race_name}`
-                  : null;
-
-              return (
-                <div
-                  key={tip.id}
-                  className="rounded-2xl border p-5 bg-white shadow-sm"
-                >
-                  <div className="flex justify-between gap-4">
+                  {/* HEADER */}
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-sm text-zinc-500">{tip.race}</p>
-                      <h3 className="text-xl font-bold">{tip.horse}</h3>
-
-                      {linkedLabel && (
-                        <p className="text-sm text-zinc-600 mt-1">
-                          {linkedLabel}
-                        </p>
-                      )}
-
-                      {(horse?.sex || horse?.age) && (
-                        <p className="text-sm text-zinc-500 mt-1">
-                          {[horse?.sex, horse?.age ? `${horse.age}yo` : null]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </p>
-                      )}
+                      <h2 className="text-lg font-semibold">{tip.horse}</h2>
                     </div>
 
-                    <TipPill type={tip.type} />
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {tip.finishing_position && (
-                      <Badge tone={getResultTone(tip.finishing_position)}>
-                        Fin {tip.finishing_position}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge tone={tip.successful ? "green" : "rose"}>
+                        {tip.successful ? "Win" : "Loss"}
                       </Badge>
-                    )}
 
-                    {tip.successful === true && <Badge tone="green">Win</Badge>}
-                    {tip.successful === false && <Badge tone="rose">Miss</Badge>}
-                    {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                    {tip.confidence ? <Badge tone="blue">{tip.confidence}</Badge> : null}
-                    {tip.race_runner_id ? <Badge tone="slate">Linked runner</Badge> : null}
+                      <Badge tone="blue">{tip.type}</Badge>
+
+                      <Badge tone="amber">{tip.confidence}</Badge>
+
+                      {tip.finishing_position ? (
+                        <Badge tone="slate">
+                          Fin: {tip.finishing_position}
+                        </Badge>
+                      ) : null}
+                    </div>
                   </div>
 
+                  {/* ORIGINAL COMMENTARY */}
                   {tip.commentary && (
-                    <p className="mt-4 text-sm leading-7 text-zinc-700">
+                    <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
                       {tip.commentary}
-                    </p>
-                  )}
-
-                  {tip.result_comment && (
-                    <div className="mt-4 p-3 rounded-xl bg-zinc-100">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                        Post-race analysis
-                      </p>
-                      <p className="mt-2 text-sm leading-7">{tip.result_comment}</p>
                     </div>
                   )}
 
-                  {runner && (
-                    <>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {runner.barrier && (
-                          <Badge tone="blue">Barrier {runner.barrier}</Badge>
-                        )}
-
-                        {runner.starting_price && (
-                          <Badge tone="green">SP ${runner.starting_price}</Badge>
-                        )}
-
-                        {!runner.starting_price && runner.market_price && (
-                          <Badge tone="green">${runner.market_price}</Badge>
-                        )}
-
-                        {runner.weight_kg && (
-                          <Badge tone="amber">{runner.weight_kg}kg</Badge>
-                        )}
-
-                        {runner.form_last_6 && (
-                          <Badge tone="slate">{runner.form_last_6}</Badge>
-                        )}
-                      </div>
-
-                      <div className="mt-4 text-sm text-zinc-600">
-                        {runner.jockey_name && <p>Jockey: {runner.jockey_name}</p>}
-                        {runner.trainer_name && <p>Trainer: {runner.trainer_name}</p>}
-                      </div>
-                    </>
+                  {/* RESULT COMMENT */}
+                  {tip.result_comment && (
+                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                      {tip.result_comment}
+                    </div>
                   )}
+
+                  {/* FOOTER */}
+                  <div className="mt-4 flex items-center justify-between text-xs text-zinc-500">
+                    <span>{formatDate(tip.settled_at)}</span>
+                    <span>{tip.note}</span>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        </Panel>
+              </Panel>
+            ))
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-sm text-zinc-300">
+              No resulted tips yet.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
