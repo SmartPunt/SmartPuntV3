@@ -11,7 +11,6 @@ export default function AppEntryLoader({
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
-    // start fade slightly before removing
     const fadeTimer = setTimeout(() => {
       setFadeOut(true);
     }, 1400);
@@ -21,12 +20,14 @@ export default function AppEntryLoader({
     }, 1800);
 
     return () => {
-      clearTimeout(timer);
       clearTimeout(fadeTimer);
+      clearTimeout(timer);
     };
   }, []);
 
-  if (!showIntro) return <>{children}</>;
+  if (!showIntro) {
+    return <>{children}</>;
+  }
 
   return (
     <div
@@ -34,9 +35,11 @@ export default function AppEntryLoader({
         fadeOut ? "opacity-0" : "opacity-100"
       }`}
     >
-      <img
-        src="/logo-animated.gif"
-        alt="SmartPunt"
+      <video
+        src="/logo-animated.mp4"
+        autoPlay
+        muted
+        playsInline
         className="w-[260px] sm:w-[320px] lg:w-[420px]"
       />
     </div>
