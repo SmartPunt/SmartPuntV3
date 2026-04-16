@@ -9,8 +9,24 @@ export default function LoginPage() {
   });
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.10),transparent_20%),linear-gradient(180deg,#111315_0%,#18181b_50%,#0f172a_100%)] text-white">
-      <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-3 lg:px-8">
+    <main className="relative min-h-screen overflow-hidden bg-black text-white">
+      
+      {/* VIDEO BACKGROUND */}
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+      >
+        <source src="/logo-animated.mp4" type="video/mp4" />
+      </video>
+
+      {/* OVERLAY */}
+      <div className="absolute inset-0 bg-black/55" />
+
+      {/* CONTENT */}
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-3 lg:px-8">
         <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,rgba(17,17,17,0.96),rgba(39,39,42,0.96),rgba(202,138,4,0.20))] shadow-2xl backdrop-blur">
 
           {/* CROPPED LOGO (ZOOM EFFECT) */}
@@ -27,6 +43,7 @@ export default function LoginPage() {
           {/* FORM */}
           <div className="px-7 pb-4 pt-1">
             <form action={formAction} className="space-y-3">
+              
               <div>
                 <label className="text-sm font-medium text-amber-100/85">Email</label>
                 <input
