@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import AdminDashboard from "@/components/admin-dashboard";
 import SubscriberDashboard from "@/components/subscriber-dashboard";
+import AppEntryLoader from "@/components/app-entry-loader";
 
-export default async function Page() {
+export default async function HomePage() {
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -65,16 +66,18 @@ export default async function Page() {
 
   if (profile.role === "admin") {
     return (
-      <AdminDashboard
-        currentUser={profile}
-        initialSuggestedTips={suggestedTips}
-        initialWatchlistItems={watchlistItems}
-        initialLongTermBets={longTermBets}
-        initialPublishedRaces={publishedRaces}
-        initialPublishedRunners={publishedRunners}
-        initialHorses={horses}
-        initialMeetings={meetings}
-      />
+      <AppEntryLoader>
+        <AdminDashboard
+          currentUser={profile}
+          initialSuggestedTips={suggestedTips}
+          initialWatchlistItems={watchlistItems}
+          initialLongTermBets={longTermBets}
+          initialPublishedRaces={publishedRaces}
+          initialPublishedRunners={publishedRunners}
+          initialHorses={horses}
+          initialMeetings={meetings}
+        />
+      </AppEntryLoader>
     );
   }
 
@@ -86,16 +89,18 @@ export default async function Page() {
   const activeTipIds = (activeSelectionsQuery.data || []).map((row: any) => row.tip_id);
 
   return (
-    <SubscriberDashboard
-      currentUser={profile}
-      initialSuggestedTips={suggestedTips}
-      initialWatchlistItems={watchlistItems}
-      initialLongTermBets={longTermBets}
-      initialActiveTipIds={activeTipIds}
-      initialPublishedRaces={publishedRaces}
-      initialPublishedRunners={publishedRunners}
-      initialHorses={horses}
-      initialMeetings={meetings}
-    />
+    <AppEntryLoader>
+      <SubscriberDashboard
+        currentUser={profile}
+        initialSuggestedTips={suggestedTips}
+        initialWatchlistItems={watchlistItems}
+        initialLongTermBets={longTermBets}
+        initialActiveTipIds={activeTipIds}
+        initialPublishedRaces={publishedRaces}
+        initialPublishedRunners={publishedRunners}
+        initialHorses={horses}
+        initialMeetings={meetings}
+      />
+    </AppEntryLoader>
   );
 }
