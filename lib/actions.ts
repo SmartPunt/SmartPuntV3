@@ -561,12 +561,20 @@ async function sendGetOnEarlyNotifications({
   betType,
   odds,
   commentary,
+  meeting,
+  raceNumber,
+  raceStartAt,
+  raceTimezone,
 }: {
   title: string;
   horse: string;
   betType: string;
   odds: string;
   commentary: string;
+  meeting?: string | null;
+  raceNumber?: number | null;
+  raceStartAt?: string | null;
+  raceTimezone?: string | null;
 }) {
   const fromEmail = process.env.RESEND_FROM_EMAIL;
   const appUrl = process.env.SMARTPUNT_APP_URL || "";
@@ -583,6 +591,13 @@ async function sendGetOnEarlyNotifications({
   const safeOdds = escapeHtml(odds || "TBC");
   const safeCommentary = String(commentary || "").trim();
 
+  const raceMetaParts: string[] = [];
+  if (meeting) raceMetaParts.push(escapeHtml(meeting));
+  if (raceNumber) raceMetaParts.push(`R${raceNumber}`);
+  const formattedRaceTime = formatRaceTimeDisplay(raceStartAt, raceTimezone);
+  if (formattedRaceTime) raceMetaParts.push(escapeHtml(formattedRaceTime));
+  const raceMeta = raceMetaParts.join(" · ");
+
   const subject = `🔥 GET ON EARLY — ${horse}${odds ? ` (${odds})` : ""}`;
 
   const playPills = [
@@ -597,7 +612,7 @@ async function sendGetOnEarlyNotifications({
       introPill: "VIP Early Alert",
       eyebrow: "GET ON EARLY 🔥",
       heading: safeHorse,
-      subheading: safeTitle,
+      subheading: raceMeta ? `${safeTitle} · ${raceMeta}` : safeTitle,
       primaryCardTitle: "Why act now",
       primaryCardBody: "SmartPunt wants this taken before the market catches up.",
       primaryPillsHtml: playPills,
@@ -956,9 +971,22 @@ export async function upsertLongTermBet(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   const isNew = !id;
 
+  const raceDate = String(formData.get("race_date") ?? "");
+  const raceTime = String(formData.get("race_time") ?? "");
+  const raceTimezone = String(formData.get("race_timezone") ?? "Australia/Perth");
+  const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
+
+  const raceNumberRaw = String(formData.get("race_number") ?? "").trim();
+  const raceNumber = raceNumberRaw ? Number(raceNumberRaw) : null;
+
   const payload = {
     title: String(formData.get("title") ?? ""),
     horse: String(formData.get("horse") ?? ""),
+    meeting: String(formData.get("meeting") ?? "").trim() || null,
+    race_number:
+      raceNumber !== null && !Number.isNaN(raceNumber) ? raceNumber : null,
+    race_start_at: raceStartAt,
+    race_timezone: raceTimezone || null,
     bet_type: String(formData.get("bet_type") ?? "Win"),
     odds: String(formData.get("odds") ?? ""),
     commentary: String(formData.get("commentary") ?? ""),
@@ -992,6 +1020,10 @@ export async function upsertLongTermBet(formData: FormData): Promise<void> {
           betType: data.bet_type || payload.bet_type,
           odds: data.odds || payload.odds,
           commentary: data.commentary || payload.commentary,
+          meeting: data.meeting || payload.meeting,
+          raceNumber: data.race_number ?? payload.race_number,
+          raceStartAt: data.race_start_at || payload.race_start_at,
+          raceTimezone: data.race_timezone || payload.race_timezone,
         });
       } catch (notificationError) {
         console.error(notificationError);
