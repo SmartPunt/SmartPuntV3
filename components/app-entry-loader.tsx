@@ -27,11 +27,14 @@ export default function AppEntryLoader({
 
       const aspectRatio = width / height;
 
-      // Use cinematic full-screen only when the window is tall enough.
-      // Wider / shorter windows stay on contain so the logo does not crop.
-      const shouldUseCover = aspectRatio <= 1.8 && height >= 800;
+      // Only go full cinematic when the desktop window is both:
+      // 1. wide enough
+      // 2. not a snapped half-screen style window
+      const isWideDesktop = width >= 1400;
+      const isTallEnough = height >= 800;
+      const isNotSnappedStyle = aspectRatio >= 1.45;
 
-      setUseDesktopCover(shouldUseCover);
+      setUseDesktopCover(isWideDesktop && isTallEnough && isNotSnappedStyle);
     }
 
     updateViewportMode();
@@ -73,7 +76,7 @@ export default function AppEntryLoader({
 
   const mediaClassName = useDesktopCover
     ? "absolute inset-0 h-full w-full object-cover"
-    : "w-[115vw] h-auto object-contain sm:w-[90vw]";
+    : "w-[115vw] h-auto object-contain sm:w-[90vw] lg:w-[80vw]";
 
   return (
     <>
