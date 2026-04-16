@@ -61,8 +61,9 @@ export default function AppEntryLoader({
             preload="auto"
             onError={() => setVideoFailed(true)}
             className="
-              w-[95vw]           /* 🔥 bigger on phone */
-              max-w-none         /* remove cap on small screens */
+              w-[115vw]          /* 🔥 bigger than screen on phone */
+              sm:w-[95vw]        /* normal from small screens up */
+              max-w-none
               sm:max-w-[600px]
               md:max-w-[750px]
               lg:max-w-[900px]
@@ -75,7 +76,8 @@ export default function AppEntryLoader({
             src="/header-logo.png"
             alt="SmartPunt"
             className="
-              w-[95vw]
+              w-[115vw]
+              sm:w-[95vw]
               max-w-none
               sm:max-w-[600px]
               md:max-w-[750px]
