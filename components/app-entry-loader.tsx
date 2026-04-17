@@ -9,10 +9,11 @@ export default function AppEntryLoader({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const [showIntro, setShowIntro] = useState(true);
+  const [showIntro, setShowIntro] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [useDesktopCover, setUseDesktopCover] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     function updateViewportMode() {
@@ -26,10 +27,6 @@ export default function AppEntryLoader({
       }
 
       const aspectRatio = width / height;
-
-      // Only go full cinematic when the desktop window is both:
-      // 1. wide enough
-      // 2. not a snapped half-screen style window
       const isWideDesktop = width >= 1400;
       const isTallEnough = height >= 800;
       const isNotSnappedStyle = aspectRatio >= 1.45;
@@ -46,6 +43,27 @@ export default function AppEntryLoader({
   }, []);
 
   useEffect(() => {
+    const referrer = document.referrer || "";
+
+    let shouldPlayIntro = false;
+
+    try {
+      const referrerUrl = referrer ? new URL(referrer) : null;
+      shouldPlayIntro =
+        !!referrerUrl &&
+        referrerUrl.origin === window.location.origin &&
+        referrerUrl.pathname === "/login";
+    } catch {
+      shouldPlayIntro = false;
+    }
+
+    setShowIntro(shouldPlayIntro);
+    setIsReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!showIntro) return;
+
     const video = videoRef.current;
     if (!video) return;
 
@@ -59,24 +77,26 @@ export default function AppEntryLoader({
     return () => {
       video.removeEventListener("ended", handleEnded);
     };
-  }, []);
+  }, [showIntro]);
 
   useEffect(() => {
+    if (!showIntro) return;
+
     const fallback = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => setShowIntro(false), 400);
     }, 7000);
 
     return () => clearTimeout(fallback);
-  }, []);
-
-  if (!showIntro) {
-    return <>{children}</>;
-  }
+  }, [showIntro]);
 
   const mediaClassName = useDesktopCover
     ? "absolute inset-0 h-full w-full object-cover"
     : "w-[115vw] h-auto object-contain sm:w-[90vw] lg:w-[80vw]";
+
+  if (!isReady || !showIntro) {
+    return <>{children}</>;
+  }
 
   return (
     <>
