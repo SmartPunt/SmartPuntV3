@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+const INTRO_PLAYED_KEY = "smartpunt-intro-played";
+
 export default function AppEntryLoader({
   children,
 }: {
@@ -44,17 +46,24 @@ export default function AppEntryLoader({
 
   useEffect(() => {
     const referrer = document.referrer || "";
+    const hasPlayed = sessionStorage.getItem(INTRO_PLAYED_KEY) === "true";
 
     let shouldPlayIntro = false;
 
     try {
-      const referrerUrl = referrer ? new URL(referrer) : null;
-      shouldPlayIntro =
-        !!referrerUrl &&
-        referrerUrl.origin === window.location.origin &&
-        referrerUrl.pathname === "/login";
+      if (referrer) {
+        const referrerUrl = new URL(referrer);
+        const sameOrigin = referrerUrl.origin === window.location.origin;
+        const cameFromLogin = referrerUrl.pathname.includes("/login");
+
+        shouldPlayIntro = sameOrigin && cameFromLogin && !hasPlayed;
+      }
     } catch {
       shouldPlayIntro = false;
+    }
+
+    if (shouldPlayIntro) {
+      sessionStorage.setItem(INTRO_PLAYED_KEY, "true");
     }
 
     setShowIntro(shouldPlayIntro);
