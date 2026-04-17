@@ -179,6 +179,10 @@ export default function RaceBuilderPage({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings);
+  const [races, setRaces] = useState<Race[]>(initialRaces);
+  const [runners, setRunners] = useState<Runner[]>(initialRunners);
+
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
 
@@ -206,19 +210,31 @@ export default function RaceBuilderPage({
   const [trackFormLast6, setTrackFormLast6] = useState("");
   const [distanceFormLast6, setDistanceFormLast6] = useState("");
 
+  useEffect(() => {
+    setMeetings(initialMeetings);
+  }, [initialMeetings]);
+
+  useEffect(() => {
+    setRaces(initialRaces);
+  }, [initialRaces]);
+
+  useEffect(() => {
+    setRunners(initialRunners);
+  }, [initialRunners]);
+
   const draftRaces = useMemo(
-    () => initialRaces.filter((race) => race.status === "draft"),
-    [initialRaces],
+    () => races.filter((race) => race.status === "draft"),
+    [races],
   );
 
   const publishedRaces = useMemo(
-    () => initialRaces.filter((race) => race.status === "published"),
-    [initialRaces],
+    () => races.filter((race) => race.status === "published"),
+    [races],
   );
 
   const closedRaces = useMemo(
-    () => initialRaces.filter((race) => race.status === "closed"),
-    [initialRaces],
+    () => races.filter((race) => race.status === "closed"),
+    [races],
   );
 
   const closedRaceIds = useMemo(() => new Set(closedRaces.map((race) => race.id)), [closedRaces]);
@@ -264,14 +280,14 @@ export default function RaceBuilderPage({
     (race) => String(race.id) === selectedRaceIdForRunner,
   );
 
-  const selectedMeetingForRunner = initialMeetings.find(
+  const selectedMeetingForRunner = meetings.find(
     (meeting) => String(meeting.id) === selectedMeetingIdForRunner,
   );
 
   const horseHistoricalRunners = useMemo(() => {
     if (!activeHorseId) return [];
 
-    return initialRunners
+    return runners
       .filter(
         (runner) =>
           runner.horse_id === activeHorseId &&
@@ -281,9 +297,9 @@ export default function RaceBuilderPage({
           runner.finishing_position !== undefined,
       )
       .map((runner) => {
-        const race = initialRaces.find((item) => item.id === runner.race_id) || null;
+        const race = races.find((item) => item.id === runner.race_id) || null;
         const meeting = race
-          ? initialMeetings.find((item) => item.id === race.meeting_id) || null
+          ? meetings.find((item) => item.id === race.meeting_id) || null
           : null;
 
         return {
@@ -303,7 +319,7 @@ export default function RaceBuilderPage({
         const bTime = b.sortDate ? new Date(b.sortDate).getTime() : 0;
         return bTime - aTime;
       });
-  }, [activeHorseId, closedRaceIds, initialMeetings, initialRaces, initialRunners]);
+  }, [activeHorseId, closedRaceIds, meetings, races, runners]);
 
   const suggestedOverallForm = useMemo(() => {
     return formatFormString(
@@ -338,7 +354,7 @@ export default function RaceBuilderPage({
   }, [horseHistoricalRunners, selectedRace]);
 
   const selectedRaceRunnerCount = selectedRace
-    ? initialRunners.filter((runner) => runner.race_id === selectedRace.id).length
+    ? runners.filter((runner) => runner.race_id === selectedRace.id).length
     : 0;
 
   useEffect(() => {
@@ -443,6 +459,23 @@ export default function RaceBuilderPage({
         return;
       }
 
+      setMeetings((prev) => prev.filter((meeting) => meeting.id !== meetingId));
+
+      const raceIdsToRemove = races
+        .filter((race) => race.meeting_id === meetingId)
+        .map((race) => race.id);
+
+      setRaces((prev) => prev.filter((race) => race.meeting_id !== meetingId));
+      setRunners((prev) => prev.filter((runner) => !raceIdsToRemove.includes(runner.race_id)));
+
+      if (selectedMeetingIdForRace === String(meetingId)) {
+        setSelectedMeetingIdForRace("");
+      }
+      if (selectedMeetingIdForRunner === String(meetingId)) {
+        setSelectedMeetingIdForRunner("");
+        setSelectedRaceIdForRunner("");
+      }
+
       setSuccess("Meeting deleted.");
       router.refresh();
     });
@@ -483,6 +516,22 @@ export default function RaceBuilderPage({
         return;
       }
 
+      setRaces((prev) =>
+        prev.map((race) =>
+          race.id === raceId
+            ? {
+                ...race,
+                status: nextStatus,
+                published_at: nextStatus === "published" ? new Date().toISOString() : null,
+              }
+            : race,
+        ),
+      );
+
+      if (selectedRaceIdForRunner === String(raceId) && nextStatus !== "draft") {
+        setSelectedRaceIdForRunner("");
+      }
+
       setSuccess(
         nextStatus === "published"
           ? "Race sent to Current Races."
@@ -502,6 +551,13 @@ export default function RaceBuilderPage({
       if (!result.success) {
         setError(result.error || "Failed to delete race.");
         return;
+      }
+
+      setRaces((prev) => prev.filter((race) => race.id !== raceId));
+      setRunners((prev) => prev.filter((runner) => runner.race_id !== raceId));
+
+      if (selectedRaceIdForRunner === String(raceId)) {
+        setSelectedRaceIdForRunner("");
       }
 
       setSuccess("Race deleted.");
@@ -559,13 +615,14 @@ export default function RaceBuilderPage({
         return;
       }
 
+      setRunners((prev) => prev.filter((runner) => runner.id !== runnerId));
       setSuccess("Runner deleted.");
       router.refresh();
     });
   }
 
   function runnersForRace(raceId: number) {
-    return initialRunners.filter((runner) => runner.race_id === raceId);
+    return runners.filter((runner) => runner.race_id === raceId);
   }
 
   function findHorse(horseId: number) {
@@ -701,7 +758,7 @@ export default function RaceBuilderPage({
                     Start with the meeting shell so races can sit under it.
                   </p>
                 </div>
-                <Badge tone="amber">{initialMeetings.length} meetings</Badge>
+                <Badge tone="amber">{meetings.length} meetings</Badge>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
@@ -768,8 +825,8 @@ export default function RaceBuilderPage({
               </div>
 
               <div className="space-y-3">
-                {initialMeetings.length > 0 ? (
-                  initialMeetings.map((meeting) => (
+                {meetings.length > 0 ? (
+                  meetings.map((meeting) => (
                     <div
                       key={meeting.id}
                       className="rounded-[24px] border border-amber-200/30 bg-white p-4"
@@ -824,7 +881,7 @@ export default function RaceBuilderPage({
                     onChange={setSelectedMeetingIdForRace}
                   >
                     <option value="">Select meeting</option>
-                    {initialMeetings.map((meeting) => (
+                    {meetings.map((meeting) => (
                       <option key={meeting.id} value={String(meeting.id)}>
                         {formatMeetingLabel(meeting)}
                       </option>
@@ -890,7 +947,7 @@ export default function RaceBuilderPage({
               <div className="space-y-3">
                 {draftRaces.length > 0 ? (
                   draftRaces.map((race) => {
-                    const meeting = initialMeetings.find((item) => item.id === race.meeting_id);
+                    const meeting = meetings.find((item) => item.id === race.meeting_id);
 
                     return (
                       <div
@@ -973,7 +1030,7 @@ export default function RaceBuilderPage({
                     }}
                   >
                     <option value="">Select meeting</option>
-                    {initialMeetings.map((meeting) => (
+                    {meetings.map((meeting) => (
                       <option key={meeting.id} value={String(meeting.id)}>
                         {formatMeetingLabel(meeting)}
                       </option>
@@ -1241,7 +1298,7 @@ export default function RaceBuilderPage({
             <div className="space-y-5 p-6 text-zinc-950">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold">4. Draft race board</h2>
-                <Badge tone="green">{initialRunners.length} loaded</Badge>
+                <Badge tone="green">{runners.length} loaded</Badge>
               </div>
 
               <div className="rounded-[24px] border border-amber-200/30 bg-amber-50 p-4 text-sm text-zinc-700">
@@ -1251,7 +1308,7 @@ export default function RaceBuilderPage({
               <div className="space-y-4">
                 {draftRaces.length > 0 ? (
                   draftRaces.map((race) => {
-                    const meeting = initialMeetings.find((item) => item.id === race.meeting_id);
+                    const meeting = meetings.find((item) => item.id === race.meeting_id);
                     const raceRunners = runnersForRace(race.id);
 
                     return (
