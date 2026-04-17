@@ -124,6 +124,18 @@ function formatRaceDateTime(value?: string | null, timezone?: string | null) {
   }
 }
 
+function formatMeetingDate(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-AU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
 function getTipCardStyle(type: string) {
   if (type === "Win") return "border-emerald-300/40 bg-emerald-50";
   if (type === "Place") return "border-sky-300/40 bg-sky-50";
@@ -200,7 +212,17 @@ export default function SubscriberDashboard({
   );
 
   const featuredTip = availableTips[0] || null;
-  const liveBoardTips = availableTips;
+  const liveBoardTips = availableTips.slice(1);
+
+  const upcomingPublishedRaces = useMemo(() => {
+    return [...initialPublishedRaces]
+      .sort((a, b) => {
+        const aTime = a.published_at ? new Date(a.published_at).getTime() : 0;
+        const bTime = b.published_at ? new Date(b.published_at).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 6);
+  }, [initialPublishedRaces]);
 
   function getLinkedRunner(tip: SuggestedTip) {
     if (!tip.race_runner_id) return null;
@@ -222,13 +244,19 @@ export default function SubscriberDashboard({
     return horseMap.get(tip.horse_id) || null;
   }
 
+  function getTipsForRace(raceId: number) {
+    return availableTips.filter((tip) => tip.race_id === raceId);
+  }
+
+  function getRunnersForRace(raceId: number) {
+    return initialPublishedRunners.filter((runner) => runner.race_id === raceId);
+  }
+
   function renderLinkedRaceBadges(tip: SuggestedTip) {
     const runner = getLinkedRunner(tip);
     const badges: React.ReactNode[] = [];
 
-    if (!runner) {
-      return null;
-    }
+    if (!runner) return null;
 
     if (runner.barrier !== null && runner.barrier !== undefined) {
       badges.push(
@@ -287,12 +315,20 @@ export default function SubscriberDashboard({
             <p className={`text-sm ${featured ? "text-amber-100/75" : "text-zinc-500"}`}>
               {tip.race}
             </p>
-            <h3 className={`mt-1 font-bold ${featured ? "text-3xl text-white" : "text-xl text-zinc-950"}`}>
+            <h3
+              className={`mt-1 font-bold ${
+                featured ? "text-3xl text-white" : "text-xl text-zinc-950"
+              }`}
+            >
               {tip.horse}
             </h3>
 
             {linkedRaceLabel ? (
-              <p className={`mt-2 text-sm font-medium ${featured ? "text-amber-100/85" : "text-zinc-700"}`}>
+              <p
+                className={`mt-2 text-sm font-medium ${
+                  featured ? "text-amber-100/85" : "text-zinc-700"
+                }`}
+              >
                 Linked field: {linkedRaceLabel}
               </p>
             ) : null}
@@ -329,7 +365,13 @@ export default function SubscriberDashboard({
           {isActive ? (
             <form action={removeTipActiveAction}>
               <input type="hidden" name="tip_id" value={tip.id} />
-              <button className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20">
+              <button
+                className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+                  featured
+                    ? "border border-white/20 bg-white/10 text-white hover:bg-white/20"
+                    : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                }`}
+              >
                 Remove from My Active Tips
               </button>
             </form>
@@ -387,6 +429,12 @@ export default function SubscriberDashboard({
                   My Resulted Tips
                 </Link>
                 <Link
+                  href="/race-archive"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Race Archive
+                </Link>
+                <Link
                   href="/long-term-bets"
                   className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 >
@@ -406,7 +454,7 @@ export default function SubscriberDashboard({
                   Fortune on 5 premium race tips
                 </h1>
                 <p className="text-sm text-zinc-200 lg:text-base">
-                  Sharp tips, clean setup, premium racing club feel.
+                  Sharp tips, live races, and your own punting lane in one spot.
                 </p>
                 <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                   Logged in as {currentUser.full_name || currentUser.email}
@@ -465,11 +513,11 @@ export default function SubscriberDashboard({
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                Watchlist notes
+                Published races
               </p>
-              <p className="mt-2 text-3xl font-bold">{watchlistItems.length}</p>
+              <p className="mt-2 text-3xl font-bold">{initialPublishedRaces.length}</p>
               <p className="mt-2 text-sm text-zinc-500">
-                Horses and races worth following closely.
+                Race-day board now connected to the dashboard.
               </p>
             </div>
           </Panel>
@@ -505,40 +553,165 @@ export default function SubscriberDashboard({
             <div className="space-y-5 p-6 text-zinc-950">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-semibold">Watchlist</h2>
+                  <h2 className="text-xl font-semibold">My punting lane</h2>
                   <p className="text-sm text-zinc-500">
-                    Horses and races worth keeping in the black book.
+                    Your active plays and quick links in one tidy strip.
                   </p>
                 </div>
-                <Badge tone="blue">{watchlistItems.length}</Badge>
+                <Badge tone="rose">{activeLiveTips.length}</Badge>
               </div>
 
               <div className="space-y-4">
-                {watchlistItems.length > 0 ? (
-                  watchlistItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
+                <div className="rounded-[24px] border border-amber-200/30 bg-zinc-50 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    Active tips
+                  </p>
+                  <p className="mt-2 text-3xl font-bold text-zinc-950">{activeLiveTips.length}</p>
+                  <p className="mt-2 text-sm text-zinc-600">
+                    Accepted tips move off the live board and into your own page.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link
+                      href="/my-active-tips"
+                      className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm text-zinc-500">{item.race}</p>
-                          <p className="mt-1 text-lg font-semibold text-zinc-950">{item.horse}</p>
-                        </div>
-                        <TipPill type={item.label} />
-                      </div>
+                      Open My Active Tips
+                    </Link>
+                    <Link
+                      href="/my-resulted-tips"
+                      className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                    >
+                      View My Resulted Tips
+                    </Link>
+                  </div>
+                </div>
 
-                      {item.commentary ? (
-                        <p className="mt-3 text-sm leading-7 text-zinc-700">
-                          {item.commentary}
-                        </p>
-                      ) : null}
+                <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-zinc-950">Watchlist</h3>
+                      <p className="text-sm text-zinc-500">
+                        Horses and races worth keeping in the black book.
+                      </p>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-zinc-500">No watchlist notes yet.</p>
-                )}
+                    <Badge tone="blue">{watchlistItems.length}</Badge>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {watchlistItems.length > 0 ? (
+                      watchlistItems.slice(0, 2).map((item) => (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm text-zinc-500">{item.race}</p>
+                              <p className="mt-1 text-base font-semibold text-zinc-950">
+                                {item.horse}
+                              </p>
+                            </div>
+                            <TipPill type={item.label} />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-zinc-500">No watchlist notes yet.</p>
+                    )}
+                  </div>
+                </div>
               </div>
+            </div>
+          </Panel>
+        </div>
+
+        <div className="mt-6">
+          <Panel className="bg-white/95">
+            <div className="space-y-5 p-6 text-zinc-950">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold">Today’s live races</h2>
+                  <p className="text-sm text-zinc-500">
+                    Quick race-day view tied directly into your published race board.
+                  </p>
+                </div>
+                <Link
+                  href="/current-races"
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  Open Current Races
+                </Link>
+              </div>
+
+              {upcomingPublishedRaces.length > 0 ? (
+                <div className="grid gap-5 lg:grid-cols-3">
+                  {upcomingPublishedRaces.map((race) => {
+                    const meeting = meetingMap.get(race.meeting_id) || null;
+                    const raceTips = getTipsForRace(race.id);
+                    const runners = getRunnersForRace(race.id);
+                    const topTip = raceTips[0] || null;
+
+                    return (
+                      <div
+                        key={race.id}
+                        className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm text-zinc-500">
+                              {meeting?.meeting_name || "Meeting"}
+                            </p>
+                            <p className="mt-1 text-lg font-semibold text-zinc-950">
+                              R{race.race_number} {race.race_name}
+                            </p>
+                          </div>
+                          <Badge tone="amber">{race.distance_m || "—"}m</Badge>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {meeting?.track_condition ? (
+                            <Badge tone="blue">{meeting.track_condition}</Badge>
+                          ) : null}
+                          {formatMeetingDate(meeting?.meeting_date) ? (
+                            <Badge tone="slate">{formatMeetingDate(meeting?.meeting_date)}</Badge>
+                          ) : null}
+                          <Badge tone="green">{runners.length} runners</Badge>
+                        </div>
+
+                        {topTip ? (
+                          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-800">
+                              Top linked tip
+                            </p>
+                            <p className="mt-2 text-base font-semibold text-zinc-950">
+                              {topTip.horse}
+                            </p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Badge tone="green">{topTip.type}</Badge>
+                              {topTip.confidence ? (
+                                <Badge tone="blue">{topTip.confidence}</Badge>
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="text-sm text-zinc-600">
+                              No linked live tip on this race yet.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
+                  <p className="text-lg font-semibold text-zinc-900">No published races yet.</p>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Once races are published, they’ll appear here for a quick race-day scan.
+                  </p>
+                </div>
+              )}
             </div>
           </Panel>
         </div>
@@ -550,7 +723,7 @@ export default function SubscriberDashboard({
                 <div>
                   <h2 className="text-xl font-semibold">Live board</h2>
                   <p className="text-sm text-zinc-500">
-                    Every current SmartPunt play in one spot.
+                    Every current SmartPunt play in one spot, excluding the featured headliner.
                   </p>
                 </div>
                 <Badge tone="green">{liveBoardTips.length}</Badge>
@@ -563,7 +736,7 @@ export default function SubscriberDashboard({
               ) : (
                 <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
                   <p className="text-lg font-semibold text-zinc-900">
-                    No available live tips on the board right now.
+                    No additional live tips on the board right now.
                   </p>
                   <p className="mt-2 text-sm text-zinc-500">
                     Accepted tips move to My Active Tips until they result.
