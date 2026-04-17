@@ -11,6 +11,10 @@ export default async function Page() {
     redirect("/login");
   }
 
+  if (profile.role !== "admin") {
+    redirect("/");
+  }
+
   try {
     const supabase = await createClient();
 
