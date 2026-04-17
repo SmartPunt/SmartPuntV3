@@ -723,7 +723,13 @@ export async function signInAction(
   if (error) {
     return { error: error.message };
   }
-
+const { cookies } = await import("next/headers");
+(await cookies()).set("smartpunt_play_intro", "true", {
+  path: "/",
+  maxAge: 60,
+  httpOnly: false,
+  sameSite: "lax",
+});
   revalidatePath("/", "layout");
   return { error: null };
 }
