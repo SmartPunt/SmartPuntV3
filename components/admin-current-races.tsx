@@ -158,6 +158,7 @@ export default function CurrentRacesPage({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const isAdmin = currentUser?.role === "admin";
 
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
@@ -430,24 +431,43 @@ export default function CurrentRacesPage({
               <Badge tone="green">Current Races</Badge>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Link
-                  href="/admin/race-builder"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Race Builder
-                </Link>
-                <Link
-                  href="/race-archive"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Race Archive
-                </Link>
-                <Link
-                  href="/"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Back to Admin
-                </Link>
+                {isAdmin ? (
+                  <>
+                    <Link
+                      href="/admin/race-builder"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Race Builder
+                    </Link>
+                    <Link
+                      href="/race-archive"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Race Archive
+                    </Link>
+                    <Link
+                      href="/"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Back to Admin
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/race-archive"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Race Archive
+                    </Link>
+                    <Link
+                      href="/"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Back to Dashboard
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
 
@@ -457,7 +477,9 @@ export default function CurrentRacesPage({
                   Fortune on 5 current races
                 </h1>
                 <p className="text-sm text-zinc-200 lg:text-base">
-                  Manage published races here, make live runner changes, scratch horses, then result the full field.
+                  {isAdmin
+                    ? "Manage published races here, make live runner changes, scratch horses, then result the full field."
+                    : "View published races here, track the full field, and follow the live board."}
                 </p>
                 <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                   Logged in as {currentUser.full_name || currentUser.email}
@@ -466,14 +488,16 @@ export default function CurrentRacesPage({
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="green">Published races only</Badge>
-                <Badge tone="blue">Admin only</Badge>
-                <Badge tone="amber">Live control room</Badge>
+                <Badge tone={isAdmin ? "blue" : "amber"}>
+                  {isAdmin ? "Admin only controls" : "Subscriber view only"}
+                </Badge>
+                <Badge tone="amber">{isAdmin ? "Live control room" : "Live race board"}</Badge>
               </div>
             </div>
           </div>
         </div>
 
-        {statusMessage ? (
+        {statusMessage && isAdmin ? (
           <div
             className={`mt-6 rounded-2xl border px-4 py-3 text-sm font-medium ${
               statusTone === "success"
@@ -493,7 +517,7 @@ export default function CurrentRacesPage({
               </p>
               <p className="mt-2 text-3xl font-bold">{currentRaces.length}</p>
               <p className="mt-2 text-sm text-zinc-500">
-                These are live races ready to manage and settle.
+                These are live races ready to follow.
               </p>
             </div>
           </Panel>
@@ -521,7 +545,7 @@ export default function CurrentRacesPage({
                 ).length}
               </p>
               <p className="mt-2 text-sm text-zinc-500">
-                Full fields loaded and ready for race-day management.
+                Full fields loaded and ready for race-day tracking.
               </p>
             </div>
           </Panel>
@@ -534,7 +558,9 @@ export default function CurrentRacesPage({
                 <div>
                   <h2 className="text-xl font-semibold">Current race board</h2>
                   <p className="text-sm text-zinc-500">
-                    Update runners, scratch horses, then save the whole field and close the race.
+                    {isAdmin
+                      ? "Update runners, scratch horses, then save the whole field and close the race."
+                      : "View runners, current fields, and race-day form in one place."}
                   </p>
                 </div>
                 <Badge tone="green">{currentRaces.length} published</Badge>
@@ -589,29 +615,33 @@ export default function CurrentRacesPage({
                                   </p>
                                 </div>
 
-                                <div className="flex flex-wrap gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleMoveBackToBuilder(race.id)}
-                                    disabled={isPending}
-                                    className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
-                                  >
-                                    Move Back to Builder
-                                  </button>
+                                {isAdmin ? (
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveBackToBuilder(race.id)}
+                                      disabled={isPending}
+                                      className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+                                    >
+                                      Move Back to Builder
+                                    </button>
 
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSaveResultsAndCloseRace(race.id)}
-                                    disabled={isPending}
-                                    className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
-                                  >
-                                    {isPending ? "Saving..." : "Save Results + Close Race"}
-                                  </button>
-                                </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveResultsAndCloseRace(race.id)}
+                                      disabled={isPending}
+                                      className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+                                    >
+                                      {isPending ? "Saving..." : "Save Results + Close Race"}
+                                    </button>
+                                  </div>
+                                ) : null}
                               </div>
 
                               <div className="mt-4 rounded-[20px] border border-blue-200/40 bg-blue-50 p-4 text-sm text-zinc-700">
-                                Live admin lane: edit the runner, scratch it if needed, then result the race when the field is official.
+                                {isAdmin
+                                  ? "Live admin lane: edit the runner, scratch it if needed, then result the race when the field is official."
+                                  : "Subscriber view: follow the field, market and form updates without editing controls."}
                               </div>
 
                               <div className="mt-5 space-y-3">
@@ -716,303 +746,311 @@ export default function CurrentRacesPage({
                                           </div>
                                         </div>
 
-                                        <div className="mt-4 flex flex-wrap gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() => (isEditing ? cancelEditingRunner() : startEditingRunner(runner))}
-                                            disabled={isPending}
-                                            className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
-                                          >
-                                            {isEditing ? "Cancel Edit" : "Edit Runner"}
-                                          </button>
-
-                                          <button
-                                            type="button"
-                                            onClick={() => handleToggleScratch(runner)}
-                                            disabled={isPending}
-                                            className={`rounded-2xl px-3 py-2 text-xs font-semibold transition disabled:opacity-60 ${
-                                              runner.scratched
-                                                ? "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                                                : "border border-red-300 bg-red-50 text-red-800 hover:bg-red-100"
-                                            }`}
-                                          >
-                                            {runner.scratched ? "Reinstate" : "Scratch Horse"}
-                                          </button>
-                                        </div>
-
-                                        {isEditing ? (
-                                          <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 p-4">
-                                            <div className="grid gap-3 md:grid-cols-2">
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Jockey
-                                                </label>
-                                                <input
-                                                  type="text"
-                                                  value={editValues.jockey_name}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "jockey_name",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Trainer
-                                                </label>
-                                                <input
-                                                  type="text"
-                                                  value={editValues.trainer_name}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "trainer_name",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-                                            </div>
-
-                                            <div className="mt-3 grid gap-3 md:grid-cols-3">
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Barrier
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  value={editValues.barrier}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "barrier",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Market price
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  step="0.01"
-                                                  value={editValues.market_price}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "market_price",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Weight (kg)
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  step="0.5"
-                                                  value={editValues.weight_kg}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "weight_kg",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-                                            </div>
-
-                                            <div className="mt-3 grid gap-3 md:grid-cols-2">
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Apprentice
-                                                </label>
-                                                <select
-                                                  value={editValues.is_apprentice}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "is_apprentice",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                >
-                                                  <option value="false">No</option>
-                                                  <option value="true">Yes</option>
-                                                </select>
-                                              </div>
-
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Claim (kg)
-                                                </label>
-                                                <input
-                                                  type="number"
-                                                  step="0.5"
-                                                  value={editValues.apprentice_claim_kg}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "apprentice_claim_kg",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-                                            </div>
-
-                                            <div className="mt-3 grid gap-3 md:grid-cols-3">
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Last 6
-                                                </label>
-                                                <input
-                                                  type="text"
-                                                  value={editValues.form_last_6}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "form_last_6",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Track form
-                                                </label>
-                                                <input
-                                                  type="text"
-                                                  value={editValues.track_form_last_6}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "track_form_last_6",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-
-                                              <div>
-                                                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                  Distance form
-                                                </label>
-                                                <input
-                                                  type="text"
-                                                  value={editValues.distance_form_last_6}
-                                                  onChange={(e) =>
-                                                    updateRunnerEditField(
-                                                      runner.id,
-                                                      "distance_form_last_6",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                                />
-                                              </div>
-                                            </div>
-
+                                        {isAdmin ? (
+                                          <>
                                             <div className="mt-4 flex flex-wrap gap-2">
                                               <button
                                                 type="button"
-                                                onClick={() => handleSaveRunnerDetails(runner.id)}
+                                                onClick={() =>
+                                                  isEditing
+                                                    ? cancelEditingRunner()
+                                                    : startEditingRunner(runner)
+                                                }
                                                 disabled={isPending}
-                                                className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+                                                className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
                                               >
-                                                {isPending ? "Saving..." : "Save Runner Changes"}
+                                                {isEditing ? "Cancel Edit" : "Edit Runner"}
                                               </button>
 
                                               <button
                                                 type="button"
-                                                onClick={cancelEditingRunner}
+                                                onClick={() => handleToggleScratch(runner)}
                                                 disabled={isPending}
-                                                className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+                                                className={`rounded-2xl px-3 py-2 text-xs font-semibold transition disabled:opacity-60 ${
+                                                  runner.scratched
+                                                    ? "border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                                                    : "border border-red-300 bg-red-50 text-red-800 hover:bg-red-100"
+                                                }`}
                                               >
-                                                Cancel
+                                                {runner.scratched ? "Reinstate" : "Scratch Horse"}
                                               </button>
                                             </div>
-                                          </div>
+
+                                            {isEditing ? (
+                                              <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 p-4">
+                                                <div className="grid gap-3 md:grid-cols-2">
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Jockey
+                                                    </label>
+                                                    <input
+                                                      type="text"
+                                                      value={editValues.jockey_name}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "jockey_name",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Trainer
+                                                    </label>
+                                                    <input
+                                                      type="text"
+                                                      value={editValues.trainer_name}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "trainer_name",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Barrier
+                                                    </label>
+                                                    <input
+                                                      type="number"
+                                                      value={editValues.barrier}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "barrier",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Market price
+                                                    </label>
+                                                    <input
+                                                      type="number"
+                                                      step="0.01"
+                                                      value={editValues.market_price}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "market_price",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Weight (kg)
+                                                    </label>
+                                                    <input
+                                                      type="number"
+                                                      step="0.5"
+                                                      value={editValues.weight_kg}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "weight_kg",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Apprentice
+                                                    </label>
+                                                    <select
+                                                      value={editValues.is_apprentice}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "is_apprentice",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    >
+                                                      <option value="false">No</option>
+                                                      <option value="true">Yes</option>
+                                                    </select>
+                                                  </div>
+
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Claim (kg)
+                                                    </label>
+                                                    <input
+                                                      type="number"
+                                                      step="0.5"
+                                                      value={editValues.apprentice_claim_kg}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "apprentice_claim_kg",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Last 6
+                                                    </label>
+                                                    <input
+                                                      type="text"
+                                                      value={editValues.form_last_6}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "form_last_6",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Track form
+                                                    </label>
+                                                    <input
+                                                      type="text"
+                                                      value={editValues.track_form_last_6}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "track_form_last_6",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+
+                                                  <div>
+                                                    <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                      Distance form
+                                                    </label>
+                                                    <input
+                                                      type="text"
+                                                      value={editValues.distance_form_last_6}
+                                                      onChange={(e) =>
+                                                        updateRunnerEditField(
+                                                          runner.id,
+                                                          "distance_form_last_6",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                <div className="mt-4 flex flex-wrap gap-2">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleSaveRunnerDetails(runner.id)}
+                                                    disabled={isPending}
+                                                    className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+                                                  >
+                                                    {isPending ? "Saving..." : "Save Runner Changes"}
+                                                  </button>
+
+                                                  <button
+                                                    type="button"
+                                                    onClick={cancelEditingRunner}
+                                                    disabled={isPending}
+                                                    className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+                                                  >
+                                                    Cancel
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ) : null}
+
+                                            {!runner.scratched ? (
+                                              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                                <div>
+                                                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                    Finishing position
+                                                  </label>
+                                                  <input
+                                                    type="number"
+                                                    value={getRaceResultValue(
+                                                      race.id,
+                                                      runner.id,
+                                                      "finishingPosition",
+                                                    )}
+                                                    onChange={(e) =>
+                                                      handleRaceResultChange(
+                                                        race.id,
+                                                        runner.id,
+                                                        "finishingPosition",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="1"
+                                                    className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                  />
+                                                </div>
+
+                                                <div>
+                                                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                                                    Starting price
+                                                  </label>
+                                                  <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={getRaceResultValue(
+                                                      race.id,
+                                                      runner.id,
+                                                      "startingPrice",
+                                                    )}
+                                                    onChange={(e) =>
+                                                      handleRaceResultChange(
+                                                        race.id,
+                                                        runner.id,
+                                                        "startingPrice",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="4.20"
+                                                    className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                                                  />
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900">
+                                                This runner is scratched and will be excluded from result entry.
+                                              </div>
+                                            )}
+                                          </>
                                         ) : null}
-
-                                        {!runner.scratched ? (
-                                          <div className="mt-4 grid gap-3 md:grid-cols-2">
-                                            <div>
-                                              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                Finishing position
-                                              </label>
-                                              <input
-                                                type="number"
-                                                value={getRaceResultValue(
-                                                  race.id,
-                                                  runner.id,
-                                                  "finishingPosition",
-                                                )}
-                                                onChange={(e) =>
-                                                  handleRaceResultChange(
-                                                    race.id,
-                                                    runner.id,
-                                                    "finishingPosition",
-                                                    e.target.value,
-                                                  )
-                                                }
-                                                placeholder="1"
-                                                className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                              />
-                                            </div>
-
-                                            <div>
-                                              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                                                Starting price
-                                              </label>
-                                              <input
-                                                type="number"
-                                                step="0.01"
-                                                value={getRaceResultValue(
-                                                  race.id,
-                                                  runner.id,
-                                                  "startingPrice",
-                                                )}
-                                                onChange={(e) =>
-                                                  handleRaceResultChange(
-                                                    race.id,
-                                                    runner.id,
-                                                    "startingPrice",
-                                                    e.target.value,
-                                                  )
-                                                }
-                                                placeholder="4.20"
-                                                className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                                              />
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900">
-                                            This runner is scratched and will be excluded from result entry.
-                                          </div>
-                                        )}
                                       </div>
                                     );
                                   })
@@ -1033,7 +1071,9 @@ export default function CurrentRacesPage({
                 <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
                   <p className="text-lg font-semibold text-zinc-900">No current races loaded.</p>
                   <p className="mt-2 text-sm text-zinc-500">
-                    Publish a draft race from Race Builder and it’ll land here ready to manage.
+                    {isAdmin
+                      ? "Publish a draft race from Race Builder and it’ll land here ready to manage."
+                      : "Once races are published, they’ll land here ready to follow."}
                   </p>
                 </div>
               )}
@@ -1047,9 +1087,9 @@ export default function CurrentRacesPage({
               <h3 className="text-lg font-semibold">What this page does now</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
                 <p>• Shows published races only</p>
-                <p>• Handles full-field result entry</p>
-                <p>• Lets admin edit runner details</p>
-                <p>• Supports scratch and reinstate</p>
+                <p>{isAdmin ? "• Handles full-field result entry" : "• Lets subscribers follow full fields"}</p>
+                <p>{isAdmin ? "• Lets admin edit runner details" : "• Displays live runner details"}</p>
+                <p>{isAdmin ? "• Supports scratch and reinstate" : "• Keeps admin controls hidden"}</p>
               </div>
             </div>
           </Panel>
@@ -1058,9 +1098,19 @@ export default function CurrentRacesPage({
             <div className="p-6 text-zinc-950">
               <h3 className="text-lg font-semibold">What happens on save</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Runner details are updated live</p>
-                <p>• Scratched horses stay in race history</p>
-                <p>• Resulting excludes scratched runners</p>
+                {isAdmin ? (
+                  <>
+                    <p>• Runner details are updated live</p>
+                    <p>• Scratched horses stay in race history</p>
+                    <p>• Resulting excludes scratched runners</p>
+                  </>
+                ) : (
+                  <>
+                    <p>• Subscribers can view live market and form</p>
+                    <p>• Admin manages all race-day changes</p>
+                    <p>• Results move to archive once settled</p>
+                  </>
+                )}
               </div>
             </div>
           </Panel>
