@@ -37,6 +37,58 @@ function getServiceRoleHeaders() {
   };
 }
 
+async function serviceRoleFetch(path: string, init?: RequestInit) {
+  const { supabaseUrl, headers } = getServiceRoleHeaders();
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      ...headers,
+      ...(init?.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Service role request failed for ${path}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  return null;
+}
+
+async function serviceRoleSelect(path: string) {
+  return serviceRoleFetch(path, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+}
+
+async function serviceRolePatch(path: string, body: Record<string, unknown>) {
+  await serviceRoleFetch(path, {
+    method: "PATCH",
+    headers: {
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+async function serviceRoleDelete(path: string) {
+  await serviceRoleFetch(path, {
+    method: "DELETE",
+    headers: {
+      Prefer: "return=minimal",
+    },
+  });
+}
+
 function getZonedParts(date: Date, timeZone: string) {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
@@ -114,6 +166,10 @@ function normaliseText(value: string) {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function buildInFilter(values: number[]) {
+  return `in.(${values.join(",")})`;
 }
 
 async function getActiveSubscriberEmails() {
@@ -384,40 +440,28 @@ async function sendPublishedRaceNotification({
 async function clearSuggestedTipLinksForRaceIds(raceIds: number[]) {
   if (!raceIds.length) return;
 
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("suggested_tips")
-    .update({
+  await serviceRolePatch(
+    `suggested_tips?race_id=${buildInFilter(raceIds)}`,
+    {
       meeting_id: null,
       race_id: null,
       horse_id: null,
       race_runner_id: null,
       updated_at: new Date().toISOString(),
-    })
-    .in("race_id", raceIds);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+    },
+  );
 }
 
 async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
   if (!runnerIds.length) return;
 
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("suggested_tips")
-    .update({
+  await serviceRolePatch(
+    `suggested_tips?race_runner_id=${buildInFilter(runnerIds)}`,
+    {
       race_runner_id: null,
       updated_at: new Date().toISOString(),
-    })
-    .in("race_runner_id", runnerIds);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+    },
+  );
 }
 
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
@@ -977,7 +1021,6 @@ export async function createMeetingAction(formData: FormData): Promise<ActionRes
 export async function deleteMeetingAction(formData: FormData): Promise<ActionResult> {
   try {
     await requireAdmin();
-    const supabase = await createClient();
 
     const meetingId = Number(formData.get("meeting_id"));
 
@@ -985,66 +1028,27 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
       return { success: false, error: "Meeting is required." };
     }
 
-    const { data: races, error: racesError } = await supabase
-      .from("races")
-      .select("id")
-      .eq("meeting_id", meetingId);
+    const races = (await serviceRoleSelect(
+      `races?meeting_id=eq.${meetingId}&select=id`,
+    )) as Array<{ id: number }> | null;
 
-    if (racesError) {
-      return { success: false, error: racesError.message };
-    }
-
-    const raceIds = (races || []).map((race: any) => Number(race.id)).filter(Boolean);
+    const raceIds = (races || []).map((race) => Number(race.id)).filter(Boolean);
 
     if (raceIds.length > 0) {
-      const { data: runners, error: runnersFetchError } = await supabase
-        .from("race_runners")
-        .select("id")
-        .in("race_id", raceIds);
+      const runners = (await serviceRoleSelect(
+        `race_runners?race_id=${buildInFilter(raceIds)}&select=id`,
+      )) as Array<{ id: number }> | null;
 
-      if (runnersFetchError) {
-        return { success: false, error: runnersFetchError.message };
-      }
+      const runnerIds = (runners || []).map((runner) => Number(runner.id)).filter(Boolean);
 
-      const runnerIds = (runners || []).map((runner: any) => Number(runner.id)).filter(Boolean);
+      await clearSuggestedTipLinksForRaceIds(raceIds);
+      await clearSuggestedTipLinksForRunnerIds(runnerIds);
 
-      try {
-        await clearSuggestedTipLinksForRaceIds(raceIds);
-        await clearSuggestedTipLinksForRunnerIds(runnerIds);
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : "Failed to clear linked tips.",
-        };
-      }
-
-      const { error: runnersDeleteError } = await supabase
-        .from("race_runners")
-        .delete()
-        .in("race_id", raceIds);
-
-      if (runnersDeleteError) {
-        return { success: false, error: runnersDeleteError.message };
-      }
-
-      const { error: racesDeleteError } = await supabase
-        .from("races")
-        .delete()
-        .in("id", raceIds);
-
-      if (racesDeleteError) {
-        return { success: false, error: racesDeleteError.message };
-      }
+      await serviceRoleDelete(`race_runners?race_id=${buildInFilter(raceIds)}`);
+      await serviceRoleDelete(`races?id=${buildInFilter(raceIds)}`);
     }
 
-    const { error: meetingDeleteError } = await supabase
-      .from("meetings")
-      .delete()
-      .eq("id", meetingId);
-
-    if (meetingDeleteError) {
-      return { success: false, error: meetingDeleteError.message };
-    }
+    await serviceRoleDelete(`meetings?id=eq.${meetingId}`);
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
@@ -1052,6 +1056,7 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
     revalidatePath("/");
     revalidatePath("/resulted-tips");
     revalidatePath("/my-resulted-tips");
+
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1186,7 +1191,6 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
 export async function deleteRaceAction(formData: FormData): Promise<ActionResult> {
   try {
     await requireAdmin();
-    const supabase = await createClient();
 
     const raceId = Number(formData.get("race_id"));
 
@@ -1194,44 +1198,17 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
       return { success: false, error: "Race is required." };
     }
 
-    const { data: runners, error: runnersFetchError } = await supabase
-      .from("race_runners")
-      .select("id")
-      .eq("race_id", raceId);
+    const runners = (await serviceRoleSelect(
+      `race_runners?race_id=eq.${raceId}&select=id`,
+    )) as Array<{ id: number }> | null;
 
-    if (runnersFetchError) {
-      return { success: false, error: runnersFetchError.message };
-    }
+    const runnerIds = (runners || []).map((runner) => Number(runner.id)).filter(Boolean);
 
-    const runnerIds = (runners || []).map((runner: any) => Number(runner.id)).filter(Boolean);
+    await clearSuggestedTipLinksForRaceIds([raceId]);
+    await clearSuggestedTipLinksForRunnerIds(runnerIds);
 
-    try {
-      await clearSuggestedTipLinksForRaceIds([raceId]);
-      await clearSuggestedTipLinksForRunnerIds(runnerIds);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to clear linked tips.",
-      };
-    }
-
-    const { error: runnersDeleteError } = await supabase
-      .from("race_runners")
-      .delete()
-      .eq("race_id", raceId);
-
-    if (runnersDeleteError) {
-      return { success: false, error: runnersDeleteError.message };
-    }
-
-    const { error: raceDeleteError } = await supabase
-      .from("races")
-      .delete()
-      .eq("id", raceId);
-
-    if (raceDeleteError) {
-      return { success: false, error: raceDeleteError.message };
-    }
+    await serviceRoleDelete(`race_runners?race_id=eq.${raceId}`);
+    await serviceRoleDelete(`races?id=eq.${raceId}`);
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
@@ -1239,6 +1216,7 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
     revalidatePath("/");
     revalidatePath("/resulted-tips");
     revalidatePath("/my-resulted-tips");
+
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1388,7 +1366,6 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
 export async function deleteRaceRunnerAction(formData: FormData): Promise<ActionResult> {
   try {
     await requireAdmin();
-    const supabase = await createClient();
 
     const runnerId = Number(formData.get("runner_id"));
 
@@ -1396,26 +1373,15 @@ export async function deleteRaceRunnerAction(formData: FormData): Promise<Action
       return { success: false, error: "Runner is required." };
     }
 
-    try {
-      await clearSuggestedTipLinksForRunnerIds([runnerId]);
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to clear linked tips.",
-      };
-    }
-
-    const { error } = await supabase.from("race_runners").delete().eq("id", runnerId);
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
+    await clearSuggestedTipLinksForRunnerIds([runnerId]);
+    await serviceRoleDelete(`race_runners?id=eq.${runnerId}`);
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/");
     revalidatePath("/resulted-tips");
     revalidatePath("/my-resulted-tips");
+
     return { success: true, error: null };
   } catch (error) {
     return {
