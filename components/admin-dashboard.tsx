@@ -393,16 +393,34 @@ export default function AdminDashboard({
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 <Link
+                  href="/race-builder"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Race Builder
+                </Link>
+                <Link
                   href="/current-races"
                   className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 >
                   Current Races
                 </Link>
                 <Link
-                  href="/race-builder"
+                  href="/race-archive"
                   className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 >
-                  Race Builder
+                  Race Archive
+                </Link>
+                <Link
+                  href="/admin/horses"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Saved Horses
+                </Link>
+                <Link
+                  href="/resulted-tips"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Resulted Tips
                 </Link>
                 <form action={signOutAction}>
                   <button className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
