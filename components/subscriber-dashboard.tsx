@@ -442,7 +442,7 @@ export default function SubscriberDashboard({
                   href="/long-term-bets"
                   className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
                 >
-                  Long-Term Bets
+                  Get On Early
                 </Link>
                 <form action={signOutAction}>
                   <button className="w-full rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-left text-sm font-semibold text-white transition hover:bg-white/15">
@@ -497,7 +497,7 @@ export default function SubscriberDashboard({
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="green">{availableTips.length} live tips</Badge>
                     <Badge tone="blue">{watchlistItems.length} watchlist notes</Badge>
-                    <Badge tone="amber">{longTermBets.length} long-term bets</Badge>
+                    <Badge tone="amber">{longTermBets.length} get on early</Badge>
                     <Badge tone="rose">{activeLiveTips.length} active tips</Badge>
                   </div>
                 </div>
@@ -785,7 +785,7 @@ export default function SubscriberDashboard({
                 <div className="space-y-5 p-6 text-zinc-950">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-xl font-semibold">Long-term bets</h2>
+                      <h2 className="text-xl font-semibold">Get On Early</h2>
                       <p className="text-sm text-zinc-500">
                         Futures and longer-range angles worth locking in early.
                       </p>
@@ -808,7 +808,7 @@ export default function SubscriberDashboard({
                                 <p className="text-sm text-zinc-500">{bet.title}</p>
                                 <p className="mt-1 text-xl font-semibold text-zinc-950">{bet.horse}</p>
                               </div>
-                              <TipPill type="Long Term" />
+                              <TipPill type="Get On Early" />
                             </div>
 
                             <div className="mt-3 flex flex-wrap gap-2">
@@ -829,7 +829,7 @@ export default function SubscriberDashboard({
                       })}
                     </div>
                   ) : (
-                    <p className="text-sm text-zinc-500">No long-term bets loaded yet.</p>
+                    <p className="text-sm text-zinc-500">No get on early bets loaded yet.</p>
                   )}
                 </div>
               </Panel>
