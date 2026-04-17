@@ -237,6 +237,16 @@ export default function RaceBuilderPage({
     [races],
   );
 
+  const activeMeetings = useMemo(() => {
+    return meetings.filter((meeting) => {
+      const meetingRaces = races.filter((race) => race.meeting_id === meeting.id);
+
+      if (meetingRaces.length === 0) return true;
+
+      return meetingRaces.some((race) => race.status === "draft");
+    });
+  }, [meetings, races]);
+
   const closedRaceIds = useMemo(() => new Set(closedRaces.map((race) => race.id)), [closedRaces]);
 
   const filteredHorseSuggestions = useMemo(() => {
@@ -758,7 +768,7 @@ export default function RaceBuilderPage({
                     Start with the meeting shell so races can sit under it.
                   </p>
                 </div>
-                <Badge tone="amber">{meetings.length} meetings</Badge>
+                <Badge tone="amber">{activeMeetings.length} meetings</Badge>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
@@ -821,12 +831,12 @@ export default function RaceBuilderPage({
             <div className="space-y-4 p-6 text-zinc-950">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold">Meetings loaded</h2>
-                <Badge tone="blue">Master list</Badge>
+                <Badge tone="blue">Builder only</Badge>
               </div>
 
               <div className="space-y-3">
-                {meetings.length > 0 ? (
-                  meetings.map((meeting) => (
+                {activeMeetings.length > 0 ? (
+                  activeMeetings.map((meeting) => (
                     <div
                       key={meeting.id}
                       className="rounded-[24px] border border-amber-200/30 bg-white p-4"
@@ -881,7 +891,7 @@ export default function RaceBuilderPage({
                     onChange={setSelectedMeetingIdForRace}
                   >
                     <option value="">Select meeting</option>
-                    {meetings.map((meeting) => (
+                    {activeMeetings.map((meeting) => (
                       <option key={meeting.id} value={String(meeting.id)}>
                         {formatMeetingLabel(meeting)}
                       </option>
@@ -1030,7 +1040,7 @@ export default function RaceBuilderPage({
                     }}
                   >
                     <option value="">Select meeting</option>
-                    {meetings.map((meeting) => (
+                    {activeMeetings.map((meeting) => (
                       <option key={meeting.id} value={String(meeting.id)}>
                         {formatMeetingLabel(meeting)}
                       </option>
