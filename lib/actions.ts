@@ -946,10 +946,44 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
       return { success: false, error: "Meeting is required." };
     }
 
-    const { error } = await supabase.from("meetings").delete().eq("id", meetingId);
+    const { data: races, error: racesError } = await supabase
+      .from("races")
+      .select("id")
+      .eq("meeting_id", meetingId);
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (racesError) {
+      return { success: false, error: racesError.message };
+    }
+
+    const raceIds = (races || []).map((race: any) => Number(race.id)).filter(Boolean);
+
+    if (raceIds.length > 0) {
+      const { error: runnersDeleteError } = await supabase
+        .from("race_runners")
+        .delete()
+        .in("race_id", raceIds);
+
+      if (runnersDeleteError) {
+        return { success: false, error: runnersDeleteError.message };
+      }
+
+      const { error: racesDeleteError } = await supabase
+        .from("races")
+        .delete()
+        .in("id", raceIds);
+
+      if (racesDeleteError) {
+        return { success: false, error: racesDeleteError.message };
+      }
+    }
+
+    const { error: meetingDeleteError } = await supabase
+      .from("meetings")
+      .delete()
+      .eq("id", meetingId);
+
+    if (meetingDeleteError) {
+      return { success: false, error: meetingDeleteError.message };
     }
 
     revalidatePath("/admin/race-builder");
@@ -1097,10 +1131,22 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
       return { success: false, error: "Race is required." };
     }
 
-    const { error } = await supabase.from("races").delete().eq("id", raceId);
+    const { error: runnersDeleteError } = await supabase
+      .from("race_runners")
+      .delete()
+      .eq("race_id", raceId);
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (runnersDeleteError) {
+      return { success: false, error: runnersDeleteError.message };
+    }
+
+    const { error: raceDeleteError } = await supabase
+      .from("races")
+      .delete()
+      .eq("id", raceId);
+
+    if (raceDeleteError) {
+      return { success: false, error: raceDeleteError.message };
     }
 
     revalidatePath("/admin/race-builder");
