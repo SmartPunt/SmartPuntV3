@@ -2,7 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const INTRO_PLAY_ONCE_KEY = "smartpunt-play-intro-once";
+function getCookie(name: string) {
+  if (typeof document === "undefined") return null;
+
+  const match = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${name}=`));
+
+  return match ? decodeURIComponent(match.split("=")[1]) : null;
+}
+
+function clearCookie(name: string) {
+  if (typeof document === "undefined") return;
+
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+}
 
 export default function AppEntryLoader({
   children,
@@ -45,10 +59,10 @@ export default function AppEntryLoader({
   }, []);
 
   useEffect(() => {
-    const shouldPlayIntro = sessionStorage.getItem(INTRO_PLAY_ONCE_KEY) === "true";
+    const shouldPlayIntro = getCookie("smartpunt_play_intro") === "true";
 
     if (shouldPlayIntro) {
-      sessionStorage.removeItem(INTRO_PLAY_ONCE_KEY);
+      clearCookie("smartpunt_play_intro");
     }
 
     setShowIntro(shouldPlayIntro);
