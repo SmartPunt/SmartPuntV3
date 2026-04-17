@@ -130,6 +130,7 @@ export default function RaceArchivePage({
   initialRunners: Runner[];
 }) {
   const [meetingFilter, setMeetingFilter] = useState("all");
+  const isAdmin = currentUser?.role === "admin";
 
   const closedRaces = useMemo(
     () => initialRaces.filter((race) => race.status === "closed"),
@@ -189,24 +190,43 @@ export default function RaceArchivePage({
               <Badge tone="rose">Race Archive</Badge>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Link
-                  href="/admin/race-builder"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Race Builder
-                </Link>
-                <Link
-                  href="/current-races"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Current Races
-                </Link>
-                <Link
-                  href="/"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Back to Admin
-                </Link>
+                {isAdmin ? (
+                  <>
+                    <Link
+                      href="/admin/race-builder"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Race Builder
+                    </Link>
+                    <Link
+                      href="/current-races"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Current Races
+                    </Link>
+                    <Link
+                      href="/"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Back to Admin
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/current-races"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Current Races
+                    </Link>
+                    <Link
+                      href="/"
+                      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                    >
+                      Back to Dashboard
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
 
@@ -226,7 +246,9 @@ export default function RaceArchivePage({
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="rose">Closed races only</Badge>
                 <Badge tone="blue">Read only</Badge>
-                <Badge tone="amber">Historical form source</Badge>
+                <Badge tone="amber">
+                  {isAdmin ? "Historical form source" : "Subscriber archive view"}
+                </Badge>
               </div>
             </div>
           </div>
