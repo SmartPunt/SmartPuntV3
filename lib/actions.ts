@@ -172,6 +172,89 @@ function buildInFilter(values: number[]) {
   return `in.(${values.join(",")})`;
 }
 
+function getBaseAppUrl() {
+  return String(process.env.SMARTPUNT_APP_URL || "").trim().replace(/\/+$/, "");
+}
+
+function getHeaderLogoUrl() {
+  const appUrl = getBaseAppUrl();
+  return appUrl ? `${appUrl}/header-logo.png` : "";
+}
+
+function buildEmailHeader({
+  eyebrow,
+  title,
+  subtitle,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+}) {
+  const logoUrl = getHeaderLogoUrl();
+
+  return `
+    <div style="padding: 18px 20px 14px; background: linear-gradient(135deg, #171717, #3f3f46, #ca8a04); color: white;">
+      ${
+        logoUrl
+          ? `
+            <div style="margin: 0 0 14px; text-align: center;">
+              <img
+                src="${logoUrl}"
+                alt="SmartPunt"
+                style="display: block; width: 100%; max-width: 600px; height: auto; margin: 0 auto;"
+              />
+            </div>
+          `
+          : ""
+      }
+      <div style="font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.8;">
+        ${eyebrow}
+      </div>
+      <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2;">
+        ${title}
+      </h1>
+      ${
+        subtitle
+          ? `<p style="margin: 10px 0 0; opacity: 0.9;">${subtitle}</p>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+function buildEmailShell({
+  headerHtml,
+  bodyHtml,
+}: {
+  headerHtml: string;
+  bodyHtml: string;
+}) {
+  return `
+    <div style="font-family: Arial, sans-serif; background: #f8fafc; padding: 24px; color: #111827;">
+      <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e5e7eb;">
+        ${headerHtml}
+        <div style="padding: 24px;">
+          ${bodyHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildViewInSmartPuntButton() {
+  const appUrl = getBaseAppUrl();
+
+  if (!appUrl) return "";
+
+  return `
+    <div style="margin-top: 24px;">
+      <a href="${appUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#111827;color:#fbbf24;text-decoration:none;font-weight:700;">
+        View in SmartPunt
+      </a>
+    </div>
+  `;
+}
+
 async function getActiveSubscriberEmails() {
   const supabase = await createClient();
 
@@ -236,7 +319,6 @@ async function sendSuggestedTipNotifications({
   commentary: string;
 }) {
   const fromEmail = process.env.RESEND_FROM_EMAIL;
-  const appUrl = process.env.SMARTPUNT_APP_URL || "";
 
   if (!fromEmail) return;
 
@@ -245,50 +327,38 @@ async function sendSuggestedTipNotifications({
 
   const subject = `New SmartPunt Tip: ${race} - ${horse}`;
 
-  const html = (email: string) => `
-    <div style="font-family: Arial, sans-serif; background: #f8fafc; padding: 24px; color: #111827;">
-      <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e5e7eb;">
-        <div style="padding: 24px; background: linear-gradient(135deg, #171717, #3f3f46, #ca8a04); color: white;">
-          <div style="font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.8;">SmartPunt</div>
-          <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2;">New Tip Just Dropped</h1>
-          <p style="margin: 10px 0 0; opacity: 0.9;">Premium racing club alert</p>
-        </div>
+  const html = (email: string) =>
+    buildEmailShell({
+      headerHtml: buildEmailHeader({
+        eyebrow: "SmartPunt",
+        title: "New Tip Just Dropped",
+        subtitle: "Premium racing club alert",
+      }),
+      bodyHtml: `
+        <p style="margin: 0; font-size: 14px; color: #6b7280;">${race}</p>
+        <h2 style="margin: 6px 0 0; font-size: 28px; color: #111827;">${horse}</h2>
 
-        <div style="padding: 24px;">
-          <p style="margin: 0; font-size: 14px; color: #6b7280;">${race}</p>
-          <h2 style="margin: 6px 0 0; font-size: 28px; color: #111827;">${horse}</h2>
-
-          <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;">
-            <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#ecfccb;color:#166534;font-size:12px;font-weight:700;">${type}</span>
-            <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:12px;font-weight:700;">${confidence} confidence</span>
-            ${
-              note
-                ? `<span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;">${note}</span>`
-                : ""
-            }
-          </div>
-
-          <p style="margin: 20px 0 0; font-size: 15px; line-height: 1.7; color: #374151;">
-            ${commentary || `${horse} has been added as a new SmartPunt tip.`}
-          </p>
-
+        <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;">
+          <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#ecfccb;color:#166534;font-size:12px;font-weight:700;">${type}</span>
+          <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:12px;font-weight:700;">${confidence} confidence</span>
           ${
-            appUrl
-              ? `<div style="margin-top: 24px;">
-                  <a href="${appUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#111827;color:#fbbf24;text-decoration:none;font-weight:700;">
-                    View in SmartPunt
-                  </a>
-                 </div>`
+            note
+              ? `<span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;">${note}</span>`
               : ""
           }
-
-          <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
-            Sent to ${email} because you’re an active SmartPunt subscriber.
-          </p>
         </div>
-      </div>
-    </div>
-  `;
+
+        <p style="margin: 20px 0 0; font-size: 15px; line-height: 1.7; color: #374151;">
+          ${commentary || `${horse} has been added as a new SmartPunt tip.`}
+        </p>
+
+        ${buildViewInSmartPuntButton()}
+
+        <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
+          Sent to ${email} because you’re an active SmartPunt subscriber.
+        </p>
+      `,
+    });
 
   const emails = recipients.map((email) => ({
     from: fromEmail,
@@ -314,7 +384,6 @@ async function sendGetOnEarlyNotifications({
   commentary: string;
 }) {
   const fromEmail = process.env.RESEND_FROM_EMAIL;
-  const appUrl = process.env.SMARTPUNT_APP_URL || "";
 
   if (!fromEmail) return;
 
@@ -323,48 +392,36 @@ async function sendGetOnEarlyNotifications({
 
   const subject = `Get On Early: ${horse} ${odds ? `(${odds})` : ""}`;
 
-  const html = (email: string) => `
-    <div style="font-family: Arial, sans-serif; background: #f8fafc; padding: 24px; color: #111827;">
-      <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e5e7eb;">
-        <div style="padding: 24px; background: linear-gradient(135deg, #171717, #3f3f46, #ca8a04); color: white;">
-          <div style="font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.8;">SmartPunt</div>
-          <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2;">Get On Early</h1>
-        </div>
+  const html = (email: string) =>
+    buildEmailShell({
+      headerHtml: buildEmailHeader({
+        eyebrow: "SmartPunt",
+        title: "Get On Early",
+      }),
+      bodyHtml: `
+        <p style="margin: 0; font-size: 14px; color: #6b7280;">${title}</p>
+        <h2 style="margin: 6px 0 0; font-size: 28px; color: #111827;">${horse}</h2>
 
-        <div style="padding: 24px;">
-          <p style="margin: 0; font-size: 14px; color: #6b7280;">${title}</p>
-          <h2 style="margin: 6px 0 0; font-size: 28px; color: #111827;">${horse}</h2>
-
-          <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;">
-            <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#ecfccb;color:#166534;font-size:12px;font-weight:700;">${betType}</span>
-            ${
-              odds
-                ? `<span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;">${odds}</span>`
-                : ""
-            }
-          </div>
-
-          <p style="margin: 20px 0 0; font-size: 15px; line-height: 1.7; color: #374151;">
-            ${commentary || `${horse} has been added as an early-value play.`}
-          </p>
-
+        <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;">
+          <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#ecfccb;color:#166534;font-size:12px;font-weight:700;">${betType}</span>
           ${
-            appUrl
-              ? `<div style="margin-top: 24px;">
-                  <a href="${appUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#111827;color:#fbbf24;text-decoration:none;font-weight:700;">
-                    View in SmartPunt
-                  </a>
-                 </div>`
+            odds
+              ? `<span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;">${odds}</span>`
               : ""
           }
-
-          <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
-            Sent to ${email} because you’re an active SmartPunt subscriber.
-          </p>
         </div>
-      </div>
-    </div>
-  `;
+
+        <p style="margin: 20px 0 0; font-size: 15px; line-height: 1.7; color: #374151;">
+          ${commentary || `${horse} has been added as an early-value play.`}
+        </p>
+
+        ${buildViewInSmartPuntButton()}
+
+        <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
+          Sent to ${email} because you’re an active SmartPunt subscriber.
+        </p>
+      `,
+    });
 
   const emails = recipients.map((email) => ({
     from: fromEmail,
@@ -388,7 +445,6 @@ async function sendPublishedRaceNotification({
   distanceM: number | null;
 }) {
   const fromEmail = process.env.RESEND_FROM_EMAIL;
-  const appUrl = process.env.SMARTPUNT_APP_URL || "";
 
   if (!fromEmail) return;
 
@@ -398,34 +454,22 @@ async function sendPublishedRaceNotification({
   const subject = `Published Race: ${meetingName} R${raceNumber}`;
   const raceLabel = `${meetingName} R${raceNumber} ${raceName} ${distanceM ? `- ${distanceM}m` : ""}`;
 
-  const html = (email: string) => `
-    <div style="font-family: Arial, sans-serif; background: #f8fafc; padding: 24px; color: #111827;">
-      <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e5e7eb;">
-        <div style="padding: 24px; background: linear-gradient(135deg, #171717, #3f3f46, #ca8a04); color: white;">
-          <div style="font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.8;">SmartPunt</div>
-          <h1 style="margin: 12px 0 0; font-size: 28px; line-height: 1.2;">New Published Race</h1>
-        </div>
+  const html = (email: string) =>
+    buildEmailShell({
+      headerHtml: buildEmailHeader({
+        eyebrow: "SmartPunt",
+        title: "New Published Race",
+      }),
+      bodyHtml: `
+        <h2 style="margin: 6px 0 0; font-size: 28px; color: #111827;">${raceLabel}</h2>
 
-        <div style="padding: 24px;">
-          <h2 style="margin: 6px 0 0; font-size: 28px; color: #111827;">${raceLabel}</h2>
+        ${buildViewInSmartPuntButton()}
 
-          ${
-            appUrl
-              ? `<div style="margin-top: 24px;">
-                  <a href="${appUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#111827;color:#fbbf24;text-decoration:none;font-weight:700;">
-                    View in SmartPunt
-                  </a>
-                 </div>`
-              : ""
-          }
-
-          <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
-            Sent to ${email} because you’re an active SmartPunt subscriber.
-          </p>
-        </div>
-      </div>
-    </div>
-  `;
+        <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
+          Sent to ${email} because you’re an active SmartPunt subscriber.
+        </p>
+      `,
+    });
 
   const emails = recipients.map((email) => ({
     from: fromEmail,
@@ -723,13 +767,15 @@ export async function signInAction(
   if (error) {
     return { error: error.message };
   }
-const { cookies } = await import("next/headers");
-(await cookies()).set("smartpunt_play_intro", "true", {
-  path: "/",
-  maxAge: 60,
-  httpOnly: false,
-  sameSite: "lax",
-});
+
+  const { cookies } = await import("next/headers");
+  (await cookies()).set("smartpunt_play_intro", "true", {
+    path: "/",
+    maxAge: 60,
+    httpOnly: false,
+    sameSite: "lax",
+  });
+
   revalidatePath("/", "layout");
   return { error: null };
 }
