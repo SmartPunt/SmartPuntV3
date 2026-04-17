@@ -196,11 +196,11 @@ export default function AdminDashboard({
 }) {
   const suggestedTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
-  const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
+  const getOnEarlyItems = useRealtimeTable("long_term_bets", initialLongTermBets);
 
   const [tipEdit, setTipEdit] = useState<any | null>(null);
   const [watchEdit, setWatchEdit] = useState<any | null>(null);
-  const [longEdit, setLongEdit] = useState<any | null>(null);
+  const [getOnEarlyEdit, setGetOnEarlyEdit] = useState<any | null>(null);
 
   const [selectedPublishedRaceId, setSelectedPublishedRaceId] = useState("");
   const [selectedRunnerId, setSelectedRunnerId] = useState("");
@@ -215,8 +215,6 @@ export default function AdminDashboard({
   const [tipRaceDate, setTipRaceDate] = useState("");
   const [tipRaceTime, setTipRaceTime] = useState("");
   const [tipRaceTimezone, setTipRaceTimezone] = useState("Australia/Perth");
-  const [tipFinishingPosition, setTipFinishingPosition] = useState("");
-  const [tipSuccessful, setTipSuccessful] = useState("");
   const [tipResultComment, setTipResultComment] = useState("");
   const [suggestedTag, setSuggestedTag] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -290,12 +288,6 @@ export default function AdminDashboard({
     setTipRaceDate(formatDateForInput(tip.race_start_at));
     setTipRaceTime(formatTimeForInput(tip.race_start_at));
     setTipRaceTimezone(tip.race_timezone || "Australia/Perth");
-    setTipFinishingPosition(
-      tip.finishing_position === null || tip.finishing_position === undefined
-        ? ""
-        : String(tip.finishing_position),
-    );
-    setTipSuccessful(typeof tip.successful === "boolean" ? String(tip.successful) : "");
     setTipResultComment(tip.result_comment || "");
   }
 
@@ -313,8 +305,6 @@ export default function AdminDashboard({
     setTipRaceDate("");
     setTipRaceTime("");
     setTipRaceTimezone("Australia/Perth");
-    setTipFinishingPosition("");
-    setTipSuccessful("");
     setTipResultComment("");
     setSuggestedTag("");
     setGenerateError("");
@@ -369,23 +359,13 @@ export default function AdminDashboard({
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
         <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-2xl">
-          <video
-            className="absolute inset-0 h-full w-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-          >
-            <source src="/logo-animated.mp4" type="video/mp4" />
-          </video>
-
           <img
             src="/header-logo.png"
             alt="Fortune on 5"
             className="pointer-events-none absolute left-1/2 top-[42%] w-[260px] max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-95 sm:w-[420px] lg:w-[900px]"
           />
 
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.38)_0%,rgba(0,0,0,0.12)_30%,rgba(0,0,0,0.62)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.30)_0%,rgba(0,0,0,0.10)_30%,rgba(0,0,0,0.56)_100%)]" />
 
           <div className="relative z-10 flex min-h-[220px] flex-col justify-between p-4 lg:min-h-[280px] lg:p-8">
             <div className="flex items-start justify-between gap-3">
@@ -393,7 +373,7 @@ export default function AdminDashboard({
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 <Link
-                  href="/race-builder"
+                  href="/admin/race-builder"
                   className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 >
                   Race Builder
@@ -447,7 +427,7 @@ export default function AdminDashboard({
                 <Badge tone="green">{suggestedTips.length} live tips</Badge>
                 <Badge tone="blue">{initialPublishedRaces.length} published races</Badge>
                 <Badge tone="amber">{watchlistItems.length} watchlist items</Badge>
-                <Badge tone="rose">{longTermBets.length} long-term bets</Badge>
+                <Badge tone="rose">{getOnEarlyItems.length} Get On Early</Badge>
               </div>
             </div>
           </div>
@@ -493,9 +473,9 @@ export default function AdminDashboard({
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                Long-term bets
+                Get On Early
               </p>
-              <p className="mt-2 text-3xl font-bold">{longTermBets.length}</p>
+              <p className="mt-2 text-3xl font-bold">{getOnEarlyItems.length}</p>
               <p className="mt-2 text-sm text-zinc-500">
                 Early plays and futures already on the board.
               </p>
@@ -575,7 +555,7 @@ export default function AdminDashboard({
                     <Badge tone="amber">Perfect settlement</Badge>
                   </div>
                   <p className="pt-2">
-                    Long-term bets and watchlist items stay flexible. Live Tips are now structured.
+                    Get On Early and watchlist items stay flexible. Live Tips are now structured.
                   </p>
                 </div>
               </div>
@@ -799,31 +779,6 @@ export default function AdminDashboard({
                   </Field>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Finishing position">
-                    <Input
-                      name="finishing_position"
-                      type="number"
-                      placeholder="e.g. 1"
-                      value={tipFinishingPosition}
-                      onChange={setTipFinishingPosition}
-                    />
-                  </Field>
-
-                  <Field label="Successful tip?">
-                    <select
-                      name="successful"
-                      value={tipSuccessful}
-                      onChange={(e) => setTipSuccessful(e.target.value)}
-                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                    >
-                      <option value="">Not settled yet</option>
-                      <option value="true">Yes</option>
-                      <option value="false">No</option>
-                    </select>
-                  </Field>
-                </div>
-
                 <Field label="Post-race analysis">
                   <Textarea
                     name="result_comment"
@@ -947,11 +902,6 @@ export default function AdminDashboard({
                         {tipRaceDate} {tipRaceTime} ({tipRaceTimezone})
                       </Badge>
                     ) : null}
-                    {tipFinishingPosition ? (
-                      <Badge tone="slate">Placed {tipFinishingPosition}</Badge>
-                    ) : null}
-                    {tipSuccessful === "true" ? <Badge tone="green">Successful</Badge> : null}
-                    {tipSuccessful === "false" ? <Badge tone="rose">Unsuccessful</Badge> : null}
                   </div>
 
                   <p className="mt-4 text-sm leading-6 text-zinc-700">
@@ -1013,7 +963,7 @@ export default function AdminDashboard({
                             onClick={() => loadTipIntoForm(tip)}
                             className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                           >
-                            Edit / Settle
+                            Edit Tip
                           </button>
 
                           <form action={deleteSuggestedTipAction}>
@@ -1159,26 +1109,26 @@ export default function AdminDashboard({
           <div className="grid gap-6 xl:grid-cols-2">
             <Panel className="bg-white/95">
               <form action={upsertLongTermBet} className="space-y-5 p-6 text-zinc-950">
-                <input type="hidden" name="id" value={longEdit?.id || ""} readOnly />
+                <input type="hidden" name="id" value={getOnEarlyEdit?.id || ""} readOnly />
 
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-xl font-semibold">Long-term bets</h3>
+                    <h3 className="text-xl font-semibold">Get On Early</h3>
                     <p className="text-sm text-zinc-500">
                       Enter futures and longer-range betting opportunities.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {longEdit ? <Badge tone="blue">Editing</Badge> : null}
-                    <Badge tone="rose">{longTermBets.length} published</Badge>
+                    {getOnEarlyEdit ? <Badge tone="blue">Editing</Badge> : null}
+                    <Badge tone="rose">{getOnEarlyItems.length} published</Badge>
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Long-term bet title">
+                  <Field label="Get On Early title">
                     <input
                       name="title"
-                      defaultValue={longEdit?.title || ""}
+                      defaultValue={getOnEarlyEdit?.title || ""}
                       placeholder="Autumn futures"
                       className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     />
@@ -1187,7 +1137,7 @@ export default function AdminDashboard({
                   <Field label="Horse / Selection">
                     <input
                       name="horse"
-                      defaultValue={longEdit?.horse || ""}
+                      defaultValue={getOnEarlyEdit?.horse || ""}
                       placeholder="Ocean Ember"
                       className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     />
@@ -1198,7 +1148,7 @@ export default function AdminDashboard({
                   <Field label="Bet type">
                     <select
                       name="bet_type"
-                      defaultValue={longEdit?.bet_type || "Win"}
+                      defaultValue={getOnEarlyEdit?.bet_type || "Win"}
                       className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     >
                       <option>Win</option>
@@ -1210,7 +1160,7 @@ export default function AdminDashboard({
                   <Field label="Current odds">
                     <input
                       name="odds"
-                      defaultValue={longEdit?.odds || ""}
+                      defaultValue={getOnEarlyEdit?.odds || ""}
                       placeholder="$12"
                       className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     />
@@ -1220,8 +1170,8 @@ export default function AdminDashboard({
                 <Field label="Commentary">
                   <textarea
                     name="commentary"
-                    defaultValue={longEdit?.commentary || ""}
-                    placeholder="Add your long-term angle here."
+                    defaultValue={getOnEarlyEdit?.commentary || ""}
+                    placeholder="Add your Get On Early angle here."
                     className="min-h-[120px] w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                   />
                 </Field>
@@ -1231,13 +1181,13 @@ export default function AdminDashboard({
                     type="submit"
                     className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
                   >
-                    {longEdit ? "Update Long-Term Bet" : "Publish Long-Term Bet"}
+                    {getOnEarlyEdit ? "Update Get On Early" : "Publish Get On Early"}
                   </button>
 
-                  {longEdit ? (
+                  {getOnEarlyEdit ? (
                     <button
                       type="button"
-                      onClick={() => setLongEdit(null)}
+                      onClick={() => setGetOnEarlyEdit(null)}
                       className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                     >
                       Cancel Edit
@@ -1249,9 +1199,9 @@ export default function AdminDashboard({
 
             <Panel className="bg-white/95">
               <div className="p-6 text-zinc-950">
-                <h3 className="text-xl font-semibold">Manage long-term bets</h3>
+                <h3 className="text-xl font-semibold">Manage Get On Early</h3>
                 <div className="mt-5 space-y-4">
-                  {longTermBets.map((item: any) => (
+                  {getOnEarlyItems.map((item: any) => (
                     <div
                       key={item.id}
                       className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
@@ -1261,7 +1211,7 @@ export default function AdminDashboard({
                           <p className="text-sm text-zinc-500">{item.title}</p>
                           <p className="mt-1 text-lg font-semibold text-zinc-950">{item.horse}</p>
                         </div>
-                        <TipPill type="Long Term" />
+                        <TipPill type="Get On Early" />
                       </div>
 
                       <p className="mt-3 text-sm leading-6 text-zinc-600">
@@ -1271,7 +1221,7 @@ export default function AdminDashboard({
                       <div className="mt-4 flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setLongEdit(item)}
+                          onClick={() => setGetOnEarlyEdit(item)}
                           className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                         >
                           Edit
