@@ -381,6 +381,45 @@ async function sendPublishedRaceNotification({
   await sendBatchEmails(emails);
 }
 
+async function clearSuggestedTipLinksForRaceIds(raceIds: number[]) {
+  if (!raceIds.length) return;
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("suggested_tips")
+    .update({
+      meeting_id: null,
+      race_id: null,
+      horse_id: null,
+      race_runner_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .in("race_id", raceIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
+  if (!runnerIds.length) return;
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("suggested_tips")
+    .update({
+      race_runner_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .in("race_runner_id", runnerIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
   const supabase = await createClient();
 
@@ -958,6 +997,27 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
     const raceIds = (races || []).map((race: any) => Number(race.id)).filter(Boolean);
 
     if (raceIds.length > 0) {
+      const { data: runners, error: runnersFetchError } = await supabase
+        .from("race_runners")
+        .select("id")
+        .in("race_id", raceIds);
+
+      if (runnersFetchError) {
+        return { success: false, error: runnersFetchError.message };
+      }
+
+      const runnerIds = (runners || []).map((runner: any) => Number(runner.id)).filter(Boolean);
+
+      try {
+        await clearSuggestedTipLinksForRaceIds(raceIds);
+        await clearSuggestedTipLinksForRunnerIds(runnerIds);
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Failed to clear linked tips.",
+        };
+      }
+
       const { error: runnersDeleteError } = await supabase
         .from("race_runners")
         .delete()
@@ -989,6 +1049,9 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
+    revalidatePath("/");
+    revalidatePath("/resulted-tips");
+    revalidatePath("/my-resulted-tips");
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1131,6 +1194,27 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
       return { success: false, error: "Race is required." };
     }
 
+    const { data: runners, error: runnersFetchError } = await supabase
+      .from("race_runners")
+      .select("id")
+      .eq("race_id", raceId);
+
+    if (runnersFetchError) {
+      return { success: false, error: runnersFetchError.message };
+    }
+
+    const runnerIds = (runners || []).map((runner: any) => Number(runner.id)).filter(Boolean);
+
+    try {
+      await clearSuggestedTipLinksForRaceIds([raceId]);
+      await clearSuggestedTipLinksForRunnerIds(runnerIds);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to clear linked tips.",
+      };
+    }
+
     const { error: runnersDeleteError } = await supabase
       .from("race_runners")
       .delete()
@@ -1152,6 +1236,9 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
+    revalidatePath("/");
+    revalidatePath("/resulted-tips");
+    revalidatePath("/my-resulted-tips");
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -1309,6 +1396,15 @@ export async function deleteRaceRunnerAction(formData: FormData): Promise<Action
       return { success: false, error: "Runner is required." };
     }
 
+    try {
+      await clearSuggestedTipLinksForRunnerIds([runnerId]);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to clear linked tips.",
+      };
+    }
+
     const { error } = await supabase.from("race_runners").delete().eq("id", runnerId);
 
     if (error) {
@@ -1317,6 +1413,9 @@ export async function deleteRaceRunnerAction(formData: FormData): Promise<Action
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
+    revalidatePath("/");
+    revalidatePath("/resulted-tips");
+    revalidatePath("/my-resulted-tips");
     return { success: true, error: null };
   } catch (error) {
     return {
