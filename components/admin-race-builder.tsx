@@ -744,8 +744,8 @@ export default function RaceBuilderPage({
         formData.set("is_apprentice", String(runner.is_apprentice));
         formData.set("apprentice_claim_kg", runner.apprentice_claim_kg);
         formData.set("form_last_6", runner.form_last_6);
-        formData.set("track_form_last_6", "");
-        formData.set("distance_form_last_6", "");
+        formData.set("track_form_last_6", runner.track_form_last_6);
+        formData.set("distance_form_last_6", runner.distance_form_last_6);
 
         const result = await createRaceRunnerAction(formData);
 
