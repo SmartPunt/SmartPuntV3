@@ -162,7 +162,174 @@ function formatFormString(positions: Array<number | null | undefined>) {
 
   return usable.join("-");
 }
+type ImportedRunner = {
+  horse_name: string;
+  barrier: string;
+  weight_kg: string;
+  jockey_name: string;
+  trainer_name: string;
+  market_price: string;
+  fixed_place_odds: string;
+  form_last_6: string;
+  is_apprentice: boolean;
+  apprentice_claim_kg: string;
+};
 
+function cleanImportedValue(value: string) {
+  return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function looksLikeHorseName(line: string) {
+  if (!line) return false;
+  if (line.includes(":")) return false;
+  if (/^\$?\d+(\.\d+)?$/.test(line)) return false;
+  if (/^(distance|track|trk\/dist|good|soft|heavy|firm|synthetic|last starts)$/i.test(line)) {
+    return false;
+  }
+  if (/\b(br|wt?|j|t)\b[:(]/i.test(line)) return false;
+  return /^[A-Za-z0-9'’.\-\/&\s]+$/.test(line);
+}
+
+function parseApprentice(jockeyLine: string) {
+  const cleaned = cleanImportedValue(jockeyLine);
+
+  const claimMatch = cleaned.match(/\(A\s*([0-9]+(?:\.[0-9]+)?)\)/i);
+  if (claimMatch) {
+    return {
+      jockey_name: cleaned.replace(/\(A\s*[0-9]+(?:\.[0-9]+)?\)/i, "").trim(),
+      is_apprentice: true,
+      apprentice_claim_kg: claimMatch[1],
+    };
+  }
+
+  const apprenticeOnlyMatch = cleaned.match(/\(A\)/i);
+  if (apprenticeOnlyMatch) {
+    return {
+      jockey_name: cleaned.replace(/\(A\)/i, "").trim(),
+      is_apprentice: true,
+      apprentice_claim_kg: "",
+    };
+  }
+
+  return {
+    jockey_name: cleaned.trim(),
+    is_apprentice: false,
+    apprentice_claim_kg: "",
+  };
+}
+
+function parseRaceImportText(raw: string): ImportedRunner[] {
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => cleanImportedValue(line))
+    .filter(Boolean);
+
+  const runners: ImportedRunner[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (!looksLikeHorseName(line)) {
+      i += 1;
+      continue;
+    }
+
+    const horse_name = line;
+    let barrier = "";
+    let weight_kg = "";
+    let jockey_name = "";
+    let trainer_name = "";
+    let market_price = "";
+    let fixed_place_odds = "";
+    let form_last_6 = "";
+    let is_apprentice = false;
+    let apprentice_claim_kg = "";
+
+    const windowLines = lines.slice(i + 1, i + 16);
+
+    for (const entry of windowLines) {
+      if (!barrier) {
+        const barrierMatch =
+          entry.match(/\bbr[:\s]*([0-9]+)/i) ||
+          entry.match(/\bbarrier[:\s]*([0-9]+)/i);
+        if (barrierMatch) {
+          barrier = barrierMatch[1];
+        }
+      }
+
+      if (!weight_kg) {
+        const weightMatch =
+          entry.match(/\bw[:\s]*([0-9]+(?:\.[0-9]+)?)\s*kg\b/i) ||
+          entry.match(/\bweight[:\s]*([0-9]+(?:\.[0-9]+)?)\s*kg\b/i) ||
+          entry.match(/^([0-9]+(?:\.[0-9]+)?)\s*kg$/i);
+        if (weightMatch) {
+          weight_kg = weightMatch[1];
+        }
+      }
+
+      if (!jockey_name) {
+        const jockeyMatch = entry.match(/\bj[:\s]*(.+)$/i);
+        if (jockeyMatch) {
+          const parsed = parseApprentice(jockeyMatch[1]);
+          jockey_name = parsed.jockey_name;
+          is_apprentice = parsed.is_apprentice;
+          apprentice_claim_kg = parsed.apprentice_claim_kg;
+        }
+      }
+
+      if (!trainer_name) {
+        const trainerMatch = entry.match(/\bt[:\s]*(.+)$/i);
+        if (trainerMatch) {
+          trainer_name = trainerMatch[1].trim();
+        }
+      }
+
+      if (!form_last_6) {
+        const lastStartsMatch =
+          entry.match(/last starts[:\s]*([0-9xX\-]+)/i) ||
+          entry.match(/^([0-9xX\-]{2,})$/);
+        if (lastStartsMatch) {
+          form_last_6 = lastStartsMatch[1].replace(/\s+/g, "");
+        }
+      }
+    }
+
+    const numberLines = windowLines
+      .filter((entry) => /^\$?\d+(\.\d+)?$/.test(entry))
+      .map((entry) => entry.replace(/^\$/, ""));
+
+    if (numberLines.length > 0) {
+      market_price = numberLines[0] || "";
+      fixed_place_odds = numberLines[1] || "";
+    }
+
+    if (horse_name) {
+      runners.push({
+        horse_name,
+        barrier,
+        weight_kg,
+        jockey_name,
+        trainer_name,
+        market_price,
+        fixed_place_odds,
+        form_last_6,
+        is_apprentice,
+        apprentice_claim_kg,
+      });
+    }
+
+    i += 1;
+  }
+
+  const seen = new Set<string>();
+  return runners.filter((runner) => {
+    const key = `${runner.horse_name}|${runner.barrier}|${runner.weight_kg}`;
+    if (!runner.horse_name || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 export default function RaceBuilderPage({
   currentUser,
   initialMeetings,
