@@ -266,7 +266,8 @@ if (/first time|again|off again/i.test(lower)) return true;
   
   if (/^\$?\d+(\.\d+)?$/.test(line)) return true;
   if (/^[0-9xX\-]{2,}$/.test(line)) return true;
-
+  if (/^scr$|^scratched$/i.test(line)) return true;
+  
   return false;
 }
 
