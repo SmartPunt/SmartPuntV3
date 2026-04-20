@@ -166,24 +166,83 @@ function parseResultImportText(raw: string): ParsedResultRow[] {
 
   const rows: ParsedResultRow[] = [];
 
-  for (const line of lines) {
-    const cleaned = line.replace(/^\d+\s*[.)-]?\s*/, "").trim();
-    if (!cleaned) continue;
-
-    const lowered = cleaned.toLowerCase();
+  function isNoiseLine(line: string) {
+    const lower = line.toLowerCase();
 
     if (
       /^(results?|dividends?|exotics?|quinella|exacta|trifecta|first four|daily double|running double|scratchings?|stewards|margins?|time|official|photo|protest)/i.test(
-        lowered,
+        lower,
       )
     ) {
-      continue;
+      return true;
     }
 
-    rows.push({
-      horse_name: cleaned,
-      finishing_position: rows.length + 1,
-    });
+    if (/^(jockey|trainer|weight|barrier|sp|place|tote|fixed|form|career|prize|colour|track|distance|gear changes)\b/i.test(lower)) {
+      return true;
+    }
+
+    if (/^\d+(st|nd|rd|th)$/i.test(line)) return false;
+
+    if (/^\d+(\.\d+)?$/.test(line)) return true;
+    if (/^\$?\d+(\.\d+)?$/.test(line)) return true;
+    if (/^[0-9xX\-]{2,}$/.test(line)) return true;
+    if (/^[A-Z]{2,5}\s+\d+$/i.test(line)) return true;
+
+    return false;
+  }
+
+  function looksLikeHorseName(line: string) {
+    if (!line) return false;
+    if (isNoiseLine(line)) return false;
+
+    const cleaned = line
+      .replace(/^\d+\.\s*/, "")
+      .replace(/\s+\([0-9]+\)\s*$/, "")
+      .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
+      .trim();
+
+    if (!cleaned) return false;
+    if (/^\d/.test(cleaned)) return false;
+
+    const words = cleaned
+      .replace(/\s+\(([A-Z]{2,3})\)\s*$/i, "")
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (words.length < 1 || words.length > 6) return false;
+
+    return words.every((word) => /^[A-Za-z'’.\-]+$/.test(word));
+  }
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+
+    const placingMatch = line.match(/^(\d+)(st|nd|rd|th)$/i);
+    if (!placingMatch) continue;
+
+    const finishing_position = Number(placingMatch[1]);
+    let horse_name = "";
+
+    for (let j = i + 1; j < Math.min(i + 8, lines.length); j += 1) {
+      const candidate = lines[j];
+
+      if (!looksLikeHorseName(candidate)) continue;
+
+      horse_name = candidate
+        .replace(/^\d+\.\s*/, "")
+        .replace(/\s+\([0-9]+\)\s*$/, "")
+        .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
+        .trim();
+
+      break;
+    }
+
+    if (horse_name) {
+      rows.push({
+        horse_name,
+        finishing_position,
+      });
+    }
   }
 
   const seen = new Set<string>();
