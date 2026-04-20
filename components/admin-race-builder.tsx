@@ -389,23 +389,29 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
 
     const decimalNumberLines = windowLines
       .filter((entry) => /^\$?\d+\.\d+$/.test(entry))
-      .map((entry) => entry.replace(/^\$/, ""));
+      .map((entry) => Number(entry.replace(/^\$/, "")))
+      .filter((value) => !Number.isNaN(value));
 
     if (decimalNumberLines.length >= 2) {
-      const first = Number(decimalNumberLines[0]);
-      const second = Number(decimalNumberLines[1]);
+      const uniqueSorted = Array.from(new Set(decimalNumberLines)).sort((a, b) => a - b);
 
-      if (!Number.isNaN(first) && !Number.isNaN(second)) {
-        if (first > second) {
-          market_price = decimalNumberLines[0];
-          fixed_place_odds = decimalNumberLines[1];
-        } else {
-          market_price = decimalNumberLines[1];
-          fixed_place_odds = decimalNumberLines[0];
-        }
+      const placeCandidate = uniqueSorted.find((value) => value >= 1.01 && value <= 10);
+      const winCandidate = uniqueSorted.find(
+        (value) => placeCandidate !== undefined && value > placeCandidate,
+      );
+
+      if (placeCandidate !== undefined && winCandidate !== undefined) {
+        fixed_place_odds = String(placeCandidate);
+        market_price = String(winCandidate);
+      } else {
+        const first = uniqueSorted[0];
+        const second = uniqueSorted[1];
+
+        fixed_place_odds = String(Math.min(first, second));
+        market_price = String(Math.max(first, second));
       }
     } else if (decimalNumberLines.length === 1) {
-      market_price = decimalNumberLines[0];
+      market_price = String(decimalNumberLines[0]);
     }
 
     if (
