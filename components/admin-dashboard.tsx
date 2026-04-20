@@ -434,13 +434,13 @@ export default function AdminDashboard({
                 </div>
 
                 <div className="mt-4 space-y-3">
-                  <ToolLink href="/admin/race-builder" label="Race Builder" tone="primary" />
-                  <ToolLink href="/current-races" label="Current Races" />
-                  <ToolLink href="/race-archive" label="Race Archive" />
-                  <ToolLink href="/admin/horses" label="Saved Horses" />
-                  <ToolLink href="/resulted-tips" label="Resulted Tips" />
-                  <ToolLink href="/admin/calculator" label="Calculator Lab" />
-                </div>
+  <ToolLink href="/admin/race-builder" label="Race Builder" />
+  <ToolLink href="/current-races" label="Current Races" />
+  <ToolLink href="/race-archive" label="Race Archive" />
+  <ToolLink href="/admin/horses" label="Saved Horses" />
+  <ToolLink href="/resulted-tips" label="Resulted Tips" />
+  <ToolLink href="/admin/calculator" label="Calculator Lab" />
+</div>
               </div>
             </Panel>
           </div>
