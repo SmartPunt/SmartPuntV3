@@ -260,7 +260,7 @@ function isNoiseLine(line: string) {
   return false;
 }
 
-function looksLikeHorseName(line: string) {
+function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (!line) return false;
   if (isNoiseLine(line)) return false;
   if (line.includes(":")) return false;
@@ -271,9 +271,22 @@ function looksLikeHorseName(line: string) {
   if (/^\d/.test(line)) return false;
 
   const words = line.split(/\s+/).filter(Boolean);
-  if (words.length < 2 || words.length > 4) return false;
+  if (words.length < 1 || words.length > 4) return false;
+  if (!words.every((word) => /^[A-Za-z'’.\-]+$/.test(word))) return false;
 
-  return words.every((word) => /^[A-Za-z'’.\-]+$/.test(word));
+  const hasSupportingData = nextLines.some((entry) => {
+    return (
+      /\bbr[:\s]*[0-9]+/i.test(entry) ||
+      /\bbarrier[:\s]*[0-9]+/i.test(entry) ||
+      /\bw[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry) ||
+      /\bweight[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry) ||
+      /\bj[:\s].+/i.test(entry) ||
+      /\bt[:\s].+/i.test(entry) ||
+      /last starts[:\s]*[0-9xX\-]+/i.test(entry)
+    );
+  });
+
+  return hasSupportingData;
 }
 
 function parseRaceImportText(raw: string): ImportedRunner[] {
