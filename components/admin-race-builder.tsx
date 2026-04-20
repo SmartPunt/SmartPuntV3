@@ -286,7 +286,7 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (/[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}/.test(line)) return false;
   if (/^\d/.test(line)) return false;
 
-  const cleanedLine = line.replace(/\s+\(([A-Z]{2,3})\)\s*$/, "").trim();
+const cleanedLine = stripHorseSuffixes(line).replace(/\s+\(([A-Z]{2,3})\)\s*$/i, "").trim();
 
   const words = cleanedLine.split(/\s+/).filter(Boolean);
   if (words.length < 1 || words.length > 6) return false;
@@ -323,7 +323,7 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
       continue;
     }
 
-    const horse_name = line;
+    const horse_name = stripHorseSuffixes(line);
     const windowLines = lines.slice(i + 1, i + 20);
 
     let barrier = "";
