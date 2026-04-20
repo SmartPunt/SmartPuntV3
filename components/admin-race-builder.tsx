@@ -1189,7 +1189,13 @@ export default function RaceBuilderPage({
                             {runner.fixed_place_odds ? (
                               <Badge tone="blue">Place ${runner.fixed_place_odds}</Badge>
                             ) : null}
-                            {runner.form_last_6 ? <Badge tone="slate">{runner.form_last_6}</Badge> : null}
+                            {runner.form_last_6 ? <Badge tone="slate">Form {runner.form_last_6}</Badge> : null}
+                            {runner.track_form_last_6 ? (
+                              <Badge tone="amber">Track {runner.track_form_last_6}</Badge>
+                            ) : null}
+                            {runner.distance_form_last_6 ? (
+                              <Badge tone="green">Distance {runner.distance_form_last_6}</Badge>
+                            ) : null}
                           </div>
                         </div>
                       </div>
