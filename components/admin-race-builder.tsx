@@ -171,6 +171,8 @@ type ImportedRunner = {
   market_price: string;
   fixed_place_odds: string;
   form_last_6: string;
+  track_form_last_6: string;
+  distance_form_last_6: string;
   is_apprentice: boolean;
   apprentice_claim_kg: string;
 };
