@@ -719,7 +719,96 @@ export default function RaceBuilderPage({
             {statusMessage}
           </div>
         ) : null}
+        <div className="mt-6">
+          <Panel className="bg-white/95">
+            <div className="space-y-6 p-6 text-zinc-950">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold">Quick race import</h2>
+                  <p className="text-sm text-zinc-500">
+                    Paste one raw race from Tabtouch here in future, preview it, then import runners into a selected draft race.
+                  </p>
+                </div>
+                <Badge tone="amber">Stage 1</Badge>
+              </div>
 
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Meeting for import">
+                  <Select
+                    value={selectedMeetingIdForRunner}
+                    onChange={(value) => {
+                      setSelectedMeetingIdForRunner(value);
+                      setSelectedRaceIdForRunner("");
+                      setTrackFormLast6("");
+                      setDistanceFormLast6("");
+                    }}
+                  >
+                    <option value="">Select meeting</option>
+                    {activeMeetings.map((meeting) => (
+                      <option key={meeting.id} value={String(meeting.id)}>
+                        {formatMeetingLabel(meeting)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+
+                <Field label="Draft race for import">
+                  <Select
+                    value={selectedRaceIdForRunner}
+                    onChange={(value) => {
+                      setSelectedRaceIdForRunner(value);
+                      setDistanceFormLast6("");
+                    }}
+                  >
+                    <option value="">Select draft race</option>
+                    {racesForSelectedMeeting.map((race) => (
+                      <option key={race.id} value={String(race.id)}>
+                        R{race.race_number} {race.race_name} — {race.distance_m || "—"}m
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+
+              <Field
+                label="Paste raw race text"
+                hint="Stage 1 only: this panel is visual for now. No import logic is connected yet."
+              >
+                <textarea
+                  placeholder="Paste one full race here..."
+                  className="min-h-[220px] w-full rounded-2xl border border-amber-200/30 px-4 py-4 outline-none transition focus:border-amber-300"
+                />
+              </Field>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                >
+                  Preview Import
+                </button>
+
+                <button
+                  type="button"
+                  className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                >
+                  Import Runners
+                </button>
+
+                <button
+                  type="button"
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  Clear Import
+                </button>
+              </div>
+
+              <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-6 text-sm text-zinc-500">
+                Import preview will appear here once we wire up Stage 2.
+              </div>
+            </div>
+          </Panel>
+        </div>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
