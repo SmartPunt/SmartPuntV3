@@ -407,6 +407,8 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
         market_price,
         fixed_place_odds,
         form_last_6,
+        track_form_last_6,
+        distance_form_last_6,
         is_apprentice,
         apprentice_claim_kg,
       });
