@@ -272,7 +272,7 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (!line) return false;
   if (isNoiseLine(line)) return false;
   if (line.includes(":")) return false;
-  if (/\b(j|t|br|barrier|weight|last starts|trainer|colour|career|prize)\b/i.test(line)) {
+  if (/\b(j|t|br|barrier|weight|last starts|trainer|colour|career|prize|gear changes)\b/i.test(line)) {
     return false;
   }
   if (/[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}/.test(line)) return false;
@@ -284,16 +284,16 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (words.length < 1 || words.length > 6) return false;
   if (!words.every((word) => /^[A-Za-z'’.\-]+$/.test(word))) return false;
 
-const supportScore = nextLines.reduce((score, entry) => {
-  if (/\bbr[:\s]*[0-9]+/i.test(entry) || /\bbarrier[:\s]*[0-9]+/i.test(entry)) score++;
-  if (/\bw[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry)) score++;
-  if (/\bj[:\s].+/i.test(entry)) score++;
-  if (/\bt[:\s].+/i.test(entry)) score++;
-  if (/last starts[:\s]*[0-9xX\-]+/i.test(entry)) score++;
-  return score;
-}, 0);
+  const supportScore = nextLines.reduce((score, entry) => {
+    if (/\bbr[:\s]*[0-9]+/i.test(entry) || /\bbarrier[:\s]*[0-9]+/i.test(entry)) score++;
+    if (/\bw[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry)) score++;
+    if (/\bj[:\s].+/i.test(entry)) score++;
+    if (/\bt[:\s].+/i.test(entry)) score++;
+    if (/last starts[:\s]*[0-9xX\-]+/i.test(entry)) score++;
+    return score;
+  }, 0);
 
-return supportScore >= 2;
+  return supportScore >= 1;
 }
 
 function parseRaceImportText(raw: string): ImportedRunner[] {
