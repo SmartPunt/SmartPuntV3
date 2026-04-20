@@ -952,17 +952,17 @@ export default function RaceBuilderPage({
             {statusMessage}
           </div>
         ) : null}
-        <div className="mt-6">
+               <div className="mt-6">
           <Panel className="bg-white/95">
             <div className="space-y-6 p-6 text-zinc-950">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold">Quick race import</h2>
                   <p className="text-sm text-zinc-500">
-                    Paste one raw race from Tabtouch here in future, preview it, then import runners into a selected draft race.
+                    Paste one raw race from Tabtouch here, preview it, then import runners into a selected draft race.
                   </p>
                 </div>
-                <Badge tone="amber">Stage 1</Badge>
+                <Badge tone="amber">Stage 2</Badge>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -1005,9 +1005,11 @@ export default function RaceBuilderPage({
 
               <Field
                 label="Paste raw race text"
-                hint="Stage 1 only: this panel is visual for now. No import logic is connected yet."
+                hint="Paste the messy Tabtouch race text exactly as copied. SmartPunt will parse the runners for preview."
               >
                 <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
                   placeholder="Paste one full race here..."
                   className="min-h-[220px] w-full rounded-2xl border border-amber-200/30 px-4 py-4 outline-none transition focus:border-amber-300"
                 />
@@ -1016,29 +1018,90 @@ export default function RaceBuilderPage({
               <div className="flex flex-wrap gap-3">
                 <button
                   type="button"
-                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                  onClick={handlePreviewImport}
+                  disabled={isPending || importingRunners}
+                  className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
                 >
                   Preview Import
                 </button>
 
                 <button
                   type="button"
-                  className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                  onClick={handleImportParsedRunners}
+                  disabled={
+                    isPending ||
+                    importingRunners ||
+                    !parsedImportRunners.length ||
+                    !selectedRaceIdForRunner
+                  }
+                  className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
                 >
-                  Import Runners
+                  {importingRunners ? "Importing..." : "Import Runners"}
                 </button>
 
                 <button
                   type="button"
-                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                  onClick={clearImportPanel}
+                  disabled={isPending || importingRunners}
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
                 >
                   Clear Import
                 </button>
               </div>
 
-              <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-6 text-sm text-zinc-500">
-                Import preview will appear here once we wire up Stage 2.
-              </div>
+              {parsedImportRunners.length > 0 ? (
+                <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                        Import preview
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-700">
+                        Parsed {parsedImportRunners.length} runners from the pasted race text.
+                      </p>
+                    </div>
+                    <Badge tone="green">{parsedImportRunners.length} runners</Badge>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {parsedImportRunners.map((runner, index) => (
+                      <div
+                        key={`${runner.horse_name}-${index}`}
+                        className="rounded-2xl border border-emerald-200 bg-white p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-zinc-950">
+                              {index + 1}. {runner.horse_name}
+                            </p>
+                            <p className="mt-1 text-sm text-zinc-500">
+                              Jockey: {runner.jockey_name || "—"}
+                              {runner.is_apprentice
+                                ? ` (Apprentice${
+                                    runner.apprentice_claim_kg
+                                      ? `, -${runner.apprentice_claim_kg}kg`
+                                      : ""
+                                  })`
+                                : ""}
+                              {" · "}Trainer: {runner.trainer_name || "—"}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {runner.barrier ? <Badge tone="blue">Barrier {runner.barrier}</Badge> : null}
+                            {runner.weight_kg ? <Badge tone="amber">{runner.weight_kg}kg</Badge> : null}
+                            {runner.market_price ? <Badge tone="green">${runner.market_price}</Badge> : null}
+                            {runner.fixed_place_odds ? (
+                              <Badge tone="blue">Place ${runner.fixed_place_odds}</Badge>
+                            ) : null}
+                            {runner.form_last_6 ? <Badge tone="slate">{runner.form_last_6}</Badge> : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </Panel>
         </div>
