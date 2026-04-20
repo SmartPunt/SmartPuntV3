@@ -247,7 +247,7 @@ function isNoiseLine(line: string) {
   if (/^r\d+\s+[a-z]+$/i.test(line)) return true;
   if (/^\d{1,2}-[a-z]{3}-\d{2}$/i.test(line)) return true;
   if (/^\d{3,4}m$/i.test(line)) return true;
-  if (/^mon|tue|wed|thu|fri|sat|sun\b/i.test(line)) return true;
+if (/^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line)) return true;
   if (/^magic millions|maiden|benchmark|plate|handicap|stakes/i.test(line)) return true;
 
   if (/^(last starts|trainer|age \/ sex|sire \/ dam|distance|track|trk\/dist|good|soft|heavy|firm|synthetic)\b/i.test(line)) {
@@ -273,6 +273,11 @@ if (/first time|again|off again/i.test(lower)) return true;
 
 function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (!line) return false;
+
+    if (nextLines[0] && /^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(nextLines[0])) {
+    return false;
+  }
+  
   if (isNoiseLine(line)) return false;
   if (line.includes(":")) return false;
   if (/\b(j|t|br|barrier|weight|last starts|trainer|colour|career|prize|gear changes)\b/i.test(line)) {
