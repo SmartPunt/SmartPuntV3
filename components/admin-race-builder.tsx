@@ -313,7 +313,7 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
   while (i < lines.length) {
     const line = lines[i];
 
-    if (!looksLikeHorseName(line, lines.slice(i + 1, i + 12))) {
+    if (!looksLikeHorseName(line, lines.slice(i + 1, i + 16))) {
       i += 1;
       continue;
     }
