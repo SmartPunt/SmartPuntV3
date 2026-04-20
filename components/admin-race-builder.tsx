@@ -256,7 +256,7 @@ function isNoiseLine(line: string) {
     return true;
   }
 
-if (/trifecta|quinella|exacta|double|betting options|odds vs|head to head|favourite out/i.test(lower)) {
+if (/trifecta|quinella|exacta|double|betting options|odds vs|head to head|favourite out|gear changes|tongue tie|blinkers|visor|lugging bit|nose roll|ear muffs/i.test(lower)) {
   return true;
 }
 
