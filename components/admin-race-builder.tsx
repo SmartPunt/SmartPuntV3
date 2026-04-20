@@ -233,6 +233,8 @@ function isNoiseLine(line: string) {
     "favourite out",
     "deductions applied",
     "no deductions",
+    "scr",
+    "scratched",
   ]);
 
   if (exactNoise.has(lower)) return true;
