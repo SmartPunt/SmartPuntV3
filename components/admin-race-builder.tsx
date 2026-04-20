@@ -359,10 +359,10 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
       }
 
       if (!form_last_6) {
-        const formMatch =
-          entry.match(/last starts[:\s]*([0-9xX\-]+)/i) ||
-          entry.match(/^([0-9xX]{2,})$/);
-        if (formMatch) form_last_6 = formMatch[1].replace(/\s+/g, "");
+        const formMatch = entry.match(/last starts[:\s]*([0-9xX\-]+)/i);
+        if (formMatch) {
+          form_last_6 = formMatch[1].replace(/\s+/g, "");
+        }
       }
             if (!distance_form_last_6) {
         const distanceMatch =
