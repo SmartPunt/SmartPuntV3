@@ -315,9 +315,11 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
     let weight_kg = "";
     let jockey_name = "";
     let trainer_name = "";
-    let market_price = "";
+        let market_price = "";
     let fixed_place_odds = "";
     let form_last_6 = "";
+    let track_form_last_6 = "";
+    let distance_form_last_6 = "";
     let is_apprentice = false;
     let apprentice_claim_kg = "";
 
