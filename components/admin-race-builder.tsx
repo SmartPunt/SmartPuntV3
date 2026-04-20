@@ -179,17 +179,6 @@ function cleanImportedValue(value: string) {
   return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function looksLikeHorseName(line: string) {
-  if (!line) return false;
-  if (line.includes(":")) return false;
-  if (/^\$?\d+(\.\d+)?$/.test(line)) return false;
-  if (/^(distance|track|trk\/dist|good|soft|heavy|firm|synthetic|last starts)$/i.test(line)) {
-    return false;
-  }
-  if (/\b(br|wt?|j|t)\b[:(]/i.test(line)) return false;
-  return /^[A-Za-z0-9'’.\-\/&\s]+$/.test(line);
-}
-
 function parseApprentice(jockeyLine: string) {
   const cleaned = cleanImportedValue(jockeyLine);
 
@@ -218,6 +207,54 @@ function parseApprentice(jockeyLine: string) {
   };
 }
 
+function isNoiseLine(line: string) {
+  const lower = line.toLowerCase();
+
+  const exactNoise = new Set([
+    "my bets",
+    "bet slip",
+    "tips",
+    "stewards comments",
+    "fixed flucs",
+    "form",
+    "fixed",
+    "tote",
+    "sp",
+    "colour",
+  ]);
+
+  if (exactNoise.has(lower)) return true;
+  if (/^r\d+\s+[a-z]+$/i.test(line)) return true;
+  if (/^\d{1,2}-[a-z]{3}-\d{2}$/i.test(line)) return true;
+  if (/^\d{3,4}m$/i.test(line)) return true;
+  if (/^mon|tue|wed|thu|fri|sat|sun\b/i.test(line)) return true;
+  if (/^magic millions|maiden|benchmark|plate|handicap|stakes/i.test(line)) return true;
+  if (/^(last starts|trainer|age \/ sex|sire \/ dam|distance|track|trk\/dist|good|soft|heavy|firm|synthetic)\b/i.test(line)) {
+    return true;
+  }
+  if (/positioned|running|showed best work|well timed run|found one better|late fourth|came with/i.test(lower)) {
+    return true;
+  }
+  if (/^\$?\d+(\.\d+)?$/.test(line)) return true;
+  if (/^[0-9xX\-]{2,}$/.test(line)) return true;
+
+  return false;
+}
+
+function looksLikeHorseName(line: string) {
+  if (!line) return false;
+  if (isNoiseLine(line)) return false;
+  if (line.includes(":")) return false;
+  if (/\b(j|t|br|barrier|weight|last starts|trainer)\b/i.test(line)) return false;
+  if (/[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}/.test(line)) return false;
+  if (/^\d/.test(line)) return false;
+
+  const words = line.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 5) return false;
+
+  return words.every((word) => /^[A-Za-z'’.\-]+$/.test(word));
+}
+
 function parseRaceImportText(raw: string): ImportedRunner[] {
   const lines = raw
     .split(/\r?\n/)
@@ -236,6 +273,8 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
     }
 
     const horse_name = line;
+    const windowLines = lines.slice(i + 1, i + 20);
+
     let barrier = "";
     let weight_kg = "";
     let jockey_name = "";
@@ -246,16 +285,12 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
     let is_apprentice = false;
     let apprentice_claim_kg = "";
 
-    const windowLines = lines.slice(i + 1, i + 16);
-
     for (const entry of windowLines) {
       if (!barrier) {
         const barrierMatch =
           entry.match(/\bbr[:\s]*([0-9]+)/i) ||
           entry.match(/\bbarrier[:\s]*([0-9]+)/i);
-        if (barrierMatch) {
-          barrier = barrierMatch[1];
-        }
+        if (barrierMatch) barrier = barrierMatch[1];
       }
 
       if (!weight_kg) {
@@ -263,13 +298,13 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
           entry.match(/\bw[:\s]*([0-9]+(?:\.[0-9]+)?)\s*kg\b/i) ||
           entry.match(/\bweight[:\s]*([0-9]+(?:\.[0-9]+)?)\s*kg\b/i) ||
           entry.match(/^([0-9]+(?:\.[0-9]+)?)\s*kg$/i);
-        if (weightMatch) {
-          weight_kg = weightMatch[1];
-        }
+        if (weightMatch) weight_kg = weightMatch[1];
       }
 
       if (!jockey_name) {
-        const jockeyMatch = entry.match(/\bj[:\s]*(.+)$/i);
+        const jockeyMatch =
+          entry.match(/\bj[:\s]*(.+)$/i) ||
+          entry.match(/^jockey[:\s]*(.+)$/i);
         if (jockeyMatch) {
           const parsed = parseApprentice(jockeyMatch[1]);
           jockey_name = parsed.jockey_name;
@@ -279,19 +314,17 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
       }
 
       if (!trainer_name) {
-        const trainerMatch = entry.match(/\bt[:\s]*(.+)$/i);
-        if (trainerMatch) {
-          trainer_name = trainerMatch[1].trim();
-        }
+        const trainerMatch =
+          entry.match(/\bt[:\s]*(.+)$/i) ||
+          entry.match(/^trainer[:\s]*(.+)$/i);
+        if (trainerMatch) trainer_name = trainerMatch[1].trim();
       }
 
       if (!form_last_6) {
-        const lastStartsMatch =
+        const formMatch =
           entry.match(/last starts[:\s]*([0-9xX\-]+)/i) ||
-          entry.match(/^([0-9xX\-]{2,})$/);
-        if (lastStartsMatch) {
-          form_last_6 = lastStartsMatch[1].replace(/\s+/g, "");
-        }
+          entry.match(/^([0-9xX]{2,})$/);
+        if (formMatch) form_last_6 = formMatch[1].replace(/\s+/g, "");
       }
     }
 
@@ -299,12 +332,17 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
       .filter((entry) => /^\$?\d+(\.\d+)?$/.test(entry))
       .map((entry) => entry.replace(/^\$/, ""));
 
-    if (numberLines.length > 0) {
-      market_price = numberLines[0] || "";
-      fixed_place_odds = numberLines[1] || "";
+    if (numberLines.length >= 2) {
+      fixed_place_odds = numberLines[0];
+      market_price = numberLines[1];
+    } else if (numberLines.length === 1) {
+      market_price = numberLines[0];
     }
 
-    if (horse_name) {
+    if (
+      horse_name &&
+      (barrier || weight_kg || jockey_name || trainer_name || market_price || form_last_6)
+    ) {
       runners.push({
         horse_name,
         barrier,
@@ -324,7 +362,7 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
 
   const seen = new Set<string>();
   return runners.filter((runner) => {
-    const key = `${runner.horse_name}|${runner.barrier}|${runner.weight_kg}`;
+    const key = runner.horse_name.toLowerCase();
     if (!runner.horse_name || seen.has(key)) return false;
     seen.add(key);
     return true;
