@@ -276,8 +276,10 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (/[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}/.test(line)) return false;
   if (/^\d/.test(line)) return false;
 
-  const words = line.split(/\s+/).filter(Boolean);
-  if (words.length < 1 || words.length > 4) return false;
+  const cleanedLine = line.replace(/\s+\(([A-Z]{2,3})\)\s*$/, "").trim();
+
+  const words = cleanedLine.split(/\s+/).filter(Boolean);
+  if (words.length < 1 || words.length > 6) return false;
   if (!words.every((word) => /^[A-Za-z'’.\-]+$/.test(word))) return false;
 
   const hasSupportingData = nextLines.some((entry) => {
