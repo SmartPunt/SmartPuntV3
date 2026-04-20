@@ -256,9 +256,9 @@ function isNoiseLine(line: string) {
     return true;
   }
 
-  if (/trifecta|quinella|exacta|double|mystery|betting options|odds vs|head to head|favourite out/i.test(lower)) {
-    return true;
-  }
+if (/trifecta|quinella|exacta|double|betting options|odds vs|head to head|favourite out/i.test(lower)) {
+  return true;
+}
 
   if (/^\$?\d+(\.\d+)?$/.test(line)) return true;
   if (/^[0-9xX\-]{2,}$/.test(line)) return true;
