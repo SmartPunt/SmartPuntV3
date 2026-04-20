@@ -231,12 +231,16 @@ function isNoiseLine(line: string) {
     "half vs half",
     "head to head",
     "favourite out",
+    "deductions applied",
+    "no deductions",
   ]);
 
   if (exactNoise.has(lower)) return true;
   if (lower.startsWith("colour ")) return true;
   if (lower.startsWith("career ")) return true;
   if (lower.startsWith("prize ")) return true;
+  if (lower.startsWith("deductions")) return true;
+  if (lower.startsWith("no deductions")) return true;
 
   if (/^r\d+\s+[a-z]+$/i.test(line)) return true;
   if (/^\d{1,2}-[a-z]{3}-\d{2}$/i.test(line)) return true;
@@ -248,7 +252,7 @@ function isNoiseLine(line: string) {
     return true;
   }
 
-  if (/positioned|running|showed best work|well timed run|found one better|late fourth|came with/i.test(lower)) {
+  if (/positioned|running|showed best work|well timed run|found one better|late fourth|came with|held on well|run down late|big task ahead|settling well back/i.test(lower)) {
     return true;
   }
 
