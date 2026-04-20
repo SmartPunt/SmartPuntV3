@@ -221,20 +221,39 @@ function isNoiseLine(line: string) {
     "tote",
     "sp",
     "colour",
+    "career -",
+    "prize -",
+    "more betting options",
+    "mystery bet",
+    "odds vs evens",
+    "half vs half",
+    "head to head",
+    "favourite out",
   ]);
 
   if (exactNoise.has(lower)) return true;
+  if (lower.startsWith("colour ")) return true;
+  if (lower.startsWith("career ")) return true;
+  if (lower.startsWith("prize ")) return true;
+
   if (/^r\d+\s+[a-z]+$/i.test(line)) return true;
   if (/^\d{1,2}-[a-z]{3}-\d{2}$/i.test(line)) return true;
   if (/^\d{3,4}m$/i.test(line)) return true;
   if (/^mon|tue|wed|thu|fri|sat|sun\b/i.test(line)) return true;
   if (/^magic millions|maiden|benchmark|plate|handicap|stakes/i.test(line)) return true;
+
   if (/^(last starts|trainer|age \/ sex|sire \/ dam|distance|track|trk\/dist|good|soft|heavy|firm|synthetic)\b/i.test(line)) {
     return true;
   }
+
   if (/positioned|running|showed best work|well timed run|found one better|late fourth|came with/i.test(lower)) {
     return true;
   }
+
+  if (/trifecta|quinella|exacta|double|mystery|betting options|odds vs|head to head|favourite out/i.test(lower)) {
+    return true;
+  }
+
   if (/^\$?\d+(\.\d+)?$/.test(line)) return true;
   if (/^[0-9xX\-]{2,}$/.test(line)) return true;
 
