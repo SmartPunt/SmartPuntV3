@@ -364,6 +364,23 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
           entry.match(/^([0-9xX]{2,})$/);
         if (formMatch) form_last_6 = formMatch[1].replace(/\s+/g, "");
       }
+            if (!distance_form_last_6) {
+        const distanceMatch =
+          entry.match(/^distance[:\s]*([0-9]+:[0-9,]+)$/i) ||
+          entry.match(/\bdistance[:\s]*([0-9]+:[0-9,]+)/i);
+        if (distanceMatch) {
+          distance_form_last_6 = distanceMatch[1].trim();
+        }
+      }
+
+      if (!track_form_last_6) {
+        const trackMatch =
+          entry.match(/^track[:\s]*([0-9]+:[0-9,]+)$/i) ||
+          entry.match(/\btrack[:\s]*([0-9]+:[0-9,]+)/i);
+        if (trackMatch) {
+          track_form_last_6 = trackMatch[1].trim();
+        }
+      }
     }
 
     const numberLines = windowLines
