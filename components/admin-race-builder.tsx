@@ -264,12 +264,14 @@ function looksLikeHorseName(line: string) {
   if (!line) return false;
   if (isNoiseLine(line)) return false;
   if (line.includes(":")) return false;
-  if (/\b(j|t|br|barrier|weight|last starts|trainer)\b/i.test(line)) return false;
+  if (/\b(j|t|br|barrier|weight|last starts|trainer|colour|career|prize)\b/i.test(line)) {
+    return false;
+  }
   if (/[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}/.test(line)) return false;
   if (/^\d/.test(line)) return false;
 
   const words = line.split(/\s+/).filter(Boolean);
-  if (words.length < 2 || words.length > 5) return false;
+  if (words.length < 2 || words.length > 4) return false;
 
   return words.every((word) => /^[A-Za-z'’.\-]+$/.test(word));
 }
