@@ -288,11 +288,11 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (!words.every((word) => /^[A-Za-z'’.\-]+$/.test(word))) return false;
 
   const supportScore = nextLines.reduce((score, entry) => {
-    if (/\bbr[:\s]*[0-9]+/i.test(entry) || /\bbarrier[:\s]*[0-9]+/i.test(entry)) score++;
-    if (/\bw[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry)) score++;
-    if (/\bj[:\s].+/i.test(entry)) score++;
-    if (/\bt[:\s].+/i.test(entry)) score++;
-    if (/last starts[:\s]*[0-9xX\-]+/i.test(entry)) score++;
+    if (/^br[:\s]*[0-9]+/i.test(entry) || /^barrier[:\s]*[0-9]+/i.test(entry)) score++;
+    if (/^w[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry)) score++;
+    if (/^j[:\s].+/i.test(entry)) score++;
+    if (/^t[:\s].+/i.test(entry)) score++;
+    if (/^last starts[:\s]*[0-9xX\-]+/i.test(entry)) score++;
     return score;
   }, 0);
 
@@ -336,22 +336,22 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
     for (const entry of windowLines) {
       if (!barrier) {
         const barrierMatch =
-          entry.match(/\bbr[:\s]*([0-9]+)/i) ||
-          entry.match(/\bbarrier[:\s]*([0-9]+)/i);
+          entry.match(/^br[:\s]*([0-9]+)/i) ||
+          entry.match(/^barrier[:\s]*([0-9]+)/i);
         if (barrierMatch) barrier = barrierMatch[1];
       }
 
       if (!weight_kg) {
         const weightMatch =
-          entry.match(/\bw[:\s]*([0-9]+(?:\.[0-9]+)?)\s*kg\b/i) ||
-          entry.match(/\bweight[:\s]*([0-9]+(?:\.[0-9]+)?)\s*kg\b/i) ||
+          entry.match(/^w[:\s]*([0-9]+(?:\.[0-9]+)?)\s*kg\b/i) ||
+          entry.match(/^weight[:\s]*([0-9]+(?:\.[0-9]+)?)\s*kg\b/i) ||
           entry.match(/^([0-9]+(?:\.[0-9]+)?)\s*kg$/i);
         if (weightMatch) weight_kg = weightMatch[1];
       }
 
       if (!jockey_name) {
         const jockeyMatch =
-          entry.match(/\bj[:\s]*(.+)$/i) ||
+          entry.match(/^j[:\s]*(.+)$/i) ||
           entry.match(/^jockey[:\s]*(.+)$/i);
         if (jockeyMatch) {
           const parsed = parseApprentice(jockeyMatch[1]);
@@ -363,7 +363,7 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
 
       if (!trainer_name) {
         const trainerMatch =
-          entry.match(/\bt[:\s]*(.+)$/i) ||
+          entry.match(/^t[:\s]*(.+)$/i) ||
           entry.match(/^trainer[:\s]*(.+)$/i);
         if (trainerMatch) trainer_name = trainerMatch[1].trim();
       }
