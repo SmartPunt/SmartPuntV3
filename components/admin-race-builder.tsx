@@ -296,7 +296,9 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
     return score;
   }, 0);
 
-  return supportScore >= 1;
+  const hasScratchMarker = nextLines.some((entry) => /^scr$|^scratched$/i.test(entry));
+
+  return supportScore >= 1 || hasScratchMarker;
 }
 
 function parseRaceImportText(raw: string): ImportedRunner[] {
