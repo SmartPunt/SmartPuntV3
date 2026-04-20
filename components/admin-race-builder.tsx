@@ -282,19 +282,16 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (words.length < 1 || words.length > 6) return false;
   if (!words.every((word) => /^[A-Za-z'’.\-]+$/.test(word))) return false;
 
-  const hasSupportingData = nextLines.some((entry) => {
-    return (
-      /\bbr[:\s]*[0-9]+/i.test(entry) ||
-      /\bbarrier[:\s]*[0-9]+/i.test(entry) ||
-      /\bw[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry) ||
-      /\bweight[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry) ||
-      /\bj[:\s].+/i.test(entry) ||
-      /\bt[:\s].+/i.test(entry) ||
-      /last starts[:\s]*[0-9xX\-]+/i.test(entry)
-    );
-  });
+const supportScore = nextLines.reduce((score, entry) => {
+  if (/\bbr[:\s]*[0-9]+/i.test(entry) || /\bbarrier[:\s]*[0-9]+/i.test(entry)) score++;
+  if (/\bw[:\s]*[0-9]+(?:\.[0-9]+)?\s*kg\b/i.test(entry)) score++;
+  if (/\bj[:\s].+/i.test(entry)) score++;
+  if (/\bt[:\s].+/i.test(entry)) score++;
+  if (/last starts[:\s]*[0-9xX\-]+/i.test(entry)) score++;
+  return score;
+}, 0);
 
-  return hasSupportingData;
+return supportScore >= 2;
 }
 
 function parseRaceImportText(raw: string): ImportedRunner[] {
