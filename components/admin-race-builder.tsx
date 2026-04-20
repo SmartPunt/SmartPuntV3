@@ -376,7 +376,9 @@ export default function RaceBuilderPage({
   const [formLast6, setFormLast6] = useState("");
   const [trackFormLast6, setTrackFormLast6] = useState("");
   const [distanceFormLast6, setDistanceFormLast6] = useState("");
-
+  const [importText, setImportText] = useState("");
+  const [parsedImportRunners, setParsedImportRunners] = useState<ImportedRunner[]>([]);
+  const [importingRunners, setImportingRunners] = useState(false);
   useEffect(() => {
     setMeetings(initialMeetings);
   }, [initialMeetings]);
@@ -603,7 +605,71 @@ export default function RaceBuilderPage({
     setStatusTone("error");
     setStatusMessage(message);
   }
+  function handlePreviewImport() {
+    const parsed = parseRaceImportText(importText);
+    setParsedImportRunners(parsed);
 
+    if (!parsed.length) {
+      setError("No runners could be parsed from the pasted text.");
+      return;
+    }
+
+    setSuccess(`Parsed ${parsed.length} runners. Check the preview below, then import.`);
+  }
+
+  function clearImportPanel() {
+    setImportText("");
+    setParsedImportRunners([]);
+  }
+
+  async function handleImportParsedRunners() {
+    if (!selectedRaceIdForRunner) {
+      setError("Select a draft race first before importing runners.");
+      return;
+    }
+
+    if (!parsedImportRunners.length) {
+      setError("Nothing to import. Paste race text and preview it first.");
+      return;
+    }
+
+    setImportingRunners(true);
+
+    try {
+      for (const runner of parsedImportRunners) {
+        const formData = new FormData();
+        formData.set("race_id", selectedRaceIdForRunner);
+        formData.set("selected_horse_id", "");
+        formData.set("horse_name", runner.horse_name);
+        formData.set("jockey_name", runner.jockey_name);
+        formData.set("trainer_name", runner.trainer_name);
+        formData.set("barrier", runner.barrier);
+        formData.set("market_price", runner.market_price);
+        formData.set("weight_kg", runner.weight_kg);
+        formData.set("is_apprentice", String(runner.is_apprentice));
+        formData.set("apprentice_claim_kg", runner.apprentice_claim_kg);
+        formData.set("form_last_6", runner.form_last_6);
+        formData.set("track_form_last_6", "");
+        formData.set("distance_form_last_6", "");
+
+        const result = await createRaceRunnerAction(formData);
+
+        if (!result.success) {
+          throw new Error(
+            result.error || `Failed to import runner ${runner.horse_name}.`,
+          );
+        }
+      }
+
+      setSuccess(`Imported ${parsedImportRunners.length} runners into the selected race.`);
+      clearImportPanel();
+      router.refresh();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to import runners.");
+    } finally {
+      setImportingRunners(false);
+    }
+  }
   function handleAddMeeting() {
     startTransition(async () => {
       const formData = new FormData();
