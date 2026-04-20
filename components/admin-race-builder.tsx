@@ -392,8 +392,18 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
       .map((entry) => entry.replace(/^\$/, ""));
 
     if (decimalNumberLines.length >= 2) {
-      market_price = decimalNumberLines[0];
-      fixed_place_odds = decimalNumberLines[1];
+      const first = Number(decimalNumberLines[0]);
+      const second = Number(decimalNumberLines[1]);
+
+      if (!Number.isNaN(first) && !Number.isNaN(second)) {
+        if (first > second) {
+          market_price = decimalNumberLines[0];
+          fixed_place_odds = decimalNumberLines[1];
+        } else {
+          market_price = decimalNumberLines[1];
+          fixed_place_odds = decimalNumberLines[0];
+        }
+      }
     } else if (decimalNumberLines.length === 1) {
       market_price = decimalNumberLines[0];
     }
