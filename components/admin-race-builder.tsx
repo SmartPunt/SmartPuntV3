@@ -181,6 +181,12 @@ function cleanImportedValue(value: string) {
   return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function stripHorseSuffixes(value: string) {
+  return value
+    .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
+    .trim();
+}
+
 function parseApprentice(jockeyLine: string) {
   const cleaned = cleanImportedValue(jockeyLine);
 
