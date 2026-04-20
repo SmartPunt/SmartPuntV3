@@ -383,15 +383,15 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
       }
     }
 
-    const numberLines = windowLines
-      .filter((entry) => /^\$?\d+(\.\d+)?$/.test(entry))
+    const decimalNumberLines = windowLines
+      .filter((entry) => /^\$?\d+\.\d+$/.test(entry))
       .map((entry) => entry.replace(/^\$/, ""));
 
-    if (numberLines.length >= 2) {
-      fixed_place_odds = numberLines[0];
-      market_price = numberLines[1];
-    } else if (numberLines.length === 1) {
-      market_price = numberLines[0];
+    if (decimalNumberLines.length >= 2) {
+      market_price = decimalNumberLines[0];
+      fixed_place_odds = decimalNumberLines[1];
+    } else if (decimalNumberLines.length === 1) {
+      market_price = decimalNumberLines[0];
     }
 
     if (
