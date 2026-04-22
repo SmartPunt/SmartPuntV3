@@ -19,6 +19,20 @@ async function requireAdmin() {
   return profile;
 }
 
+async function requireRacingAdmin() {
+  const profile = await getCurrentProfile();
+
+  if (
+    !profile ||
+    !["admin", "staff_admin"].includes(profile.role) ||
+    profile.status !== "active"
+  ) {
+    throw new Error("Unauthorized");
+  }
+
+  return profile;
+}
+
 function getServiceRoleHeaders() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -672,7 +686,7 @@ export async function createSubscriberUserAction(
   _: { error: string | null; success: string | null },
   formData: FormData,
 ) {
-  await requireAdmin();
+  await requireRacingAdmin();
 
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
