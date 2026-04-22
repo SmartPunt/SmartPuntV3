@@ -253,6 +253,8 @@ export default function AdminDashboard({
     error: null,
     success: null,
   });
+  const [newUserRole, setNewUserRole] = useState("user");
+const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@email.com");
 
   const meetingMap = useMemo(() => {
     return new Map(initialMeetings.map((meeting) => [meeting.id, meeting]));
