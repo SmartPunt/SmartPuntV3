@@ -855,25 +855,32 @@ export async function signInAction(
   }
 
   const supabase = await createClient();
-
   let resolvedEmail = identifier.toLowerCase();
 
   if (!identifier.includes("@")) {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("username", identifier.toLowerCase())
-      .maybeSingle();
+    try {
+      const username = identifier.toLowerCase();
+      const encodedUsername = encodeURIComponent(username);
 
-    if (profileError) {
-      return { error: profileError.message };
+      const profileRows = (await serviceRoleSelect(
+        `profiles?select=email&username=eq.${encodedUsername}&limit=1`,
+      )) as Array<{ email: string }> | null;
+
+      const profile = profileRows?.[0] || null;
+
+      if (!profile?.email) {
+        return { error: "Username not found." };
+      }
+
+      resolvedEmail = String(profile.email).toLowerCase();
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to look up username.",
+      };
     }
-
-    if (!profile?.email) {
-      return { error: "Username not found." };
-    }
-
-    resolvedEmail = String(profile.email).toLowerCase();
   }
 
   const { error } = await supabase.auth.signInWithPassword({
