@@ -42,7 +42,7 @@ export default async function Page() {
     redirect("/login");
   }
 
-  if (profile.role !== "admin") {
+  if (!["admin", "staff_admin"].includes(profile.role)) {
     redirect("/");
   }
 
@@ -51,42 +51,62 @@ export default async function Page() {
 
     const horses = await fetchAllRows({
       getPage: async (from, to) => {
-        return await supabase
+        const result = await supabase
           .from("horses")
           .select("*")
           .order("horse_name", { ascending: true })
           .range(from, to);
+
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
       },
     });
 
     const raceRunners = await fetchAllRows({
       getPage: async (from, to) => {
-        return await supabase
+        const result = await supabase
           .from("race_runners")
           .select("*")
           .order("created_at", { ascending: false })
           .range(from, to);
+
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
       },
     });
 
     const races = await fetchAllRows({
       getPage: async (from, to) => {
-        return await supabase
+        const result = await supabase
           .from("races")
           .select("*")
           .order("meeting_id", { ascending: false })
           .order("race_number", { ascending: true })
           .range(from, to);
+
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
       },
     });
 
     const meetings = await fetchAllRows({
       getPage: async (from, to) => {
-        return await supabase
+        const result = await supabase
           .from("meetings")
           .select("*")
           .order("meeting_date", { ascending: false })
           .range(from, to);
+
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
       },
     });
 
