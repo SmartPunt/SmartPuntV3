@@ -1030,7 +1030,6 @@ export async function deleteLongTermBetAction(formData: FormData): Promise<void>
   if (error) throw new Error(error.message);
 
   revalidatePath("/");
-  revalidatePath("/long-term-bets");
 }
 
 export async function createMeetingAction(formData: FormData): Promise<ActionResult> {
@@ -1181,27 +1180,6 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
       return { success: false, error: "Invalid race status." };
     }
 
-    const { data: raceData, error: raceLookupError } = await supabase
-      .from("races")
-      .select("*")
-      .eq("id", raceId)
-      .maybeSingle();
-
-    if (raceLookupError) {
-      return { success: false, error: raceLookupError.message };
-    }
-
-    const meeting =
-      raceData?.meeting_id
-        ? (
-            await supabase
-              .from("meetings")
-              .select("*")
-              .eq("id", raceData.meeting_id)
-              .maybeSingle()
-          ).data
-        : null;
-
     const payload = {
       status: nextStatus,
       published_at: nextStatus === "published" ? new Date().toISOString() : null,
@@ -1212,19 +1190,6 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
 
     if (error) {
       return { success: false, error: error.message };
-    }
-
-    if (nextStatus === "published" && raceData) {
-      try {
-        await sendPublishedRaceNotification({
-          meetingName: meeting?.meeting_name || "Race Meeting",
-          raceName: raceData.race_name || `Race ${raceData.race_number}`,
-          raceNumber: raceData.race_number || 0,
-          distanceM: raceData.distance_m ?? null,
-        });
-      } catch (notificationError) {
-        console.error(notificationError);
-      }
     }
 
     revalidatePath("/admin/race-builder");
