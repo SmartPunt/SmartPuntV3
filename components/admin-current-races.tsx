@@ -151,6 +151,7 @@ function buildRunnerEditState(runner: Runner): RunnerEditState {
 function normaliseHorseName(value: string) {
   return String(value || "")
     .toLowerCase()
+    .replace(/[’']/g, "'")
     .replace(/\s+\(em[0-9]+\)\s*$/i, "")
     .replace(/\s+\(([a-z]{2,3})\)\s*$/i, "")
     .replace(/[^a-z0-9\s]/g, " ")
@@ -167,7 +168,7 @@ function parseResultImportText(raw: string): ParsedResultRow[] {
   const rows: ParsedResultRow[] = [];
 
   function isNoiseLine(line: string) {
-    const lower = line.toLowerCase();
+    const lower = line.toLowerCase().trim();
 
     if (
       /^(results?|dividends?|exotics?|quinella|exacta|trifecta|first four|daily double|running double|scratchings?|stewards|margins?|time|official|photo|protest)/i.test(
@@ -177,7 +178,19 @@ function parseResultImportText(raw: string): ParsedResultRow[] {
       return true;
     }
 
-    if (/^(jockey|trainer|weight|barrier|sp|place|tote|fixed|form|career|prize|colour|track|distance|gear changes)\b/i.test(lower)) {
+    if (
+      /(odds|evens|runner vs field|field vs runner|head to head|more betting options|mystery bet|bet slip|preview|glenn ingram)/i.test(
+        lower,
+      )
+    ) {
+      return true;
+    }
+
+    if (
+      /^(jockey|trainer|weight|barrier|sp|place|tote|fixed|form|career|prize|colour|track|distance|gear changes)\b/i.test(
+        lower,
+      )
+    ) {
       return true;
     }
 
@@ -199,19 +212,21 @@ function parseResultImportText(raw: string): ParsedResultRow[] {
       .replace(/^\d+\.\s*/, "")
       .replace(/\s+\([0-9]+\)\s*$/, "")
       .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
+      .replace(/[’']/g, "'")
       .trim();
 
     if (!cleaned) return false;
     if (/^\d/.test(cleaned)) return false;
 
-    const words = cleaned
+    const normalised = cleaned
       .replace(/\s+\(([A-Z]{2,3})\)\s*$/i, "")
-      .split(/\s+/)
-      .filter(Boolean);
+      .replace(/[’']/g, "'");
+
+    const words = normalised.split(/\s+/).filter(Boolean);
 
     if (words.length < 1 || words.length > 6) return false;
 
-    return words.every((word) => /^[A-Za-z'’.\-]+$/.test(word));
+    return words.every((word) => /^[A-Za-z'.\-]+$/.test(word));
   }
 
   for (let i = 0; i < lines.length; i += 1) {
@@ -232,6 +247,7 @@ function parseResultImportText(raw: string): ParsedResultRow[] {
         .replace(/^\d+\.\s*/, "")
         .replace(/\s+\([0-9]+\)\s*$/, "")
         .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
+        .replace(/[’']/g, "'")
         .trim();
 
       break;
@@ -533,7 +549,7 @@ export default function CurrentRacesPage({
   }
 
   function handleParseResultsImport(raceId: number) {
-    const raw = resultImportTextByRace[raceId] || "";
+    const raw = resultImportTextByRace[race.id] || "";
     const parsed = parseResultImportText(raw);
 
     if (!parsed.length) {
@@ -859,7 +875,7 @@ export default function CurrentRacesPage({
                                               [race.id]: e.target.value,
                                             }))
                                           }
-                                          placeholder="Paste ordered results here, one horse per line..."
+                                          placeholder="Paste ordered results here..."
                                           className="min-h-[140px] w-full rounded-2xl border border-amber-200/30 px-4 py-4 outline-none transition focus:border-amber-300"
                                         />
                                       </div>
