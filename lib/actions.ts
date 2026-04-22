@@ -686,31 +686,99 @@ export async function createSubscriberUserAction(
   _: { error: string | null; success: string | null },
   formData: FormData,
 ) {
-  await requireRacingAdmin();
+  await requireAdmin();
 
   const fullName = String(formData.get("full_name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const role = String(formData.get("role") ?? "user").trim();
+  const emailInput = String(formData.get("email") ?? "").trim().toLowerCase();
+  const usernameInput = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "").trim();
 
-  if (!fullName || !email || !password) {
-    return { error: "Full name, email, and password are required.", success: null };
+  if (!fullName || !password) {
+    return { error: "Full name and password are required.", success: null };
+  }
+
+  if (!["user", "admin", "staff_admin"].includes(role)) {
+    return { error: "Invalid role selected.", success: null };
   }
 
   if (password.length < 6) {
     return { error: "Password must be at least 6 characters.", success: null };
   }
 
+  const isSubscriber = role === "user";
+
+  if (isSubscriber && !emailInput) {
+    return { error: "Subscribers must have an email address.", success: null };
+  }
+
+  if (!isSubscriber && !usernameInput) {
+    return { error: "Full Admin and Race Builder users must have a username.", success: null };
+  }
+
+  const username =
+    usernameInput ||
+    null;
+
+  if (username && !/^[a-zA-Z0-9._-]{3,30}$/.test(username)) {
+    return {
+      error:
+        "Username must be 3 to 30 characters and use only letters, numbers, dots, underscores, or hyphens.",
+      success: null,
+    };
+  }
+
+  const authEmail = isSubscriber
+    ? emailInput
+    : `${username}@smartpunt.local`;
+
+  const profileEmail = isSubscriber ? emailInput : authEmail;
+
   const { supabaseUrl, headers } = getServiceRoleHeaders();
+
+  if (username) {
+    const existingUsernameRes = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?select=id&username=eq.${encodeURIComponent(username)}`,
+      {
+        method: "GET",
+        headers: {
+          ...headers,
+          Accept: "application/json",
+        },
+      },
+    );
+
+    const existingUsernameData = await existingUsernameRes.json();
+
+    if (!existingUsernameRes.ok) {
+      return {
+        error:
+          existingUsernameData?.message ||
+          existingUsernameData?.msg ||
+          "Failed to validate username.",
+        success: null,
+      };
+    }
+
+    if (Array.isArray(existingUsernameData) && existingUsernameData.length > 0) {
+      return {
+        error: "That username is already in use.",
+        success: null,
+      };
+    }
+  }
 
   const createUserRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
     method: "POST",
     headers,
     body: JSON.stringify({
-      email,
+      email: authEmail,
       password,
       email_confirm: true,
       user_metadata: {
         full_name: fullName,
+        username: username || null,
+        role,
       },
     }),
   });
@@ -742,9 +810,10 @@ export async function createSubscriberUserAction(
     body: JSON.stringify([
       {
         id: userId,
-        email,
+        email: profileEmail,
+        username,
         full_name: fullName,
-        role: "user",
+        role,
         status: "active",
       },
     ]),
@@ -759,22 +828,56 @@ export async function createSubscriberUserAction(
   }
 
   revalidatePath("/");
+
+  const roleLabel =
+    role === "admin"
+      ? "Full Admin"
+      : role === "staff_admin"
+        ? "Race Builder"
+        : "Subscriber";
+
+  const loginLabel = isSubscriber ? profileEmail : username;
+
   return {
     error: null,
-    success: `Subscriber created successfully for ${email}.`,
+    success: `${roleLabel} created successfully for ${loginLabel}.`,
   };
 }
-
 export async function signInAction(
   _: { error: string | null },
   formData: FormData,
 ) {
-  const email = String(formData.get("email") ?? "");
-  const password = String(formData.get("password") ?? "");
+  const identifier = String(formData.get("identifier") ?? "").trim();
+  const password = String(formData.get("password") ?? "").trim();
+
+  if (!identifier || !password) {
+    return { error: "Username/email and password are required." };
+  }
+
   const supabase = await createClient();
 
+  let resolvedEmail = identifier.toLowerCase();
+
+  if (!identifier.includes("@")) {
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("username", identifier.toLowerCase())
+      .maybeSingle();
+
+    if (profileError) {
+      return { error: profileError.message };
+    }
+
+    if (!profile?.email) {
+      return { error: "Username not found." };
+    }
+
+    resolvedEmail = String(profile.email).toLowerCase();
+  }
+
   const { error } = await supabase.auth.signInWithPassword({
-    email,
+    email: resolvedEmail,
     password,
   });
 
