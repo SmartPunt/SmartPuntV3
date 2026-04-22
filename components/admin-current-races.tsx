@@ -179,10 +179,14 @@ function isNoiseLine(line: string) {
   }
 
   if (
-    /(odds|evens|runner vs field|field vs runner|head to head|more betting options|mystery bet|bet slip|preview|glenn ingram)/i.test(
+    /(odds|evens|runner vs field|field vs runner|head to head|more betting options|mystery bet|bet slip|preview|glenn ingram|scott embry)/i.test(
       lower,
     )
   ) {
+    return true;
+  }
+
+  if (/^field$/i.test(lower)) {
     return true;
   }
 
@@ -217,6 +221,20 @@ function looksLikeHorseName(line: string) {
 
   if (!cleaned) return false;
   if (/^\d/.test(cleaned)) return false;
+
+  const loweredCleaned = cleaned.toLowerCase();
+
+  if (
+    /(odds|evens|runner vs field|field vs runner|head to head|more betting options|mystery bet|bet slip|preview|glenn ingram|scott embry)/i.test(
+      loweredCleaned,
+    )
+  ) {
+    return false;
+  }
+
+  if (/^field$/i.test(loweredCleaned)) {
+    return false;
+  }
 
   const normalised = cleaned
     .replace(/\s+\(([A-Z]{2,3})\)\s*$/i, "")
