@@ -521,64 +521,100 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-              <Panel className="bg-white/95">
-                <form action={createUserFormAction} className="space-y-5 p-6 text-zinc-950">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl font-semibold">Create Subscriber Login</h3>
-                      <p className="text-sm text-zinc-500">
-                        Create a new user login and matching Fortune on 5 profile in one step.
-                      </p>
-                    </div>
-                    <Badge tone="amber">Admin</Badge>
-                  </div>
+<Panel className="bg-white/95">
+  <form action={createUserFormAction} className="space-y-5 p-6 text-zinc-950">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h3 className="text-xl font-semibold">Create User Login</h3>
+        <p className="text-sm text-zinc-500">
+          Create a Full Admin, Race Builder, or Subscriber account in one step.
+        </p>
+      </div>
+      <Badge tone="amber">Admin</Badge>
+    </div>
 
-                  <Field label="Full name">
-                    <input
-                      name="full_name"
-                      placeholder="Subscriber name"
-                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                    />
-                  </Field>
+    <Field label="Account type">
+      <select
+        name="role"
+        value={newUserRole}
+        onChange={(e) => {
+          const role = e.target.value;
+          setNewUserRole(role);
+          setNewUserIdentifierHint(
+            role === "user" ? "subscriber@email.com" : "username",
+          );
+        }}
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      >
+        <option value="user">Subscriber</option>
+        <option value="staff_admin">Race Builder</option>
+        <option value="admin">Full Admin</option>
+      </select>
+    </Field>
 
-                  <Field label="Email">
-                    <input
-                      name="email"
-                      type="email"
-                      placeholder="subscriber@email.com"
-                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                    />
-                  </Field>
+    <Field label="Full name">
+      <input
+        name="full_name"
+        placeholder="User full name"
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      />
+    </Field>
 
-                  <Field label="Temporary password">
-                    <input
-                      name="password"
-                      type="text"
-                      placeholder="At least 6 characters"
-                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                    />
-                  </Field>
+    {newUserRole === "user" ? (
+      <Field label="Email">
+        <input
+          name="email"
+          type="email"
+          placeholder="subscriber@email.com"
+          className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+        />
+      </Field>
+    ) : (
+      <Field label="Username">
+        <input
+          name="username"
+          type="text"
+          placeholder={newUserIdentifierHint}
+          className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+        />
+      </Field>
+    )}
 
-                  {userState?.error ? (
-                    <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {userState.error}
-                    </div>
-                  ) : null}
+    <Field label="Temporary password">
+      <input
+        name="password"
+        type="text"
+        placeholder="At least 6 characters"
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      />
+    </Field>
 
-                  {userState?.success ? (
-                    <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                      {userState.success}
-                    </div>
-                  ) : null}
+    {newUserRole !== "user" ? (
+      <div className="rounded-2xl border border-amber-200/30 bg-amber-50 px-4 py-3 text-sm text-zinc-800">
+        Full Admin and Race Builder users will log in with their username and password.
+      </div>
+    ) : null}
 
-                  <button
-                    type="submit"
-                    className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
-                  >
-                    Create User Login
-                  </button>
-                </form>
-              </Panel>
+    {userState?.error ? (
+      <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        {userState.error}
+      </div>
+    ) : null}
+
+    {userState?.success ? (
+      <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        {userState.success}
+      </div>
+    ) : null}
+
+    <button
+      type="submit"
+      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+    >
+      Create User Login
+    </button>
+  </form>
+</Panel>
 
               <Panel className="bg-white/95">
                 <div className="p-6 text-zinc-950">
