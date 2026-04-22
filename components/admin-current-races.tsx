@@ -151,7 +151,6 @@ function buildRunnerEditState(runner: Runner): RunnerEditState {
 function normaliseHorseName(value: string) {
   return String(value || "")
     .toLowerCase()
-    .replace(/[’']/g, "'")
     .replace(/\s+\(em[0-9]+\)\s*$/i, "")
     .replace(/\s+\(([a-z]{2,3})\)\s*$/i, "")
     .replace(/[^a-z0-9\s]/g, " ")
@@ -167,85 +166,53 @@ function parseResultImportText(raw: string): ParsedResultRow[] {
 
   const rows: ParsedResultRow[] = [];
 
-function isNoiseLine(line: string) {
-  const lower = line.toLowerCase().trim();
+  function isNoiseLine(line: string) {
+    const lower = line.toLowerCase();
 
-  if (
-    /^(results?|dividends?|exotics?|quinella|exacta|trifecta|first four|daily double|running double|scratchings?|stewards|margins?|time|official|photo|protest)/i.test(
-      lower,
-    )
-  ) {
-    return true;
-  }
+    if (
+      /^(results?|dividends?|exotics?|quinella|exacta|trifecta|first four|daily double|running double|scratchings?|stewards|margins?|time|official|photo|protest)/i.test(
+        lower,
+      )
+    ) {
+      return true;
+    }
 
-  if (
-    /(odds|evens|runner vs field|field vs runner|head to head|more betting options|mystery bet|bet slip|preview|glenn ingram|scott embry)/i.test(
-      lower,
-    )
-  ) {
-    return true;
-  }
+    if (/^(jockey|trainer|weight|barrier|sp|place|tote|fixed|form|career|prize|colour|track|distance|gear changes)\b/i.test(lower)) {
+      return true;
+    }
 
-  if (/^field$/i.test(lower)) {
-    return true;
-  }
+    if (/^\d+(st|nd|rd|th)$/i.test(line)) return false;
 
-  if (
-    /^(jockey|trainer|weight|barrier|sp|place|tote|fixed|form|career|prize|colour|track|distance|gear changes)\b/i.test(
-      lower,
-    )
-  ) {
-    return true;
-  }
+    if (/^\d+(\.\d+)?$/.test(line)) return true;
+    if (/^\$?\d+(\.\d+)?$/.test(line)) return true;
+    if (/^[0-9xX\-]{2,}$/.test(line)) return true;
+    if (/^[A-Z]{2,5}\s+\d+$/i.test(line)) return true;
 
-  if (/^\d+(st|nd|rd|th)$/i.test(line)) return false;
-
-  if (/^\d+(\.\d+)?$/.test(line)) return true;
-  if (/^\$?\d+(\.\d+)?$/.test(line)) return true;
-  if (/^[0-9xX\-]{2,}$/.test(line)) return true;
-  if (/^[A-Z]{2,5}\s+\d+$/i.test(line)) return true;
-
-  return false;
-}
-
-function looksLikeHorseName(line: string) {
-  if (!line) return false;
-  if (isNoiseLine(line)) return false;
-
-  const cleaned = line
-    .replace(/^\d+\.\s*/, "")
-    .replace(/\s+\([0-9]+\)\s*$/, "")
-    .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
-    .replace(/[’']/g, "'")
-    .trim();
-
-  if (!cleaned) return false;
-  if (/^\d/.test(cleaned)) return false;
-
-  const loweredCleaned = cleaned.toLowerCase();
-
-  if (
-    /(odds|evens|runner vs field|field vs runner|head to head|more betting options|mystery bet|bet slip|preview|glenn ingram|scott embry)/i.test(
-      loweredCleaned,
-    )
-  ) {
     return false;
   }
 
-  if (/^field$/i.test(loweredCleaned)) {
-    return false;
+  function looksLikeHorseName(line: string) {
+    if (!line) return false;
+    if (isNoiseLine(line)) return false;
+
+    const cleaned = line
+      .replace(/^\d+\.\s*/, "")
+      .replace(/\s+\([0-9]+\)\s*$/, "")
+      .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
+      .trim();
+
+    if (!cleaned) return false;
+    if (/^\d/.test(cleaned)) return false;
+
+    const words = cleaned
+      .replace(/\s+\(([A-Z]{2,3})\)\s*$/i, "")
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (words.length < 1 || words.length > 6) return false;
+
+    return words.every((word) => /^[A-Za-z'’.\-]+$/.test(word));
   }
-
-  const normalised = cleaned
-    .replace(/\s+\(([A-Z]{2,3})\)\s*$/i, "")
-    .replace(/[’']/g, "'");
-
-  const words = normalised.split(/\s+/).filter(Boolean);
-
-  if (words.length < 1 || words.length > 6) return false;
-
-  return words.every((word) => /^[A-Za-z'.\-]+$/.test(word));
-}
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
@@ -265,7 +232,6 @@ function looksLikeHorseName(line: string) {
         .replace(/^\d+\.\s*/, "")
         .replace(/\s+\([0-9]+\)\s*$/, "")
         .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
-        .replace(/[’']/g, "'")
         .trim();
 
       break;
@@ -566,22 +532,22 @@ export default function CurrentRacesPage({
     return runnersForRace(raceId).filter((runner) => !runner.scratched).length;
   }
 
-function handleParseResultsImport(raceId: number) {
-  const raw = resultImportTextByRace[raceId] || "";
-  const parsed = parseResultImportText(raw);
+  function handleParseResultsImport(raceId: number) {
+    const raw = resultImportTextByRace[raceId] || "";
+    const parsed = parseResultImportText(raw);
 
-  if (!parsed.length) {
-    setError("No results could be parsed from the pasted text.");
-    return;
+    if (!parsed.length) {
+      setError("No results could be parsed from the pasted text.");
+      return;
+    }
+
+    setParsedResultsByRace((prev) => ({
+      ...prev,
+      [raceId]: parsed,
+    }));
+
+    setSuccess(`Parsed ${parsed.length} result rows. Check the preview, then apply results.`);
   }
-
-  setParsedResultsByRace((prev) => ({
-    ...prev,
-    [raceId]: parsed,
-  }));
-
-  setSuccess(`Parsed ${parsed.length} result rows. Check the preview, then apply results.`);
-}
 
   function handleApplyParsedResults(raceId: number) {
     const parsed = parsedResultsByRace[raceId] || [];
