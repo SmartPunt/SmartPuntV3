@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import {
   createSubscriberUserAction,
   deleteLongTermBetAction,
@@ -243,6 +243,12 @@ export default function AdminDashboard({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
 
+  const [watchRace, setWatchRace] = useState("");
+  const [watchHorse, setWatchHorse] = useState("");
+  const [watchLabel, setWatchLabel] = useState("Horse to Watch");
+  const [watchCommentary, setWatchCommentary] = useState("");
+  const [isWatchPending, startWatchTransition] = useTransition();
+
   const [userState, createUserFormAction] = useActionState(createSubscriberUserAction, {
     error: null,
     success: null,
@@ -331,6 +337,22 @@ export default function AdminDashboard({
     setTipResultComment("");
     setSuggestedTag("");
     setGenerateError("");
+  }
+
+  function loadWatchIntoForm(item: any) {
+    setWatchEdit(item);
+    setWatchRace(item.race || "");
+    setWatchHorse(item.horse || "");
+    setWatchLabel(item.label || "Horse to Watch");
+    setWatchCommentary(item.commentary || "");
+  }
+
+  function clearWatchForm() {
+    setWatchEdit(null);
+    setWatchRace("");
+    setWatchHorse("");
+    setWatchLabel("Horse to Watch");
+    setWatchCommentary("");
   }
 
   async function generateCommentary() {
@@ -434,13 +456,13 @@ export default function AdminDashboard({
                 </div>
 
                 <div className="mt-4 space-y-3">
-  <ToolLink href="/admin/race-builder" label="Race Builder" />
-  <ToolLink href="/current-races" label="Current Races" />
-  <ToolLink href="/race-archive" label="Race Archive" />
-  <ToolLink href="/admin/horses" label="Saved Horses" />
-  <ToolLink href="/resulted-tips" label="Resulted Tips" />
-  <ToolLink href="/admin/calculator" label="Calculator Lab" />
-</div>
+                  <ToolLink href="/admin/race-builder" label="Race Builder" />
+                  <ToolLink href="/current-races" label="Current Races" />
+                  <ToolLink href="/race-archive" label="Race Archive" />
+                  <ToolLink href="/admin/horses" label="Saved Horses" />
+                  <ToolLink href="/resulted-tips" label="Resulted Tips" />
+                  <ToolLink href="/admin/calculator" label="Calculator Lab" />
+                </div>
               </div>
             </Panel>
           </div>
@@ -995,7 +1017,15 @@ export default function AdminDashboard({
 
             <div className="grid gap-6 xl:grid-cols-2">
               <Panel className="bg-white/95">
-                <form action={upsertWatchItem} className="space-y-5 p-6 text-zinc-950">
+                <form
+                  action={async (formData) => {
+                    startWatchTransition(async () => {
+                      await upsertWatchItem(formData);
+                      clearWatchForm();
+                    });
+                  }}
+                  className="space-y-5 p-6 text-zinc-950"
+                >
                   <input type="hidden" name="id" value={watchEdit?.id || ""} readOnly />
 
                   <div className="flex items-center justify-between gap-3">
@@ -1013,20 +1043,20 @@ export default function AdminDashboard({
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Race">
-                      <input
+                      <Input
                         name="race"
-                        defaultValue={watchEdit?.race || ""}
                         placeholder="Belmont R2"
-                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                        value={watchRace}
+                        onChange={setWatchRace}
                       />
                     </Field>
 
                     <Field label="Horse / Focus">
-                      <input
+                      <Input
                         name="horse"
-                        defaultValue={watchEdit?.horse || ""}
                         placeholder="River Charge"
-                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                        value={watchHorse}
+                        onChange={setWatchHorse}
                       />
                     </Field>
                   </div>
@@ -1034,7 +1064,8 @@ export default function AdminDashboard({
                   <Field label="Watch label">
                     <select
                       name="label"
-                      defaultValue={watchEdit?.label || "Horse to Watch"}
+                      value={watchLabel}
+                      onChange={(e) => setWatchLabel(e.target.value)}
                       className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     >
                       <option>Horse to Watch</option>
@@ -1043,29 +1074,32 @@ export default function AdminDashboard({
                   </Field>
 
                   <Field label="Commentary">
-                    <textarea
+                    <Textarea
                       name="commentary"
-                      defaultValue={watchEdit?.commentary || ""}
                       placeholder="Add your watchlist notes here."
-                      className="min-h-[120px] w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                      value={watchCommentary}
+                      onChange={setWatchCommentary}
+                      minHeight="120px"
                     />
                   </Field>
 
                   <div className="flex flex-wrap gap-3">
                     <button
                       type="submit"
-                      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                      disabled={isWatchPending}
+                      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
                     >
                       {watchEdit ? "Update Watch Item" : "Publish Watch Item"}
                     </button>
 
-                    {watchEdit ? (
+                    {(watchEdit || watchRace || watchHorse || watchCommentary) ? (
                       <button
                         type="button"
-                        onClick={() => setWatchEdit(null)}
-                        className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                        onClick={clearWatchForm}
+                        disabled={isWatchPending}
+                        className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
                       >
-                        Cancel Edit
+                        {watchEdit ? "Cancel Edit" : "Clear Form"}
                       </button>
                     ) : null}
                   </div>
@@ -1098,7 +1132,7 @@ export default function AdminDashboard({
                         <div className="mt-4 flex gap-2">
                           <button
                             type="button"
-                            onClick={() => setWatchEdit(item)}
+                            onClick={() => loadWatchIntoForm(item)}
                             className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                           >
                             Edit
