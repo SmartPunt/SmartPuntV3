@@ -10,7 +10,7 @@ export default async function Page() {
     redirect("/login");
   }
 
-  if (profile.role !== "admin") {
+  if (!["admin", "staff_admin"].includes(profile.role)) {
     redirect("/");
   }
 
