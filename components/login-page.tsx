@@ -12,8 +12,8 @@ export default function LoginPage() {
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.12),transparent_24%),linear-gradient(180deg,#050505_0%,#111111_52%,#18181b_100%)] text-white">
       <div className="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-6 lg:px-8">
         <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-amber-300/15 bg-[linear-gradient(135deg,rgba(17,17,17,0.96),rgba(39,39,42,0.96),rgba(202,138,4,0.20))] shadow-2xl backdrop-blur">
-          <div className="relative overflow-hidden pt-6 pb-1">
-            <div className="flex justify-center -mt-6">
+          <div className="relative overflow-hidden pb-1 pt-6">
+            <div className="-mt-6 flex justify-center">
               <img
                 src="/header-logo.png"
                 alt="SmartPunt"
@@ -25,11 +25,13 @@ export default function LoginPage() {
           <div className="px-7 pb-4 pt-1">
             <form action={formAction} className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-amber-100/85">Email</label>
+                <label className="text-sm font-medium text-amber-100/85">
+                  Email or username
+                </label>
                 <input
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
+                  name="identifier"
+                  type="text"
+                  placeholder="you@example.com or username"
                   className="mt-1 w-full rounded-2xl border border-amber-300/20 bg-black/30 px-4 py-2.5 text-white outline-none transition focus:border-amber-300"
                 />
               </div>
