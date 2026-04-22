@@ -14,3 +14,15 @@ export async function getCurrentProfile() {
 
   return profile;
 }
+
+export function isFullAdmin(profile: any) {
+  return !!profile && profile.role === "admin" && profile.status === "active";
+}
+
+export function isRacingOpsAdmin(profile: any) {
+  return (
+    !!profile &&
+    (profile.role === "admin" || profile.role === "staff_admin") &&
+    profile.status === "active"
+  );
+}
