@@ -1048,7 +1048,7 @@ export async function deleteLongTermBetAction(formData: FormData): Promise<void>
 
 export async function createMeetingAction(formData: FormData): Promise<ActionResult> {
   try {
-    const profile = await requireAdmin();
+    const profile = await requireRacingAdmin();
     const supabase = await createClient();
 
     const meetingName = String(formData.get("meeting_name") ?? "").trim();
@@ -1085,7 +1085,7 @@ export async function createMeetingAction(formData: FormData): Promise<ActionRes
 
 export async function deleteMeetingAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireRacingAdmin();
 
     const meetingId = Number(formData.get("meeting_id"));
 
@@ -1133,7 +1133,7 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
 
 export async function createRaceAction(formData: FormData): Promise<ActionResult> {
   try {
-    const profile = await requireAdmin();
+    const profile = await requireRacingAdmin();
     const supabase = await createClient();
 
     const meetingId = Number(formData.get("meeting_id"));
@@ -1180,7 +1180,7 @@ export async function createRaceAction(formData: FormData): Promise<ActionResult
 
 export async function toggleRacePublishAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireRacingAdmin();
     const supabase = await createClient();
 
     const raceId = Number(formData.get("race_id"));
@@ -1221,7 +1221,7 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
 
 export async function deleteRaceAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireRacingAdmin();
 
     const raceId = Number(formData.get("race_id"));
 
@@ -1259,7 +1259,7 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
 
 export async function createRaceRunnerAction(formData: FormData): Promise<ActionResult> {
   try {
-    const profile = await requireAdmin();
+    const profile = await requireRacingAdmin();
     const supabase = await createClient();
 
     const raceId = Number(formData.get("race_id"));
@@ -1396,7 +1396,7 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
 
 export async function deleteRaceRunnerAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireRacingAdmin();
 
     const runnerId = Number(formData.get("runner_id"));
 
@@ -1424,7 +1424,7 @@ export async function deleteRaceRunnerAction(formData: FormData): Promise<Action
 
 export async function updateRaceRunnerDetailsAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireRacingAdmin();
     const supabase = await createClient();
 
     const runnerId = Number(formData.get("runner_id"));
@@ -1497,7 +1497,7 @@ export async function updateRaceRunnerDetailsAction(formData: FormData): Promise
 
 export async function toggleRaceRunnerScratchAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireRacingAdmin();
     const supabase = await createClient();
 
     const runnerId = Number(formData.get("runner_id"));
@@ -1534,7 +1534,7 @@ export async function toggleRaceRunnerScratchAction(formData: FormData): Promise
 
 export async function settleRaceRunnersAction(formData: FormData): Promise<ActionResult> {
   try {
-    await requireAdmin();
+    await requireRacingAdmin();
     const supabase = await createClient();
 
     const raceId = Number(formData.get("race_id"));
