@@ -279,7 +279,19 @@ if (/first time|again|off again/i.test(lower)) return true;
 
 function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (!line) return false;
+const lower = line.toLowerCase().trim();
 
+// Hard block known non-horse labels
+if (
+  lower === "odds" ||
+  lower === "evens" ||
+  lower === "field" ||
+  lower.includes("runner vs field") ||
+  lower.includes("field vs runner") ||
+  lower.includes("preview")
+) {
+  return false;
+}
     if (nextLines[0] && /^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(nextLines[0])) {
     return false;
   }
