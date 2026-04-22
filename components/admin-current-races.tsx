@@ -532,22 +532,22 @@ export default function CurrentRacesPage({
     return runnersForRace(raceId).filter((runner) => !runner.scratched).length;
   }
 
-  function handleParseResultsImport(raceId: number) {
-    const raw = resultImportTextByRace[raceId] || "";
-    const parsed = parseResultImportText(raw);
+function handleParseResultsImport(raceId: number) {
+  const raw = resultImportTextByRace[raceId] || "";
+  const parsed = parseResultImportText(raw);
 
-    if (!parsed.length) {
-      setError("No results could be parsed from the pasted text.");
-      return;
-    }
-
-    setParsedResultsByRace((prev) => ({
-      ...prev,
-      [raceId]: parsed,
-    }));
-
-    setSuccess(`Parsed ${parsed.length} result rows. Check the preview, then apply results.`);
+  if (!parsed.length) {
+    setError("No results could be parsed from the pasted text.");
+    return;
   }
+
+  setParsedResultsByRace((prev) => ({
+    ...prev,
+    [raceId]: parsed,
+  }));
+
+  setSuccess(`Parsed ${parsed.length} result rows. Check the preview, then apply results.`);
+}
 
   function handleApplyParsedResults(raceId: number) {
     const parsed = parsedResultsByRace[raceId] || [];
