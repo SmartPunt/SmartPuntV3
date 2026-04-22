@@ -307,9 +307,10 @@ const cleanedLine = stripHorseSuffixes(line).replace(/\s+\(([A-Z]{2,3})\)\s*$/i,
     return score;
   }, 0);
 
-  const hasScratchMarker = nextLines.some((entry) => /^scr$|^scratched$/i.test(entry));
+const hasScratchMarker = nextLines.some((entry) => /^scr$|^scratched$/i.test(entry));
 
-  return supportScore >= 1 || hasScratchMarker;
+// Require stronger evidence this is a real horse
+return supportScore >= 2 || hasScratchMarker;
 }
 
 function parseRaceImportText(raw: string): ImportedRunner[] {
