@@ -12,6 +12,10 @@ export default async function HomePage() {
     redirect("/login");
   }
 
+  if (profile.role === "staff_admin") {
+    redirect("/current-races");
+  }
+
   const supabase = await createClient();
 
   const suggestedTipsQuery = await supabase
