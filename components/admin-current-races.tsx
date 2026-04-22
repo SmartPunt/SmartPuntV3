@@ -270,7 +270,8 @@ export default function CurrentRacesPage({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin =
+  currentUser?.role === "admin" || currentUser?.role === "staff_admin";
 
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
