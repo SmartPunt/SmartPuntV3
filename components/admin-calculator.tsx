@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { signOutAction } from "@/lib/actions";
 import { Badge, Panel } from "@/components/ui";
 
 type Race = {
