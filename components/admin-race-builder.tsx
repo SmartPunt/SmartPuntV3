@@ -1077,6 +1077,12 @@ export default function RaceBuilderPage({
                   href="/"
                   className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 >
+                  <Link
+  href="/admin/calculator"
+  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+>
+  Calculator Lab
+</Link>
                   Back to Admin
                 </Link>
                 <form action={signOutAction}>
