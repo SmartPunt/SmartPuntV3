@@ -626,45 +626,61 @@ export default function CurrentRacesPage({
                 </p>
               </div>
 
-              <div className="mt-6 space-y-2">
-                {isAdmin ? (
-                  <>
-                    <Link
-                      href="/admin/race-builder"
-                      className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                      Race Builder
-                    </Link>
-                    <Link
-                      href="/race-archive"
-                      className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                      Race Archive
-                    </Link>
-                    <Link
-                      href="/"
-                      className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                      Back to Admin
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href="/race-archive"
-                      className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                      Race Archive
-                    </Link>
-                    <Link
-                      href="/"
-                      className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                    >
-                      Back to Dashboard
-                    </Link>
-                  </>
-                )}
-              </div>
+<div className="mt-6 space-y-2">
+  {isAdmin ? (
+    <>
+      <Link
+        href="/admin/race-builder"
+        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+      >
+        Race Builder
+      </Link>
+      <Link
+        href="/race-archive"
+        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+      >
+        Race Archive
+      </Link>
+      <Link
+        href="/"
+        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+      >
+        Back to Admin
+      </Link>
+      <form action={signOutAction}>
+        <button
+          type="submit"
+          className="block w-full rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/30"
+        >
+          Log Out
+        </button>
+      </form>
+    </>
+  ) : (
+    <>
+      <Link
+        href="/race-archive"
+        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+      >
+        Race Archive
+      </Link>
+      <Link
+        href="/"
+        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+      >
+        Back to Dashboard
+      </Link>
+      <form action={signOutAction}>
+        <button
+          type="submit"
+          className="block w-full rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-3 text-sm font-semibold text-red-200 transition hover:bg-red-500/30"
+        >
+          Log Out
+        </button>
+      </form>
+    </>
+  )}
+</div>
 
               <div className="mt-6 grid gap-3">
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
