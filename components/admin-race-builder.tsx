@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { signOutAction } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { Badge, Panel } from "@/components/ui";
 import {
@@ -13,6 +12,7 @@ import {
   deleteRaceAction,
   deleteRaceRunnerAction,
   toggleRacePublishAction,
+  signOutAction,
 } from "@/lib/actions";
 
 type Horse = {
@@ -163,6 +163,7 @@ function formatFormString(positions: Array<number | null | undefined>) {
 
   return usable.join("-");
 }
+
 type ImportedRunner = {
   horse_name: string;
   barrier: string;
@@ -183,9 +184,7 @@ function cleanImportedValue(value: string) {
 }
 
 function stripHorseSuffixes(value: string) {
-  return value
-    .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
-    .trim();
+  return value.replace(/\s+\(EM[0-9]+\)\s*$/i, "").trim();
 }
 
 function parseApprentice(jockeyLine: string) {
@@ -254,49 +253,61 @@ function isNoiseLine(line: string) {
   if (/^r\d+\s+[a-z]+$/i.test(line)) return true;
   if (/^\d{1,2}-[a-z]{3}-\d{2}$/i.test(line)) return true;
   if (/^\d{3,4}m$/i.test(line)) return true;
-if (/^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line)) return true;
+  if (/^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line)) return true;
   if (/^magic millions|maiden|benchmark|plate|handicap|stakes/i.test(line)) return true;
 
-  if (/^(last starts|trainer|age \/ sex|sire \/ dam|distance|track|trk\/dist|good|soft|heavy|firm|synthetic)\b/i.test(line)) {
+  if (
+    /^(last starts|trainer|age \/ sex|sire \/ dam|distance|track|trk\/dist|good|soft|heavy|firm|synthetic)\b/i.test(
+      line,
+    )
+  ) {
     return true;
   }
 
-  if (/positioned|running|showed best work|well timed run|found one better|late fourth|came with|held on well|run down late|big task ahead|settling well back/i.test(lower)) {
+  if (
+    /positioned|running|showed best work|well timed run|found one better|late fourth|came with|held on well|run down late|big task ahead|settling well back/i.test(
+      lower,
+    )
+  ) {
     return true;
   }
 
-if (/trifecta|quinella|exacta|double|betting options|odds vs|head to head|favourite out|gear changes|tongue tie|blinkers|visor|lugging bit|nose roll|ear muffs/i.test(lower)) {
-  return true;
-}
-  
-if (/first time|again|off again/i.test(lower)) return true;
-  
+  if (
+    /trifecta|quinella|exacta|double|betting options|odds vs|head to head|favourite out|gear changes|tongue tie|blinkers|visor|lugging bit|nose roll|ear muffs/i.test(
+      lower,
+    )
+  ) {
+    return true;
+  }
+
+  if (/first time|again|off again/i.test(lower)) return true;
+
   if (/^\$?\d+(\.\d+)?$/.test(line)) return true;
   if (/^[0-9xX\-]{2,}$/.test(line)) return true;
   if (/^scr$|^scratched$/i.test(line)) return true;
-  
+
   return false;
 }
 
 function looksLikeHorseName(line: string, nextLines: string[] = []) {
   if (!line) return false;
-const lower = line.toLowerCase().trim();
+  const lower = line.toLowerCase().trim();
 
-// Hard block known non-horse labels
-if (
-  lower === "odds" ||
-  lower === "evens" ||
-  lower === "field" ||
-  lower.includes("runner vs field") ||
-  lower.includes("field vs runner") ||
-  lower.includes("preview")
-) {
-  return false;
-}
-    if (nextLines[0] && /^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(nextLines[0])) {
+  if (
+    lower === "odds" ||
+    lower === "evens" ||
+    lower === "field" ||
+    lower.includes("runner vs field") ||
+    lower.includes("field vs runner") ||
+    lower.includes("preview")
+  ) {
     return false;
   }
-  
+
+  if (nextLines[0] && /^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(nextLines[0])) {
+    return false;
+  }
+
   if (isNoiseLine(line)) return false;
   if (line.includes(":")) return false;
   if (/\b(j|t|br|barrier|weight|last starts|trainer|colour|career|prize|gear changes)\b/i.test(line)) {
@@ -305,7 +316,9 @@ if (
   if (/[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}/.test(line)) return false;
   if (/^\d/.test(line)) return false;
 
-const cleanedLine = stripHorseSuffixes(line).replace(/\s+\(([A-Z]{2,3})\)\s*$/i, "").trim();
+  const cleanedLine = stripHorseSuffixes(line)
+    .replace(/\s+\(([A-Z]{2,3})\)\s*$/i, "")
+    .trim();
 
   const words = cleanedLine.split(/\s+/).filter(Boolean);
   if (words.length < 1 || words.length > 6) return false;
@@ -320,10 +333,9 @@ const cleanedLine = stripHorseSuffixes(line).replace(/\s+\(([A-Z]{2,3})\)\s*$/i,
     return score;
   }, 0);
 
-const hasScratchMarker = nextLines.some((entry) => /^scr$|^scratched$/i.test(entry));
+  const hasScratchMarker = nextLines.some((entry) => /^scr$|^scratched$/i.test(entry));
 
-// Require stronger evidence this is a real horse
-return supportScore >= 2 || hasScratchMarker;
+  return supportScore >= 2 || hasScratchMarker;
 }
 
 function parseRaceImportText(raw: string): ImportedRunner[] {
@@ -350,7 +362,7 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
     let weight_kg = "";
     let jockey_name = "";
     let trainer_name = "";
-        let market_price = "";
+    let market_price = "";
     let fixed_place_odds = "";
     let form_last_6 = "";
     let track_form_last_6 = "";
@@ -399,7 +411,8 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
           form_last_6 = formMatch[1].replace(/\s+/g, "");
         }
       }
-            if (!distance_form_last_6) {
+
+      if (!distance_form_last_6) {
         const distanceMatch =
           entry.match(/^distance[:\s]*([0-9]+:[0-9,]+)$/i) ||
           entry.match(/\bdistance[:\s]*([0-9]+:[0-9,]+)/i);
@@ -476,6 +489,7 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
     return true;
   });
 }
+
 export default function RaceBuilderPage({
   currentUser,
   initialMeetings,
@@ -525,6 +539,7 @@ export default function RaceBuilderPage({
   const [importText, setImportText] = useState("");
   const [parsedImportRunners, setParsedImportRunners] = useState<ImportedRunner[]>([]);
   const [importingRunners, setImportingRunners] = useState(false);
+
   useEffect(() => {
     setMeetings(initialMeetings);
   }, [initialMeetings]);
@@ -751,6 +766,7 @@ export default function RaceBuilderPage({
     setStatusTone("error");
     setStatusMessage(message);
   }
+
   function handlePreviewImport() {
     const parsed = parseRaceImportText(importText);
     setParsedImportRunners(parsed);
@@ -816,6 +832,7 @@ export default function RaceBuilderPage({
       setImportingRunners(false);
     }
   }
+
   function handleAddMeeting() {
     startTransition(async () => {
       const formData = new FormData();
@@ -1037,40 +1054,41 @@ export default function RaceBuilderPage({
             <div className="flex items-start justify-between gap-3">
               <Badge tone="amber">Race Builder</Badge>
 
-<div className="ml-auto flex flex-wrap items-center gap-2">
-  <Link
-    href="/current-races"
-    className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-400/15"
-  >
-    Current Races
-  </Link>
-  <Link
-    href="/race-archive"
-    className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-  >
-    Race Archive
-  </Link>
-  <Link
-    href="/admin/horses"
-    className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-  >
-    Saved Horses
-  </Link>
-  <Link
-    href="/"
-    className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-  >
-    Back to Admin
-  </Link>
-  <form action={signOutAction}>
-    <button
-      type="submit"
-      className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 backdrop-blur-sm transition hover:bg-red-500/30"
-    >
-      Log Out
-    </button>
-  </form>
-</div>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <Link
+                  href="/current-races"
+                  className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-400/15"
+                >
+                  Current Races
+                </Link>
+                <Link
+                  href="/race-archive"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Race Archive
+                </Link>
+                <Link
+                  href="/admin/horses"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Saved Horses
+                </Link>
+                <Link
+                  href="/"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Back to Admin
+                </Link>
+                <form action={signOutAction}>
+                  <button
+                    type="submit"
+                    className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 backdrop-blur-sm transition hover:bg-red-500/30"
+                  >
+                    Log Out
+                  </button>
+                </form>
+              </div>
+            </div>
 
             <div className="mt-auto rounded-2xl bg-black/20 px-4 py-4 backdrop-blur-[1px] lg:px-5">
               <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
@@ -1105,7 +1123,8 @@ export default function RaceBuilderPage({
             {statusMessage}
           </div>
         ) : null}
-               <div className="mt-6">
+
+        <div className="mt-6">
           <Panel className="bg-white/95">
             <div className="space-y-6 p-6 text-zinc-950">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1264,6 +1283,7 @@ export default function RaceBuilderPage({
             </div>
           </Panel>
         </div>
+
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
