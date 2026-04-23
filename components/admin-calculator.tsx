@@ -572,49 +572,55 @@ export default function AdminCalculator({
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 <Link
-                  href="/"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Back to Admin
-                </Link>
-                <Link
                   href="/admin/race-builder"
                   className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
                 >
                   Race Builder
                 </Link>
+                <Link
+                  href="/current-races"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Current Races
+                </Link>
+                <Link
+                  href="/race-archive"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Race Archive
+                </Link>
+                <Link
+                  href="/admin/horses"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Saved Horses
+                </Link>
+                <Link
+                  href="/"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
+                  Back to Admin
+                </Link>
+                <form action={signOutAction}>
+                  <button
+                    type="submit"
+                    className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 backdrop-blur-sm transition hover:bg-red-500/30"
+                  >
+                    Log Out
+                  </button>
+                </form>
               </div>
             </div>
 
             <div className="mt-auto rounded-2xl bg-black/20 px-4 py-4 backdrop-blur-[1px] lg:px-5">
-<div className="flex flex-wrap items-center justify-between gap-3">
-  <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-    <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-      Fortune on 5 current races
-    </h1>
-<p className="text-sm text-zinc-200 lg:text-base">
-  Admin-only modelling tool for published races, horse-triggered scoring, and race-wide ranking.
-</p>
-  </div>
-
-  <div className="flex items-center gap-2">
-    <Link
-      href="/"
-      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
-    >
-      Back to Dashboard
-    </Link>
-
-    <form action={signOutAction}>
-      <button
-        type="submit"
-        className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/30"
-      >
-        Log Out
-      </button>
-    </form>
-  </div>
-</div>
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+                  SmartPunt calculator lab
+                </h1>
+                <p className="text-sm text-zinc-200 lg:text-base">
+                  Admin-only modelling tool for published races, horse-triggered scoring, and race-wide ranking.
+                </p>
+              </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="green">{publishedRaces.length} published races</Badge>
