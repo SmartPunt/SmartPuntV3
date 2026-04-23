@@ -221,11 +221,9 @@ export default function AdminHorsesPage({
     <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
       Fortune on 5 current races
     </h1>
-    <p className="text-sm text-zinc-200 lg:text-base">
-      {isAdmin
-        ? "Manage published races here, make live runner changes, scratch horses, then result the full field."
-        : "View published races here, track the full field, and follow the live board."}
-    </p>
+<p className="text-sm text-zinc-200 lg:text-base">
+  Your saved horse master list, built from Race Builder and runner history.
+</p>
   </div>
 
   <div className="flex items-center gap-2">
