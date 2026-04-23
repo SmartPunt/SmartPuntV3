@@ -216,17 +216,36 @@ export default function AdminHorsesPage({
             </div>
 
             <div className="mt-auto rounded-2xl bg-black/20 px-4 py-4 backdrop-blur-[1px] lg:px-5">
-              <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-                  Fortune on 5 horse library
-                </h1>
-                <p className="text-sm text-zinc-200 lg:text-base">
-                  Your saved horse master list, built from Race Builder and runner history.
-                </p>
-                <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
-                  Logged in as {currentUser.full_name || currentUser.email}
-                </p>
-              </div>
+<div className="flex flex-wrap items-center justify-between gap-3">
+  <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+    <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+      Fortune on 5 current races
+    </h1>
+    <p className="text-sm text-zinc-200 lg:text-base">
+      {isAdmin
+        ? "Manage published races here, make live runner changes, scratch horses, then result the full field."
+        : "View published races here, track the full field, and follow the live board."}
+    </p>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <Link
+      href="/"
+      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+    >
+      Back to Dashboard
+    </Link>
+
+    <form action={signOutAction}>
+      <button
+        type="submit"
+        className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/30"
+      >
+        Log Out
+      </button>
+    </form>
+  </div>
+</div>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="green">{initialHorses.length} horses saved</Badge>
