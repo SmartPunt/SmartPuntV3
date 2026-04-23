@@ -634,6 +634,12 @@ export default function CurrentRacesPage({
         className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
       >
         Race Builder
+        <Link
+  href="/admin/calculator"
+  className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+>
+  Calculator Lab
+</Link>
       </Link>
       <Link
         href="/race-archive"
