@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { signOutAction } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { Badge, Panel } from "@/components/ui";
 import {
