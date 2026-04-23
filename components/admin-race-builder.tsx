@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { signOutAction } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { Badge, Panel } from "@/components/ui";
 import {
@@ -1037,32 +1038,39 @@ export default function RaceBuilderPage({
               <Badge tone="amber">Race Builder</Badge>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Link
-                  href="/current-races"
-                  className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-400/15"
-                >
-                  Current Races
-                </Link>
-                <Link
-                  href="/race-archive"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Race Archive
-                </Link>
-                <Link
-                  href="/admin/horses"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Saved Horses
-                </Link>
-                <Link
-                  href="/"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
-                  Back to Admin
-                </Link>
-              </div>
-            </div>
+  <Link
+    href="/current-races"
+    className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-400/15"
+  >
+    Current Races
+  </Link>
+  <Link
+    href="/race-archive"
+    className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+  >
+    Race Archive
+  </Link>
+  <Link
+    href="/admin/horses"
+    className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+  >
+    Saved Horses
+  </Link>
+  <Link
+    href="/"
+    className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+  >
+    Back to Admin
+  </Link>
+  <form action={signOutAction}>
+    <button
+      type="submit"
+      className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 backdrop-blur-sm transition hover:bg-red-500/30"
+    >
+      Log Out
+    </button>
+  </form>
+</div>
 
             <div className="mt-auto rounded-2xl bg-black/20 px-4 py-4 backdrop-blur-[1px] lg:px-5">
               <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
