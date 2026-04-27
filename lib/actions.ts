@@ -1417,12 +1417,17 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
         horseId = existingHorse.id;
       } else {
         const { data: insertedHorse, error: insertHorseError } = await supabase
-          .from("horses")
-          .insert({
-            horse_name: horseNameRaw.replace(/\s+/g, " ").trim(),
-            normalised_name: normalisedName,
-            updated_at: new Date().toISOString(),
-          })
+.from("horses")
+.insert({
+  horse_name: horseNameRaw.replace(/\s+/g, " ").trim(),
+  normalised_name: normalisedName,
+
+  form_last_6: formLast6 || null,
+  track_form_last_6: trackFormLast6 || null,
+  distance_form_last_6: distanceFormLast6 || null,
+
+  updated_at: new Date().toISOString(),
+})
           .select("id")
           .single();
 
