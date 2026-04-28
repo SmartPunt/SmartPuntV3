@@ -297,52 +297,85 @@ export default async function Page({
     return bRaceNo - aRaceNo;
   });
 
-  const latestRunner = sortedResultedRuns[0] || enrichedRuns[0] || null;
-
-  const totalRuns = sortedResultedRuns.length;
-  const totalWins = sortedResultedRuns.filter((run) => run.finishing_position === 1).length;
-  const totalPlaces = sortedResultedRuns.filter(
-    (run) =>
-      run.finishing_position !== null &&
-      run.finishing_position !== undefined &&
-      run.finishing_position <= 3,
-  ).length;
-
-  const uniqueJockeys = Array.from(
-    new Set(
-      enrichedRuns.map((runner) => runner.jockey_name).filter(Boolean),
-    ),
-  );
-
-  const uniqueTrainers = Array.from(
-    new Set(
-      enrichedRuns.map((runner) => runner.trainer_name).filter(Boolean),
-    ),
-  );
-
-  const distanceStats = buildStatRows(sortedResultedRuns, (run) =>
-    getDistanceBucket(run.race?.distance_m),
-  );
-
-  const trackStats = buildStatRows(sortedResultedRuns, (run) =>
-    run.meeting?.meeting_name || null,
-  );
-
-  const conditionStats = buildStatRows(sortedResultedRuns, (run) =>
-    getConditionBucket(run.meeting?.track_condition),
-  );
+const latestRunner = sortedResultedRuns[0] || enrichedRuns[0] || null;
 
 const latestRunnerForm = latestRunner?.form_last_6 || "";
+const masterHorseForm = horse.form_last_6 || "";
 
-const masterHorseForm =
-  horse.form_last_6 ||
-  "";
+const fallbackFormLine = masterHorseForm || latestRunnerForm || "—";
+const fallbackFormNumbers = fallbackFormLine
+  .split(/[-•,\s]+/)
+  .map((value) => Number(value))
+  .filter((value) => !Number.isNaN(value));
+
+const totalRuns =
+  sortedResultedRuns.length > 0 ? sortedResultedRuns.length : fallbackFormNumbers.length;
+
+const totalWins =
+  sortedResultedRuns.length > 0
+    ? sortedResultedRuns.filter((run) => run.finishing_position === 1).length
+    : fallbackFormNumbers.filter((position) => position === 1).length;
+
+const totalPlaces =
+  sortedResultedRuns.length > 0
+    ? sortedResultedRuns.filter(
+        (run) =>
+          run.finishing_position !== null &&
+          run.finishing_position !== undefined &&
+          run.finishing_position <= 3,
+      ).length
+    : fallbackFormNumbers.filter((position) => position <= 3).length;
+
+const uniqueJockeys = Array.from(
+  new Set(enrichedRuns.map((runner) => runner.jockey_name).filter(Boolean)),
+);
+
+const uniqueTrainers = Array.from(
+  new Set(enrichedRuns.map((runner) => runner.trainer_name).filter(Boolean)),
+);
+
+const importedDistanceRecord =
+  horse.distance_form_last_6 || latestRunner?.distance_form_last_6 || "";
+
+const importedTrackRecord =
+  horse.track_form_last_6 || latestRunner?.track_form_last_6 || "";
+
+const distanceStats =
+  sortedResultedRuns.length > 0
+    ? buildStatRows(sortedResultedRuns, (run) => getDistanceBucket(run.race?.distance_m))
+    : importedDistanceRecord
+      ? [
+          {
+            label: latestRunner?.race?.distance_m
+              ? `${latestRunner.race.distance_m}m`
+              : "Imported distance form",
+            runs: 0,
+            wins: 0,
+            places: 0,
+          },
+        ]
+      : [];
+
+const trackStats =
+  sortedResultedRuns.length > 0
+    ? buildStatRows(sortedResultedRuns, (run) => run.meeting?.meeting_name || null)
+    : importedTrackRecord
+      ? [
+          {
+            label: latestRunner?.meeting?.meeting_name || "Imported track form",
+            runs: 0,
+            wins: 0,
+            places: 0,
+          },
+        ]
+      : [];
+
+const conditionStats = buildStatRows(sortedResultedRuns, (run) =>
+  getConditionBucket(run.meeting?.track_condition),
+);
 
 const recentFormLine =
-  sortedResultedRuns.length > 0
-    ? formatFormLine(sortedResultedRuns)
-    : masterHorseForm || latestRunnerForm || "—";
-
+  sortedResultedRuns.length > 0 ? formatFormLine(sortedResultedRuns) : fallbackFormLine;
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
