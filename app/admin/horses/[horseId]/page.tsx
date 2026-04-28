@@ -305,8 +305,8 @@ const masterHorseForm = horse.form_last_6 || "";
 const fallbackFormLine = masterHorseForm || latestRunnerForm || "—";
 const fallbackFormNumbers = fallbackFormLine
   .split(/[-•,\s]+/)
-  .map((value) => Number(value))
-  .filter((value) => !Number.isNaN(value));
+  .map((value: string) => Number(value))
+  .filter((value: number) => !Number.isNaN(value));
 
 const totalRuns =
   sortedResultedRuns.length > 0 ? sortedResultedRuns.length : fallbackFormNumbers.length;
