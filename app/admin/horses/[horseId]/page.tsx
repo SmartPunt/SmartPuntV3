@@ -10,6 +10,11 @@ type Horse = {
   normalised_name: string;
   sex: string | null;
   age: number | null;
+
+  form_last_6: string | null;
+  track_form_last_6: string | null;
+  distance_form_last_6: string | null;
+
   created_at: string;
   updated_at: string;
 };
