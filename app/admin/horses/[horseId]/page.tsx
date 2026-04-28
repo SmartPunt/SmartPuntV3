@@ -314,7 +314,7 @@ const totalRuns =
 const totalWins =
   sortedResultedRuns.length > 0
     ? sortedResultedRuns.filter((run) => run.finishing_position === 1).length
-    : fallbackFormNumbers.filter((position) => position === 1).length;
+    : fallbackFormNumbers.filter((position: number) => position === 1).length;
 
 const totalPlaces =
   sortedResultedRuns.length > 0
@@ -324,7 +324,7 @@ const totalPlaces =
           run.finishing_position !== undefined &&
           run.finishing_position <= 3,
       ).length
-    : fallbackFormNumbers.filter((position) => position <= 3).length;
+    : fallbackFormNumbers.filter((position: number) => position <= 3).length;
 
 const uniqueJockeys = Array.from(
   new Set(enrichedRuns.map((runner) => runner.jockey_name).filter(Boolean)),
