@@ -470,7 +470,7 @@ const recentFormLine =
                   {horse.horse_name}
                 </h1>
                 <p className="text-sm text-zinc-200 lg:text-base">
-                  Saved horse profile built from SmartPunt runner history.
+Saved horse profile built from SmartPunt form history.
                 </p>
                 <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                   Logged in as {profile.full_name || profile.email}
