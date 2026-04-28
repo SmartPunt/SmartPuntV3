@@ -332,7 +332,19 @@ export default async function Page({
     getConditionBucket(run.meeting?.track_condition),
   );
 
-  const recentFormLine = formatFormLine(sortedResultedRuns);
+const latestRunnerForm =
+  latestRunner?.form_last_6 ||
+  latestRunner?.form_last_3 ||
+  "";
+
+const masterHorseForm =
+  horse.form_last_6 ||
+  "";
+
+const recentFormLine =
+  sortedResultedRuns.length > 0
+    ? formatFormLine(sortedResultedRuns)
+    : masterHorseForm || latestRunnerForm || "—";
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
