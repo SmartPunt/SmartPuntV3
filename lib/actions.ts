@@ -521,6 +521,7 @@ async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
     },
   );
 }
+// SmartPunt horse master form seed active
 
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
   const supabase = await createClient();
