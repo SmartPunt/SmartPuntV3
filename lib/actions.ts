@@ -1442,7 +1442,7 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
   horse_name: horseNameRaw.replace(/\s+/g, " ").trim(),
   normalised_name: normalisedName,
 
-form_last_6: formLast6 || null,
+form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
 track_form_last_6: trackFormLast6 || null,
 distance_form_last_6: distanceFormLast6 || null,
 
@@ -1680,7 +1680,7 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
 
     const { data: raceRunners, error: runnersError } = await supabase
       .from("race_runners")
-      .select("id, scratched")
+.select("id, horse_id, scratched")
       .eq("race_id", raceId);
 
     if (runnersError) {
