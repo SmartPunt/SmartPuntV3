@@ -435,9 +435,6 @@ const recentFormLine =
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
-        <div className="mb-4 rounded-2xl bg-red-600 px-4 py-3 text-lg font-bold text-white">
-  {HORSE_PROFILE_BUILD_MARKER}
-</div>
         <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-2xl">
           <img
             src="/header-logo.png"
@@ -496,7 +493,6 @@ Saved horse profile built from SmartPunt form history.
                 <p className="mt-2 text-2xl font-bold tracking-wide text-white">
                   {recentFormLine}
                 </p>
-                <p className="mt-2 text-xs text-red-300">{debugFormCheck}</p>
               </div>
             </div>
           </div>
