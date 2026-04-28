@@ -304,22 +304,72 @@ export default async function Page({
 
 const latestRunner = sortedResultedRuns[0] || enrichedRuns[0] || null;
 
-const latestRunnerForm = latestRunner?.form_last_6 || "";
-const masterHorseForm = horse.form_last_6 || "";
+function parseImportedForm(value?: string | null) {
+  const cleaned = String(value || "").trim();
 
-const fallbackFormLine = masterHorseForm || latestRunnerForm || "—";
-const fallbackFormNumbers = fallbackFormLine
-  .split(/[-•,\s]+/)
-  .map((value: string) => Number(value))
-  .filter((value: number) => !Number.isNaN(value));
+  if (!cleaned || cleaned === "—") return [];
+
+  if (/^[0-9xX]+$/.test(cleaned)) {
+    return cleaned
+      .split("")
+      .map((item: string) => (item.toLowerCase() === "x" ? null : Number(item)))
+      .filter((item: number | null): item is number => item !== null && !Number.isNaN(item));
+  }
+
+  return cleaned
+    .split(/[-•,\s]+/)
+    .map((item: string) => Number(item))
+    .filter((item: number) => !Number.isNaN(item));
+}
+
+function parseImportedRecord(value?: string | null) {
+  const cleaned = String(value || "").trim();
+
+  const match = cleaned.match(/^(\d+):([0-9]+),([0-9]+),([0-9]+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const runs = Number(match[1]);
+  const wins = Number(match[2]);
+  const seconds = Number(match[3]);
+  const thirds = Number(match[4]);
+
+  return {
+    runs: Number.isNaN(runs) ? 0 : runs,
+    wins: Number.isNaN(wins) ? 0 : wins,
+    places:
+      (Number.isNaN(wins) ? 0 : wins) +
+      (Number.isNaN(seconds) ? 0 : seconds) +
+      (Number.isNaN(thirds) ? 0 : thirds),
+  };
+}
+
+const importedFormSource =
+  horse.form_last_6 ||
+  enrichedRuns.find((runner) => runner.form_last_6)?.form_last_6 ||
+  "";
+
+const importedTrackSource =
+  horse.track_form_last_6 ||
+  enrichedRuns.find((runner) => runner.track_form_last_6)?.track_form_last_6 ||
+  "";
+
+const importedDistanceSource =
+  horse.distance_form_last_6 ||
+  enrichedRuns.find((runner) => runner.distance_form_last_6)?.distance_form_last_6 ||
+  "";
+
+const importedFormNumbers = parseImportedForm(importedFormSource);
 
 const totalRuns =
-  sortedResultedRuns.length > 0 ? sortedResultedRuns.length : fallbackFormNumbers.length;
+  sortedResultedRuns.length > 0 ? sortedResultedRuns.length : importedFormNumbers.length;
 
 const totalWins =
   sortedResultedRuns.length > 0
     ? sortedResultedRuns.filter((run) => run.finishing_position === 1).length
-    : fallbackFormNumbers.filter((position: number) => position === 1).length;
+    : importedFormNumbers.filter((position: number) => position === 1).length;
 
 const totalPlaces =
   sortedResultedRuns.length > 0
@@ -329,7 +379,9 @@ const totalPlaces =
           run.finishing_position !== undefined &&
           run.finishing_position <= 3,
       ).length
-    : fallbackFormNumbers.filter((position: number) => position <= 3).length;
+    : importedFormNumbers.filter(
+        (position: number) => position >= 1 && position <= 3,
+      ).length;
 
 const uniqueJockeys = Array.from(
   new Set(enrichedRuns.map((runner) => runner.jockey_name).filter(Boolean)),
@@ -339,11 +391,8 @@ const uniqueTrainers = Array.from(
   new Set(enrichedRuns.map((runner) => runner.trainer_name).filter(Boolean)),
 );
 
-const importedDistanceRecord =
-  horse.distance_form_last_6 || latestRunner?.distance_form_last_6 || "";
-
-const importedTrackRecord =
-  horse.track_form_last_6 || latestRunner?.track_form_last_6 || "";
+const importedDistanceRecord = parseImportedRecord(importedDistanceSource);
+const importedTrackRecord = parseImportedRecord(importedTrackSource);
 
 const distanceStats =
   sortedResultedRuns.length > 0
@@ -354,9 +403,9 @@ const distanceStats =
             label: latestRunner?.race?.distance_m
               ? `${latestRunner.race.distance_m}m`
               : "Imported distance form",
-            runs: 0,
-            wins: 0,
-            places: 0,
+            runs: importedDistanceRecord.runs,
+            wins: importedDistanceRecord.wins,
+            places: importedDistanceRecord.places,
           },
         ]
       : [];
@@ -368,9 +417,9 @@ const trackStats =
       ? [
           {
             label: latestRunner?.meeting?.meeting_name || "Imported track form",
-            runs: 0,
-            wins: 0,
-            places: 0,
+            runs: importedTrackRecord.runs,
+            wins: importedTrackRecord.wins,
+            places: importedTrackRecord.places,
           },
         ]
       : [];
@@ -380,7 +429,9 @@ const conditionStats = buildStatRows(sortedResultedRuns, (run) =>
 );
 
 const recentFormLine =
-  sortedResultedRuns.length > 0 ? formatFormLine(sortedResultedRuns) : fallbackFormLine;
+  sortedResultedRuns.length > 0
+    ? formatFormLine(sortedResultedRuns)
+    : importedFormSource || "—";
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
