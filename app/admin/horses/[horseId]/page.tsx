@@ -332,10 +332,7 @@ export default async function Page({
     getConditionBucket(run.meeting?.track_condition),
   );
 
-const latestRunnerForm =
-  latestRunner?.form_last_6 ||
-  latestRunner?.form_last_3 ||
-  "";
+const latestRunnerForm = latestRunner?.form_last_6 || "";
 
 const masterHorseForm =
   horse.form_last_6 ||
