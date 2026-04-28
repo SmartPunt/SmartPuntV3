@@ -1763,7 +1763,73 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
         return { success: false, error: error.message };
       }
     }
+const runnerHorseMap = new Map<number, number>();
 
+for (const runner of raceRunners || []) {
+  const runnerId = Number((runner as any).id);
+  const horseId = Number((runner as any).horse_id);
+
+  if (runnerId && horseId) {
+    runnerHorseMap.set(runnerId, horseId);
+  }
+}
+
+const horseFormUpdates = updates
+  .filter(
+    (update) =>
+      update.finishing_position !== null &&
+      update.finishing_position !== undefined &&
+      update.finishing_position > 0,
+  )
+  .map((update) => ({
+    runnerId: update.id,
+    horseId: runnerHorseMap.get(update.id),
+    finishingPosition: update.finishing_position,
+  }))
+  .filter((item) => item.horseId);
+
+const uniqueHorseIds = Array.from(
+  new Set(horseFormUpdates.map((item) => Number(item.horseId))),
+);
+
+if (uniqueHorseIds.length > 0) {
+  const { data: horseRows, error: horseRowsError } = await supabase
+    .from("horses")
+    .select("id, form_last_6")
+    .in("id", uniqueHorseIds);
+
+  if (horseRowsError) {
+    return { success: false, error: horseRowsError.message };
+  }
+
+  const horseFormMap = new Map<number, string | null>();
+
+  for (const horse of horseRows || []) {
+    horseFormMap.set(Number((horse as any).id), (horse as any).form_last_6 || null);
+  }
+
+  for (const item of horseFormUpdates) {
+    const horseId = Number(item.horseId);
+    const existingForm = horseFormMap.get(horseId) || null;
+
+    const nextForm = updateFormStringWithResult(
+      existingForm,
+      Number(item.finishingPosition),
+    );
+
+    const { error: horseUpdateError } = await supabase
+      .from("horses")
+      .update({
+        form_last_6: nextForm,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", horseId);
+
+    if (horseUpdateError) {
+      return { success: false, error: horseUpdateError.message };
+    }
+  }
+}
     const { error: raceError } = await supabase
       .from("races")
       .update({
