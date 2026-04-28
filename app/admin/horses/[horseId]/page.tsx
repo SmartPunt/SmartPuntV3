@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Badge, Panel } from "@/components/ui";
-const HORSE_PROFILE_BUILD_MARKER = "HORSE PROFILE TEST 28 APRIL";
 
 type Horse = {
   id: number;
@@ -433,7 +432,6 @@ const recentFormLine =
   sortedResultedRuns.length > 0
     ? formatFormLine(sortedResultedRuns)
     : importedFormSource || "—";
-  const debugFormCheck = `DEBUG FORM: ${importedFormSource || "blank"}`;
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
