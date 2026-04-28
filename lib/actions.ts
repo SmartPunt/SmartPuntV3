@@ -173,6 +173,25 @@ function zonedDateTimeToUtcIso(
 function normaliseHorseName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
+function normaliseImportedForm(value: string) {
+  return String(value || "")
+    .trim()
+    .replace(/[^0-9xX]/g, "")
+    .split("")
+    .reverse()
+    .slice(0, 6)
+    .join("");
+}
+
+function updateFormStringWithResult(existingForm: string | null, finishingPosition: number) {
+  const current = String(existingForm || "")
+    .trim()
+    .replace(/[^0-9xX]/g, "")
+    .split("")
+    .filter(Boolean);
+
+  return [String(finishingPosition), ...current].slice(0, 6).join("");
+}
 
 function normaliseText(value: string) {
   return String(value || "")
