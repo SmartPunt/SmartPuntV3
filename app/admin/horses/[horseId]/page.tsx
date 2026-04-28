@@ -432,6 +432,7 @@ const recentFormLine =
   sortedResultedRuns.length > 0
     ? formatFormLine(sortedResultedRuns)
     : importedFormSource || "—";
+  const debugFormCheck = `DEBUG FORM: ${importedFormSource || "blank"}`;
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
@@ -493,6 +494,7 @@ const recentFormLine =
                 <p className="mt-2 text-2xl font-bold tracking-wide text-white">
                   {recentFormLine}
                 </p>
+                <p className="mt-2 text-xs text-red-300">{debugFormCheck}</p>
               </div>
             </div>
           </div>
