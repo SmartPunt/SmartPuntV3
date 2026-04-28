@@ -183,14 +183,19 @@ function normaliseImportedForm(value: string) {
     .join("");
 }
 
-function updateFormStringWithResult(existingForm: string | null, finishingPosition: number) {
-  const current = String(existingForm || "")
+function updateFormStringWithResult(
+  existingForm: string | null,
+  finishingPosition: number,
+) {
+  const cleanedExisting = String(existingForm || "")
     .trim()
-    .replace(/[^0-9xX]/g, "")
-    .split("")
-    .filter(Boolean);
+    .replace(/[^0-9]/g, "");
 
-  return [String(finishingPosition), ...current].slice(0, 6).join("");
+  const current = cleanedExisting.split("").filter(Boolean);
+
+  const updated = [String(finishingPosition), ...current];
+
+  return updated.slice(0, 6).join("");
 }
 
 function normaliseText(value: string) {
