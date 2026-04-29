@@ -429,9 +429,9 @@ const conditionStats = buildStatRows(sortedResultedRuns, (run) =>
 );
 
 const recentFormLine =
-  sortedResultedRuns.length > 0
-    ? formatFormLine(sortedResultedRuns)
-    : importedFormSource || "—";
+  horse.form_last_6 ||
+  importedFormSource ||
+  (sortedResultedRuns.length > 0 ? formatFormLine(sortedResultedRuns) : "—");
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
