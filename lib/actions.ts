@@ -1793,7 +1793,7 @@ for (const update of updates) {
 
   const { data: horseRow, error: horseFetchError } = await supabase
     .from("horses")
-    .select("id, form_last_6")
+.select("id, form_last_6, track_form_last_6, distance_form_last_6")
     .eq("id", horseId)
     .single();
 
