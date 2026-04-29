@@ -1768,14 +1768,54 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
         return { success: false, error: error.message };
       }
     }
-const runnerHorseMap = new Map<number, number>();
+for (const update of updates) {
+  if (
+    update.finishing_position === null ||
+    update.finishing_position === undefined ||
+    update.finishing_position <= 0
+  ) {
+    continue;
+  }
 
-for (const runner of raceRunners || []) {
-  const runnerId = Number((runner as any).id);
-  const horseId = Number((runner as any).horse_id);
+  const matchingRunner = (raceRunners || []).find(
+    (runner) => Number((runner as any).id) === Number(update.id),
+  );
 
-  if (runnerId && horseId) {
-    runnerHorseMap.set(runnerId, horseId);
+  if (!matchingRunner) {
+    continue;
+  }
+
+  const horseId = Number((matchingRunner as any).horse_id);
+
+  if (!horseId) {
+    continue;
+  }
+
+  const { data: horseRow, error: horseFetchError } = await supabase
+    .from("horses")
+    .select("id, form_last_6")
+    .eq("id", horseId)
+    .single();
+
+  if (horseFetchError) {
+    return { success: false, error: horseFetchError.message };
+  }
+
+  const nextForm = updateFormStringWithResult(
+    horseRow?.form_last_6 || null,
+    Number(update.finishing_position),
+  );
+
+  const { error: horseUpdateError } = await supabase
+    .from("horses")
+    .update({
+      form_last_6: nextForm,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", horseId);
+
+  if (horseUpdateError) {
+    return { success: false, error: horseUpdateError.message };
   }
 }
 
