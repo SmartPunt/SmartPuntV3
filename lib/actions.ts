@@ -1768,71 +1768,54 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
         return { success: false, error: error.message };
       }
     }
-const runnerHorseMap = new Map<number, number>();
-
-for (const runner of raceRunners || []) {
-  const runnerId = Number((runner as any).id);
-  const horseId = Number((runner as any).horse_id);
-
-  if (runnerId && horseId) {
-    runnerHorseMap.set(runnerId, horseId);
+for (const update of updates) {
+  if (
+    update.finishing_position === null ||
+    update.finishing_position === undefined ||
+    update.finishing_position <= 0
+  ) {
+    continue;
   }
-}
 
-const horseFormUpdates = updates
-  .filter(
-    (update) =>
-      update.finishing_position !== null &&
-      update.finishing_position !== undefined &&
-      update.finishing_position > 0,
-  )
-  .map((update) => ({
-    runnerId: update.id,
-    horseId: runnerHorseMap.get(update.id),
-    finishingPosition: update.finishing_position,
-  }))
-  .filter((item) => item.horseId);
+  const matchingRunner = (raceRunners || []).find(
+    (runner) => Number((runner as any).id) === Number(update.id),
+  );
 
-const uniqueHorseIds = Array.from(
-  new Set(horseFormUpdates.map((item) => Number(item.horseId))),
-);
+  if (!matchingRunner) {
+    continue;
+  }
 
-if (uniqueHorseIds.length > 0) {
-  const { data: horseRows, error: horseRowsError } = await supabase
+  const horseId = Number((matchingRunner as any).horse_id);
+
+  if (!horseId) {
+    continue;
+  }
+
+  const { data: horseRow, error: horseFetchError } = await supabase
     .from("horses")
     .select("id, form_last_6")
-    .in("id", uniqueHorseIds);
+    .eq("id", horseId)
+    .single();
 
-  if (horseRowsError) {
-    return { success: false, error: horseRowsError.message };
+  if (horseFetchError) {
+    return { success: false, error: horseFetchError.message };
   }
 
-  const horseFormMap = new Map<number, string | null>();
+  const nextForm = updateFormStringWithResult(
+    horseRow?.form_last_6 || null,
+    Number(update.finishing_position),
+  );
 
-  for (const horse of horseRows || []) {
-    horseFormMap.set(Number((horse as any).id), (horse as any).form_last_6 || null);
-  }
+  const { error: horseUpdateError } = await supabase
+    .from("horses")
+    .update({
+      form_last_6: nextForm,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", horseId);
 
-  for (const item of horseFormUpdates) {
-    const horseId = Number(item.horseId);
-    const existingForm = horseFormMap.get(horseId) || null;
-
-    const nextForm = updateFormStringWithResult(
-      existingForm,
-      Number(item.finishingPosition),
-    );
-
-    const { error: horseUpdateError } = await supabase
-      .from("horses")
-      .update({
-        form_last_6: nextForm,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", horseId);
-
-    if (horseUpdateError) {
-      return { success: false, error: horseUpdateError.message };
-    }
+  if (horseUpdateError) {
+    return { success: false, error: horseUpdateError.message };
   }
 }
     const { error: raceError } = await supabase
