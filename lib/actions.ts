@@ -1507,9 +1507,9 @@ distance_form_last_6: distanceFormLast6 || null,
         apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
           ? apprenticeClaimValue
           : null,
-form_last_6: null,
-track_form_last_6: null,
-distance_form_last_6: null,
+form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
+track_form_last_6: trackFormLast6 || null,
+distance_form_last_6: distanceFormLast6 || null,
       scratched: false,
       created_by: profile.id,
       updated_at: new Date().toISOString(),
@@ -1611,7 +1611,7 @@ export async function updateRaceRunnerDetailsAction(formData: FormData): Promise
           apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
             ? apprenticeClaimValue
             : null,
-        form_last_6: formLast6 || null,
+form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
         track_form_last_6: trackFormLast6 || null,
         distance_form_last_6: distanceFormLast6 || null,
         updated_at: new Date().toISOString(),
