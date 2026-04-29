@@ -197,6 +197,25 @@ function updateFormStringWithResult(
 
   return updated.slice(0, 6).join("");
 }
+function updateStatRecordWithResult(
+  existingRecord: string | null,
+  finishingPosition: number,
+) {
+  const cleaned = String(existingRecord || "").trim();
+  const match = cleaned.match(/^(\d+):(\d+),(\d+),(\d+)$/);
+
+  const runs = match ? Number(match[1]) : 0;
+  const wins = match ? Number(match[2]) : 0;
+  const seconds = match ? Number(match[3]) : 0;
+  const thirds = match ? Number(match[4]) : 0;
+
+  const nextRuns = runs + 1;
+  const nextWins = wins + (finishingPosition === 1 ? 1 : 0);
+  const nextSeconds = seconds + (finishingPosition === 2 ? 1 : 0);
+  const nextThirds = thirds + (finishingPosition === 3 ? 1 : 0);
+
+  return `${nextRuns}:${nextWins},${nextSeconds},${nextThirds}`;
+}
 
 function normaliseText(value: string) {
   return String(value || "")
