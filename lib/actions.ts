@@ -1685,7 +1685,7 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
 
     const { data: raceRunners, error: runnersError } = await supabase
       .from("race_runners")
-.select("id, horse_id, scratched, form_last_6")
+.select("id, horse_id, scratched, form_last_6, track_form_last_6, distance_form_last_6")
       .eq("race_id", raceId);
 
     if (runnersError) {
@@ -1805,17 +1805,30 @@ const existingHorseForm =
   horseRow?.form_last_6 ||
   normaliseImportedForm(String((matchingRunner as any).form_last_6 || ""));
 
+const existingTrackForm =
+  horseRow?.track_form_last_6 ||
+  String((matchingRunner as any).track_form_last_6 || "");
+
+const existingDistanceForm =
+  horseRow?.distance_form_last_6 ||
+  String((matchingRunner as any).distance_form_last_6 || "");
+
 const nextForm = updateFormStringWithResult(
   existingHorseForm || null,
   Number(update.finishing_position),
 );
 
+const nextTrackForm = existingTrackForm || null;
+const nextDistanceForm = existingDistanceForm || null;
+
   const { error: horseUpdateError } = await supabase
     .from("horses")
-    .update({
-      form_last_6: nextForm,
-      updated_at: new Date().toISOString(),
-    })
+.update({
+  form_last_6: nextForm,
+  track_form_last_6: nextTrackForm,
+  distance_form_last_6: nextDistanceForm,
+  updated_at: new Date().toISOString(),
+})
     .eq("id", horseId);
 
   if (horseUpdateError) {
