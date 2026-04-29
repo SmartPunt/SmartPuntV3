@@ -395,34 +395,33 @@ const importedDistanceRecord = parseImportedRecord(importedDistanceSource);
 const importedTrackRecord = parseImportedRecord(importedTrackSource);
 
 const distanceStats =
-  sortedResultedRuns.length > 0
-    ? buildStatRows(sortedResultedRuns, (run) => getDistanceBucket(run.race?.distance_m))
-    : importedDistanceRecord
-      ? [
-          {
-            label: latestRunner?.race?.distance_m
-              ? `${latestRunner.race.distance_m}m`
-              : "Imported distance form",
-            runs: importedDistanceRecord.runs,
-            wins: importedDistanceRecord.wins,
-            places: importedDistanceRecord.places,
-          },
-        ]
-      : [];
-
+  importedDistanceRecord
+    ? [
+        {
+          label: latestRunner?.race?.distance_m
+            ? getDistanceBucket(latestRunner.race.distance_m)
+            : "Imported distance form",
+          runs: importedDistanceRecord.runs,
+          wins: importedDistanceRecord.wins,
+          places: importedDistanceRecord.places,
+        },
+      ]
+    : buildStatRows(sortedResultedRuns, (run) =>
+        getDistanceBucket(run.race?.distance_m),
+      );
 const trackStats =
-  sortedResultedRuns.length > 0
-    ? buildStatRows(sortedResultedRuns, (run) => run.meeting?.meeting_name || null)
-    : importedTrackRecord
-      ? [
-          {
-            label: latestRunner?.meeting?.meeting_name || "Imported track form",
-            runs: importedTrackRecord.runs,
-            wins: importedTrackRecord.wins,
-            places: importedTrackRecord.places,
-          },
-        ]
-      : [];
+  importedTrackRecord
+    ? [
+        {
+          label: latestRunner?.meeting?.meeting_name || "Imported track form",
+          runs: importedTrackRecord.runs,
+          wins: importedTrackRecord.wins,
+          places: importedTrackRecord.places,
+        },
+      ]
+    : buildStatRows(sortedResultedRuns, (run) =>
+        run.meeting?.meeting_name || null,
+      );
 
 const conditionStats = buildStatRows(sortedResultedRuns, (run) =>
   getConditionBucket(run.meeting?.track_condition),
