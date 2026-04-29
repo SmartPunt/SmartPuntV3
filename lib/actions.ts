@@ -1685,7 +1685,7 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
 
     const { data: raceRunners, error: runnersError } = await supabase
       .from("race_runners")
-.select("id, horse_id, scratched")
+.select("id, horse_id, scratched, form_last_6")
       .eq("race_id", raceId);
 
     if (runnersError) {
@@ -1801,10 +1801,14 @@ for (const update of updates) {
     return { success: false, error: horseFetchError.message };
   }
 
-  const nextForm = updateFormStringWithResult(
-    horseRow?.form_last_6 || null,
-    Number(update.finishing_position),
-  );
+const existingHorseForm =
+  horseRow?.form_last_6 ||
+  normaliseImportedForm(String((matchingRunner as any).form_last_6 || ""));
+
+const nextForm = updateFormStringWithResult(
+  existingHorseForm || null,
+  Number(update.finishing_position),
+);
 
   const { error: horseUpdateError } = await supabase
     .from("horses")
