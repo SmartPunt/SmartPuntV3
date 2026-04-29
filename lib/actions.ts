@@ -1672,54 +1672,167 @@ export async function toggleRaceRunnerScratchAction(formData: FormData): Promise
   }
 }
 
-for (const update of updates) {
-  if (
-    update.finishing_position === null ||
-    update.finishing_position === undefined ||
-    update.finishing_position <= 0
-  ) {
-    continue;
+export async function settleRaceRunnersAction(formData: FormData): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
+    const supabase = await createClient();
+
+    const raceId = Number(formData.get("race_id"));
+
+    if (!raceId) {
+      return { success: false, error: "Race is required." };
+    }
+
+    const { data: raceRunners, error: runnersError } = await supabase
+      .from("race_runners")
+.select("id, horse_id, scratched")
+      .eq("race_id", raceId);
+
+    if (runnersError) {
+      return { success: false, error: runnersError.message };
+    }
+
+    const scratchedMap = new Map<number, boolean>();
+    for (const runner of raceRunners || []) {
+      scratchedMap.set(Number((runner as any).id), Boolean((runner as any).scratched));
+    }
+
+    const updates: Array<{
+      id: number;
+      finishing_position: number | null;
+      starting_price: number | null;
+      won: boolean | null;
+      placed: boolean | null;
+      settled_at: string | null;
+      updated_at: string;
+    }> = [];
+
+    for (const [key, value] of formData.entries()) {
+      if (!key.startsWith("finishing_position_")) continue;
+
+      const runnerId = Number(key.replace("finishing_position_", ""));
+      const finishingPositionRaw = String(value ?? "").trim();
+
+      if (!runnerId) continue;
+
+      const isScratched = scratchedMap.get(runnerId) === true;
+
+      if (isScratched) {
+        updates.push({
+          id: runnerId,
+          finishing_position: null,
+          starting_price: null,
+          won: false,
+          placed: false,
+          settled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        continue;
+      }
+
+      const finishingPosition = finishingPositionRaw ? Number(finishingPositionRaw) : null;
+      const startingPriceRaw = String(formData.get(`starting_price_${runnerId}`) ?? "").trim();
+      const startingPrice = startingPriceRaw ? Number(startingPriceRaw) : null;
+
+      const hasFinish =
+        finishingPosition !== null && !Number.isNaN(finishingPosition);
+
+      updates.push({
+        id: runnerId,
+        finishing_position: hasFinish ? finishingPosition : null,
+        starting_price:
+          startingPrice !== null && !Number.isNaN(startingPrice)
+            ? startingPrice
+            : null,
+        won: hasFinish ? finishingPosition === 1 : false,
+        placed: hasFinish ? finishingPosition <= 3 : false,
+        settled_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    for (const update of updates) {
+      const { error } = await supabase
+        .from("race_runners")
+        .update({
+          finishing_position: update.finishing_position,
+          starting_price: update.starting_price,
+          won: update.won,
+          placed: update.placed,
+          settled_at: update.settled_at,
+          updated_at: update.updated_at,
+        })
+        .eq("id", update.id);
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+    }
+const runnerHorseMap = new Map<number, number>();
+
+for (const runner of raceRunners || []) {
+  const runnerId = Number((runner as any).id);
+  const horseId = Number((runner as any).horse_id);
+
+  if (runnerId && horseId) {
+    runnerHorseMap.set(runnerId, horseId);
   }
+}
 
-  const matchingRunner = (raceRunners || []).find(
-    (runner) => Number((runner as any).id) === Number(update.id),
-  );
+const horseFormUpdates = updates
+  .filter(
+    (update) =>
+      update.finishing_position !== null &&
+      update.finishing_position !== undefined &&
+      update.finishing_position > 0,
+  )
+  .map((update) => ({
+    runnerId: update.id,
+    horseId: runnerHorseMap.get(update.id),
+    finishingPosition: update.finishing_position,
+  }))
+  .filter((item) => item.horseId);
 
-  if (!matchingRunner) {
-    continue;
-  }
+const uniqueHorseIds = Array.from(
+  new Set(horseFormUpdates.map((item) => Number(item.horseId))),
+);
 
-  const horseId = Number((matchingRunner as any).horse_id);
-
-  if (!horseId) {
-    continue;
-  }
-
-  const { data: horseRow, error: horseFetchError } = await supabase
+if (uniqueHorseIds.length > 0) {
+  const { data: horseRows, error: horseRowsError } = await supabase
     .from("horses")
     .select("id, form_last_6")
-    .eq("id", horseId)
-    .single();
+    .in("id", uniqueHorseIds);
 
-  if (horseFetchError) {
-    return { success: false, error: horseFetchError.message };
+  if (horseRowsError) {
+    return { success: false, error: horseRowsError.message };
   }
 
-  const nextForm = updateFormStringWithResult(
-    horseRow?.form_last_6 || null,
-    Number(update.finishing_position),
-  );
+  const horseFormMap = new Map<number, string | null>();
 
-  const { error: horseUpdateError } = await supabase
-    .from("horses")
-    .update({
-      form_last_6: nextForm,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", horseId);
+  for (const horse of horseRows || []) {
+    horseFormMap.set(Number((horse as any).id), (horse as any).form_last_6 || null);
+  }
 
-  if (horseUpdateError) {
-    return { success: false, error: horseUpdateError.message };
+  for (const item of horseFormUpdates) {
+    const horseId = Number(item.horseId);
+    const existingForm = horseFormMap.get(horseId) || null;
+
+    const nextForm = updateFormStringWithResult(
+      existingForm,
+      Number(item.finishingPosition),
+    );
+
+    const { error: horseUpdateError } = await supabase
+      .from("horses")
+      .update({
+        form_last_6: nextForm,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", horseId);
+
+    if (horseUpdateError) {
+      return { success: false, error: horseUpdateError.message };
+    }
   }
 }
     const { error: raceError } = await supabase
