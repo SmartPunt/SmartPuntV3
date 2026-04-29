@@ -1837,8 +1837,15 @@ const nextForm = updateFormStringWithResult(
   Number(update.finishing_position),
 );
 
-const nextTrackForm = existingTrackForm || null;
-const nextDistanceForm = existingDistanceForm || null;
+const nextTrackForm = updateStatRecordWithResult(
+  existingTrackForm || null,
+  Number(update.finishing_position),
+);
+
+const nextDistanceForm = updateStatRecordWithResult(
+  existingDistanceForm || null,
+  Number(update.finishing_position),
+);
 
   const { error: horseUpdateError } = await supabase
     .from("horses")
