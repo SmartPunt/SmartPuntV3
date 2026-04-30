@@ -275,6 +275,7 @@ export default function CurrentRacesPage({
   currentUser?.role === "admin" || currentUser?.role === "staff_admin";
 
   const [statusMessage, setStatusMessage] = useState("");
+  const [openRaceIds, setOpenRaceIds] = useState<Record<number, boolean>>({});
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
 
   const [raceResultState, setRaceResultState] = useState<
@@ -305,7 +306,16 @@ export default function CurrentRacesPage({
       })
       .filter((meeting) => meeting.races.length > 0);
   }, [currentRaces, initialMeetings]);
+function toggleRaceOpen(raceId: number) {
+  setOpenRaceIds((prev) => ({
+    ...prev,
+    [raceId]: !prev[raceId],
+  }));
+}
 
+function isRaceOpen(raceId: number) {
+  return openRaceIds[raceId] === true;
+}
   function setSuccess(message: string) {
     setStatusTone("success");
     setStatusMessage(message);
@@ -830,22 +840,38 @@ export default function CurrentRacesPage({
                               const activeRunnerCount = getActiveRunnerCount(race.id);
                               const settledCount = getSettledCount(race.id);
                               const parsedRows = parsedResultsByRace[race.id] || [];
+                          const raceIsOpen = isRaceOpen(race.id);
 
                               return (
                                 <div
                                   key={race.id}
                                   className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-5"
                                 >
-                                  <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <p className="text-lg font-semibold text-zinc-950">
-                                          R{race.race_number} {race.race_name}
-                                        </p>
-                                        <Badge tone="green">published</Badge>
-                                        <Badge tone={getRaceResultTone(raceRunners)}>
-                                          {settledCount}/{activeRunnerCount} completed
-                                        </Badge>
+<button
+  type="button"
+  onClick={() => toggleRaceOpen(race.id)}
+  className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
+>
+  <div>
+    <div className="flex flex-wrap items-center gap-2">
+      <p className="text-lg font-semibold text-zinc-950">
+        {raceIsOpen ? "▾" : "▸"} R{race.race_number} {race.race_name}
+      </p>
+      <Badge tone="green">published</Badge>
+      <Badge tone={getRaceResultTone(raceRunners)}>
+        {settledCount}/{activeRunnerCount} completed
+      </Badge>
+    </div>
+
+    <p className="mt-1 text-sm text-zinc-500">
+      {race.distance_m || "—"}m
+    </p>
+  </div>
+
+  <Badge tone={raceIsOpen ? "blue" : "amber"}>
+    {raceIsOpen ? "Open" : "Collapsed"}
+  </Badge>
+</button>
                                       </div>
 
                                       <p className="mt-1 text-sm text-zinc-500">
@@ -875,7 +901,8 @@ export default function CurrentRacesPage({
                                       </div>
                                     ) : null}
                                   </div>
-
+{raceIsOpen ? (
+  <>
                                   <div className="mt-4 rounded-[20px] border border-blue-200/40 bg-blue-50 p-4 text-sm text-zinc-700">
                                     {isAdmin
                                       ? "Live admin lane: edit the runner, scratch it if needed, then result the race when the field is official."
@@ -1380,8 +1407,10 @@ export default function CurrentRacesPage({
                                       <p className="text-sm text-zinc-500">
                                         No runners loaded into this race yet.
                                       </p>
-                                    )}
-                                  </div>
+)}
+  </>
+) : null}
+</div>
                                 </div>
                               );
                             })}
