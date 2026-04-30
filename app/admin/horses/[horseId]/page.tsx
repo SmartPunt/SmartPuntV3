@@ -364,23 +364,23 @@ const importedDistanceSource =
 const importedFormNumbers = parseImportedForm(importedFormSource);
 
 const totalRuns =
-  sortedResultedRuns.length > 0 ? sortedResultedRuns.length : importedFormNumbers.length;
+  importedFormNumbers.length > 0 ? importedFormNumbers.length : sortedResultedRuns.length;
 
 const totalWins =
-  sortedResultedRuns.length > 0
-    ? sortedResultedRuns.filter((run) => run.finishing_position === 1).length
-    : importedFormNumbers.filter((position: number) => position === 1).length;
+  importedFormNumbers.length > 0
+    ? importedFormNumbers.filter((position: number) => position === 1).length
+    : sortedResultedRuns.filter((run) => run.finishing_position === 1).length;
 
 const totalPlaces =
-  sortedResultedRuns.length > 0
-    ? sortedResultedRuns.filter(
+  importedFormNumbers.length > 0
+    ? importedFormNumbers.filter(
+        (position: number) => position >= 1 && position <= 3,
+      ).length
+    : sortedResultedRuns.filter(
         (run) =>
           run.finishing_position !== null &&
           run.finishing_position !== undefined &&
           run.finishing_position <= 3,
-      ).length
-    : importedFormNumbers.filter(
-        (position: number) => position >= 1 && position <= 3,
       ).length;
 
 const uniqueJockeys = Array.from(
