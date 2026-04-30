@@ -872,7 +872,6 @@ function isRaceOpen(raceId: number) {
     {raceIsOpen ? "Open" : "Collapsed"}
   </Badge>
 </button>
-                                      </div>
 
                                       <p className="mt-1 text-sm text-zinc-500">
                                         {race.distance_m || "—"}m
