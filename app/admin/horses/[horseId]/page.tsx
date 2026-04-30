@@ -226,9 +226,12 @@ export default async function Page({
     redirect("/login");
   }
 
-  if (profile.role !== "admin") {
-    redirect("/");
-  }
+if (
+  profile.role !== "admin" &&
+  profile.role !== "staff_admin"
+) {
+  redirect("/");
+}
 
   const horseIdNumber = Number(horseId);
 
