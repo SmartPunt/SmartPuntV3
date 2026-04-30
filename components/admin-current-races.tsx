@@ -1380,6 +1380,7 @@ function isRaceOpen(raceId: number) {
                                         No runners loaded into this race yet.
                                       </p>
 )}
+                                  </div>
   </>
 ) : null}
                                 </div>
