@@ -144,7 +144,7 @@ function detectBestTag({
 
   if (confidence === "High" && type === "Win") return "Best Bet";
   if (n.includes("overs") || n.includes("value") || n.includes("price")) return "Value Bet";
-  if (type === "Place") return "Safe Play";
+if (type === "Place" || type === "Each Way") return "Safe Play";
   if (n.includes("watch") || n.includes("forgive")) return "Horse to Watch";
 
   return "Best Bet";
@@ -153,7 +153,7 @@ function detectBestTag({
 function getTipCardStyle(type: string) {
   if (type === "Win") return "border-emerald-300/50 bg-emerald-100";
   if (type === "Place") return "border-sky-300/50 bg-sky-100";
-  if (type === "All Up") return "border-pink-300/50 bg-pink-100";
+if (type === "Each Way") return "border-pink-300/50 bg-pink-100";
   return "border-amber-200/30 bg-white";
 }
 
@@ -790,7 +790,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                       >
                         <option>Win</option>
                         <option>Place</option>
-                        <option>All Up</option>
+<option>Each Way</option>
                       </select>
                     </Field>
 
