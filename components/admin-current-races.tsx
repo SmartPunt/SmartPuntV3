@@ -875,6 +875,27 @@ function isRaceOpen(raceId: number) {
 
 {raceIsOpen ? (
   <>
+    {isAdmin ? (
+  <div className="mt-4 flex flex-wrap gap-2">
+    <button
+      type="button"
+      onClick={() => handleMoveBackToBuilder(race.id)}
+      disabled={isPending}
+      className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+    >
+      Move Back to Builder
+    </button>
+
+    <button
+      type="button"
+      onClick={() => handleSaveResultsAndCloseRace(race.id)}
+      disabled={isPending}
+      className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+    >
+      {isPending ? "Saving..." : "Save Results + Close Race"}
+    </button>
+  </div>
+) : null}
                                   <div className="mt-4 rounded-[20px] border border-blue-200/40 bg-blue-50 p-4 text-sm text-zinc-700">
                                     {isAdmin
                                       ? "Live admin lane: edit the runner, scratch it if needed, then result the race when the field is official."
