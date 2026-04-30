@@ -646,7 +646,7 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
   for (const tip of suggestedTips || []) {
     const tipType = String(tip.type || "").toLowerCase().trim();
-    if (!["win", "place"].includes(tipType)) continue;
+if (!["win", "place", "each way"].includes(tipType)) continue;
 
     let matchedRunner: any | null = null;
 
@@ -697,9 +697,9 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
     if (tipType === "win") {
       successful = finishingPosition === 1;
-    } else if (tipType === "place") {
-      successful = finishingPosition !== null ? finishingPosition <= 3 : false;
-    }
+} else if (tipType === "place" || tipType === "each way") {
+  successful = finishingPosition !== null ? finishingPosition <= 3 : false;
+}
 
     updates.push({
       id: Number(tip.id),
