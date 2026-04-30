@@ -978,7 +978,13 @@ function handleScratchMissingResults(raceId: number) {
                                         <button
                                           type="button"
                                           onClick={() => handleApplyParsedResults(race.id)}
-                                          <button
+                                          disabled={isPending || parsedRows.length === 0}
+                                          className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
+                                        >
+                                          Apply Results
+                                        </button>
+
+                                                                                 <button
   type="button"
   onClick={() => handleScratchMissingResults(race.id)}
   disabled={isPending || parsedRows.length === 0}
@@ -986,11 +992,6 @@ function handleScratchMissingResults(raceId: number) {
 >
   Scratch Missing Results
 </button>
-                                          disabled={isPending || parsedRows.length === 0}
-                                          className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
-                                        >
-                                          Apply Results
-                                        </button>
 
                                         <button
                                           type="button"
