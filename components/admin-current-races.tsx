@@ -1382,7 +1382,6 @@ function isRaceOpen(raceId: number) {
 )}
   </>
 ) : null}
-</div>
                                 </div>
                               );
                             })}
