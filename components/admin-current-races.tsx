@@ -605,7 +605,38 @@ function isRaceOpen(raceId: number) {
 
     setSuccess("Parsed results applied. Horses missing from the pasted list can now be scratched, then save results and close the race.");
   }
+function handleScratchMissingResults(raceId: number) {
+  const raceRunners = runnersForRace(raceId);
 
+  const runnersToScratch = raceRunners.filter(
+    (runner) =>
+      !runner.scratched &&
+      getRaceResultValue(raceId, runner.id, "finishingPosition") === "",
+  );
+
+  if (runnersToScratch.length === 0) {
+    setSuccess("No missing runners to scratch.");
+    return;
+  }
+
+  startTransition(async () => {
+    for (const runner of runnersToScratch) {
+      const formData = new FormData();
+      formData.set("runner_id", String(runner.id));
+      formData.set("scratched", "true");
+
+      const result = await toggleRaceRunnerScratchAction(formData);
+
+      if (!result.success) {
+        setError(result.error || `Failed to scratch ${findHorseName(runner.horse_id)}.`);
+        return;
+      }
+    }
+
+    setSuccess(`Scratched ${runnersToScratch.length} runners without applied results.`);
+    router.refresh();
+  });
+}
   function handleClearResultsImport(raceId: number) {
     setResultImportTextByRace((prev) => ({
       ...prev,
@@ -947,6 +978,14 @@ function isRaceOpen(raceId: number) {
                                         <button
                                           type="button"
                                           onClick={() => handleApplyParsedResults(race.id)}
+                                          <button
+  type="button"
+  onClick={() => handleScratchMissingResults(race.id)}
+  disabled={isPending || parsedRows.length === 0}
+  className="rounded-2xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+>
+  Scratch Missing Results
+</button>
                                           disabled={isPending || parsedRows.length === 0}
                                           className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
                                         >
