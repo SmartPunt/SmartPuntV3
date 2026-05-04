@@ -685,18 +685,34 @@ function handleScratchMissingResults(raceId: number) {
       </Link>
 
       <Link
+        href="/admin/calculator-report"
+        className="block rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/15"
+      >
+        Calculator Report
+      </Link>
+
+      <Link
+        href="/admin/horses"
+        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+      >
+        Saved Horses
+      </Link>
+
+      <Link
         href="/race-archive"
         className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
       >
         Race Archive
       </Link>
 
-      <Link
-        href="/"
-        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-      >
-        Back to Admin
-      </Link>
+      {currentUser?.role === "admin" ? (
+        <Link
+          href="/"
+          className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+        >
+          Back to Admin
+        </Link>
+      ) : null}
 
       <form action={signOutAction}>
         <button
