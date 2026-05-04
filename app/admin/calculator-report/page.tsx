@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { Badge, Panel } from "@/components/ui";
 
-type CalculatorPrediction = {
+type SearchValue = string | string[] | undefined;
+
+type Prediction = {
   id: number;
   race_id: number;
   runner_id: number;
@@ -26,22 +28,8 @@ type CalculatorPrediction = {
   won: boolean | null;
   placed: boolean | null;
   settled_at: string | null;
-  race?: {
-    id: number;
-    race_number: number;
-    race_name: string;
-    distance_m: number | null;
-    meeting_id: number;
-    status: string;
-    meeting?: {
-      meeting_name: string;
-      meeting_date: string;
-      track_condition: string | null;
-    } | null;
-  } | null;
-  horse?: {
-    horse_name: string;
-  } | null;
+  race?: RaceWithMeeting | null;
+  horse?: { horse_name: string } | null;
 };
 
 type RaceRow = {
@@ -60,12 +48,16 @@ type MeetingRow = {
   track_condition: string | null;
 };
 
+type RaceWithMeeting = RaceRow & {
+  meeting?: MeetingRow | null;
+};
+
 type HorseRow = {
   id: number;
   horse_name: string;
 };
 
-function getServiceRoleHeaders() {
+function headers() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -84,12 +76,12 @@ function getServiceRoleHeaders() {
   };
 }
 
-async function serviceRoleSelect<T>(path: string): Promise<T[]> {
-  const { supabaseUrl, headers } = getServiceRoleHeaders();
+async function serviceSelect<T>(path: string): Promise<T[]> {
+  const { supabaseUrl, headers: h } = headers();
 
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     method: "GET",
-    headers,
+    headers: h,
     cache: "no-store",
   });
 
@@ -101,21 +93,31 @@ async function serviceRoleSelect<T>(path: string): Promise<T[]> {
   return response.json();
 }
 
+function first(value: SearchValue) {
+  return Array.isArray(value) ? value[0] || "" : value || "";
+}
+
 function toNumber(value: number | string | null | undefined) {
   const next = Number(value ?? 0);
   return Number.isNaN(next) ? 0 : next;
 }
 
 function percent(part: number, total: number) {
-  if (!total) return 0;
-  return Math.round((part / total) * 100);
+  return total ? Math.round((part / total) * 100) : 0;
+}
+
+function isoDate(value?: string | null) {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
 }
 
 function formatDate(value?: string | null) {
   if (!value) return "Unknown date";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-
   return date.toLocaleDateString("en-AU", {
     weekday: "short",
     day: "numeric",
@@ -128,7 +130,6 @@ function formatDateTime(value?: string | null) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-
   return date.toLocaleString("en-AU", {
     day: "numeric",
     month: "short",
@@ -138,28 +139,46 @@ function formatDateTime(value?: string | null) {
   });
 }
 
-function getRaceLabel(prediction: CalculatorPrediction) {
-  const meeting = prediction.race?.meeting?.meeting_name || "Meeting";
-  const raceNumber = prediction.race?.race_number ? `R${prediction.race.race_number}` : "Race";
-  const raceName = prediction.race?.race_name || "";
-  return `${meeting} ${raceNumber} ${raceName}`.trim();
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function groupByRace(predictions: CalculatorPrediction[]) {
-  const map = new Map<number, CalculatorPrediction[]>();
+function pastIso(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}
 
-  predictions.forEach((prediction) => {
-    const existing = map.get(prediction.race_id) || [];
-    existing.push(prediction);
-    map.set(prediction.race_id, existing);
+function buildQuery(params: Record<string, string>) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) query.set(key, value);
+  });
+  const value = query.toString();
+  return value ? `?${value}` : "";
+}
+
+function raceLabel(row: Prediction) {
+  const meeting = row.race?.meeting?.meeting_name || "Meeting";
+  const raceNumber = row.race?.race_number ? `R${row.race.race_number}` : "Race";
+  return `${meeting} ${raceNumber} ${row.race?.race_name || ""}`.trim();
+}
+
+function groupByRace(rows: Prediction[]) {
+  const map = new Map<number, Prediction[]>();
+
+  rows.forEach((row) => {
+    const existing = map.get(row.race_id) || [];
+    existing.push(row);
+    map.set(row.race_id, existing);
   });
 
   return Array.from(map.entries())
-    .map(([raceId, rows]) => ({
+    .map(([raceId, raceRows]) => ({
       raceId,
-      rows: rows.sort((a, b) => a.rank - b.rank),
-      meetingDate: rows[0]?.race?.meeting?.meeting_date || "",
-      label: getRaceLabel(rows[0]),
+      rows: raceRows.sort((a, b) => a.rank - b.rank),
+      meetingDate: raceRows[0]?.race?.meeting?.meeting_date || "",
+      label: raceLabel(raceRows[0]),
     }))
     .sort((a, b) => {
       const aTime = a.meetingDate ? new Date(a.meetingDate).getTime() : 0;
@@ -169,8 +188,61 @@ function groupByRace(predictions: CalculatorPrediction[]) {
     });
 }
 
-function getWinner(rows: CalculatorPrediction[]) {
+function winner(rows: Prediction[]) {
   return rows.find((row) => row.finishing_position === 1) || null;
+}
+
+function filterByDate(rows: Prediction[], from: string, to: string) {
+  return rows.filter((row) => {
+    const meetingDate = isoDate(row.race?.meeting?.meeting_date);
+    if (!meetingDate) return true;
+    if (from && meetingDate < from) return false;
+    if (to && meetingDate > to) return false;
+    return true;
+  });
+}
+
+async function fetchPredictions() {
+  const predictions = await serviceSelect<Prediction>(
+    "calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&order=settled_at.desc",
+  );
+
+  const raceIds = Array.from(new Set(predictions.map((row) => row.race_id).filter(Boolean)));
+  const horseIds = Array.from(new Set(predictions.map((row) => row.horse_id).filter(Boolean)));
+
+  const races = raceIds.length
+    ? await serviceSelect<RaceRow>(
+        `races?select=id,race_number,race_name,distance_m,meeting_id,status&id=in.(${raceIds.join(",")})`,
+      )
+    : [];
+
+  const meetingIds = Array.from(new Set(races.map((row) => row.meeting_id).filter(Boolean)));
+
+  const meetings = meetingIds.length
+    ? await serviceSelect<MeetingRow>(
+        `meetings?select=id,meeting_name,meeting_date,track_condition&id=in.(${meetingIds.join(",")})`,
+      )
+    : [];
+
+  const horses = horseIds.length
+    ? await serviceSelect<HorseRow>(`horses?select=id,horse_name&id=in.(${horseIds.join(",")})`)
+    : [];
+
+  const raceMap = new Map(races.map((row) => [Number(row.id), row]));
+  const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
+  const horseMap = new Map(horses.map((row) => [Number(row.id), row]));
+
+  return predictions.map((prediction) => {
+    const race = raceMap.get(Number(prediction.race_id)) || null;
+    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
+    const horse = horseMap.get(Number(prediction.horse_id)) || null;
+
+    return {
+      ...prediction,
+      race: race ? { ...race, meeting } : null,
+      horse,
+    };
+  });
 }
 
 function StatCard({
@@ -202,89 +274,31 @@ function StatCard({
   );
 }
 
-async function fetchReportPredictions() {
-  const predictionRows = await serviceRoleSelect<CalculatorPrediction>(
-    [
-      "calculator_predictions",
-      "?select=*",
-      "&settled_at=not.is.null",
-      "&finishing_position=not.is.null",
-      "&order=settled_at.desc",
-    ].join(""),
-  );
-
-  const raceIds = Array.from(new Set(predictionRows.map((row) => row.race_id).filter(Boolean)));
-  const horseIds = Array.from(new Set(predictionRows.map((row) => row.horse_id).filter(Boolean)));
-
-  const races =
-    raceIds.length > 0
-      ? await serviceRoleSelect<RaceRow>(
-          `races?select=id,race_number,race_name,distance_m,meeting_id,status&id=in.(${raceIds.join(
-            ",",
-          )})`,
-        )
-      : [];
-
-  const meetingIds = Array.from(new Set(races.map((race) => race.meeting_id).filter(Boolean)));
-
-  const meetings =
-    meetingIds.length > 0
-      ? await serviceRoleSelect<MeetingRow>(
-          `meetings?select=id,meeting_name,meeting_date,track_condition&id=in.(${meetingIds.join(
-            ",",
-          )})`,
-        )
-      : [];
-
-  const horses =
-    horseIds.length > 0
-      ? await serviceRoleSelect<HorseRow>(
-          `horses?select=id,horse_name&id=in.(${horseIds.join(",")})`,
-        )
-      : [];
-
-  const raceMap = new Map(races.map((race) => [Number(race.id), race]));
-  const meetingMap = new Map(meetings.map((meeting) => [Number(meeting.id), meeting]));
-  const horseMap = new Map(horses.map((horse) => [Number(horse.id), horse]));
-
-  return predictionRows.map((prediction) => {
-    const race = raceMap.get(Number(prediction.race_id)) || null;
-    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
-    const horse = horseMap.get(Number(prediction.horse_id)) || null;
-
-    return {
-      ...prediction,
-      race: race
-        ? {
-            ...race,
-            meeting,
-          }
-        : null,
-      horse,
-    };
-  });
-}
-
-export default async function CalculatorReportPage() {
+export default async function CalculatorReportPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, SearchValue>> | Record<string, SearchValue>;
+}) {
   const profile = await getCurrentProfile();
 
-  if (!profile) {
-    redirect("/login");
-  }
+  if (!profile) redirect("/login");
+  if (!["admin", "staff_admin"].includes(profile.role)) redirect("/");
 
-  if (!["admin", "staff_admin"].includes(profile.role)) {
-    redirect("/");
-  }
+  const resolvedSearchParams = await Promise.resolve(searchParams || {});
+  const dateFrom = first(resolvedSearchParams.from);
+  const dateTo = first(resolvedSearchParams.to);
 
-  let predictions: CalculatorPrediction[] = [];
+  let predictions: Prediction[] = [];
   let errorMessage = "";
 
   try {
-    predictions = await fetchReportPredictions();
+    predictions = filterByDate(await fetchPredictions(), dateFrom, dateTo);
   } catch (error) {
     errorMessage =
       error instanceof Error ? error.message : "Unknown error loading calculator report.";
   }
+
+  const exportHref = `/admin/calculator-report/export${buildQuery({ from: dateFrom, to: dateTo })}`;
 
   if (errorMessage) {
     return (
@@ -306,36 +320,32 @@ export default async function CalculatorReportPage() {
   const raceGroups = groupByRace(predictions);
   const totalRaces = raceGroups.length;
   const totalRunners = predictions.length;
-
   const topRatedRows = raceGroups
     .map((race) => race.rows.find((row) => row.rank === 1) || race.rows[0] || null)
-    .filter((row): row is CalculatorPrediction => Boolean(row));
+    .filter((row): row is Prediction => Boolean(row));
 
   const topRatedWins = topRatedRows.filter((row) => row.finishing_position === 1).length;
   const topRatedPlaces = topRatedRows.filter(
     (row) => row.finishing_position !== null && row.finishing_position <= 3,
   ).length;
-
   const topThreeHitRaces = raceGroups.filter((race) =>
     race.rows.some((row) => row.rank <= 3 && row.finishing_position === 1),
   ).length;
-
   const winners = raceGroups
-    .map((race) => getWinner(race.rows))
-    .filter((row): row is CalculatorPrediction => Boolean(row));
-
+    .map((race) => winner(race.rows))
+    .filter((row): row is Prediction => Boolean(row));
   const avgWinnerRank = winners.length
     ? (winners.reduce((sum, row) => sum + Number(row.rank || 0), 0) / winners.length).toFixed(1)
     : "—";
-
   const avgWinnerScore = winners.length
     ? Math.round(winners.reduce((sum, row) => sum + toNumber(row.score), 0) / winners.length)
     : "—";
-
-  const strongestWinner = [...winners].sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
-  const biggestMiss = [...topRatedRows]
-    .filter((row) => row.finishing_position !== null && row.finishing_position > 3)
-    .sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
+  const strongestWinner =
+    [...winners].sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
+  const biggestMiss =
+    [...topRatedRows]
+      .filter((row) => row.finishing_position !== null && row.finishing_position > 3)
+      .sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
@@ -386,31 +396,89 @@ export default async function CalculatorReportPage() {
           </div>
         </div>
 
+        <Panel className="mt-6 bg-white/95">
+          <div className="p-6 text-zinc-950">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">Report controls</h2>
+                <p className="text-sm text-zinc-500">
+                  Filter by meeting date, then export the same range as CSV.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Link href={`/admin/calculator-report${buildQuery({ from: todayIso(), to: todayIso() })}`} className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                  Today
+                </Link>
+                <Link href={`/admin/calculator-report${buildQuery({ from: pastIso(7), to: todayIso() })}`} className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                  Last 7 days
+                </Link>
+                <Link href={`/admin/calculator-report${buildQuery({ from: pastIso(30), to: todayIso() })}`} className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                  Last 30 days
+                </Link>
+                <Link href="/admin/calculator-report" className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                  All history
+                </Link>
+              </div>
+            </div>
+
+            <form className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto]" action="/admin/calculator-report">
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  Date from
+                </label>
+                <input
+                  type="date"
+                  name="from"
+                  defaultValue={dateFrom}
+                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                  Date to
+                </label>
+                <input
+                  type="date"
+                  name="to"
+                  defaultValue={dateTo}
+                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <button type="submit" className="w-full rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900">
+                  Apply Filter
+                </button>
+              </div>
+
+              <div className="flex items-end">
+                <Link href={exportHref} className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-500">
+                  Export CSV
+                </Link>
+              </div>
+            </form>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {dateFrom || dateTo ? (
+                <Badge tone="blue">
+                  Showing {dateFrom || "start"} to {dateTo || "today"}
+                </Badge>
+              ) : (
+                <Badge tone="slate">Showing all settled predictions</Badge>
+              )}
+              <Badge tone="green">{totalRaces} races</Badge>
+              <Badge tone="blue">{totalRunners} runners</Badge>
+            </div>
+          </div>
+        </Panel>
+
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Top win strike"
-            value={`${percent(topRatedWins, topRatedRows.length)}%`}
-            hint={`${topRatedWins}/${topRatedRows.length} top-rated runners won.`}
-            tone="green"
-          />
-          <StatCard
-            label="Top place strike"
-            value={`${percent(topRatedPlaces, topRatedRows.length)}%`}
-            hint={`${topRatedPlaces}/${topRatedRows.length} top-rated runners placed.`}
-            tone="blue"
-          />
-          <StatCard
-            label="Top 3 winner hit"
-            value={`${percent(topThreeHitRaces, totalRaces)}%`}
-            hint={`${topThreeHitRaces}/${totalRaces} winners were in the calculator top 3.`}
-            tone="amber"
-          />
-          <StatCard
-            label="Avg winner rank"
-            value={avgWinnerRank}
-            hint={`Average score of winners: ${avgWinnerScore}.`}
-            tone="slate"
-          />
+          <StatCard label="Top win strike" value={`${percent(topRatedWins, topRatedRows.length)}%`} hint={`${topRatedWins}/${topRatedRows.length} top-rated runners won.`} tone="green" />
+          <StatCard label="Top place strike" value={`${percent(topRatedPlaces, topRatedRows.length)}%`} hint={`${topRatedPlaces}/${topRatedRows.length} top-rated runners placed.`} tone="blue" />
+          <StatCard label="Top 3 winner hit" value={`${percent(topThreeHitRaces, totalRaces)}%`} hint={`${topThreeHitRaces}/${totalRaces} winners were in the calculator top 3.`} tone="amber" />
+          <StatCard label="Avg winner rank" value={avgWinnerRank} hint={`Average score of winners: ${avgWinnerScore}.`} tone="slate" />
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
@@ -419,7 +487,7 @@ export default async function CalculatorReportPage() {
               <h2 className="text-xl font-semibold">Best calculator result</h2>
               {strongestWinner ? (
                 <div className="mt-4 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
-                  <p className="text-sm text-zinc-600">{getRaceLabel(strongestWinner)}</p>
+                  <p className="text-sm text-zinc-600">{raceLabel(strongestWinner)}</p>
                   <h3 className="mt-1 text-2xl font-bold">{strongestWinner.horse?.horse_name || "Unknown horse"}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="green">Won</Badge>
@@ -438,7 +506,7 @@ export default async function CalculatorReportPage() {
               <h2 className="text-xl font-semibold">Biggest miss</h2>
               {biggestMiss ? (
                 <div className="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-5">
-                  <p className="text-sm text-zinc-600">{getRaceLabel(biggestMiss)}</p>
+                  <p className="text-sm text-zinc-600">{raceLabel(biggestMiss)}</p>
                   <h3 className="mt-1 text-2xl font-bold">{biggestMiss.horse?.horse_name || "Unknown horse"}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="rose">Finished {biggestMiss.finishing_position}</Badge>
@@ -459,91 +527,114 @@ export default async function CalculatorReportPage() {
               <div>
                 <h2 className="text-xl font-semibold">Race-by-race breakdown</h2>
                 <p className="text-sm text-zinc-500">
-                  Final calculator snapshot compared with official finishing positions.
+                  Each race is collapsed by default. Open a race to view the full runner table.
                 </p>
               </div>
               <Badge tone="green">{totalRaces} races</Badge>
             </div>
 
-            <div className="mt-5 space-y-5">
+            <div className="mt-5 space-y-4">
               {raceGroups.length > 0 ? (
                 raceGroups.map((race) => {
                   const topRated = race.rows.find((row) => row.rank === 1) || race.rows[0];
-                  const winner = getWinner(race.rows);
+                  const raceWinner = winner(race.rows);
                   const topThreeHadWinner = race.rows.some(
                     (row) => row.rank <= 3 && row.finishing_position === 1,
                   );
 
                   return (
-                    <div key={race.raceId} className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm text-zinc-500">{formatDate(race.meetingDate)}</p>
-                          <h3 className="mt-1 text-lg font-bold text-zinc-950">{race.label}</h3>
+                    <details key={race.raceId} className="group rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
+                      <summary className="cursor-pointer list-none">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm text-zinc-500">{formatDate(race.meetingDate)}</p>
+                            <h3 className="mt-1 text-lg font-bold text-zinc-950">
+                              <span className="mr-2 inline-block text-amber-700 transition group-open:rotate-90">▶</span>
+                              {race.label}
+                            </h3>
+                            <p className="mt-2 text-sm text-zinc-600">
+                              Top rated: {topRated?.horse?.horse_name || "—"} · Winner: {raceWinner?.horse?.horse_name || "—"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge tone={topRated?.finishing_position === 1 ? "green" : "amber"}>
+                              Top: {topRated?.finishing_position === 1 ? "Won" : `Finished ${topRated?.finishing_position ?? "—"}`}
+                            </Badge>
+                            <Badge tone={topThreeHadWinner ? "green" : "rose"}>
+                              Top 3 {topThreeHadWinner ? "hit" : "miss"}
+                            </Badge>
+                            <Badge tone="slate">{race.rows.length} runners</Badge>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge tone={topRated?.finishing_position === 1 ? "green" : "amber"}>
-                            Top: {topRated?.finishing_position === 1 ? "Won" : `Finished ${topRated?.finishing_position ?? "—"}`}
-                          </Badge>
-                          <Badge tone={topThreeHadWinner ? "green" : "rose"}>
-                            Top 3 {topThreeHadWinner ? "hit" : "miss"}
-                          </Badge>
-                        </div>
-                      </div>
+                      </summary>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Top rated</p>
-                          <p className="mt-2 font-bold text-zinc-950">{topRated?.horse?.horse_name || "—"}</p>
-                          <p className="mt-1 text-sm text-zinc-600">
-                            Score {Math.round(toNumber(topRated?.score))} · Win {topRated?.win_percent ?? 0}% · Place {topRated?.place_percent ?? 0}%
-                          </p>
+                      <div className="mt-5 border-t border-zinc-200 pt-5">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Top rated</p>
+                            <p className="mt-2 font-bold text-zinc-950">{topRated?.horse?.horse_name || "—"}</p>
+                            <p className="mt-1 text-sm text-zinc-600">
+                              Score {Math.round(toNumber(topRated?.score))} · Win {topRated?.win_percent ?? 0}% · Place {topRated?.place_percent ?? 0}%
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Winner</p>
+                            <p className="mt-2 font-bold text-zinc-950">{raceWinner?.horse?.horse_name || "—"}</p>
+                            <p className="mt-1 text-sm text-zinc-600">
+                              Calculator rank #{raceWinner?.rank ?? "—"} · Score {raceWinner ? Math.round(toNumber(raceWinner.score)) : "—"}
+                            </p>
+                          </div>
                         </div>
 
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Winner</p>
-                          <p className="mt-2 font-bold text-zinc-950">{winner?.horse?.horse_name || "—"}</p>
-                          <p className="mt-1 text-sm text-zinc-600">
-                            Calculator rank #{winner?.rank ?? "—"} · Score {winner ? Math.round(toNumber(winner.score)) : "—"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 overflow-x-auto">
-                        <table className="w-full min-w-[760px] text-left text-sm">
-                          <thead>
-                            <tr className="border-b border-zinc-200 text-xs uppercase tracking-[0.16em] text-zinc-500">
-                              <th className="py-3 pr-3">Rank</th>
-                              <th className="py-3 pr-3">Horse</th>
-                              <th className="py-3 pr-3">Score</th>
-                              <th className="py-3 pr-3">Win %</th>
-                              <th className="py-3 pr-3">Place %</th>
-                              <th className="py-3 pr-3">Finished</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {race.rows.map((row) => (
-                              <tr key={row.id} className="border-b border-zinc-100 last:border-0">
-                                <td className="py-3 pr-3 font-semibold">#{row.rank}</td>
-                                <td className="py-3 pr-3 font-semibold text-zinc-950">{row.horse?.horse_name || "Unknown"}</td>
-                                <td className="py-3 pr-3">{Math.round(toNumber(row.score))}</td>
-                                <td className="py-3 pr-3">{row.win_percent}%</td>
-                                <td className="py-3 pr-3">{row.place_percent}%</td>
-                                <td className="py-3 pr-3">
-                                  <Badge tone={row.finishing_position === 1 ? "green" : row.finishing_position && row.finishing_position <= 3 ? "blue" : "rose"}>
-                                    {row.finishing_position ?? "—"}
-                                  </Badge>
-                                </td>
+                        <div className="mt-4 overflow-x-auto">
+                          <table className="w-full min-w-[1060px] text-left text-sm">
+                            <thead>
+                              <tr className="border-b border-zinc-200 text-xs uppercase tracking-[0.16em] text-zinc-500">
+                                <th className="py-3 pr-3">Rank</th>
+                                <th className="py-3 pr-3">Horse</th>
+                                <th className="py-3 pr-3">Score</th>
+                                <th className="py-3 pr-3">Win %</th>
+                                <th className="py-3 pr-3">Place %</th>
+                                <th className="py-3 pr-3">Finished</th>
+                                <th className="py-3 pr-3">Form</th>
+                                <th className="py-3 pr-3">Distance</th>
+                                <th className="py-3 pr-3">Track</th>
+                                <th className="py-3 pr-3">Barrier</th>
+                                <th className="py-3 pr-3">Weight</th>
+                                <th className="py-3 pr-3">Jockey</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody>
+                              {race.rows.map((row) => (
+                                <tr key={row.id} className="border-b border-zinc-100 last:border-0">
+                                  <td className="py-3 pr-3 font-semibold">#{row.rank}</td>
+                                  <td className="py-3 pr-3 font-semibold text-zinc-950">{row.horse?.horse_name || "Unknown"}</td>
+                                  <td className="py-3 pr-3">{Math.round(toNumber(row.score))}</td>
+                                  <td className="py-3 pr-3">{row.win_percent}%</td>
+                                  <td className="py-3 pr-3">{row.place_percent}%</td>
+                                  <td className="py-3 pr-3">
+                                    <Badge tone={row.finishing_position === 1 ? "green" : row.finishing_position && row.finishing_position <= 3 ? "blue" : "rose"}>
+                                      {row.finishing_position ?? "—"}
+                                    </Badge>
+                                  </td>
+                                  <td className="py-3 pr-3">{Math.round(toNumber(row.recent_form_score))}</td>
+                                  <td className="py-3 pr-3">{Math.round(toNumber(row.distance_score))}</td>
+                                  <td className="py-3 pr-3">{Math.round(toNumber(row.track_score))}</td>
+                                  <td className="py-3 pr-3">{Math.round(toNumber(row.barrier_score))}</td>
+                                  <td className="py-3 pr-3">{Math.round(toNumber(row.weight_score))}</td>
+                                  <td className="py-3 pr-3">{Math.round(toNumber(row.jockey_score))}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
 
-                      <p className="mt-3 text-xs text-zinc-500">
-                        Snapshot settled: {formatDateTime(race.rows[0]?.settled_at)}
-                      </p>
-                    </div>
+                        <p className="mt-3 text-xs text-zinc-500">
+                          Snapshot settled: {formatDateTime(race.rows[0]?.settled_at)}
+                        </p>
+                      </div>
+                    </details>
                   );
                 })
               ) : (
