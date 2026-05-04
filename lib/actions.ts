@@ -2124,12 +2124,14 @@ export async function settleRaceRunnersAction(
       return { success: false, error: runnersError.message };
     }
 
+    const now = new Date().toISOString();
+    const runnersById = new Map<number, any>();
     const scratchedMap = new Map<number, boolean>();
+
     for (const runner of raceRunners || []) {
-      scratchedMap.set(
-        Number((runner as any).id),
-        Boolean((runner as any).scratched),
-      );
+      const runnerId = Number((runner as any).id);
+      runnersById.set(runnerId, runner);
+      scratchedMap.set(runnerId, Boolean((runner as any).scratched));
     }
 
     const updates: Array<{
@@ -2159,8 +2161,8 @@ export async function settleRaceRunnersAction(
           starting_price: null,
           won: false,
           placed: false,
-          settled_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          settled_at: now,
+          updated_at: now,
         });
         continue;
       }
@@ -2185,138 +2187,136 @@ export async function settleRaceRunnersAction(
             : null,
         won: hasFinish ? finishingPosition === 1 : false,
         placed: hasFinish ? finishingPosition <= 3 : false,
-        settled_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        settled_at: now,
+        updated_at: now,
       });
     }
 
-    for (const update of updates) {
-      const { error } = await supabase
-        .from("race_runners")
-        .update({
-          finishing_position: update.finishing_position,
-          starting_price: update.starting_price,
-          won: update.won,
-          placed: update.placed,
-          settled_at: update.settled_at,
-          updated_at: update.updated_at,
-        })
-        .eq("id", update.id);
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
+    if (!updates.length) {
+      return { success: false, error: "No runner results were submitted." };
     }
 
     try {
       await saveCalculatorPredictionsForRace(raceId, {
         excludeScratched: true,
       });
-      await updateCalculatorPredictionResultsForRace(raceId, updates);
     } catch (predictionError) {
       console.error(
         "Calculator final prediction snapshot failed:",
         predictionError,
       );
     }
-    for (const update of updates) {
-      if (
-        update.finishing_position === null ||
-        update.finishing_position === undefined ||
-        update.finishing_position <= 0
-      ) {
-        continue;
-      }
 
-      const matchingRunner = (raceRunners || []).find(
-        (runner) => Number((runner as any).id) === Number(update.id),
-      );
+    const rpcResults = updates.map((update) => ({
+      runner_id: update.id,
+      finishing_position: update.finishing_position,
+      starting_price: update.starting_price,
+    }));
 
-      if (!matchingRunner) {
-        continue;
-      }
+    const { error: rpcError } = await supabase.rpc("settle_race_fast", {
+      p_race_id: raceId,
+      p_results: rpcResults,
+    });
 
-      const horseId = Number((matchingRunner as any).horse_id);
+    if (rpcError) {
+      return { success: false, error: rpcError.message };
+    }
 
-      if (!horseId) {
-        continue;
-      }
+    const horseIds = Array.from(
+      new Set(
+        updates
+          .filter(
+            (update) =>
+              update.finishing_position !== null &&
+              update.finishing_position !== undefined &&
+              update.finishing_position > 0,
+          )
+          .map((update) => Number(runnersById.get(update.id)?.horse_id))
+          .filter(Boolean),
+      ),
+    );
 
-      const { data: horseRow, error: horseFetchError } = await supabase
+    if (horseIds.length > 0) {
+      const { data: horseRows, error: horseFetchError } = await supabase
         .from("horses")
         .select("id, form_last_6, track_form_last_6, distance_form_last_6")
-        .eq("id", horseId)
-        .single();
+        .in("id", horseIds);
 
       if (horseFetchError) {
         return { success: false, error: horseFetchError.message };
       }
 
-      const existingHorseForm =
-        horseRow?.form_last_6 ||
-        normaliseImportedForm(
-          String((matchingRunner as any).form_last_6 || ""),
-        );
-
-      const existingTrackForm =
-        horseRow?.track_form_last_6 ||
-        String((matchingRunner as any).track_form_last_6 || "");
-
-      const existingDistanceForm =
-        horseRow?.distance_form_last_6 ||
-        String((matchingRunner as any).distance_form_last_6 || "");
-
-      const nextForm = updateFormStringWithResult(
-        existingHorseForm || null,
-        Number(update.finishing_position),
-      );
-
-      const nextTrackForm = updateStatRecordWithResult(
-        existingTrackForm || null,
-        Number(update.finishing_position),
-      );
-
-      const nextDistanceForm = updateStatRecordWithResult(
-        existingDistanceForm || null,
-        Number(update.finishing_position),
-      );
-
-      const { error: horseUpdateError } = await supabase
-        .from("horses")
-        .update({
-          form_last_6: nextForm,
-          track_form_last_6: nextTrackForm,
-          distance_form_last_6: nextDistanceForm,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", horseId);
-
-      if (horseUpdateError) {
-        return { success: false, error: horseUpdateError.message };
+      const horseRowsById = new Map<number, any>();
+      for (const horse of horseRows || []) {
+        horseRowsById.set(Number((horse as any).id), horse);
       }
-    }
-    const { error: raceError } = await supabase
-      .from("races")
-      .update({
-        status: "closed",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", raceId);
 
-    if (raceError) {
-      return { success: false, error: raceError.message };
-    }
+      const horseUpdates: Array<{
+        id: number;
+        form_last_6: string;
+        track_form_last_6: string;
+        distance_form_last_6: string;
+        updated_at: string;
+      }> = [];
 
-    try {
-      await autoFinaliseMatchingSuggestedTipsForRace(raceId);
-    } catch (tipSettlementError) {
-      return {
-        success: false,
-        error:
-          tipSettlementError instanceof Error
-            ? `Race settled, but tip auto-finalisation failed: ${tipSettlementError.message}`
-            : "Race settled, but tip auto-finalisation failed.",
-      };
+      for (const update of updates) {
+        if (
+          update.finishing_position === null ||
+          update.finishing_position === undefined ||
+          update.finishing_position <= 0
+        ) {
+          continue;
+        }
+
+        const matchingRunner = runnersById.get(update.id);
+        const horseId = Number(matchingRunner?.horse_id);
+
+        if (!horseId) continue;
+
+        const horseRow = horseRowsById.get(horseId) || null;
+
+        const existingHorseForm =
+          horseRow?.form_last_6 ||
+          normaliseImportedForm(String(matchingRunner?.form_last_6 || ""));
+
+        const existingTrackForm =
+          horseRow?.track_form_last_6 ||
+          String(matchingRunner?.track_form_last_6 || "");
+
+        const existingDistanceForm =
+          horseRow?.distance_form_last_6 ||
+          String(matchingRunner?.distance_form_last_6 || "");
+
+        horseUpdates.push({
+          id: horseId,
+          form_last_6: updateFormStringWithResult(
+            existingHorseForm || null,
+            Number(update.finishing_position),
+          ),
+          track_form_last_6: updateStatRecordWithResult(
+            existingTrackForm || null,
+            Number(update.finishing_position),
+          ),
+          distance_form_last_6: updateStatRecordWithResult(
+            existingDistanceForm || null,
+            Number(update.finishing_position),
+          ),
+          updated_at: now,
+        });
+      }
+
+      if (horseUpdates.length > 0) {
+        await serviceRoleFetch(
+          `horses?on_conflict=${encodeURIComponent("id")}`,
+          {
+            method: "POST",
+            headers: {
+              Prefer: "resolution=merge-duplicates,return=minimal",
+            },
+            body: JSON.stringify(horseUpdates),
+          },
+        );
+      }
     }
 
     revalidatePath("/admin/race-builder");
