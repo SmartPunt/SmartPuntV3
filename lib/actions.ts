@@ -35,7 +35,7 @@ async function fetchAllRows<T>({
     const { data, error } = await getPage(from, to);
 
     if (error) {
-      throw new Error(error.message || "Failed to fetch rows.");
+      throw new Error(error.message || "Failed to fetch row(s).");
     }
 
     const rows = data || [];
