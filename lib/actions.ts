@@ -22,7 +22,10 @@ async function fetchAllRows<T>({
   getPage,
 }: {
   pageSize?: number;
-  getPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>;
+  getPage: (
+    from: number,
+    to: number,
+  ) => Promise<{ data: T[] | null; error: any }>;
 }) {
   const allRows: T[] = [];
   let from = 0;
@@ -77,7 +80,9 @@ function getServiceRoleHeaders() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing Supabase service role configuration in environment variables.");
+    throw new Error(
+      "Missing Supabase service role configuration in environment variables.",
+    );
   }
 
   return {
@@ -269,7 +274,9 @@ function buildInFilter(values: number[]) {
 }
 
 function getBaseAppUrl() {
-  return String(process.env.SMARTPUNT_APP_URL || "").trim().replace(/\/+$/, "");
+  return String(process.env.SMARTPUNT_APP_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
 }
 
 function getHeaderLogoUrl() {
@@ -580,16 +587,13 @@ async function sendPublishedRaceNotification({
 async function clearSuggestedTipLinksForRaceIds(raceIds: number[]) {
   if (!raceIds.length) return;
 
-  await serviceRolePatch(
-    `suggested_tips?race_id=${buildInFilter(raceIds)}`,
-    {
-      meeting_id: null,
-      race_id: null,
-      horse_id: null,
-      race_runner_id: null,
-      updated_at: new Date().toISOString(),
-    },
-  );
+  await serviceRolePatch(`suggested_tips?race_id=${buildInFilter(raceIds)}`, {
+    meeting_id: null,
+    race_id: null,
+    horse_id: null,
+    race_runner_id: null,
+    updated_at: new Date().toISOString(),
+  });
 }
 
 async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
@@ -605,7 +609,10 @@ async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
 }
 // SmartPunt horse master form seed active
 
-async function saveCalculatorPredictionsForRace(raceId: number) {
+async function saveCalculatorPredictionsForRace(
+  raceId: number,
+  { excludeScratched = false }: { excludeScratched?: boolean } = {},
+) {
   const supabase = await createClient();
 
   const [races, runners, horses, meetings] = await Promise.all([
@@ -674,10 +681,17 @@ async function saveCalculatorPredictionsForRace(raceId: number) {
     throw new Error("Race not found for calculator prediction snapshot.");
   }
 
+  const runnersForScoring = excludeScratched
+    ? runners.filter(
+        (runner) =>
+          Number(runner.race_id) !== Number(raceId) || !runner.scratched,
+      )
+    : runners;
+
   const scoredRunners = calculateRaceScores({
     activeRace,
     races,
-    runners,
+    runners: runnersForScoring,
     horses,
     meetings,
   });
@@ -712,18 +726,47 @@ async function saveCalculatorPredictionsForRace(raceId: number) {
     updated_at: now,
   }));
 
-  await serviceRoleFetch(
-    `calculator_predictions?on_conflict=${encodeURIComponent(
-      "race_id,runner_id,scoring_version",
+  await serviceRoleDelete(
+    `calculator_predictions?race_id=eq.${raceId}&scoring_version=eq.${encodeURIComponent(
+      SMARTPUNT_SCORING_VERSION,
     )}`,
-    {
-      method: "POST",
-      headers: {
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      },
-      body: JSON.stringify(payload),
-    },
   );
+
+  await serviceRoleFetch("calculator_predictions", {
+    method: "POST",
+    headers: {
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+async function updateCalculatorPredictionResultsForRace(
+  raceId: number,
+  updates: Array<{
+    id: number;
+    finishing_position: number | null;
+    won: boolean | null;
+    placed: boolean | null;
+    settled_at: string | null;
+  }>,
+) {
+  const settledAt = new Date().toISOString();
+
+  for (const update of updates) {
+    await serviceRolePatch(
+      `calculator_predictions?race_id=eq.${raceId}&runner_id=eq.${update.id}&scoring_version=eq.${encodeURIComponent(
+        SMARTPUNT_SCORING_VERSION,
+      )}`,
+      {
+        finishing_position: update.finishing_position,
+        won: update.won,
+        placed: update.placed,
+        settled_at: update.settled_at || settledAt,
+        updated_at: new Date().toISOString(),
+      },
+    );
+  }
 }
 
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
@@ -758,9 +801,13 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
     throw new Error(runnerError.message);
   }
 
-  const activeRunnerRows = (runnerRows || []).filter((runner: any) => !runner.scratched);
+  const activeRunnerRows = (runnerRows || []).filter(
+    (runner: any) => !runner.scratched,
+  );
   const runnerIds = activeRunnerRows.map((runner: any) => Number(runner.id));
-  const horseIds = activeRunnerRows.map((runner: any) => Number(runner.horse_id)).filter(Boolean);
+  const horseIds = activeRunnerRows
+    .map((runner: any) => Number(runner.horse_id))
+    .filter(Boolean);
 
   const horseMap = new Map<number, any>();
   if (horseIds.length > 0) {
@@ -793,9 +840,11 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
   const normalisedMeetingName = normaliseText(meetingName);
   const normalisedRaceName = normaliseText(raceName);
-  const raceMarkers = [`r${raceNumber}`, `race ${raceNumber}`, `race${raceNumber}`].map(
-    normaliseText,
-  );
+  const raceMarkers = [
+    `r${raceNumber}`,
+    `race ${raceNumber}`,
+    `race${raceNumber}`,
+  ].map(normaliseText);
 
   const updates: Array<{
     id: number;
@@ -805,15 +854,18 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
   }> = [];
 
   for (const tip of suggestedTips || []) {
-    const tipType = String(tip.type || "").toLowerCase().trim();
-if (!["win", "place", "each way"].includes(tipType)) continue;
+    const tipType = String(tip.type || "")
+      .toLowerCase()
+      .trim();
+    if (!["win", "place", "each way"].includes(tipType)) continue;
 
     let matchedRunner: any | null = null;
 
     if (tip.race_runner_id && runnerIds.includes(Number(tip.race_runner_id))) {
       matchedRunner =
-        activeRunnerRows.find((runner: any) => Number(runner.id) === Number(tip.race_runner_id)) ||
-        null;
+        activeRunnerRows.find(
+          (runner: any) => Number(runner.id) === Number(tip.race_runner_id),
+        ) || null;
     }
 
     if (!matchedRunner) {
@@ -841,7 +893,10 @@ if (!["win", "place", "each way"].includes(tipType)) continue;
       const raceTextMatchesRaceName =
         !!normalisedRaceName && tipRace.includes(normalisedRaceName);
 
-      if (!raceTextMatchesMeeting || (!raceTextMatchesNumber && !raceTextMatchesRaceName)) {
+      if (
+        !raceTextMatchesMeeting ||
+        (!raceTextMatchesNumber && !raceTextMatchesRaceName)
+      ) {
         continue;
       }
     }
@@ -857,9 +912,9 @@ if (!["win", "place", "each way"].includes(tipType)) continue;
 
     if (tipType === "win") {
       successful = finishingPosition === 1;
-} else if (tipType === "place" || tipType === "each way") {
-  successful = finishingPosition !== null ? finishingPosition <= 3 : false;
-}
+    } else if (tipType === "place" || tipType === "each way") {
+      successful = finishingPosition !== null ? finishingPosition <= 3 : false;
+    }
 
     updates.push({
       id: Number(tip.id),
@@ -894,8 +949,12 @@ export async function createSubscriberUserAction(
 
   const fullName = String(formData.get("full_name") ?? "").trim();
   const role = String(formData.get("role") ?? "user").trim();
-  const emailInput = String(formData.get("email") ?? "").trim().toLowerCase();
-  const usernameInput = String(formData.get("username") ?? "").trim().toLowerCase();
+  const emailInput = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+  const usernameInput = String(formData.get("username") ?? "")
+    .trim()
+    .toLowerCase();
   const password = String(formData.get("password") ?? "").trim();
 
   if (!fullName || !password) {
@@ -917,12 +976,13 @@ export async function createSubscriberUserAction(
   }
 
   if (!isSubscriber && !usernameInput) {
-    return { error: "Full Admin and Race Builder users must have a username.", success: null };
+    return {
+      error: "Full Admin and Race Builder users must have a username.",
+      success: null,
+    };
   }
 
-  const username =
-    usernameInput ||
-    null;
+  const username = usernameInput || null;
 
   if (username && !/^[a-zA-Z0-9._-]{3,30}$/.test(username)) {
     return {
@@ -932,9 +992,7 @@ export async function createSubscriberUserAction(
     };
   }
 
-  const authEmail = isSubscriber
-    ? emailInput
-    : `${username}@smartpunt.local`;
+  const authEmail = isSubscriber ? emailInput : `${username}@smartpunt.local`;
 
   const profileEmail = isSubscriber ? emailInput : authEmail;
 
@@ -964,7 +1022,10 @@ export async function createSubscriberUserAction(
       };
     }
 
-    if (Array.isArray(existingUsernameData) && existingUsernameData.length > 0) {
+    if (
+      Array.isArray(existingUsernameData) &&
+      existingUsernameData.length > 0
+    ) {
       return {
         error: "That username is already in use.",
         success: null,
@@ -991,7 +1052,10 @@ export async function createSubscriberUserAction(
 
   if (!createUserRes.ok) {
     return {
-      error: createUserData?.msg || createUserData?.message || "Failed to create auth user.",
+      error:
+        createUserData?.msg ||
+        createUserData?.message ||
+        "Failed to create auth user.",
       success: null,
     };
   }
@@ -1158,11 +1222,14 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   const profile = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const isNew = !id;
-  const sendNotification = String(formData.get("send_notification") ?? "") === "true";
+  const sendNotification =
+    String(formData.get("send_notification") ?? "") === "true";
 
   const raceDate = String(formData.get("race_date") ?? "");
   const raceTime = String(formData.get("race_time") ?? "");
-  const raceTimezone = String(formData.get("race_timezone") ?? "Australia/Perth");
+  const raceTimezone = String(
+    formData.get("race_timezone") ?? "Australia/Perth",
+  );
   const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
 
   const meetingIdRaw = String(formData.get("meeting_id") ?? "").trim();
@@ -1170,7 +1237,9 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   const horseIdRaw = String(formData.get("horse_id") ?? "").trim();
   const raceRunnerIdRaw = String(formData.get("race_runner_id") ?? "").trim();
 
-  const finishingPositionRaw = String(formData.get("finishing_position") ?? "").trim();
+  const finishingPositionRaw = String(
+    formData.get("finishing_position") ?? "",
+  ).trim();
   const successfulRaw = String(formData.get("successful") ?? "").trim();
 
   const successful =
@@ -1190,9 +1259,12 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
     result_comment: String(formData.get("result_comment") ?? ""),
     race_start_at: raceStartAt,
     race_timezone: raceTimezone,
-    finishing_position: finishingPositionRaw ? Number(finishingPositionRaw) : null,
+    finishing_position: finishingPositionRaw
+      ? Number(finishingPositionRaw)
+      : null,
     successful,
-    settled_at: typeof successful === "boolean" ? new Date().toISOString() : null,
+    settled_at:
+      typeof successful === "boolean" ? new Date().toISOString() : null,
     created_by: profile.id,
     updated_at: new Date().toISOString(),
   };
@@ -1236,7 +1308,9 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   revalidatePath("/my-resulted-tips");
 }
 
-export async function deleteSuggestedTipAction(formData: FormData): Promise<void> {
+export async function deleteSuggestedTipAction(
+  formData: FormData,
+): Promise<void> {
   await requireAdmin();
   const id = Number(formData.get("id"));
   const supabase = await createClient();
@@ -1278,7 +1352,10 @@ export async function deleteWatchItemAction(formData: FormData): Promise<void> {
   const id = Number(formData.get("id"));
   const supabase = await createClient();
 
-  const { error } = await supabase.from("watchlist_items").delete().eq("id", id);
+  const { error } = await supabase
+    .from("watchlist_items")
+    .delete()
+    .eq("id", id);
   if (error) throw new Error(error.message);
 
   revalidatePath("/");
@@ -1291,7 +1368,9 @@ export async function upsertLongTermBet(formData: FormData): Promise<void> {
 
   const raceDate = String(formData.get("race_date") ?? "");
   const raceTime = String(formData.get("race_time") ?? "");
-  const raceTimezone = String(formData.get("race_timezone") ?? "Australia/Perth");
+  const raceTimezone = String(
+    formData.get("race_timezone") ?? "Australia/Perth",
+  );
   const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
 
   const raceNumberRaw = String(formData.get("race_number") ?? "").trim();
@@ -1349,7 +1428,9 @@ export async function upsertLongTermBet(formData: FormData): Promise<void> {
   revalidatePath("/long-term-bets");
 }
 
-export async function deleteLongTermBetAction(formData: FormData): Promise<void> {
+export async function deleteLongTermBetAction(
+  formData: FormData,
+): Promise<void> {
   await requireAdmin();
   const id = Number(formData.get("id"));
   const supabase = await createClient();
@@ -1360,7 +1441,9 @@ export async function deleteLongTermBetAction(formData: FormData): Promise<void>
   revalidatePath("/");
 }
 
-export async function createMeetingAction(formData: FormData): Promise<ActionResult> {
+export async function createMeetingAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     const profile = await requireRacingAdmin();
     const supabase = await createClient();
@@ -1392,12 +1475,15 @@ export async function createMeetingAction(formData: FormData): Promise<ActionRes
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to create meeting.",
+      error:
+        error instanceof Error ? error.message : "Failed to create meeting.",
     };
   }
 }
 
-export async function deleteMeetingAction(formData: FormData): Promise<ActionResult> {
+export async function deleteMeetingAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     await requireRacingAdmin();
 
@@ -1411,14 +1497,18 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
       `races?meeting_id=eq.${meetingId}&select=id`,
     )) as Array<{ id: number }> | null;
 
-    const raceIds = (races || []).map((race) => Number(race.id)).filter(Boolean);
+    const raceIds = (races || [])
+      .map((race) => Number(race.id))
+      .filter(Boolean);
 
     if (raceIds.length > 0) {
       const runners = (await serviceRoleSelect(
         `race_runners?race_id=${buildInFilter(raceIds)}&select=id`,
       )) as Array<{ id: number }> | null;
 
-      const runnerIds = (runners || []).map((runner) => Number(runner.id)).filter(Boolean);
+      const runnerIds = (runners || [])
+        .map((runner) => Number(runner.id))
+        .filter(Boolean);
 
       await clearSuggestedTipLinksForRaceIds(raceIds);
       await clearSuggestedTipLinksForRunnerIds(runnerIds);
@@ -1440,12 +1530,15 @@ export async function deleteMeetingAction(formData: FormData): Promise<ActionRes
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete meeting.",
+      error:
+        error instanceof Error ? error.message : "Failed to delete meeting.",
     };
   }
 }
 
-export async function createRaceAction(formData: FormData): Promise<ActionResult> {
+export async function createRaceAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     const profile = await requireRacingAdmin();
     const supabase = await createClient();
@@ -1475,7 +1568,10 @@ export async function createRaceAction(formData: FormData): Promise<ActionResult
 
     if (error) {
       if (error.code === "23505") {
-        return { success: false, error: "That race number already exists for this meeting." };
+        return {
+          success: false,
+          error: "That race number already exists for this meeting.",
+        };
       }
       return { success: false, error: error.message };
     }
@@ -1492,7 +1588,9 @@ export async function createRaceAction(formData: FormData): Promise<ActionResult
   }
 }
 
-export async function toggleRacePublishAction(formData: FormData): Promise<ActionResult> {
+export async function toggleRacePublishAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     await requireRacingAdmin();
     const supabase = await createClient();
@@ -1510,11 +1608,15 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
 
     const payload = {
       status: nextStatus,
-      published_at: nextStatus === "published" ? new Date().toISOString() : null,
+      published_at:
+        nextStatus === "published" ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("races").update(payload).eq("id", raceId);
+    const { error } = await supabase
+      .from("races")
+      .update(payload)
+      .eq("id", raceId);
 
     if (error) {
       return { success: false, error: error.message };
@@ -1524,7 +1626,10 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
       try {
         await saveCalculatorPredictionsForRace(raceId);
       } catch (predictionError) {
-        console.error("Calculator prediction snapshot failed:", predictionError);
+        console.error(
+          "Calculator prediction snapshot failed:",
+          predictionError,
+        );
       }
     }
 
@@ -1536,12 +1641,17 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update race status.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update race status.",
     };
   }
 }
 
-export async function deleteRaceAction(formData: FormData): Promise<ActionResult> {
+export async function deleteRaceAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     await requireRacingAdmin();
 
@@ -1555,7 +1665,9 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
       `race_runners?race_id=eq.${raceId}&select=id`,
     )) as Array<{ id: number }> | null;
 
-    const runnerIds = (runners || []).map((runner) => Number(runner.id)).filter(Boolean);
+    const runnerIds = (runners || [])
+      .map((runner) => Number(runner.id))
+      .filter(Boolean);
 
     await clearSuggestedTipLinksForRaceIds([raceId]);
     await clearSuggestedTipLinksForRunnerIds(runnerIds);
@@ -1579,13 +1691,17 @@ export async function deleteRaceAction(formData: FormData): Promise<ActionResult
   }
 }
 
-export async function createRaceRunnerAction(formData: FormData): Promise<ActionResult> {
+export async function createRaceRunnerAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     const profile = await requireRacingAdmin();
     const supabase = await createClient();
 
     const raceId = Number(formData.get("race_id"));
-    const selectedHorseIdRaw = String(formData.get("selected_horse_id") ?? "").trim();
+    const selectedHorseIdRaw = String(
+      formData.get("selected_horse_id") ?? "",
+    ).trim();
     const horseNameRaw = String(formData.get("horse_name") ?? "").trim();
     const jockeyName = String(formData.get("jockey_name") ?? "").trim();
     const trainerName = String(formData.get("trainer_name") ?? "").trim();
@@ -1593,10 +1709,16 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
     const marketPriceRaw = String(formData.get("market_price") ?? "").trim();
     const weightKgRaw = String(formData.get("weight_kg") ?? "").trim();
     const isApprenticeRaw = String(formData.get("is_apprentice") ?? "").trim();
-    const apprenticeClaimRaw = String(formData.get("apprentice_claim_kg") ?? "").trim();
+    const apprenticeClaimRaw = String(
+      formData.get("apprentice_claim_kg") ?? "",
+    ).trim();
     const formLast6 = String(formData.get("form_last_6") ?? "").trim();
-    const trackFormLast6 = String(formData.get("track_form_last_6") ?? "").trim();
-    const distanceFormLast6 = String(formData.get("distance_form_last_6") ?? "").trim();
+    const trackFormLast6 = String(
+      formData.get("track_form_last_6") ?? "",
+    ).trim();
+    const distanceFormLast6 = String(
+      formData.get("distance_form_last_6") ?? "",
+    ).trim();
 
     if (!raceId) {
       return { success: false, error: "Race is required." };
@@ -1629,17 +1751,17 @@ export async function createRaceRunnerAction(formData: FormData): Promise<Action
         horseId = existingHorse.id;
       } else {
         const { data: insertedHorse, error: insertHorseError } = await supabase
-.from("horses")
-.insert({
-  horse_name: horseNameRaw.replace(/\s+/g, " ").trim(),
-  normalised_name: normalisedName,
+          .from("horses")
+          .insert({
+            horse_name: horseNameRaw.replace(/\s+/g, " ").trim(),
+            normalised_name: normalisedName,
 
-form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
-track_form_last_6: trackFormLast6 || null,
-distance_form_last_6: distanceFormLast6 || null,
+            form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
+            track_form_last_6: trackFormLast6 || null,
+            distance_form_last_6: distanceFormLast6 || null,
 
-  updated_at: new Date().toISOString(),
-})
+            updated_at: new Date().toISOString(),
+          })
           .select("id")
           .single();
 
@@ -1654,7 +1776,8 @@ distance_form_last_6: distanceFormLast6 || null,
             if (retryHorseError || !retryHorse?.id) {
               return {
                 success: false,
-                error: retryHorseError?.message || "Unable to match existing horse.",
+                error:
+                  retryHorseError?.message || "Unable to match existing horse.",
               };
             }
 
@@ -1677,26 +1800,33 @@ distance_form_last_6: distanceFormLast6 || null,
         : isApprenticeRaw === "false"
           ? false
           : null;
-    const apprenticeClaimValue = apprenticeClaimRaw ? Number(apprenticeClaimRaw) : null;
+    const apprenticeClaimValue = apprenticeClaimRaw
+      ? Number(apprenticeClaimRaw)
+      : null;
 
     const { error } = await supabase.from("race_runners").insert({
       race_id: raceId,
       horse_id: horseId,
       jockey_name: jockeyName || null,
       trainer_name: trainerName || null,
-      barrier: barrierValue && !Number.isNaN(barrierValue) ? barrierValue : null,
+      barrier:
+        barrierValue && !Number.isNaN(barrierValue) ? barrierValue : null,
       market_price:
-        marketPriceValue !== null && !Number.isNaN(marketPriceValue) ? marketPriceValue : null,
+        marketPriceValue !== null && !Number.isNaN(marketPriceValue)
+          ? marketPriceValue
+          : null,
       weight_kg:
-        weightKgValue !== null && !Number.isNaN(weightKgValue) ? weightKgValue : null,
+        weightKgValue !== null && !Number.isNaN(weightKgValue)
+          ? weightKgValue
+          : null,
       is_apprentice: isApprentice,
       apprentice_claim_kg:
         apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
           ? apprenticeClaimValue
           : null,
-form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
-track_form_last_6: trackFormLast6 || null,
-distance_form_last_6: distanceFormLast6 || null,
+      form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
+      track_form_last_6: trackFormLast6 || null,
+      distance_form_last_6: distanceFormLast6 || null,
       scratched: false,
       created_by: profile.id,
       updated_at: new Date().toISOString(),
@@ -1704,7 +1834,10 @@ distance_form_last_6: distanceFormLast6 || null,
 
     if (error) {
       if (error.code === "23505") {
-        return { success: false, error: "That horse is already loaded into this race." };
+        return {
+          success: false,
+          error: "That horse is already loaded into this race.",
+        };
       }
       return { success: false, error: error.message };
     }
@@ -1716,12 +1849,15 @@ distance_form_last_6: distanceFormLast6 || null,
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to create runner.",
+      error:
+        error instanceof Error ? error.message : "Failed to create runner.",
     };
   }
 }
 
-export async function deleteRaceRunnerAction(formData: FormData): Promise<ActionResult> {
+export async function deleteRaceRunnerAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     await requireRacingAdmin();
 
@@ -1744,12 +1880,15 @@ export async function deleteRaceRunnerAction(formData: FormData): Promise<Action
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete runner.",
+      error:
+        error instanceof Error ? error.message : "Failed to delete runner.",
     };
   }
 }
 
-export async function updateRaceRunnerDetailsAction(formData: FormData): Promise<ActionResult> {
+export async function updateRaceRunnerDetailsAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     await requireRacingAdmin();
     const supabase = await createClient();
@@ -1766,15 +1905,23 @@ export async function updateRaceRunnerDetailsAction(formData: FormData): Promise
     const marketPriceRaw = String(formData.get("market_price") ?? "").trim();
     const weightKgRaw = String(formData.get("weight_kg") ?? "").trim();
     const isApprenticeRaw = String(formData.get("is_apprentice") ?? "").trim();
-    const apprenticeClaimRaw = String(formData.get("apprentice_claim_kg") ?? "").trim();
+    const apprenticeClaimRaw = String(
+      formData.get("apprentice_claim_kg") ?? "",
+    ).trim();
     const formLast6 = String(formData.get("form_last_6") ?? "").trim();
-    const trackFormLast6 = String(formData.get("track_form_last_6") ?? "").trim();
-    const distanceFormLast6 = String(formData.get("distance_form_last_6") ?? "").trim();
+    const trackFormLast6 = String(
+      formData.get("track_form_last_6") ?? "",
+    ).trim();
+    const distanceFormLast6 = String(
+      formData.get("distance_form_last_6") ?? "",
+    ).trim();
 
     const barrierValue = barrierRaw ? Number(barrierRaw) : null;
     const marketPriceValue = marketPriceRaw ? Number(marketPriceRaw) : null;
     const weightKgValue = weightKgRaw ? Number(weightKgRaw) : null;
-    const apprenticeClaimValue = apprenticeClaimRaw ? Number(apprenticeClaimRaw) : null;
+    const apprenticeClaimValue = apprenticeClaimRaw
+      ? Number(apprenticeClaimRaw)
+      : null;
 
     const isApprentice =
       isApprenticeRaw === "true"
@@ -1788,17 +1935,24 @@ export async function updateRaceRunnerDetailsAction(formData: FormData): Promise
       .update({
         jockey_name: jockeyName || null,
         trainer_name: trainerName || null,
-        barrier: barrierValue !== null && !Number.isNaN(barrierValue) ? barrierValue : null,
+        barrier:
+          barrierValue !== null && !Number.isNaN(barrierValue)
+            ? barrierValue
+            : null,
         market_price:
-          marketPriceValue !== null && !Number.isNaN(marketPriceValue) ? marketPriceValue : null,
+          marketPriceValue !== null && !Number.isNaN(marketPriceValue)
+            ? marketPriceValue
+            : null,
         weight_kg:
-          weightKgValue !== null && !Number.isNaN(weightKgValue) ? weightKgValue : null,
+          weightKgValue !== null && !Number.isNaN(weightKgValue)
+            ? weightKgValue
+            : null,
         is_apprentice: isApprentice,
         apprentice_claim_kg:
           apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
             ? apprenticeClaimValue
             : null,
-form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
+        form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
         track_form_last_6: trackFormLast6 || null,
         distance_form_last_6: distanceFormLast6 || null,
         updated_at: new Date().toISOString(),
@@ -1817,12 +1971,17 @@ form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update runner details.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update runner details.",
     };
   }
 }
 
-export async function toggleRaceRunnerScratchAction(formData: FormData): Promise<ActionResult> {
+export async function toggleRaceRunnerScratchAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     await requireRacingAdmin();
     const supabase = await createClient();
@@ -1854,12 +2013,17 @@ export async function toggleRaceRunnerScratchAction(formData: FormData): Promise
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update scratch status.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update scratch status.",
     };
   }
 }
 
-export async function settleRaceRunnersAction(formData: FormData): Promise<ActionResult> {
+export async function settleRaceRunnersAction(
+  formData: FormData,
+): Promise<ActionResult> {
   try {
     await requireRacingAdmin();
     const supabase = await createClient();
@@ -1872,7 +2036,9 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
 
     const { data: raceRunners, error: runnersError } = await supabase
       .from("race_runners")
-.select("id, horse_id, scratched, form_last_6, track_form_last_6, distance_form_last_6")
+      .select(
+        "id, horse_id, scratched, form_last_6, track_form_last_6, distance_form_last_6",
+      )
       .eq("race_id", raceId);
 
     if (runnersError) {
@@ -1881,7 +2047,10 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
 
     const scratchedMap = new Map<number, boolean>();
     for (const runner of raceRunners || []) {
-      scratchedMap.set(Number((runner as any).id), Boolean((runner as any).scratched));
+      scratchedMap.set(
+        Number((runner as any).id),
+        Boolean((runner as any).scratched),
+      );
     }
 
     const updates: Array<{
@@ -1917,8 +2086,12 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
         continue;
       }
 
-      const finishingPosition = finishingPositionRaw ? Number(finishingPositionRaw) : null;
-      const startingPriceRaw = String(formData.get(`starting_price_${runnerId}`) ?? "").trim();
+      const finishingPosition = finishingPositionRaw
+        ? Number(finishingPositionRaw)
+        : null;
+      const startingPriceRaw = String(
+        formData.get(`starting_price_${runnerId}`) ?? "",
+      ).trim();
       const startingPrice = startingPriceRaw ? Number(startingPriceRaw) : null;
 
       const hasFinish =
@@ -1955,80 +2128,94 @@ export async function settleRaceRunnersAction(formData: FormData): Promise<Actio
         return { success: false, error: error.message };
       }
     }
-for (const update of updates) {
-  if (
-    update.finishing_position === null ||
-    update.finishing_position === undefined ||
-    update.finishing_position <= 0
-  ) {
-    continue;
-  }
 
-  const matchingRunner = (raceRunners || []).find(
-    (runner) => Number((runner as any).id) === Number(update.id),
-  );
+    try {
+      await saveCalculatorPredictionsForRace(raceId, {
+        excludeScratched: true,
+      });
+      await updateCalculatorPredictionResultsForRace(raceId, updates);
+    } catch (predictionError) {
+      console.error(
+        "Calculator final prediction snapshot failed:",
+        predictionError,
+      );
+    }
+    for (const update of updates) {
+      if (
+        update.finishing_position === null ||
+        update.finishing_position === undefined ||
+        update.finishing_position <= 0
+      ) {
+        continue;
+      }
 
-  if (!matchingRunner) {
-    continue;
-  }
+      const matchingRunner = (raceRunners || []).find(
+        (runner) => Number((runner as any).id) === Number(update.id),
+      );
 
-  const horseId = Number((matchingRunner as any).horse_id);
+      if (!matchingRunner) {
+        continue;
+      }
 
-  if (!horseId) {
-    continue;
-  }
+      const horseId = Number((matchingRunner as any).horse_id);
 
-  const { data: horseRow, error: horseFetchError } = await supabase
-    .from("horses")
-.select("id, form_last_6, track_form_last_6, distance_form_last_6")
-    .eq("id", horseId)
-    .single();
+      if (!horseId) {
+        continue;
+      }
 
-  if (horseFetchError) {
-    return { success: false, error: horseFetchError.message };
-  }
+      const { data: horseRow, error: horseFetchError } = await supabase
+        .from("horses")
+        .select("id, form_last_6, track_form_last_6, distance_form_last_6")
+        .eq("id", horseId)
+        .single();
 
-const existingHorseForm =
-  horseRow?.form_last_6 ||
-  normaliseImportedForm(String((matchingRunner as any).form_last_6 || ""));
+      if (horseFetchError) {
+        return { success: false, error: horseFetchError.message };
+      }
 
-const existingTrackForm =
-  horseRow?.track_form_last_6 ||
-  String((matchingRunner as any).track_form_last_6 || "");
+      const existingHorseForm =
+        horseRow?.form_last_6 ||
+        normaliseImportedForm(
+          String((matchingRunner as any).form_last_6 || ""),
+        );
 
-const existingDistanceForm =
-  horseRow?.distance_form_last_6 ||
-  String((matchingRunner as any).distance_form_last_6 || "");
+      const existingTrackForm =
+        horseRow?.track_form_last_6 ||
+        String((matchingRunner as any).track_form_last_6 || "");
 
-const nextForm = updateFormStringWithResult(
-  existingHorseForm || null,
-  Number(update.finishing_position),
-);
+      const existingDistanceForm =
+        horseRow?.distance_form_last_6 ||
+        String((matchingRunner as any).distance_form_last_6 || "");
 
-const nextTrackForm = updateStatRecordWithResult(
-  existingTrackForm || null,
-  Number(update.finishing_position),
-);
+      const nextForm = updateFormStringWithResult(
+        existingHorseForm || null,
+        Number(update.finishing_position),
+      );
 
-const nextDistanceForm = updateStatRecordWithResult(
-  existingDistanceForm || null,
-  Number(update.finishing_position),
-);
+      const nextTrackForm = updateStatRecordWithResult(
+        existingTrackForm || null,
+        Number(update.finishing_position),
+      );
 
-  const { error: horseUpdateError } = await supabase
-    .from("horses")
-.update({
-  form_last_6: nextForm,
-  track_form_last_6: nextTrackForm,
-  distance_form_last_6: nextDistanceForm,
-  updated_at: new Date().toISOString(),
-})
-    .eq("id", horseId);
+      const nextDistanceForm = updateStatRecordWithResult(
+        existingDistanceForm || null,
+        Number(update.finishing_position),
+      );
 
-  if (horseUpdateError) {
-    return { success: false, error: horseUpdateError.message };
-  }
-}
+      const { error: horseUpdateError } = await supabase
+        .from("horses")
+        .update({
+          form_last_6: nextForm,
+          track_form_last_6: nextTrackForm,
+          distance_form_last_6: nextDistanceForm,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", horseId);
+
+      if (horseUpdateError) {
+        return { success: false, error: horseUpdateError.message };
+      }
+    }
     const { error: raceError } = await supabase
       .from("races")
       .update({
