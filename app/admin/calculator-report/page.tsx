@@ -277,7 +277,7 @@ function StatCard({
 export default async function CalculatorReportPage({
   searchParams,
 }: {
-  searchParams?: Promise<Record<string, SearchValue>> | Record<string, SearchValue>;
+  searchParams?: Promise<Record<string, SearchValue>>;
 }) {
   const profile = await getCurrentProfile();
 
