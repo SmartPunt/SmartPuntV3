@@ -3,11 +3,50 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import {
+  SMARTPUNT_SCORING_VERSION,
+  calculateRaceScores,
+  type Horse,
+  type Meeting,
+  type Race,
+  type Runner,
+} from "@/lib/calculator/scoring";
 
 type ActionResult = {
   success: boolean;
   error: string | null;
 };
+
+async function fetchAllRows<T>({
+  pageSize = 1000,
+  getPage,
+}: {
+  pageSize?: number;
+  getPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>;
+}) {
+  const allRows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const to = from + pageSize - 1;
+    const { data, error } = await getPage(from, to);
+
+    if (error) {
+      throw new Error(error.message || "Failed to fetch rows.");
+    }
+
+    const rows = data || [];
+    allRows.push(...rows);
+
+    if (rows.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return allRows;
+}
 
 async function requireAdmin() {
   const profile = await getCurrentProfile();
@@ -565,6 +604,127 @@ async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
   );
 }
 // SmartPunt horse master form seed active
+
+async function saveCalculatorPredictionsForRace(raceId: number) {
+  const supabase = await createClient();
+
+  const [races, runners, horses, meetings] = await Promise.all([
+    fetchAllRows<Race>({
+      getPage: async (from, to) => {
+        const result = await supabase
+          .from("races")
+          .select("*")
+          .order("meeting_id", { ascending: false })
+          .order("race_number", { ascending: true })
+          .range(from, to);
+
+        return {
+          data: (result.data ?? []) as Race[],
+          error: result.error,
+        };
+      },
+    }),
+    fetchAllRows<Runner>({
+      getPage: async (from, to) => {
+        const result = await supabase
+          .from("race_runners")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        return {
+          data: (result.data ?? []) as Runner[],
+          error: result.error,
+        };
+      },
+    }),
+    fetchAllRows<Horse>({
+      getPage: async (from, to) => {
+        const result = await supabase
+          .from("horses")
+          .select("*")
+          .order("horse_name", { ascending: true })
+          .range(from, to);
+
+        return {
+          data: (result.data ?? []) as Horse[],
+          error: result.error,
+        };
+      },
+    }),
+    fetchAllRows<Meeting>({
+      getPage: async (from, to) => {
+        const result = await supabase
+          .from("meetings")
+          .select("*")
+          .order("meeting_date", { ascending: false })
+          .range(from, to);
+
+        return {
+          data: (result.data ?? []) as Meeting[],
+          error: result.error,
+        };
+      },
+    }),
+  ]);
+
+  const activeRace = races.find((race) => Number(race.id) === Number(raceId));
+
+  if (!activeRace) {
+    throw new Error("Race not found for calculator prediction snapshot.");
+  }
+
+  const scoredRunners = calculateRaceScores({
+    activeRace,
+    races,
+    runners,
+    horses,
+    meetings,
+  });
+
+  if (!scoredRunners.length) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const payload = scoredRunners.map((runner) => ({
+    race_id: Number(runner.race_id),
+    runner_id: Number(runner.id),
+    horse_id: Number(runner.horse_id),
+    scoring_version: SMARTPUNT_SCORING_VERSION,
+    score: Number(runner.score),
+    rank: Number(runner.rank),
+    win_percent: Number(runner.winPercent),
+    place_percent: Number(runner.placePercent),
+    recent_form_score: Number(runner.components.recentForm),
+    distance_score: Number(runner.components.distance),
+    track_score: Number(runner.components.track),
+    condition_score: Number(runner.components.condition),
+    barrier_score: Number(runner.components.barrier),
+    weight_score: Number(runner.components.weight),
+    jockey_score: Number(runner.components.jockey),
+    trainer_score: Number(runner.components.trainer),
+    predicted_at: now,
+    finishing_position: null,
+    won: null,
+    placed: null,
+    settled_at: null,
+    updated_at: now,
+  }));
+
+  await serviceRoleFetch(
+    `calculator_predictions?on_conflict=${encodeURIComponent(
+      "race_id,runner_id,scoring_version",
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+}
 
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
   const supabase = await createClient();
@@ -1358,6 +1518,14 @@ export async function toggleRacePublishAction(formData: FormData): Promise<Actio
 
     if (error) {
       return { success: false, error: error.message };
+    }
+
+    if (nextStatus === "published") {
+      try {
+        await saveCalculatorPredictionsForRace(raceId);
+      } catch (predictionError) {
+        console.error("Calculator prediction snapshot failed:", predictionError);
+      }
     }
 
     revalidatePath("/admin/race-builder");
