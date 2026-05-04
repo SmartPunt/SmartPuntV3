@@ -2021,6 +2021,85 @@ export async function toggleRaceRunnerScratchAction(
   }
 }
 
+export async function bulkScratchRaceRunnersAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
+    const supabase = await createClient();
+
+    const raceId = Number(formData.get("race_id"));
+    const runnerIdsRaw = String(formData.get("runner_ids") ?? "").trim();
+
+    if (!raceId) {
+      return { success: false, error: "Race is required." };
+    }
+
+    let runnerIds: number[] = [];
+
+    try {
+      const parsed = JSON.parse(runnerIdsRaw || "[]");
+      runnerIds = Array.isArray(parsed)
+        ? parsed.map((value) => Number(value)).filter(Boolean)
+        : [];
+    } catch {
+      runnerIds = runnerIdsRaw
+        .split(",")
+        .map((value) => Number(value.trim()))
+        .filter(Boolean);
+    }
+
+    const uniqueRunnerIds = Array.from(new Set(runnerIds));
+
+    if (!uniqueRunnerIds.length) {
+      return { success: true, error: null };
+    }
+
+    const { data: matchingRunners, error: matchingError } = await supabase
+      .from("race_runners")
+      .select("id")
+      .eq("race_id", raceId)
+      .in("id", uniqueRunnerIds);
+
+    if (matchingError) {
+      return { success: false, error: matchingError.message };
+    }
+
+    const safeRunnerIds = (matchingRunners || [])
+      .map((runner: any) => Number(runner.id))
+      .filter(Boolean);
+
+    if (!safeRunnerIds.length) {
+      return { success: true, error: null };
+    }
+
+    const { error } = await supabase
+      .from("race_runners")
+      .update({
+        scratched: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("race_id", raceId)
+      .in("id", safeRunnerIds);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to bulk scratch runners.",
+    };
+  }
+}
+
 export async function settleRaceRunnersAction(
   formData: FormData,
 ): Promise<ActionResult> {
