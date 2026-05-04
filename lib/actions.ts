@@ -751,22 +751,49 @@ async function updateCalculatorPredictionResultsForRace(
     settled_at: string | null;
   }>,
 ) {
-  const settledAt = new Date().toISOString();
+  const resultUpdates = updates.filter((update) => update.id);
 
-  for (const update of updates) {
-    await serviceRolePatch(
-      `calculator_predictions?race_id=eq.${raceId}&runner_id=eq.${update.id}&scoring_version=eq.${encodeURIComponent(
-        SMARTPUNT_SCORING_VERSION,
-      )}`,
-      {
+  if (!resultUpdates.length) return;
+
+  const settledAt = new Date().toISOString();
+  const runnerIds = resultUpdates.map((update) => Number(update.id));
+
+  const existingPredictionRows = (await serviceRoleSelect(
+    `calculator_predictions?select=id,runner_id&race_id=eq.${raceId}&scoring_version=eq.${encodeURIComponent(
+      SMARTPUNT_SCORING_VERSION,
+    )}&runner_id=${buildInFilter(runnerIds)}`,
+  )) as Array<{ id: number; runner_id: number }> | null;
+
+  const predictionIdByRunnerId = new Map<number, number>();
+  for (const row of existingPredictionRows || []) {
+    predictionIdByRunnerId.set(Number(row.runner_id), Number(row.id));
+  }
+
+  const payload = resultUpdates
+    .map((update) => {
+      const predictionId = predictionIdByRunnerId.get(Number(update.id));
+      if (!predictionId) return null;
+
+      return {
+        id: predictionId,
         finishing_position: update.finishing_position,
         won: update.won,
         placed: update.placed,
         settled_at: update.settled_at || settledAt,
-        updated_at: new Date().toISOString(),
-      },
-    );
-  }
+        updated_at: settledAt,
+      };
+    })
+    .filter(Boolean);
+
+  if (!payload.length) return;
+
+  await serviceRoleFetch("calculator_predictions", {
+    method: "POST",
+    headers: {
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify(payload),
+  });
 }
 
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
@@ -846,11 +873,13 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
     `race${raceNumber}`,
   ].map(normaliseText);
 
+  const settledAt = new Date().toISOString();
   const updates: Array<{
     id: number;
     finishing_position: number | null;
     successful: boolean | null;
     settled_at: string;
+    updated_at: string;
   }> = [];
 
   for (const tip of suggestedTips || []) {
@@ -920,24 +949,19 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
       id: Number(tip.id),
       finishing_position: finishingPosition,
       successful,
-      settled_at: new Date().toISOString(),
+      settled_at: settledAt,
+      updated_at: settledAt,
     });
   }
 
-  for (const update of updates) {
-    const { error } = await supabase
-      .from("suggested_tips")
-      .update({
-        finishing_position: update.finishing_position,
-        successful: update.successful,
-        settled_at: update.settled_at,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", update.id);
+  if (!updates.length) return;
 
-    if (error) {
-      throw new Error(error.message);
-    }
+  const { error } = await supabase.from("suggested_tips").upsert(updates, {
+    onConflict: "id",
+  });
+
+  if (error) {
+    throw new Error(error.message);
   }
 }
 
@@ -2045,12 +2069,16 @@ export async function settleRaceRunnersAction(
       return { success: false, error: runnersError.message };
     }
 
+    const now = new Date().toISOString();
     const scratchedMap = new Map<number, boolean>();
+    const runnerMap = new Map<number, any>();
+
     for (const runner of raceRunners || []) {
       scratchedMap.set(
         Number((runner as any).id),
         Boolean((runner as any).scratched),
       );
+      runnerMap.set(Number((runner as any).id), runner);
     }
 
     const updates: Array<{
@@ -2080,8 +2108,8 @@ export async function settleRaceRunnersAction(
           starting_price: null,
           won: false,
           placed: false,
-          settled_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          settled_at: now,
+          updated_at: now,
         });
         continue;
       }
@@ -2106,27 +2134,31 @@ export async function settleRaceRunnersAction(
             : null,
         won: hasFinish ? finishingPosition === 1 : false,
         placed: hasFinish ? finishingPosition <= 3 : false,
-        settled_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        settled_at: now,
+        updated_at: now,
       });
     }
 
-    for (const update of updates) {
-      const { error } = await supabase
-        .from("race_runners")
-        .update({
-          finishing_position: update.finishing_position,
-          starting_price: update.starting_price,
-          won: update.won,
-          placed: update.placed,
-          settled_at: update.settled_at,
-          updated_at: update.updated_at,
-        })
-        .eq("id", update.id);
+    if (!updates.length) {
+      return { success: false, error: "No runner results were submitted." };
+    }
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
+    const runnerUpdatePayload = updates.map((update) => ({
+      id: update.id,
+      finishing_position: update.finishing_position,
+      starting_price: update.starting_price,
+      won: update.won,
+      placed: update.placed,
+      settled_at: update.settled_at,
+      updated_at: update.updated_at,
+    }));
+
+    const { error: runnerUpdateError } = await supabase
+      .from("race_runners")
+      .upsert(runnerUpdatePayload, { onConflict: "id" });
+
+    if (runnerUpdateError) {
+      return { success: false, error: runnerUpdateError.message };
     }
 
     try {
@@ -2140,87 +2172,113 @@ export async function settleRaceRunnersAction(
         predictionError,
       );
     }
-    for (const update of updates) {
-      if (
-        update.finishing_position === null ||
-        update.finishing_position === undefined ||
-        update.finishing_position <= 0
-      ) {
-        continue;
-      }
 
-      const matchingRunner = (raceRunners || []).find(
-        (runner) => Number((runner as any).id) === Number(update.id),
-      );
+    const horseIdsToUpdate = Array.from(
+      new Set(
+        updates
+          .filter(
+            (update) =>
+              update.finishing_position !== null &&
+              update.finishing_position !== undefined &&
+              update.finishing_position > 0,
+          )
+          .map((update) => Number(runnerMap.get(update.id)?.horse_id || 0))
+          .filter(Boolean),
+      ),
+    );
 
-      if (!matchingRunner) {
-        continue;
-      }
-
-      const horseId = Number((matchingRunner as any).horse_id);
-
-      if (!horseId) {
-        continue;
-      }
-
-      const { data: horseRow, error: horseFetchError } = await supabase
+    if (horseIdsToUpdate.length > 0) {
+      const { data: horseRows, error: horseFetchError } = await supabase
         .from("horses")
         .select("id, form_last_6, track_form_last_6, distance_form_last_6")
-        .eq("id", horseId)
-        .single();
+        .in("id", horseIdsToUpdate);
 
       if (horseFetchError) {
         return { success: false, error: horseFetchError.message };
       }
 
-      const existingHorseForm =
-        horseRow?.form_last_6 ||
-        normaliseImportedForm(
-          String((matchingRunner as any).form_last_6 || ""),
-        );
+      const horseMap = new Map<number, any>();
+      for (const horseRow of horseRows || []) {
+        horseMap.set(Number((horseRow as any).id), horseRow);
+      }
 
-      const existingTrackForm =
-        horseRow?.track_form_last_6 ||
-        String((matchingRunner as any).track_form_last_6 || "");
+      const horseUpdatePayload = updates
+        .map((update) => {
+          if (
+            update.finishing_position === null ||
+            update.finishing_position === undefined ||
+            update.finishing_position <= 0
+          ) {
+            return null;
+          }
 
-      const existingDistanceForm =
-        horseRow?.distance_form_last_6 ||
-        String((matchingRunner as any).distance_form_last_6 || "");
+          const matchingRunner = runnerMap.get(Number(update.id));
 
-      const nextForm = updateFormStringWithResult(
-        existingHorseForm || null,
-        Number(update.finishing_position),
-      );
+          if (!matchingRunner) {
+            return null;
+          }
 
-      const nextTrackForm = updateStatRecordWithResult(
-        existingTrackForm || null,
-        Number(update.finishing_position),
-      );
+          const horseId = Number((matchingRunner as any).horse_id);
 
-      const nextDistanceForm = updateStatRecordWithResult(
-        existingDistanceForm || null,
-        Number(update.finishing_position),
-      );
+          if (!horseId) {
+            return null;
+          }
 
-      const { error: horseUpdateError } = await supabase
-        .from("horses")
-        .update({
-          form_last_6: nextForm,
-          track_form_last_6: nextTrackForm,
-          distance_form_last_6: nextDistanceForm,
-          updated_at: new Date().toISOString(),
+          const horseRow = horseMap.get(horseId);
+
+          if (!horseRow) {
+            return null;
+          }
+
+          const existingHorseForm =
+            horseRow?.form_last_6 ||
+            normaliseImportedForm(
+              String((matchingRunner as any).form_last_6 || ""),
+            );
+
+          const existingTrackForm =
+            horseRow?.track_form_last_6 ||
+            String((matchingRunner as any).track_form_last_6 || "");
+
+          const existingDistanceForm =
+            horseRow?.distance_form_last_6 ||
+            String((matchingRunner as any).distance_form_last_6 || "");
+
+          return {
+            id: horseId,
+            form_last_6: updateFormStringWithResult(
+              existingHorseForm || null,
+              Number(update.finishing_position),
+            ),
+            track_form_last_6: updateStatRecordWithResult(
+              existingTrackForm || null,
+              Number(update.finishing_position),
+            ),
+            distance_form_last_6: updateStatRecordWithResult(
+              existingDistanceForm || null,
+              Number(update.finishing_position),
+            ),
+            updated_at: now,
+          };
         })
-        .eq("id", horseId);
+        .filter(Boolean);
 
-      if (horseUpdateError) {
-        return { success: false, error: horseUpdateError.message };
+      if (horseUpdatePayload.length > 0) {
+        const { error: horseUpdateError } = await supabase
+          .from("horses")
+          .upsert(horseUpdatePayload, { onConflict: "id" });
+
+        if (horseUpdateError) {
+          return { success: false, error: horseUpdateError.message };
+        }
       }
     }
+
     const { error: raceError } = await supabase
       .from("races")
       .update({
         status: "closed",
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       })
       .eq("id", raceId);
 
