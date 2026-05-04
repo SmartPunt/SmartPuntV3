@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v1";
+export const SMARTPUNT_SCORING_VERSION = "v2";
 
 export type Race = {
   id: number;
@@ -88,6 +88,7 @@ export type ScoredRunner = Runner & {
     weight: number;
     jockey: number;
     trainer: number;
+    consistency: number;
   };
 };
 
@@ -172,18 +173,30 @@ export function getRaceVerdict(runners: ScoredRunner[]): RaceVerdict | null {
 
   const top = runners[0];
   const second = runners[1];
-  const scoreGap = second ? top.score - second.score : 0;
+  const fourth = runners[3];
 
-  if (top.winPercent >= 30 && scoreGap >= 5) {
+  const scoreGap = second ? top.score - second.score : 0;
+  const topFourCompression = fourth ? top.score - fourth.score : scoreGap;
+
+  if (fourth && topFourCompression <= 4) {
+    return {
+      type: "No Bet",
+      confidence: "Low Edge",
+      reason:
+        "Race is tightly compressed across the top four runners. No clear calculator edge.",
+    };
+  }
+
+  if (top.winPercent >= 30 && scoreGap >= 7) {
     return {
       type: "Win",
       confidence: "Strong",
       reason:
-        "Clear top-rated runner with strong profile and separation from the field.",
+        "Clear top-rated runner with strong profile and meaningful separation from the field.",
     };
   }
 
-  if (top.placePercent >= 55) {
+  if (top.placePercent >= 58 && scoreGap >= 4) {
     return {
       type: "Place",
       confidence: "Safe",
@@ -197,6 +210,13 @@ export function getRaceVerdict(runners: ScoredRunner[]): RaceVerdict | null {
     confidence: "Low Edge",
     reason: "Race is too competitive with no strong edge identified.",
   };
+}
+
+function evidenceCap(score: number, evidenceCount: number) {
+  if (evidenceCount <= 0) return 50;
+  if (evidenceCount === 1) return clamp(score, 25, 60);
+  if (evidenceCount === 2) return clamp(score, 25, 72);
+  return clamp(score, 25, 95);
 }
 
 function scoreRecentForm(historyRuns: HistoryRun[]) {
@@ -223,6 +243,31 @@ function scoreRecentForm(historyRuns: HistoryRun[]) {
   return clamp(Math.round(50 + avg), 20, 95);
 }
 
+function scoreConsistency(historyRuns: HistoryRun[]) {
+  const recent = historyRuns
+    .slice(0, 5)
+    .filter(
+      (run) =>
+        run.finishing_position !== null &&
+        run.finishing_position !== undefined &&
+        Number.isFinite(Number(run.finishing_position)),
+    );
+
+  if (!recent.length) return 50;
+
+  const averageFinish =
+    recent.reduce((sum, run) => sum + Number(run.finishing_position || 0), 0) / recent.length;
+
+  const topThreeCount = recent.filter((run) => Number(run.finishing_position) <= 3).length;
+  const poorRunCount = recent.filter((run) => Number(run.finishing_position) >= 8).length;
+
+  const averageScore = clamp(Math.round(82 - averageFinish * 5), 25, 82);
+  const topThreeBonus = topThreeCount * 4;
+  const poorRunPenalty = poorRunCount * 5;
+
+  return clamp(averageScore + topThreeBonus - poorRunPenalty, 25, 90);
+}
+
 function scoreDistanceSuitability(
   historyRuns: HistoryRun[],
   currentDistance: number | null | undefined,
@@ -245,7 +290,8 @@ function scoreDistanceSuitability(
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
-  return clamp(Math.round(40 + placeRate * 35 + winRate * 20), 25, 95);
+  const rawScore = Math.round(40 + placeRate * 35 + winRate * 20);
+  return evidenceCap(rawScore, matchingRuns.length);
 }
 
 function scoreTrackSuitability(
@@ -269,7 +315,8 @@ function scoreTrackSuitability(
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
-  return clamp(Math.round(40 + placeRate * 35 + winRate * 18), 25, 95);
+  const rawScore = Math.round(40 + placeRate * 35 + winRate * 18);
+  return evidenceCap(rawScore, matchingRuns.length);
 }
 
 function scoreConditionSuitability(
@@ -294,7 +341,8 @@ function scoreConditionSuitability(
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
-  return clamp(Math.round(40 + placeRate * 34 + winRate * 18), 25, 95);
+  const rawScore = Math.round(40 + placeRate * 34 + winRate * 18);
+  return evidenceCap(rawScore, matchingRuns.length);
 }
 
 function scoreBarrier(
@@ -315,16 +363,16 @@ function scoreBarrier(
   }
 
   if (distance && distance <= 1200) {
-    if (barrier <= 4) return 78;
+    if (barrier <= 4) return 82;
     if (barrier <= 8) return 58;
-    return 35;
+    return 32;
   }
 
-  if (barrier <= 3) return 70;
-  if (barrier <= 6) return 64;
+  if (barrier <= 3) return 73;
+  if (barrier <= 6) return 66;
   if (barrier <= 9) return 58;
   if (barrier <= 12) return 50;
-  return 43;
+  return 42;
 }
 
 export function getEffectiveWeight(runner: Runner) {
@@ -378,11 +426,13 @@ function scoreJockey(
 
     const wins = horseJockeyRuns.filter((run) => run.finishing_position === 1).length;
 
-    return clamp(
-      Math.round(45 + (places / horseJockeyRuns.length) * 28 + (wins / horseJockeyRuns.length) * 18),
-      35,
-      88,
+    const rawScore = Math.round(
+      45 + (places / horseJockeyRuns.length) * 28 + (wins / horseJockeyRuns.length) * 18,
     );
+
+    if (horseJockeyRuns.length === 1) return clamp(rawScore, 35, 68);
+    if (horseJockeyRuns.length === 2) return clamp(rawScore, 35, 78);
+    return clamp(rawScore, 35, 88);
   }
 
   const jockeyRuns = allHistoryRuns.filter(
@@ -422,11 +472,39 @@ function scoreTrainer(runner: Runner, allHistoryRuns: HistoryRun[]) {
 
   const wins = trainerRuns.filter((run) => run.finishing_position === 1).length;
 
-  return clamp(
-    Math.round(43 + (places / trainerRuns.length) * 24 + (wins / trainerRuns.length) * 14),
-    35,
-    82,
+  const rawScore = Math.round(
+    43 + (places / trainerRuns.length) * 24 + (wins / trainerRuns.length) * 14,
   );
+
+  if (trainerRuns.length === 1) return clamp(rawScore, 35, 65);
+  if (trainerRuns.length === 2) return clamp(rawScore, 35, 74);
+  return clamp(rawScore, 35, 82);
+}
+
+function applyOverconfidenceDampener({
+  baseScore,
+  recentForm,
+  distance,
+  track,
+  condition,
+}: {
+  baseScore: number;
+  recentForm: number;
+  distance: number;
+  track: number;
+  condition: number;
+}) {
+  const profileAverage = (distance + track + condition) / 3;
+
+  if (profileAverage >= 75 && recentForm < 58) {
+    return clamp(Math.round(baseScore * 0.92));
+  }
+
+  if (profileAverage >= 68 && recentForm < 52) {
+    return clamp(Math.round(baseScore * 0.95));
+  }
+
+  return baseScore;
 }
 
 function buildRaceMap(races: Race[]) {
@@ -527,6 +605,7 @@ export function getSelectedHorseSummary(runner: ScoredRunner) {
   if (runner.components.weight >= 65) positives.push("effective weight");
   if (runner.components.jockey >= 65) positives.push("jockey profile");
   if (runner.components.trainer >= 65) positives.push("trainer profile");
+  if (runner.components.consistency >= 65) positives.push("consistency");
 
   if (runner.components.recentForm < 50) negatives.push("recent form");
   if (runner.components.distance < 50) negatives.push("distance");
@@ -536,6 +615,7 @@ export function getSelectedHorseSummary(runner: ScoredRunner) {
   if (runner.components.weight < 50) negatives.push("effective weight");
   if (runner.components.jockey < 50) negatives.push("jockey profile");
   if (runner.components.trainer < 50) negatives.push("trainer profile");
+  if (runner.components.consistency < 50) negatives.push("consistency");
 
   if (!positives.length && !negatives.length) {
     return "Balanced profile across the key SmartPunt race factors.";
@@ -601,19 +681,29 @@ export function calculateRaceScores({
     const weight = scoreWeight(runner, fieldEffectiveWeights);
     const jockey = scoreJockey(runner, historyRuns, allHistoryRuns);
     const trainer = scoreTrainer(runner, allHistoryRuns);
+    const consistency = scoreConsistency(historyRuns);
 
-    const score = clamp(
+    const baseScore = clamp(
       Math.round(
-        recentForm * 0.3 +
-          distance * 0.18 +
-          track * 0.14 +
-          condition * 0.12 +
-          barrier * 0.12 +
+        recentForm * 0.26 +
+          distance * 0.12 +
+          track * 0.09 +
+          condition * 0.08 +
+          barrier * 0.16 +
           weight * 0.08 +
-          jockey * 0.04 +
-          trainer * 0.02,
+          jockey * 0.08 +
+          trainer * 0.05 +
+          consistency * 0.08,
       ),
     );
+
+    const score = applyOverconfidenceDampener({
+      baseScore,
+      recentForm,
+      distance,
+      track,
+      condition,
+    });
 
     return {
       ...runner,
@@ -639,6 +729,7 @@ export function calculateRaceScores({
         weight,
         jockey,
         trainer,
+        consistency,
       },
     };
   });
