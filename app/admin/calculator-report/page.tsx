@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { Badge, Panel } from "@/components/ui";
 
@@ -27,23 +26,80 @@ type CalculatorPrediction = {
   won: boolean | null;
   placed: boolean | null;
   settled_at: string | null;
-  races?: {
+  race?: {
     id: number;
     race_number: number;
     race_name: string;
     distance_m: number | null;
     meeting_id: number;
     status: string;
-    meetings?: {
+    meeting?: {
       meeting_name: string;
       meeting_date: string;
       track_condition: string | null;
     } | null;
   } | null;
-  horses?: {
+  horse?: {
     horse_name: string;
   } | null;
 };
+
+type RaceRow = {
+  id: number;
+  race_number: number;
+  race_name: string;
+  distance_m: number | null;
+  meeting_id: number;
+  status: string;
+};
+
+type MeetingRow = {
+  id: number;
+  meeting_name: string;
+  meeting_date: string;
+  track_condition: string | null;
+};
+
+type HorseRow = {
+  id: number;
+  horse_name: string;
+};
+
+function getServiceRoleHeaders() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase service role configuration in environment variables.");
+  }
+
+  return {
+    supabaseUrl,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  };
+}
+
+async function serviceRoleSelect<T>(path: string): Promise<T[]> {
+  const { supabaseUrl, headers } = getServiceRoleHeaders();
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Service role request failed for ${path}`);
+  }
+
+  return response.json();
+}
 
 function toNumber(value: number | string | null | undefined) {
   const next = Number(value ?? 0);
@@ -83,9 +139,9 @@ function formatDateTime(value?: string | null) {
 }
 
 function getRaceLabel(prediction: CalculatorPrediction) {
-  const meeting = prediction.races?.meetings?.meeting_name || "Meeting";
-  const raceNumber = prediction.races?.race_number ? `R${prediction.races.race_number}` : "Race";
-  const raceName = prediction.races?.race_name || "";
+  const meeting = prediction.race?.meeting?.meeting_name || "Meeting";
+  const raceNumber = prediction.race?.race_number ? `R${prediction.race.race_number}` : "Race";
+  const raceName = prediction.race?.race_name || "";
   return `${meeting} ${raceNumber} ${raceName}`.trim();
 }
 
@@ -102,7 +158,7 @@ function groupByRace(predictions: CalculatorPrediction[]) {
     .map(([raceId, rows]) => ({
       raceId,
       rows: rows.sort((a, b) => a.rank - b.rank),
-      meetingDate: rows[0]?.races?.meetings?.meeting_date || "",
+      meetingDate: rows[0]?.race?.meeting?.meeting_date || "",
       label: getRaceLabel(rows[0]),
     }))
     .sort((a, b) => {
@@ -146,6 +202,69 @@ function StatCard({
   );
 }
 
+async function fetchReportPredictions() {
+  const predictionRows = await serviceRoleSelect<CalculatorPrediction>(
+    [
+      "calculator_predictions",
+      "?select=*",
+      "&settled_at=not.is.null",
+      "&finishing_position=not.is.null",
+      "&order=settled_at.desc",
+    ].join(""),
+  );
+
+  const raceIds = Array.from(new Set(predictionRows.map((row) => row.race_id).filter(Boolean)));
+  const horseIds = Array.from(new Set(predictionRows.map((row) => row.horse_id).filter(Boolean)));
+
+  const races =
+    raceIds.length > 0
+      ? await serviceRoleSelect<RaceRow>(
+          `races?select=id,race_number,race_name,distance_m,meeting_id,status&id=in.(${raceIds.join(
+            ",",
+          )})`,
+        )
+      : [];
+
+  const meetingIds = Array.from(new Set(races.map((race) => race.meeting_id).filter(Boolean)));
+
+  const meetings =
+    meetingIds.length > 0
+      ? await serviceRoleSelect<MeetingRow>(
+          `meetings?select=id,meeting_name,meeting_date,track_condition&id=in.(${meetingIds.join(
+            ",",
+          )})`,
+        )
+      : [];
+
+  const horses =
+    horseIds.length > 0
+      ? await serviceRoleSelect<HorseRow>(
+          `horses?select=id,horse_name&id=in.(${horseIds.join(",")})`,
+        )
+      : [];
+
+  const raceMap = new Map(races.map((race) => [Number(race.id), race]));
+  const meetingMap = new Map(meetings.map((meeting) => [Number(meeting.id), meeting]));
+  const horseMap = new Map(horses.map((horse) => [Number(horse.id), horse]));
+
+  return predictionRows.map((prediction) => {
+    const race = raceMap.get(Number(prediction.race_id)) || null;
+    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
+    const horse = horseMap.get(Number(prediction.horse_id)) || null;
+
+    return {
+      ...prediction,
+      race: race
+        ? {
+            ...race,
+            meeting,
+          }
+        : null,
+      horse,
+    };
+  });
+}
+
 export default async function CalculatorReportPage() {
   const profile = await getCurrentProfile();
 
@@ -157,35 +276,17 @@ export default async function CalculatorReportPage() {
     redirect("/");
   }
 
-  const supabase = await createClient();
+  let predictions: CalculatorPrediction[] = [];
+  let errorMessage = "";
 
-  const { data, error } = await supabase
-    .from("calculator_predictions")
-    .select(
-      `
-        *,
-        races:races(
-          id,
-          race_number,
-          race_name,
-          distance_m,
-          meeting_id,
-          status,
-          meetings:meetings(
-            meeting_name,
-            meeting_date,
-            track_condition
-          )
-        ),
-        horses:horses(
-          horse_name
-        )
-      `,
-    )
-    .not("settled_at", "is", null)
-    .order("settled_at", { ascending: false });
+  try {
+    predictions = await fetchReportPredictions();
+  } catch (error) {
+    errorMessage =
+      error instanceof Error ? error.message : "Unknown error loading calculator report.";
+  }
 
-  if (error) {
+  if (errorMessage) {
     return (
       <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] p-4 text-white lg:p-8">
         <div className="mx-auto max-w-5xl">
@@ -193,7 +294,7 @@ export default async function CalculatorReportPage() {
             <div className="p-6 text-zinc-950">
               <h1 className="text-2xl font-bold">Calculator Report</h1>
               <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error.message}
+                {errorMessage}
               </p>
             </div>
           </Panel>
@@ -201,10 +302,6 @@ export default async function CalculatorReportPage() {
       </div>
     );
   }
-
-  const predictions = ((data || []) as CalculatorPrediction[]).filter(
-    (row) => row.finishing_position !== null && row.settled_at,
-  );
 
   const raceGroups = groupByRace(predictions);
   const totalRaces = raceGroups.length;
@@ -323,7 +420,7 @@ export default async function CalculatorReportPage() {
               {strongestWinner ? (
                 <div className="mt-4 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
                   <p className="text-sm text-zinc-600">{getRaceLabel(strongestWinner)}</p>
-                  <h3 className="mt-1 text-2xl font-bold">{strongestWinner.horses?.horse_name || "Unknown horse"}</h3>
+                  <h3 className="mt-1 text-2xl font-bold">{strongestWinner.horse?.horse_name || "Unknown horse"}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="green">Won</Badge>
                     <Badge tone="amber">Rank #{strongestWinner.rank}</Badge>
@@ -342,7 +439,7 @@ export default async function CalculatorReportPage() {
               {biggestMiss ? (
                 <div className="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-5">
                   <p className="text-sm text-zinc-600">{getRaceLabel(biggestMiss)}</p>
-                  <h3 className="mt-1 text-2xl font-bold">{biggestMiss.horses?.horse_name || "Unknown horse"}</h3>
+                  <h3 className="mt-1 text-2xl font-bold">{biggestMiss.horse?.horse_name || "Unknown horse"}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="rose">Finished {biggestMiss.finishing_position}</Badge>
                     <Badge tone="amber">Rank #{biggestMiss.rank}</Badge>
@@ -397,7 +494,7 @@ export default async function CalculatorReportPage() {
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Top rated</p>
-                          <p className="mt-2 font-bold text-zinc-950">{topRated?.horses?.horse_name || "—"}</p>
+                          <p className="mt-2 font-bold text-zinc-950">{topRated?.horse?.horse_name || "—"}</p>
                           <p className="mt-1 text-sm text-zinc-600">
                             Score {Math.round(toNumber(topRated?.score))} · Win {topRated?.win_percent ?? 0}% · Place {topRated?.place_percent ?? 0}%
                           </p>
@@ -405,7 +502,7 @@ export default async function CalculatorReportPage() {
 
                         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Winner</p>
-                          <p className="mt-2 font-bold text-zinc-950">{winner?.horses?.horse_name || "—"}</p>
+                          <p className="mt-2 font-bold text-zinc-950">{winner?.horse?.horse_name || "—"}</p>
                           <p className="mt-1 text-sm text-zinc-600">
                             Calculator rank #{winner?.rank ?? "—"} · Score {winner ? Math.round(toNumber(winner.score)) : "—"}
                           </p>
@@ -428,7 +525,7 @@ export default async function CalculatorReportPage() {
                             {race.rows.map((row) => (
                               <tr key={row.id} className="border-b border-zinc-100 last:border-0">
                                 <td className="py-3 pr-3 font-semibold">#{row.rank}</td>
-                                <td className="py-3 pr-3 font-semibold text-zinc-950">{row.horses?.horse_name || "Unknown"}</td>
+                                <td className="py-3 pr-3 font-semibold text-zinc-950">{row.horse?.horse_name || "Unknown"}</td>
                                 <td className="py-3 pr-3">{Math.round(toNumber(row.score))}</td>
                                 <td className="py-3 pr-3">{row.win_percent}%</td>
                                 <td className="py-3 pr-3">{row.place_percent}%</td>
