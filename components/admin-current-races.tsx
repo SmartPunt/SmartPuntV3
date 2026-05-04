@@ -6,6 +6,7 @@ import { signOutAction } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { Badge, Panel } from "@/components/ui";
 import {
+  bulkScratchRaceRunnersAction,
   settleRaceRunnersAction,
   toggleRacePublishAction,
   toggleRaceRunnerScratchAction,
@@ -620,17 +621,18 @@ function handleScratchMissingResults(raceId: number) {
   }
 
   startTransition(async () => {
-    for (const runner of runnersToScratch) {
-      const formData = new FormData();
-      formData.set("runner_id", String(runner.id));
-      formData.set("scratched", "true");
+    const formData = new FormData();
+    formData.set("race_id", String(raceId));
+    formData.set(
+      "runner_ids",
+      JSON.stringify(runnersToScratch.map((runner) => runner.id)),
+    );
 
-      const result = await toggleRaceRunnerScratchAction(formData);
+    const result = await bulkScratchRaceRunnersAction(formData);
 
-      if (!result.success) {
-        setError(result.error || `Failed to scratch ${findHorseName(runner.horse_id)}.`);
-        return;
-      }
+    if (!result.success) {
+      setError(result.error || "Failed to scratch missing runners.");
+      return;
     }
 
     setSuccess(`Scratched ${runnersToScratch.length} runners without applied results.`);
@@ -685,34 +687,18 @@ function handleScratchMissingResults(raceId: number) {
       </Link>
 
       <Link
-        href="/admin/calculator-report"
-        className="block rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200 transition hover:bg-amber-400/15"
-      >
-        Calculator Report
-      </Link>
-
-      <Link
-        href="/admin/horses"
-        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-      >
-        Saved Horses
-      </Link>
-
-      <Link
         href="/race-archive"
         className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
       >
         Race Archive
       </Link>
 
-      {currentUser?.role === "admin" ? (
-        <Link
-          href="/"
-          className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-        >
-          Back to Admin
-        </Link>
-      ) : null}
+      <Link
+        href="/"
+        className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+      >
+        Back to Admin
+      </Link>
 
       <form action={signOutAction}>
         <button
