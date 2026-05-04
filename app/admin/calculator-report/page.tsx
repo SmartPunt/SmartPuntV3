@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Badge, Panel } from "@/components/ui";
 
 type SearchValue = string | string[] | undefined;
+type CalculatorReportSearchParams = Record<string, SearchValue>;
 
 type Prediction = {
   id: number;
@@ -277,14 +278,16 @@ function StatCard({
 export default async function CalculatorReportPage({
   searchParams,
 }: {
-  searchParams?: Promise<Record<string, SearchValue>>;
+  searchParams?: Promise<CalculatorReportSearchParams>;
 }) {
   const profile = await getCurrentProfile();
 
   if (!profile) redirect("/login");
   if (!["admin", "staff_admin"].includes(profile.role)) redirect("/");
 
-  const resolvedSearchParams = await Promise.resolve(searchParams || {});
+  const resolvedSearchParams: CalculatorReportSearchParams = searchParams
+    ? await searchParams
+    : {};
   const dateFrom = first(resolvedSearchParams.from);
   const dateTo = first(resolvedSearchParams.to);
 
