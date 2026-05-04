@@ -26,12 +26,17 @@ type Runner = {
   trainer_name: string | null;
   barrier: number | null;
   market_price: number | null;
-  form_last_3: string | null;
+  weight_kg?: number | null;
+  is_apprentice?: boolean | null;
+  apprentice_claim_kg?: number | null;
+  form_last_3?: string | null;
+  form_last_6?: string | null;
   finishing_position?: number | null;
   starting_price?: number | null;
   won?: boolean | null;
   placed?: boolean | null;
   settled_at?: string | null;
+  scratched?: boolean | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -73,6 +78,7 @@ type ScoredRunner = Runner & {
   race_name: string;
   race_number: number;
   distance_m: number | null;
+  effectiveWeight: number | null;
   score: number;
   winPercent: number;
   placePercent: number;
@@ -84,7 +90,9 @@ type ScoredRunner = Runner & {
     track: number;
     condition: number;
     barrier: number;
-    market: number;
+    weight: number;
+    jockey: number;
+    trainer: number;
   };
 };
 
@@ -175,7 +183,8 @@ function getRaceVerdict(runners: ScoredRunner[]): RaceVerdict | null {
     return {
       type: "Win",
       confidence: "Strong",
-      reason: "Clear top-rated runner with strong win profile and separation from the field.",
+      reason:
+        "Clear top-rated runner with strong profile and separation from the field.",
     };
   }
 
@@ -183,7 +192,8 @@ function getRaceVerdict(runners: ScoredRunner[]): RaceVerdict | null {
     return {
       type: "Place",
       confidence: "Safe",
-      reason: "Rates consistently above the field and profiles better to place than win.",
+      reason:
+        "Rates consistently above the field and profiles better to place than win.",
     };
   }
 
@@ -292,25 +302,136 @@ function scoreConditionSuitability(
   return clamp(Math.round(40 + placeRate * 34 + winRate * 18), 25, 95);
 }
 
-function scoreBarrier(barrier: number | null | undefined) {
+function scoreBarrier(
+  barrier: number | null | undefined,
+  distance: number | null | undefined,
+  track: string | null | undefined,
+) {
   if (barrier === null || barrier === undefined) return 50;
 
-  if (barrier <= 3) return 72;
-  if (barrier <= 6) return 65;
+  const trackName = String(track || "").toLowerCase();
+  const isFlemington = trackName.includes("flemington");
+
+  if (isFlemington) {
+    if (barrier <= 4) return 68;
+    if (barrier <= 8) return 63;
+    if (barrier <= 12) return 58;
+    return 54;
+  }
+
+  if (distance && distance <= 1200) {
+    if (barrier <= 4) return 78;
+    if (barrier <= 8) return 58;
+    return 35;
+  }
+
+  if (barrier <= 3) return 70;
+  if (barrier <= 6) return 64;
   if (barrier <= 9) return 58;
   if (barrier <= 12) return 50;
-  return 42;
+  return 43;
 }
 
-function scoreMarket(marketPrice: number | null | undefined) {
-  if (marketPrice === null || marketPrice === undefined) return 50;
+function getEffectiveWeight(runner: Runner) {
+  if (runner.weight_kg === null || runner.weight_kg === undefined) return null;
 
-  if (marketPrice < 2.5) return 82;
-  if (marketPrice < 4) return 72;
-  if (marketPrice < 6) return 64;
-  if (marketPrice < 10) return 56;
-  if (marketPrice < 15) return 48;
-  return 40;
+  const claim =
+    runner.apprentice_claim_kg !== null && runner.apprentice_claim_kg !== undefined
+      ? runner.apprentice_claim_kg
+      : 0;
+
+  return Math.max(0, Number(runner.weight_kg) - Number(claim));
+}
+
+function scoreWeight(
+  runner: Runner,
+  fieldEffectiveWeights: Array<number | null>,
+) {
+  const effectiveWeight = getEffectiveWeight(runner);
+  const validWeights = fieldEffectiveWeights.filter(
+    (weight): weight is number => weight !== null && !Number.isNaN(weight),
+  );
+
+  if (effectiveWeight === null || !validWeights.length) return 50;
+
+  const min = Math.min(...validWeights);
+  const max = Math.max(...validWeights);
+
+  if (min === max) return 55;
+
+  const position = (max - effectiveWeight) / (max - min);
+  return clamp(Math.round(40 + position * 35), 35, 80);
+}
+
+function scoreJockey(
+  runner: Runner,
+  horseHistoryRuns: HistoryRun[],
+  allHistoryRuns: HistoryRun[],
+) {
+  const jockey = String(runner.jockey_name || "").trim().toLowerCase();
+  if (!jockey) return 50;
+
+  const horseJockeyRuns = horseHistoryRuns.filter(
+    (run) => String(run.jockey_name || "").trim().toLowerCase() === jockey,
+  );
+
+  if (horseJockeyRuns.length > 0) {
+    const places = horseJockeyRuns.filter((run) => {
+      const pos = run.finishing_position;
+      return pos !== null && pos !== undefined && pos <= 3;
+    }).length;
+
+    const wins = horseJockeyRuns.filter((run) => run.finishing_position === 1).length;
+
+    return clamp(
+      Math.round(45 + (places / horseJockeyRuns.length) * 28 + (wins / horseJockeyRuns.length) * 18),
+      35,
+      88,
+    );
+  }
+
+  const jockeyRuns = allHistoryRuns.filter(
+    (run) => String(run.jockey_name || "").trim().toLowerCase() === jockey,
+  );
+
+  if (!jockeyRuns.length) return 50;
+
+  const places = jockeyRuns.filter((run) => {
+    const pos = run.finishing_position;
+    return pos !== null && pos !== undefined && pos <= 3;
+  }).length;
+
+  const wins = jockeyRuns.filter((run) => run.finishing_position === 1).length;
+
+  return clamp(
+    Math.round(43 + (places / jockeyRuns.length) * 25 + (wins / jockeyRuns.length) * 15),
+    35,
+    85,
+  );
+}
+
+function scoreTrainer(runner: Runner, allHistoryRuns: HistoryRun[]) {
+  const trainer = String(runner.trainer_name || "").trim().toLowerCase();
+  if (!trainer) return 50;
+
+  const trainerRuns = allHistoryRuns.filter(
+    (run) => String(run.trainer_name || "").trim().toLowerCase() === trainer,
+  );
+
+  if (!trainerRuns.length) return 50;
+
+  const places = trainerRuns.filter((run) => {
+    const pos = run.finishing_position;
+    return pos !== null && pos !== undefined && pos <= 3;
+  }).length;
+
+  const wins = trainerRuns.filter((run) => run.finishing_position === 1).length;
+
+  return clamp(
+    Math.round(43 + (places / trainerRuns.length) * 24 + (wins / trainerRuns.length) * 14),
+    35,
+    82,
+  );
 }
 
 function buildHorseHistory(
@@ -324,7 +445,34 @@ function buildHorseHistory(
     .filter((runner) => runner.horse_id === horseId)
     .filter(
       (runner) =>
-        runner.finishing_position !== null && runner.finishing_position !== undefined,
+        runner.finishing_position !== null &&
+        runner.finishing_position !== undefined,
+    )
+    .filter((runner) => (excludeRaceId ? runner.race_id !== excludeRaceId : true))
+    .map((runner) => {
+      const race = racesById.get(runner.race_id) || null;
+      const meeting = race ? meetingsById.get(race.meeting_id) || null : null;
+
+      return {
+        ...runner,
+        race,
+        meeting,
+      };
+    })
+    .sort(sortHistoryRuns);
+}
+
+function buildAllHistoryRuns(
+  runners: Runner[],
+  racesById: Map<number, Race>,
+  meetingsById: Map<number, Meeting>,
+  excludeRaceId?: number,
+) {
+  return runners
+    .filter(
+      (runner) =>
+        runner.finishing_position !== null &&
+        runner.finishing_position !== undefined,
     )
     .filter((runner) => (excludeRaceId ? runner.race_id !== excludeRaceId : true))
     .map((runner) => {
@@ -367,17 +515,21 @@ function getSelectedHorseSummary(runner: ScoredRunner) {
   if (runner.components.track >= 65) positives.push("track profile");
   if (runner.components.condition >= 65) positives.push("conditions");
   if (runner.components.barrier >= 65) positives.push("barrier");
-  if (runner.components.market >= 65) positives.push("market support");
+  if (runner.components.weight >= 65) positives.push("effective weight");
+  if (runner.components.jockey >= 65) positives.push("jockey profile");
+  if (runner.components.trainer >= 65) positives.push("trainer profile");
 
   if (runner.components.recentForm < 50) negatives.push("recent form");
   if (runner.components.distance < 50) negatives.push("distance");
   if (runner.components.track < 50) negatives.push("track");
   if (runner.components.condition < 50) negatives.push("conditions");
   if (runner.components.barrier < 50) negatives.push("barrier");
-  if (runner.components.market < 50) negatives.push("market confidence");
+  if (runner.components.weight < 50) negatives.push("effective weight");
+  if (runner.components.jockey < 50) negatives.push("jockey profile");
+  if (runner.components.trainer < 50) negatives.push("trainer profile");
 
   if (!positives.length && !negatives.length) {
-    return "Balanced profile across the key race factors.";
+    return "Balanced profile across the key SmartPunt race factors.";
   }
 
   if (positives.length && !negatives.length) {
@@ -462,6 +614,13 @@ export default function AdminCalculator({
 
     const raceMeeting = meetingsById.get(activeRace.meeting_id) || null;
     const field = runners.filter((runner) => runner.race_id === activeRace.id);
+    const fieldEffectiveWeights = field.map((runner) => getEffectiveWeight(runner));
+    const allHistoryRuns = buildAllHistoryRuns(
+      runners,
+      racesById,
+      meetingsById,
+      activeRace.id,
+    );
 
     const baseScored = field.map((runner) => {
       const horse = horses.find((item) => item.id === runner.horse_id);
@@ -477,17 +636,25 @@ export default function AdminCalculator({
       const distance = scoreDistanceSuitability(historyRuns, activeRace.distance_m);
       const track = scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name);
       const condition = scoreConditionSuitability(historyRuns, raceMeeting?.track_condition);
-      const barrier = scoreBarrier(runner.barrier);
-      const market = scoreMarket(runner.market_price);
+      const barrier = scoreBarrier(
+        runner.barrier,
+        activeRace.distance_m,
+        raceMeeting?.meeting_name,
+      );
+      const weight = scoreWeight(runner, fieldEffectiveWeights);
+      const jockey = scoreJockey(runner, historyRuns, allHistoryRuns);
+      const trainer = scoreTrainer(runner, allHistoryRuns);
 
       const score = clamp(
         Math.round(
-          recentForm * 0.28 +
+          recentForm * 0.3 +
             distance * 0.18 +
             track * 0.14 +
-            condition * 0.14 +
-            barrier * 0.10 +
-            market * 0.16,
+            condition * 0.12 +
+            barrier * 0.12 +
+            weight * 0.08 +
+            jockey * 0.04 +
+            trainer * 0.02,
         ),
       );
 
@@ -500,6 +667,7 @@ export default function AdminCalculator({
         race_name: activeRace.race_name,
         race_number: activeRace.race_number,
         distance_m: activeRace.distance_m,
+        effectiveWeight: getEffectiveWeight(runner),
         score,
         winPercent: 0,
         placePercent: 0,
@@ -511,7 +679,9 @@ export default function AdminCalculator({
           track,
           condition,
           barrier,
-          market,
+          weight,
+          jockey,
+          trainer,
         },
       };
     });
@@ -571,41 +741,23 @@ export default function AdminCalculator({
               <Badge tone="amber">Calculator Lab</Badge>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Link
-                  href="/admin/race-builder"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
+                <Link href="/admin/race-builder" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                   Race Builder
                 </Link>
-                <Link
-                  href="/current-races"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
+                <Link href="/current-races" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                   Current Races
                 </Link>
-                <Link
-                  href="/race-archive"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
+                <Link href="/race-archive" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                   Race Archive
                 </Link>
-                <Link
-                  href="/admin/horses"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
+                <Link href="/admin/horses" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                   Saved Horses
                 </Link>
-                <Link
-                  href="/"
-                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
-                >
+                <Link href="/" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                   Back to Admin
                 </Link>
                 <form action={signOutAction}>
-                  <button
-                    type="submit"
-                    className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 backdrop-blur-sm transition hover:bg-red-500/30"
-                  >
+                  <button type="submit" className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 backdrop-blur-sm transition hover:bg-red-500/30">
                     Log Out
                   </button>
                 </form>
@@ -625,7 +777,7 @@ export default function AdminCalculator({
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="green">{publishedRaces.length} published races</Badge>
                 <Badge tone="blue">{horses.length} saved horses</Badge>
-                <Badge tone="amber">History-backed scoring</Badge>
+                <Badge tone="amber">No market influence</Badge>
               </div>
             </div>
           </div>
@@ -835,47 +987,24 @@ export default function AdminCalculator({
                         </p>
 
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                            <span className="text-sm font-medium text-zinc-800">Recent form</span>
-                            <Badge tone={getFactorStatus(selectedHorseScore.components.recentForm).tone}>
-                              {getFactorStatus(selectedHorseScore.components.recentForm).text}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                            <span className="text-sm font-medium text-zinc-800">Distance</span>
-                            <Badge tone={getFactorStatus(selectedHorseScore.components.distance).tone}>
-                              {getFactorStatus(selectedHorseScore.components.distance).text}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                            <span className="text-sm font-medium text-zinc-800">Track</span>
-                            <Badge tone={getFactorStatus(selectedHorseScore.components.track).tone}>
-                              {getFactorStatus(selectedHorseScore.components.track).text}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                            <span className="text-sm font-medium text-zinc-800">Conditions</span>
-                            <Badge tone={getFactorStatus(selectedHorseScore.components.condition).tone}>
-                              {getFactorStatus(selectedHorseScore.components.condition).text}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                            <span className="text-sm font-medium text-zinc-800">Barrier</span>
-                            <Badge tone={getFactorStatus(selectedHorseScore.components.barrier).tone}>
-                              {getFactorStatus(selectedHorseScore.components.barrier).text}
-                            </Badge>
-                          </div>
-
-                          <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                            <span className="text-sm font-medium text-zinc-800">Market</span>
-                            <Badge tone={getFactorStatus(selectedHorseScore.components.market).tone}>
-                              {getFactorStatus(selectedHorseScore.components.market).text}
-                            </Badge>
-                          </div>
+                          {[
+                            ["Recent form", selectedHorseScore.components.recentForm],
+                            ["Distance", selectedHorseScore.components.distance],
+                            ["Track", selectedHorseScore.components.track],
+                            ["Conditions", selectedHorseScore.components.condition],
+                            ["Barrier", selectedHorseScore.components.barrier],
+                            ["Effective weight", selectedHorseScore.components.weight],
+                            ["Jockey", selectedHorseScore.components.jockey],
+                            ["Trainer", selectedHorseScore.components.trainer],
+                          ].map(([label, score]) => {
+                            const status = getFactorStatus(Number(score));
+                            return (
+                              <div key={String(label)} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
+                                <span className="text-sm font-medium text-zinc-800">{label}</span>
+                                <Badge tone={status.tone}>{status.text}</Badge>
+                              </div>
+                            );
+                          })}
                         </div>
 
                         <p className="mt-4 text-sm leading-6 text-zinc-700">
@@ -917,7 +1046,7 @@ export default function AdminCalculator({
               <div>
                 <h2 className="text-xl font-semibold">Field scoring</h2>
                 <p className="text-sm text-zinc-500">
-                  This version scores on recent form, distance, track, conditions, barrier, and market.
+                  This version scores recent form, distance, track, conditions, barrier, effective weight, jockey, and trainer. Market has been removed completely.
                 </p>
               </div>
               <Badge tone="green">{scoredRunners.length} ranked</Badge>
@@ -944,7 +1073,11 @@ export default function AdminCalculator({
                             {runner.horse_name}
                           </h3>
                           <p className="mt-2 text-sm text-zinc-600">
-                            Jockey: {runner.jockey_name || "—"} · Barrier: {runner.barrier ?? "—"} · Market: {runner.market_price ?? "—"}
+                            Jockey: {runner.jockey_name || "—"} · Barrier: {runner.barrier ?? "—"} · Weight:{" "}
+                            {runner.weight_kg ?? "—"}
+                            {runner.effectiveWeight !== null
+                              ? ` · Effective: ${runner.effectiveWeight}kg`
+                              : ""}
                           </p>
                         </div>
 
@@ -956,69 +1089,35 @@ export default function AdminCalculator({
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Form
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {roundScore(runner.components.recentForm)}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Distance
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {roundScore(runner.components.distance)}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Track
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {roundScore(runner.components.track)}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Conditions
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {roundScore(runner.components.condition)}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Barrier
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {roundScore(runner.components.barrier)}
-                          </p>
-                        </div>
-
-                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Market
-                          </p>
-                          <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {roundScore(runner.components.market)}
-                          </p>
-                        </div>
+                      <div className="mt-4 grid gap-3 md:grid-cols-4 lg:grid-cols-8">
+                        {[
+                          ["Form", runner.components.recentForm],
+                          ["Distance", runner.components.distance],
+                          ["Track", runner.components.track],
+                          ["Conditions", runner.components.condition],
+                          ["Barrier", runner.components.barrier],
+                          ["Weight", runner.components.weight],
+                          ["Jockey", runner.components.jockey],
+                          ["Trainer", runner.components.trainer],
+                        ].map(([label, score]) => (
+                          <div key={String(label)} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                              {label}
+                            </p>
+                            <p className="mt-2 text-sm font-semibold text-zinc-900">
+                              {roundScore(Number(score))}
+                            </p>
+                          </div>
+                        ))}
                       </div>
 
-                      {runner.form_last_3 ? (
+                      {runner.form_last_6 || runner.form_last_3 ? (
                         <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                             Recent form snapshot
                           </p>
                           <p className="mt-2 text-sm font-semibold text-zinc-900">
-                            {runner.form_last_3}
+                            {runner.form_last_6 || runner.form_last_3}
                           </p>
                         </div>
                       ) : null}
@@ -1039,12 +1138,28 @@ export default function AdminCalculator({
             <div className="p-6 text-zinc-950">
               <h3 className="text-lg font-semibold">What this version adds</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Resulted form scoring</p>
-                <p>• Distance suitability</p>
-                <p>• Track suitability</p>
-                <p>• Good / Soft / Heavy suitability</p>
-                <p>• Race verdict logic</p>
-                <p>• Selected-horse reasoning</p>
+                <p>• Market removed completely</p>
+                <p>• New weighted SmartPunt score</p>
+                <p>• Distance-aware barrier logic</p>
+                <p>• Flemington wide-barrier exception</p>
+                <p>• Effective weight using apprentice claim</p>
+                <p>• Jockey and trainer history</p>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <h3 className="text-lg font-semibold">Scoring weights</h3>
+              <div className="mt-4 space-y-2 text-sm text-zinc-600">
+                <p>• Recent form: 30%</p>
+                <p>• Distance: 18%</p>
+                <p>• Track: 14%</p>
+                <p>• Condition: 12%</p>
+                <p>• Barrier: 12%</p>
+                <p>• Weight / claim: 8%</p>
+                <p>• Jockey: 4%</p>
+                <p>• Trainer: 2%</p>
               </div>
             </div>
           </Panel>
@@ -1053,22 +1168,11 @@ export default function AdminCalculator({
             <div className="p-6 text-zinc-950">
               <h3 className="text-lg font-semibold">Still to come</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
+                <p>• Running style</p>
+                <p>• Speed map</p>
                 <p>• Better place modelling</p>
-                <p>• Jockey and trainer history</p>
-                <p>• More race-shape logic</p>
                 <p>• Subscriber calculator flow</p>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel className="bg-white/95">
-            <div className="p-6 text-zinc-950">
-              <h3 className="text-lg font-semibold">Release path</h3>
-              <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Keep testing in admin lab</p>
-                <p>• Tighten thresholds and verdicts</p>
-                <p>• Then move into subscriber published races</p>
-                <p>• Later feed My Active Tips</p>
+                <p>• My Active Tips integration</p>
               </div>
             </div>
           </Panel>
