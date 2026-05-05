@@ -292,6 +292,13 @@ function updateStatRecordWithResult(
   const seconds = match ? Number(match[3]) : 0;
   const thirds = match ? Number(match[4]) : 0;
 
+  const validFinish =
+    Number.isFinite(finishingPosition) && finishingPosition > 0;
+
+  if (!validFinish) {
+    return `${runs}:${wins},${seconds},${thirds}`;
+  }
+
   const nextRuns = runs + 1;
   const nextWins = wins + (finishingPosition === 1 ? 1 : 0);
   const nextSeconds = seconds + (finishingPosition === 2 ? 1 : 0);
