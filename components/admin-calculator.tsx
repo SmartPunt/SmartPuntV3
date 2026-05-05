@@ -138,6 +138,9 @@ export default function AdminCalculator({
                 </Link>
                 <Link href="/race-archive" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                   Race Archive
+                  <Link href="/admin/calculator-report" className="rounded-2xl border border-amber-400/40 bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-500/30">
+  Calculator Report
+</Link>
                 </Link>
                 <Link href="/admin/horses" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                   Saved Horses
