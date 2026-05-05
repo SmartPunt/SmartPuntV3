@@ -49,7 +49,7 @@ export default async function Page() {
   try {
     const supabase = await createClient();
 
-    // Only active races (draft + published)
+    // Race Builder only needs draft + published races for workflow visibility
     const races = await fetchAllRows({
       getPage: async (from, to) => {
         const result = await supabase
@@ -67,43 +67,51 @@ export default async function Page() {
       },
     });
 
-    // Recent meetings + meetings linked to active races
-    const activeRaceMeetingIds = Array.from(
-      new Set((races || []).map((race: any) => race.meeting_id).filter(Boolean)),
+    // Meetings that still have draft races (still being built)
+    const draftRaceMeetingIds = Array.from(
+      new Set(
+        (races || [])
+          .filter((race: any) => race.status === "draft")
+          .map((race: any) => race.meeting_id)
+          .filter(Boolean),
+      ),
     );
 
-    const recentMeetingsResult = await supabase
+    // Brand new meetings (no races yet)
+    const emptyMeetingsResult = await supabase
       .from("meetings")
-      .select("*")
+      .select("*, races(id)")
+      .is("races.id", null)
       .order("meeting_date", { ascending: false })
-      .order("meeting_name", { ascending: true })
-      .limit(30);
+      .order("meeting_name", { ascending: true });
 
-    if (recentMeetingsResult.error) {
+    if (emptyMeetingsResult.error) {
       throw new Error(
-        recentMeetingsResult.error.message || "Failed to load recent meetings.",
+        emptyMeetingsResult.error.message || "Failed to load empty meetings.",
       );
     }
 
-    const linkedMeetingsResult =
-      activeRaceMeetingIds.length > 0
+    // Meetings with draft races
+    const draftMeetingsResult =
+      draftRaceMeetingIds.length > 0
         ? await supabase
             .from("meetings")
             .select("*")
-            .in("id", activeRaceMeetingIds)
+            .in("id", draftRaceMeetingIds)
         : { data: [], error: null };
 
-    if (linkedMeetingsResult.error) {
+    if (draftMeetingsResult.error) {
       throw new Error(
-        linkedMeetingsResult.error.message || "Failed to load linked meetings.",
+        draftMeetingsResult.error.message || "Failed to load draft meetings.",
       );
     }
 
     const meetingMap = new Map<number, any>();
 
-    [...(recentMeetingsResult.data || []), ...(linkedMeetingsResult.data || [])].forEach(
+    [...(emptyMeetingsResult.data || []), ...(draftMeetingsResult.data || [])].forEach(
       (meeting: any) => {
-        meetingMap.set(Number(meeting.id), meeting);
+        const { races: _unused, ...cleanMeeting } = meeting;
+        meetingMap.set(Number(cleanMeeting.id), cleanMeeting);
       },
     );
 
@@ -119,7 +127,7 @@ export default async function Page() {
       );
     });
 
-    // Only runners linked to active races
+    // Only runners for active races
     const raceIds = Array.from(new Set(races.map((race: any) => race.id)));
 
     const raceRunners =
