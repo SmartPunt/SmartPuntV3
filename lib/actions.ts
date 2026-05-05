@@ -2307,88 +2307,102 @@ export async function settleRaceRunnersAction(
       ),
     );
 
-    if (horseIds.length > 0) {
-      const { data: horseRows, error: horseFetchError } = await supabase
-        .from("horses")
-        .select("id, form_last_6, track_form_last_6, distance_form_last_6")
-        .in("id", horseIds);
+if (horseIds.length > 0) {
+  const { data: horseRows, error: horseFetchError } = await supabase
+    .from("horses")
+    .select("id, horse_name, form_last_6, track_form_last_6, distance_form_last_6")
+    .in("id", horseIds);
 
-      if (horseFetchError) {
-        return { success: false, error: horseFetchError.message };
-      }
+  if (horseFetchError) {
+    return { success: false, error: horseFetchError.message };
+  }
 
-      const horseRowsById = new Map<number, any>();
-      for (const horse of horseRows || []) {
-        horseRowsById.set(Number((horse as any).id), horse);
-      }
+  const horseRowsById = new Map<number, any>();
 
-      const horseUpdates: Array<{
-        id: number;
-        form_last_6: string;
-        track_form_last_6: string;
-        distance_form_last_6: string;
-        updated_at: string;
-      }> = [];
+  for (const horse of horseRows || []) {
+    horseRowsById.set(Number((horse as any).id), horse);
+  }
 
-      for (const update of updates) {
-        if (
-          update.finishing_position === null ||
-          update.finishing_position === undefined ||
-          update.finishing_position <= 0
-        ) {
-          continue;
-        }
-
-        const matchingRunner = runnersById.get(update.id);
-        const horseId = Number(matchingRunner?.horse_id);
-
-        if (!horseId) continue;
-
-        const horseRow = horseRowsById.get(horseId) || null;
-
-        const existingHorseForm =
-          horseRow?.form_last_6 ||
-          normaliseImportedForm(String(matchingRunner?.form_last_6 || ""));
-
-        const existingTrackForm =
-          horseRow?.track_form_last_6 ||
-          String(matchingRunner?.track_form_last_6 || "");
-
-        const existingDistanceForm =
-          horseRow?.distance_form_last_6 ||
-          String(matchingRunner?.distance_form_last_6 || "");
-
-        horseUpdates.push({
-          id: horseId,
-          form_last_6: updateFormStringWithResult(
-            existingHorseForm || null,
-            Number(update.finishing_position),
-          ),
-          track_form_last_6: updateStatRecordWithResult(
-            existingTrackForm || null,
-            Number(update.finishing_position),
-          ),
-          distance_form_last_6: updateStatRecordWithResult(
-            existingDistanceForm || null,
-            Number(update.finishing_position),
-          ),
-          updated_at: now,
-        });
-      }
-
-      if (horseUpdates.length > 0) {
-        await serviceRoleFetch(
-          `horses?on_conflict=${encodeURIComponent("id")}`,
-          {
-            method: "POST",
-            headers: {
-              Prefer: "resolution=merge-duplicates,return=minimal",
-            },
-            body: JSON.stringify(horseUpdates),
-          },
-        );
-      }
+  for (const update of updates) {
+    if (
+      update.finishing_position === null ||
+      update.finishing_position === undefined ||
+      update.finishing_position <= 0
+    ) {
+      continue;
     }
+
+    const matchingRunner = runnersById.get(update.id);
+    const horseId = Number(matchingRunner?.horse_id);
+
+    if (!horseId) continue;
+
+    let horseRow = horseRowsById.get(horseId) || null;
+
+    // create missing horse row safely
+    if (!horseRow) {
+      const horseName =
+        String(matchingRunner?.horse_name || "").trim() || "Unknown horse";
+
+      const { data: createdHorseRow, error: createHorseError } = await supabase
+        .from("horses")
+        .insert({
+          id: horseId,
+          horse_name: horseName,
+          normalised_name: normaliseHorseName(horseName),
+          form_last_6: null,
+          track_form_last_6: null,
+          distance_form_last_6: null,
+        })
+        .select(
+          "id, horse_name, form_last_6, track_form_last_6, distance_form_last_6",
+        )
+        .single();
+
+      if (createHorseError) {
+        return { success: false, error: createHorseError.message };
+      }
+
+      horseRow = createdHorseRow;
+      horseRowsById.set(horseId, horseRow);
+    }
+
+    const existingHorseForm =
+      horseRow?.form_last_6 ||
+      normaliseImportedForm(String(matchingRunner?.form_last_6 || ""));
+
+    const existingTrackForm =
+      horseRow?.track_form_last_6 ||
+      String(matchingRunner?.track_form_last_6 || "");
+
+    const existingDistanceForm =
+      horseRow?.distance_form_last_6 ||
+      String(matchingRunner?.distance_form_last_6 || "");
+
+    const { error: horseUpdateError } = await supabase
+      .from("horses")
+      .update({
+        form_last_6: updateFormStringWithResult(
+          existingHorseForm || null,
+          Number(update.finishing_position),
+        ),
+        track_form_last_6: updateStatRecordWithResult(
+          existingTrackForm || null,
+          Number(update.finishing_position),
+        ),
+        distance_form_last_6: updateStatRecordWithResult(
+          existingDistanceForm || null,
+          Number(update.finishing_position),
+        ),
+        updated_at: now,
+      })
+      .eq("id", horseId);
+
+    if (horseUpdateError) {
+      return { success: false, error: horseUpdateError.message };
+    }
+  }
+}
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
