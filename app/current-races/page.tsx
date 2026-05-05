@@ -4,37 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import CurrentRacesPage from "@/components/admin-current-races";
 
-async function fetchAllRows<T>({
-  pageSize = 1000,
-  getPage,
-}: {
-  pageSize?: number;
-  getPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>;
-}) {
-  const allRows: T[] = [];
-  let from = 0;
-
-  while (true) {
-    const to = from + pageSize - 1;
-    const { data, error } = await getPage(from, to);
-
-    if (error) {
-      throw new Error(error.message || "Failed to fetch rows.");
-    }
-
-    const rows = data || [];
-    allRows.push(...rows);
-
-    if (rows.length < pageSize) {
-      break;
-    }
-
-    from += pageSize;
-  }
-
-  return allRows;
-}
-
 export default async function Page() {
   const profile = await getCurrentProfile();
 
@@ -45,76 +14,75 @@ export default async function Page() {
   try {
     const supabase = await createClient();
 
-    const meetings = await fetchAllRows({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("meetings")
-          .select("*")
-          .order("meeting_date", { ascending: false })
-          .order("meeting_name", { ascending: true })
-          .range(from, to);
+    const { data: races, error: racesError } = await supabase
+      .from("races")
+      .select("*")
+      .eq("status", "published")
+      .order("meeting_id", { ascending: false })
+      .order("race_number", { ascending: true });
 
-        return {
-          data: result.data ?? [],
-          error: result.error,
-        };
-      },
-    });
+    if (racesError) {
+      throw new Error(racesError.message || "Failed to load published races.");
+    }
 
-    const races = await fetchAllRows({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("races")
-          .select("*")
-          .eq("status", "published")
-          .order("meeting_id", { ascending: false })
-          .order("race_number", { ascending: true })
-          .range(from, to);
+    const publishedRaces = races || [];
+    const raceIds = publishedRaces.map((race) => race.id);
+    const meetingIds = Array.from(
+      new Set(publishedRaces.map((race) => race.meeting_id).filter(Boolean)),
+    );
 
-        return {
-          data: result.data ?? [],
-          error: result.error,
-        };
-      },
-    });
+    const { data: meetings, error: meetingsError } =
+      meetingIds.length > 0
+        ? await supabase
+            .from("meetings")
+            .select("*")
+            .in("id", meetingIds)
+            .order("meeting_date", { ascending: false })
+            .order("meeting_name", { ascending: true })
+        : { data: [], error: null };
 
-    const horses = await fetchAllRows({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("horses")
-          .select("*")
-          .order("horse_name", { ascending: true })
-          .range(from, to);
+    if (meetingsError) {
+      throw new Error(meetingsError.message || "Failed to load meetings.");
+    }
 
-        return {
-          data: result.data ?? [],
-          error: result.error,
-        };
-      },
-    });
+    const { data: raceRunners, error: runnersError } =
+      raceIds.length > 0
+        ? await supabase
+            .from("race_runners")
+            .select("*")
+            .in("race_id", raceIds)
+            .order("race_id", { ascending: true })
+            .order("barrier", { ascending: true, nullsFirst: false })
+        : { data: [], error: null };
 
-    const raceRunners = await fetchAllRows({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("race_runners")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .range(from, to);
+    if (runnersError) {
+      throw new Error(runnersError.message || "Failed to load race runners.");
+    }
 
-        return {
-          data: result.data ?? [],
-          error: result.error,
-        };
-      },
-    });
+    const horseIds = Array.from(
+      new Set((raceRunners || []).map((runner) => runner.horse_id).filter(Boolean)),
+    );
+
+    const { data: horses, error: horsesError } =
+      horseIds.length > 0
+        ? await supabase
+            .from("horses")
+            .select("*")
+            .in("id", horseIds)
+            .order("horse_name", { ascending: true })
+        : { data: [], error: null };
+
+    if (horsesError) {
+      throw new Error(horsesError.message || "Failed to load horses.");
+    }
 
     return (
       <CurrentRacesPage
         currentUser={profile}
-        initialMeetings={meetings}
-        initialRaces={races}
-        initialHorses={horses}
-        initialRunners={raceRunners}
+        initialMeetings={meetings || []}
+        initialRaces={publishedRaces}
+        initialHorses={horses || []}
+        initialRunners={raceRunners || []}
       />
     );
   } catch (error) {
