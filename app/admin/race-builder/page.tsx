@@ -25,7 +25,9 @@ async function fetchAllRows<T>({
     const rows = data || [];
     allRows.push(...rows);
 
-    if (rows.length < pageSize) break;
+    if (rows.length < pageSize) {
+      break;
+    }
 
     from += pageSize;
   }
@@ -36,58 +38,18 @@ async function fetchAllRows<T>({
 export default async function Page() {
   const profile = await getCurrentProfile();
 
-  if (!profile) redirect("/login");
-  if (!["admin", "staff_admin"].includes(profile.role)) redirect("/");
+  if (!profile) {
+    redirect("/login");
+  }
+
+  if (!["admin", "staff_admin"].includes(profile.role)) {
+    redirect("/");
+  }
 
   try {
     const supabase = await createClient();
 
-    // ✅ KEEP ALL MEETINGS (fix)
-const activeRaceMeetingIds = Array.from(
-  new Set((races || []).map((race: any) => race.meeting_id).filter(Boolean)),
-);
-
-const recentMeetingsResult = await supabase
-  .from("meetings")
-  .select("*")
-  .order("meeting_date", { ascending: false })
-  .order("meeting_name", { ascending: true })
-  .limit(30);
-
-if (recentMeetingsResult.error) {
-  throw new Error(recentMeetingsResult.error.message || "Failed to load recent meetings.");
-}
-
-const linkedMeetingsResult =
-  activeRaceMeetingIds.length > 0
-    ? await supabase
-        .from("meetings")
-        .select("*")
-        .in("id", activeRaceMeetingIds)
-    : { data: [], error: null };
-
-if (linkedMeetingsResult.error) {
-  throw new Error(linkedMeetingsResult.error.message || "Failed to load linked meetings.");
-}
-
-const meetingMap = new Map<number, any>();
-
-[...(recentMeetingsResult.data || []), ...(linkedMeetingsResult.data || [])].forEach(
-  (meeting: any) => {
-    meetingMap.set(Number(meeting.id), meeting);
-  },
-);
-
-const meetings = Array.from(meetingMap.values()).sort((a: any, b: any) => {
-  const dateDiff =
-    new Date(b.meeting_date || "").getTime() - new Date(a.meeting_date || "").getTime();
-
-  if (dateDiff !== 0) return dateDiff;
-
-  return String(a.meeting_name || "").localeCompare(String(b.meeting_name || ""));
-});
-
-    // ✅ ONLY ACTIVE RACES (speed gain)
+    // Only active races (draft + published)
     const races = await fetchAllRows({
       getPage: async (from, to) => {
         const result = await supabase
@@ -98,12 +60,67 @@ const meetings = Array.from(meetingMap.values()).sort((a: any, b: any) => {
           .order("race_number", { ascending: true })
           .range(from, to);
 
-        return { data: result.data ?? [], error: result.error };
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
       },
     });
 
-    // ✅ ONLY RUNNERS FOR ACTIVE RACES
-    const raceIds = Array.from(new Set(races.map((r: any) => r.id)));
+    // Recent meetings + meetings linked to active races
+    const activeRaceMeetingIds = Array.from(
+      new Set((races || []).map((race: any) => race.meeting_id).filter(Boolean)),
+    );
+
+    const recentMeetingsResult = await supabase
+      .from("meetings")
+      .select("*")
+      .order("meeting_date", { ascending: false })
+      .order("meeting_name", { ascending: true })
+      .limit(30);
+
+    if (recentMeetingsResult.error) {
+      throw new Error(
+        recentMeetingsResult.error.message || "Failed to load recent meetings.",
+      );
+    }
+
+    const linkedMeetingsResult =
+      activeRaceMeetingIds.length > 0
+        ? await supabase
+            .from("meetings")
+            .select("*")
+            .in("id", activeRaceMeetingIds)
+        : { data: [], error: null };
+
+    if (linkedMeetingsResult.error) {
+      throw new Error(
+        linkedMeetingsResult.error.message || "Failed to load linked meetings.",
+      );
+    }
+
+    const meetingMap = new Map<number, any>();
+
+    [...(recentMeetingsResult.data || []), ...(linkedMeetingsResult.data || [])].forEach(
+      (meeting: any) => {
+        meetingMap.set(Number(meeting.id), meeting);
+      },
+    );
+
+    const meetings = Array.from(meetingMap.values()).sort((a: any, b: any) => {
+      const dateDiff =
+        new Date(b.meeting_date || "").getTime() -
+        new Date(a.meeting_date || "").getTime();
+
+      if (dateDiff !== 0) return dateDiff;
+
+      return String(a.meeting_name || "").localeCompare(
+        String(b.meeting_name || ""),
+      );
+    });
+
+    // Only runners linked to active races
+    const raceIds = Array.from(new Set(races.map((race: any) => race.id)));
 
     const raceRunners =
       raceIds.length > 0
@@ -116,12 +133,15 @@ const meetings = Array.from(meetingMap.values()).sort((a: any, b: any) => {
                 .order("created_at", { ascending: false })
                 .range(from, to);
 
-              return { data: result.data ?? [], error: result.error };
+              return {
+                data: result.data ?? [],
+                error: result.error,
+              };
             },
           })
         : [];
 
-    // ⚠️ KEEP HORSES FOR NOW (we optimise this next)
+    // Keep full horse library for now (next optimisation target)
     const horses = await fetchAllRows({
       getPage: async (from, to) => {
         const result = await supabase
@@ -130,7 +150,10 @@ const meetings = Array.from(meetingMap.values()).sort((a: any, b: any) => {
           .order("horse_name", { ascending: true })
           .range(from, to);
 
-        return { data: result.data ?? [], error: result.error };
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
       },
     });
 
@@ -148,11 +171,34 @@ const meetings = Array.from(meetingMap.values()).sort((a: any, b: any) => {
       error instanceof Error ? error.message : "Unknown server error while loading Race Builder.";
 
     return (
-      <div className="min-h-screen p-4 text-white">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] p-4 text-white lg:p-8">
         <div className="mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-white/10 bg-black p-6">
-            <h1 className="text-xl font-bold">Race Builder Error</h1>
-            <p className="mt-2 text-sm text-red-300">{message}</p>
+          <div className="rounded-[32px] border border-white/10 bg-black p-8 shadow-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-3xl font-bold tracking-tight">Race Builder</h1>
+              <Link
+                href="/"
+                className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+              >
+                Back to Admin
+              </Link>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-red-300/20 bg-red-100 px-4 py-4 text-sm text-red-900">
+              Race Builder could not load from the server.
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-100 px-4 py-4 text-sm text-amber-950">
+              <p className="font-semibold">Likely cause</p>
+              <p className="mt-2">
+                One of the Supabase tables or queries is failing on the server.
+              </p>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/70 px-4 py-4 text-sm text-zinc-200">
+              <p className="font-semibold text-white">Server message</p>
+              <p className="mt-2 break-words text-zinc-300">{message}</p>
+            </div>
           </div>
         </div>
       </div>
