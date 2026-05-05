@@ -12,6 +12,32 @@ import {
   type Runner,
 } from "@/lib/calculator/scoring";
 
+function normaliseFormString(input: string | null | undefined): string {
+  if (!input) return "";
+
+  return input
+    .toLowerCase()
+    .replace(/[^0-9x]/g, "")   // keep numbers + x
+    .replace(/10/g, "0")       // convert 10th+ to 0
+    .slice(0, 6);
+}
+
+function buildUpdatedForm(existing: string | null, finishingPosition: number | null) {
+  const cleaned = normaliseFormString(existing);
+
+  if (finishingPosition === null || finishingPosition === undefined) {
+    return cleaned;
+  }
+
+  let resultChar = "";
+
+  if (finishingPosition === 1) resultChar = "1";
+  else if (finishingPosition <= 9) resultChar = String(finishingPosition);
+  else resultChar = "0"; // 10th+
+
+  return (resultChar + cleaned).slice(0, 6);
+}
+
 type ActionResult = {
   success: boolean;
   error: string | null;
