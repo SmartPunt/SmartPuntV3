@@ -238,7 +238,6 @@ export default function AdminDashboard({
   const [tipRaceDate, setTipRaceDate] = useState("");
   const [tipRaceTime, setTipRaceTime] = useState("");
   const [tipRaceTimezone, setTipRaceTimezone] = useState("Australia/Perth");
-  const [tipResultComment, setTipResultComment] = useState("");
   const [suggestedTag, setSuggestedTag] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
@@ -319,7 +318,6 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
     setTipRaceDate(formatDateForInput(tip.race_start_at));
     setTipRaceTime(formatTimeForInput(tip.race_start_at));
     setTipRaceTimezone(tip.race_timezone || "Australia/Perth");
-    setTipResultComment(tip.result_comment || "");
   }
 
   function clearTipForm() {
@@ -336,7 +334,6 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
     setTipRaceDate("");
     setTipRaceTime("");
     setTipRaceTimezone("Australia/Perth");
-    setTipResultComment("");
     setSuggestedTag("");
     setGenerateError("");
   }
@@ -852,16 +849,6 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     </Field>
                   </div>
 
-                  <Field label="Post-race analysis">
-                    <Textarea
-                      name="result_comment"
-                      placeholder="What actually happened? Example: got held up, right run but no finish, wrong tempo, huge run in defeat..."
-                      value={tipResultComment}
-                      onChange={setTipResultComment}
-                      minHeight="120px"
-                    />
-                  </Field>
-
                   <Field label="Head tipper notes for AI">
                     <Textarea
                       name="tipper_notes_preview_only"
@@ -936,7 +923,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                       {tipEdit ? "Update Tip" : "Publish Tip"}
                     </button>
 
-                    {(tipEdit || tipRace || tipHorse || tipCommentary || tipperNotes || tipResultComment) ? (
+                    {(tipEdit || tipRace || tipHorse || tipCommentary || tipperNotes) ? (
                       <button
                         type="button"
                         onClick={clearTipForm}
@@ -981,14 +968,6 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                       {tipCommentary || "Your Fortune on 5 commentary will appear here."}
                     </p>
 
-                    {tipResultComment ? (
-                      <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                          Post-race analysis
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-zinc-700">{tipResultComment}</p>
-                      </div>
-                    ) : null}
                   </div>
 
                   <div>
