@@ -43,18 +43,49 @@ export default async function Page() {
     const supabase = await createClient();
 
     // ✅ KEEP ALL MEETINGS (fix)
-    const meetings = await fetchAllRows({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("meetings")
-          .select("*")
-          .order("meeting_date", { ascending: false })
-          .order("meeting_name", { ascending: true })
-          .range(from, to);
+const activeRaceMeetingIds = Array.from(
+  new Set((races || []).map((race: any) => race.meeting_id).filter(Boolean)),
+);
 
-        return { data: result.data ?? [], error: result.error };
-      },
-    });
+const recentMeetingsResult = await supabase
+  .from("meetings")
+  .select("*")
+  .order("meeting_date", { ascending: false })
+  .order("meeting_name", { ascending: true })
+  .limit(30);
+
+if (recentMeetingsResult.error) {
+  throw new Error(recentMeetingsResult.error.message || "Failed to load recent meetings.");
+}
+
+const linkedMeetingsResult =
+  activeRaceMeetingIds.length > 0
+    ? await supabase
+        .from("meetings")
+        .select("*")
+        .in("id", activeRaceMeetingIds)
+    : { data: [], error: null };
+
+if (linkedMeetingsResult.error) {
+  throw new Error(linkedMeetingsResult.error.message || "Failed to load linked meetings.");
+}
+
+const meetingMap = new Map<number, any>();
+
+[...(recentMeetingsResult.data || []), ...(linkedMeetingsResult.data || [])].forEach(
+  (meeting: any) => {
+    meetingMap.set(Number(meeting.id), meeting);
+  },
+);
+
+const meetings = Array.from(meetingMap.values()).sort((a: any, b: any) => {
+  const dateDiff =
+    new Date(b.meeting_date || "").getTime() - new Date(a.meeting_date || "").getTime();
+
+  if (dateDiff !== 0) return dateDiff;
+
+  return String(a.meeting_name || "").localeCompare(String(b.meeting_name || ""));
+});
 
     // ✅ ONLY ACTIVE RACES (speed gain)
     const races = await fetchAllRows({
