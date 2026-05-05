@@ -11,6 +11,7 @@ import {
   toggleRacePublishAction,
   toggleRaceRunnerScratchAction,
   updateRaceRunnerDetailsAction,
+  updateMeetingConditionAction,
 } from "@/lib/actions";
 
 type Horse = {
@@ -393,6 +394,24 @@ function isRaceOpen(raceId: number) {
       },
     }));
   }
+
+  function handleUpdateTrackCondition(meetingId: number, value: string) {
+  startTransition(async () => {
+    const formData = new FormData();
+    formData.set("meeting_id", String(meetingId));
+    formData.set("track_condition", value);
+
+    const result = await updateMeetingConditionAction(formData);
+
+    if (!result.success) {
+      setError(result.error || "Failed to update track condition.");
+      return;
+    }
+
+    setSuccess("Track condition updated.");
+    router.refresh();
+  });
+}
 
   function startEditingRunner(runner: Runner) {
     setEditingRunnerId(runner.id);
