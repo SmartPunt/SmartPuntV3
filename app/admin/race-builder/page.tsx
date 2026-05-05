@@ -49,27 +49,12 @@ export default async function Page() {
   try {
     const supabase = await createClient();
 
-    const meetings = await fetchAllRows({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("meetings")
-          .select("*")
-          .order("meeting_date", { ascending: false })
-          .order("meeting_name", { ascending: true })
-          .range(from, to);
-
-        return {
-          data: result.data ?? [],
-          error: result.error,
-        };
-      },
-    });
-
     const races = await fetchAllRows({
       getPage: async (from, to) => {
         const result = await supabase
           .from("races")
           .select("*")
+          .in("status", ["draft", "published"])
           .order("meeting_id", { ascending: false })
           .order("race_number", { ascending: true })
           .range(from, to);
@@ -81,27 +66,59 @@ export default async function Page() {
       },
     });
 
+    const meetingIds = Array.from(
+      new Set((races || []).map((race: any) => race.meeting_id).filter(Boolean)),
+    );
+
+    const meetings =
+      meetingIds.length > 0
+        ? await fetchAllRows({
+            getPage: async (from, to) => {
+              const result = await supabase
+                .from("meetings")
+                .select("*")
+                .in("id", meetingIds)
+                .order("meeting_date", { ascending: false })
+                .order("meeting_name", { ascending: true })
+                .range(from, to);
+
+              return {
+                data: result.data ?? [],
+                error: result.error,
+              };
+            },
+          })
+        : [];
+
+    const raceIds = Array.from(
+      new Set((races || []).map((race: any) => race.id).filter(Boolean)),
+    );
+
+    const raceRunners =
+      raceIds.length > 0
+        ? await fetchAllRows({
+            getPage: async (from, to) => {
+              const result = await supabase
+                .from("race_runners")
+                .select("*")
+                .in("race_id", raceIds)
+                .order("created_at", { ascending: false })
+                .range(from, to);
+
+              return {
+                data: result.data ?? [],
+                error: result.error,
+              };
+            },
+          })
+        : [];
+
     const horses = await fetchAllRows({
       getPage: async (from, to) => {
         const result = await supabase
           .from("horses")
           .select("*")
           .order("horse_name", { ascending: true })
-          .range(from, to);
-
-        return {
-          data: result.data ?? [],
-          error: result.error,
-        };
-      },
-    });
-
-    const raceRunners = await fetchAllRows({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("race_runners")
-          .select("*")
-          .order("created_at", { ascending: false })
           .range(from, to);
 
         return {
