@@ -877,10 +877,27 @@ function handleScratchMissingResults(raceId: number) {
                               <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
                                 {meeting.meeting_name}
                               </h3>
-                              <p className="mt-1 text-sm text-zinc-500">
-                                {formatMeetingDate(meeting.meeting_date)}
-                                {meeting.track_condition ? ` · ${meeting.track_condition}` : ""}
-                              </p>
+<div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
+  <span>{formatMeetingDate(meeting.meeting_date)}</span>
+
+  {isAdmin ? (
+    <select
+      value={meeting.track_condition || ""}
+      onChange={(e) => handleUpdateTrackCondition(meeting.id, e.target.value)}
+      className="rounded-xl border border-zinc-300 bg-white px-3 py-1 text-sm font-semibold text-zinc-700"
+    >
+      <option value="">Set condition</option>
+      <option value="Good">Good</option>
+      <option value="Soft">Soft</option>
+      <option value="Heavy">Heavy</option>
+      <option value="Synthetic">Synthetic</option>
+    </select>
+  ) : (
+    meeting.track_condition && (
+      <Badge tone="blue">{meeting.track_condition}</Badge>
+    )
+  )}
+</div>
                             </div>
 
                             <Badge tone="blue">{meeting.races.length} current races</Badge>
