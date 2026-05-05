@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v3";
+export const SMARTPUNT_SCORING_VERSION = "v4";
 
 export type Race = {
   id: number;
@@ -301,7 +301,7 @@ function scoreDistanceSuitability(
     (run) => getDistanceBucket(run.race?.distance_m) === targetBucket,
   );
 
-  if (!matchingRuns.length) return 50;
+if (!matchingRuns.length) return 42;
 
   const places = matchingRuns.filter((run) => {
     const pos = run.finishing_position;
@@ -707,15 +707,15 @@ export function calculateRaceScores({
 
     const baseScore = clamp(
       Math.round(
-        recentForm * 0.26 +
-          distance * 0.12 +
-          track * 0.09 +
-          condition * 0.08 +
-          barrier * 0.16 +
-          weight * 0.08 +
-          jockey * 0.08 +
-          trainer * 0.05 +
-          consistency * 0.08,
+recentForm * 0.25 +
+  distance * 0.14 +
+  track * 0.09 +
+  condition * 0.08 +
+  barrier * 0.14 +
+  weight * 0.05 +
+  jockey * 0.11 +
+  trainer * 0.04 +
+  consistency * 0.10
       ),
     );
 
