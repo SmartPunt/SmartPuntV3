@@ -254,18 +254,31 @@ function normaliseImportedForm(value: string) {
 }
 
 function updateFormStringWithResult(
-  existingForm: string | null,
-  finishingPosition: number,
+  existing: string | null,
+  finishingPosition: number | null,
 ) {
-  const cleanedExisting = String(existingForm || "")
-    .trim()
-    .replace(/[^0-9]/g, "");
+  if (!existing && (finishingPosition === null || finishingPosition === undefined)) {
+    return "";
+  }
 
-  const current = cleanedExisting.split("").filter(Boolean);
+  // Clean existing form (keep digits + x only)
+  const cleaned = (existing || "")
+    .toLowerCase()
+    .replace(/[^0-9x]/g, "")
+    .slice(0, 6);
 
-  const updated = [String(finishingPosition), ...current];
+  if (finishingPosition === null || finishingPosition === undefined) {
+    return cleaned;
+  }
 
-  return updated.slice(0, 6).join("");
+  let resultChar = "";
+
+  if (finishingPosition === 1) resultChar = "1";
+  else if (finishingPosition <= 9) resultChar = String(finishingPosition);
+  else resultChar = "0"; // 10th+
+
+  // prepend and cap to 6 characters
+  return (resultChar + cleaned).slice(0, 6);
 }
 function updateStatRecordWithResult(
   existingRecord: string | null,
