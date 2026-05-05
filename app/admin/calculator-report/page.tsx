@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
+import { SMARTPUNT_SCORING_VERSION } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 
 type SearchValue = string | string[] | undefined;
@@ -204,9 +205,11 @@ function filterByDate(rows: Prediction[], from: string, to: string) {
 }
 
 async function fetchPredictions() {
-  const predictions = await serviceSelect<Prediction>(
-    "calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&order=settled_at.desc",
-  );
+const predictions = await serviceSelect<Prediction>(
+  `calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&scoring_version=eq.${encodeURIComponent(
+    SMARTPUNT_SCORING_VERSION,
+  )}&order=settled_at.desc`,
+);
 
   const raceIds = Array.from(new Set(predictions.map((row) => row.race_id).filter(Boolean)));
   const horseIds = Array.from(new Set(predictions.map((row) => row.horse_id).filter(Boolean)));
