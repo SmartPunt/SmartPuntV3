@@ -132,8 +132,27 @@ function getDistanceBucket(distance?: number | null) {
 function buildStatRows(
   runs: EnrichedRunner[],
   getLabel: (run: EnrichedRunner) => string | null,
+  includeAllDistanceBuckets = false,
 ): StatRow[] {
   const map = new Map<string, StatRow>();
+
+  if (includeAllDistanceBuckets) {
+    [
+      "1000–1200m",
+      "1201–1400m",
+      "1401–1600m",
+      "1601–1800m",
+      "1801–2200m",
+      "2200m+",
+    ].forEach((label) => {
+      map.set(label, {
+        label,
+        runs: 0,
+        wins: 0,
+        places: 0,
+      });
+    });
+  }
 
   runs.forEach((run) => {
     const label = getLabel(run);
@@ -159,7 +178,25 @@ function buildStatRows(
     map.set(label, current);
   });
 
-  return Array.from(map.values()).sort((a, b) => b.runs - a.runs || a.label.localeCompare(b.label));
+  return Array.from(map.values()).sort((a, b) => {
+    const distanceOrder = [
+      "1000–1200m",
+      "1201–1400m",
+      "1401–1600m",
+      "1601–1800m",
+      "1801–2200m",
+      "2200m+",
+    ];
+
+    const aIndex = distanceOrder.indexOf(a.label);
+    const bIndex = distanceOrder.indexOf(b.label);
+
+    if (aIndex !== -1 && bIndex !== -1) {
+      return aIndex - bIndex;
+    }
+
+    return b.runs - a.runs || a.label.localeCompare(b.label);
+  });
 }
 
 function getRaceStatusTone(status?: Race["status"] | null) {
@@ -397,8 +434,10 @@ const uniqueTrainers = Array.from(
 const importedDistanceRecord = parseImportedRecord(importedDistanceSource);
 const importedTrackRecord = parseImportedRecord(importedTrackSource);
 
-const distanceStats = buildStatRows(sortedResultedRuns, (run) =>
-  getDistanceBucket(run.race?.distance_m),
+const distanceStats = buildStatRows(
+  sortedResultedRuns,
+  (run) => getDistanceBucket(run.race?.distance_m),
+  true,
 );
 const trackStats = buildStatRows(sortedResultedRuns, (run) =>
   run.meeting?.meeting_name || null,
