@@ -532,7 +532,7 @@ export default function AdminCalculator({
               <h3 className="text-lg font-semibold">What this version adds</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
                 <p>• Market removed completely</p>
-                <p>• New weighted SmartPunt score</p>
+<p>• New v2 weighted SmartPunt score</p>
                 <p>• Distance-aware barrier logic</p>
                 <p>• Flemington wide-barrier exception</p>
                 <p>• Effective weight using apprentice claim</p>
@@ -544,17 +544,18 @@ export default function AdminCalculator({
 
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <h3 className="text-lg font-semibold">Scoring weights</h3>
-              <div className="mt-4 space-y-2 text-sm text-zinc-600">
-                <p>• Recent form: 30%</p>
-                <p>• Distance: 18%</p>
-                <p>• Track: 14%</p>
-                <p>• Condition: 12%</p>
-                <p>• Barrier: 12%</p>
-                <p>• Weight / claim: 8%</p>
-                <p>• Jockey: 4%</p>
-                <p>• Trainer: 2%</p>
-              </div>
+<h3 className="text-lg font-semibold">Scoring weights v2</h3>
+<div className="mt-4 space-y-2 text-sm text-zinc-600">
+  <p>• Recent form: 26%</p>
+  <p>• Barrier: 16%</p>
+  <p>• Distance: 12%</p>
+  <p>• Track: 9%</p>
+  <p>• Condition: 8%</p>
+  <p>• Weight / claim: 8%</p>
+  <p>• Jockey: 8%</p>
+  <p>• Trainer: 5%</p>
+  <p>• Consistency: 8%</p>
+</div>
             </div>
           </Panel>
 
