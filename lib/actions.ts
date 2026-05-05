@@ -1218,6 +1218,31 @@ export async function signInAction(
   return { error: null };
 }
 
+export async function updateMeetingConditionAction(formData: FormData) {
+  const meetingId = formData.get("meeting_id");
+  const condition = formData.get("track_condition");
+
+  if (!meetingId) {
+    return { success: false, error: "Missing meeting ID" };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("meetings")
+    .update({
+      track_condition: condition || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", Number(meetingId));
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
 export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
