@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v2";
+export const SMARTPUNT_SCORING_VERSION = "v3";
 
 export type Race = {
   id: number;
@@ -224,15 +224,21 @@ function scoreRecentForm(historyRuns: HistoryRun[]) {
   if (!recent.length) return 50;
 
   let points = 0;
+  let wins = 0;
+  const lastThree: number[] = [];
 
   recent.forEach((run, index) => {
     const pos = run.finishing_position;
     if (pos === null || pos === undefined) return;
 
+    lastThree.push(Number(pos));
+
     const recencyWeight = index === 0 ? 1.2 : index === 1 ? 1.05 : 1;
 
-    if (pos === 1) points += 18 * recencyWeight;
-    else if (pos === 2) points += 14 * recencyWeight;
+    if (pos === 1) {
+      points += 18 * recencyWeight;
+      wins += 1;
+    } else if (pos === 2) points += 14 * recencyWeight;
     else if (pos === 3) points += 10 * recencyWeight;
     else if (pos <= 5) points += 6 * recencyWeight;
     else if (pos <= 8) points += 2 * recencyWeight;
@@ -240,7 +246,23 @@ function scoreRecentForm(historyRuns: HistoryRun[]) {
   });
 
   const avg = points / recent.length;
-  return clamp(Math.round(50 + avg), 20, 95);
+  let score = clamp(Math.round(50 + avg), 20, 95);
+
+  if (wins >= 2) score += 6;
+  else if (wins === 1) score += 3;
+
+  if (recent[0]?.finishing_position === 1) score += 4;
+
+  if (wins === 0 && recent.length >= 4) score -= 6;
+
+  if (lastThree.length >= 3) {
+    const [a, b, c] = lastThree;
+
+    if (a < b && b < c) score += 4;
+    if (a > b && b > c) score -= 4;
+  }
+
+  return clamp(score, 20, 95);
 }
 
 function scoreConsistency(historyRuns: HistoryRun[]) {
