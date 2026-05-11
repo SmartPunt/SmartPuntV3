@@ -712,7 +712,7 @@ recentForm * 0.25 +
   track * 0.09 +
   condition * 0.08 +
   barrier * 0.14 +
-  weight * 0.05 +
+  weight * 0.03 +
   jockey * 0.11 +
   trainer * 0.04 +
   consistency * 0.10
