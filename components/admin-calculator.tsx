@@ -101,6 +101,47 @@ export default function AdminCalculator({
     .slice(0, 3);
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
+  const strongestBets = useMemo(() => {
+  return publishedRaces
+    .map((race) => {
+      const scored = calculateRaceScores({
+        activeRace: race,
+        races,
+        runners,
+        horses,
+        meetings,
+      });
+
+      if (!scored.length) return null;
+
+      const top = scored[0];
+      const second = scored[1];
+
+      const gap = second
+        ? roundScore(top.score - second.score)
+        : roundScore(top.score);
+
+      const verdict = getRaceVerdict(scored);
+
+      return {
+        race,
+        top,
+        gap,
+        verdict,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aStrength =
+        Number(a?.top?.score || 0) + Number(a?.gap || 0);
+
+      const bStrength =
+        Number(b?.top?.score || 0) + Number(b?.gap || 0);
+
+      return bStrength - aStrength;
+    })
+    .slice(0, 5);
+}, [horses, meetings, publishedRaces, races, runners]);
 
   const alertCandidates = useMemo(() => {
     const threshold = Number(alertThreshold);
