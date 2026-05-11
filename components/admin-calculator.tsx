@@ -473,7 +473,98 @@ export default function AdminCalculator({
             </div>
           </Panel>
         </div>
+<Panel className="mt-6 bg-white/95">
+  <div className="p-6 text-zinc-950">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h2 className="text-xl font-semibold">
+          🔥 Strongest bets of the day
+        </h2>
 
+        <p className="text-sm text-zinc-500">
+          Highest-rated calculator opportunities across all published races.
+        </p>
+      </div>
+
+      <Badge tone="green">{strongestBets.length} ranked</Badge>
+    </div>
+
+    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      {strongestBets.map((item, index) => (
+        <div
+          key={item?.race?.id}
+          className="rounded-[24px] border border-amber-200/30 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-zinc-500">
+                #{index + 1} strongest play
+              </p>
+
+              <h3 className="mt-1 text-2xl font-bold text-zinc-950">
+                {item?.top?.horse_name}
+              </h3>
+
+              <p className="mt-2 text-sm text-zinc-600">
+                {item?.top?.meeting_name} · R
+                {item?.race?.race_number}{" "}
+                {item?.race?.race_name}
+              </p>
+            </div>
+
+            <Badge tone="green">
+              Score {roundScore(item?.top?.score || 0)}
+            </Badge>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Badge tone="green">
+              Win {item?.top?.winPercent}%
+            </Badge>
+
+            <Badge tone="blue">
+              Place {item?.top?.placePercent}%
+            </Badge>
+
+            <Badge tone="amber">
+              Gap +{item?.gap}
+            </Badge>
+
+            {item?.verdict ? (
+              <Badge tone="slate">
+                {item.verdict.type}
+              </Badge>
+            ) : null}
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
+            <div className="grid grid-cols-4 gap-3 text-center">
+              {[
+                ["Form", item?.top?.components?.recentForm],
+                ["Distance", item?.top?.components?.distance],
+                ["Track", item?.top?.components?.track],
+                ["Barrier", item?.top?.components?.barrier],
+              ].map(([label, score]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-2xl bg-zinc-50 p-3"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                    {label}
+                  </p>
+
+                  <p className="mt-2 text-sm font-bold text-zinc-900">
+                    {roundScore(Number(score))}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</Panel>
         <Panel className="mt-6 bg-white/95">
           <div className="p-6 text-zinc-950">
             <div className="flex items-center justify-between gap-3">
