@@ -24,8 +24,10 @@ export type Runner = {
   weight_kg?: number | null;
   is_apprentice?: boolean | null;
   apprentice_claim_kg?: number | null;
-  form_last_3?: string | null;
-  form_last_6?: string | null;
+form_last_3?: string | null;
+form_last_6?: string | null;
+track_form_last_6?: string | null;
+distance_form_last_6?: string | null;
   finishing_position?: number | null;
   starting_price?: number | null;
   won?: boolean | null;
@@ -217,6 +219,103 @@ function evidenceCap(score: number, evidenceCount: number) {
   if (evidenceCount === 1) return clamp(score, 25, 60);
   if (evidenceCount === 2) return clamp(score, 25, 72);
   return clamp(score, 25, 95);
+}
+
+function parseImportedFormString(form?: string | null) {
+  if (!form) return [];
+
+  return String(form)
+    .replace(/[^0-9xX]/g, "")
+    .split("")
+    .map((char) => {
+      if (char.toLowerCase() === "x") return 10;
+
+      const num = Number(char);
+
+      if (!Number.isFinite(num) || num <= 0) return 10;
+
+      return num;
+    })
+    .slice(0, 6);
+}
+
+function scoreImportedRecentForm(form?: string | null) {
+  const runs = parseImportedFormString(form);
+
+  if (!runs.length) return 50;
+
+  let points = 0;
+  let wins = 0;
+
+  runs.forEach((pos, index) => {
+    const recencyWeight = index === 0 ? 1.2 : index === 1 ? 1.05 : 1;
+
+    if (pos === 1) {
+      points += 18 * recencyWeight;
+      wins += 1;
+    } else if (pos === 2) {
+      points += 14 * recencyWeight;
+    } else if (pos === 3) {
+      points += 10 * recencyWeight;
+    } else if (pos <= 5) {
+      points += 6 * recencyWeight;
+    } else if (pos <= 8) {
+      points += 2 * recencyWeight;
+    } else {
+      points -= 4 * recencyWeight;
+    }
+  });
+
+  let score = clamp(Math.round(50 + points / runs.length), 20, 95);
+
+  if (wins >= 3) score += 10;
+  else if (wins === 2) score += 6;
+  else if (wins === 1) score += 3;
+
+  if (runs[0] === 1) score += 6;
+
+  return clamp(score, 20, 95);
+}
+
+function parseImportedStatRecord(record?: string | null) {
+  if (!record) {
+    return {
+      runs: 0,
+      wins: 0,
+      places: 0,
+    };
+  }
+
+  const match = String(record).match(/(\d+)\s*:\s*(\d+),(\d+),(\d+)/);
+
+  if (!match) {
+    return {
+      runs: 0,
+      wins: 0,
+      places: 0,
+    };
+  }
+
+  return {
+    runs: Number(match[1]) || 0,
+    wins: Number(match[2]) || 0,
+    places: Number(match[3]) || 0,
+  };
+}
+
+function scoreImportedStatRecord(record?: string | null) {
+  const stats = parseImportedStatRecord(record);
+
+  if (!stats.runs) return 50;
+
+  const placeRate = stats.places / stats.runs;
+  const winRate = stats.wins / stats.runs;
+
+  const rawScore = Math.round(
+    42 + placeRate * 30 + winRate * 22,
+  );
+
+  return evidenceCap(rawScore, stats.runs);
 }
 
 function scoreRecentForm(historyRuns: HistoryRun[]) {
