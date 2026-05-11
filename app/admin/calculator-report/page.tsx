@@ -306,13 +306,21 @@ async function fetchPredictions() {
 
   const runnerMap = new Map(raceRunners.map((row) => [Number(row.id), row]));
 
-  const horseIds = Array.from(
-    new Set(
-      predictions
-        .flatMap((row) => [row.horse_id, runnerMap.get(Number(row.runner_id))?.horse_id])
-        .filter(Boolean),
-    ),
-  );
+const horseIds = Array.from(
+  new Set(
+    predictions
+      .flatMap((row) => [
+        row.horse_id,
+        runnerMap.get(Number(row.runner_id))?.horse_id,
+      ])
+      .filter(
+        (id): id is number =>
+          typeof id === "number" &&
+          Number.isFinite(id) &&
+          id > 0,
+      ),
+  ),
+);
 
   const [races, horses] = await Promise.all([
     serviceSelectByIdChunks<RaceRow>({
