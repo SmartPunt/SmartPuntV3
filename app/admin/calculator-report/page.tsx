@@ -279,17 +279,22 @@ const predictions = await serviceSelectAllRows<Prediction>(
   const raceMap = new Map(races.map((row) => [Number(row.id), row]));
   const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
   const horseMap = new Map(horses.map((row) => [Number(row.id), row]));
+  const runnerMap = new Map(
+  raceRunners.map((row) => [Number(row.id), row]),
+);
 
   return predictions.map((prediction) => {
     const race = raceMap.get(Number(prediction.race_id)) || null;
     const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
     const horse = horseMap.get(Number(prediction.horse_id)) || null;
+    const runner = runnerMap.get(Number(prediction.runner_id)) || null;
 
-    return {
-      ...prediction,
-      race: race ? { ...race, meeting } : null,
-      horse,
-    };
+return {
+  ...prediction,
+  race: race ? { ...race, meeting } : null,
+  horse,
+  runner_horse_name: runner?.horse_name || null,
+};
   });
 }
 
@@ -659,7 +664,7 @@ export default async function CalculatorReportPage({
                               {race.rows.map((row) => (
                                 <tr key={row.id} className="border-b border-zinc-100 last:border-0">
                                   <td className="py-3 pr-3 font-semibold">#{row.rank}</td>
-                                  <td className="py-3 pr-3 font-semibold text-zinc-950">{row.horse?.horse_name || "Unknown"}</td>
+                                  <td className="py-3 pr-3 font-semibold text-zinc-950">{row.horse?.horse_name || row.runner_horse_name || "Unknown"}</td>
                                   <td className="py-3 pr-3">{Math.round(toNumber(row.score))}</td>
                                   <td className="py-3 pr-3">{row.win_percent}%</td>
                                   <td className="py-3 pr-3">{row.place_percent}%</td>
