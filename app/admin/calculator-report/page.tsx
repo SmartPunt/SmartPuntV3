@@ -32,7 +32,6 @@ type Prediction = {
   settled_at: string | null;
   race?: RaceWithMeeting | null;
   horse?: { horse_name: string } | null;
-  runner_horse_name?: string | null;
 };
 
 type RaceRow = {
@@ -58,6 +57,11 @@ type RaceWithMeeting = RaceRow & {
 type HorseRow = {
   id: number;
   horse_name: string;
+};
+
+type RaceRunnerRow = {
+  id: number;
+  horse_id: number | null;
 };
 
 function headers() {
@@ -198,6 +202,10 @@ function buildQuery(params: Record<string, string>) {
   return value ? `?${value}` : "";
 }
 
+function getHorseName(row: Prediction) {
+  return row.horse?.horse_name || "Unknown";
+}
+
 function raceLabel(row: Prediction) {
   const meeting = row.race?.meeting?.meeting_name || "Meeting";
   const raceNumber = row.race?.race_number ? `R${row.race.race_number}` : "Race";
@@ -243,15 +251,33 @@ function filterByDate(rows: Prediction[], from: string, to: string) {
 }
 
 async function fetchPredictions() {
-const predictions = await serviceSelectAllRows<Prediction>(
-  `calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&scoring_version=eq.${encodeURIComponent(
-    SMARTPUNT_SCORING_VERSION,
-  )}&order=settled_at.desc`,
-);
+  const predictions = await serviceSelectAllRows<Prediction>(
+    `calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&scoring_version=eq.${encodeURIComponent(
+      SMARTPUNT_SCORING_VERSION,
+    )}&order=settled_at.desc`,
+  );
 
   const raceIds = Array.from(new Set(predictions.map((row) => row.race_id).filter(Boolean)));
-  const horseIds = Array.from(new Set(predictions.map((row) => row.horse_id).filter(Boolean)));
   const runnerIds = Array.from(new Set(predictions.map((row) => row.runner_id).filter(Boolean)));
+
+  const raceRunners = runnerIds.length
+    ? await serviceSelect<RaceRunnerRow>(
+        `race_runners?select=id,horse_id&id=in.(${runnerIds.join(",")})`,
+      )
+    : [];
+
+  const runnerMap = new Map(raceRunners.map((row) => [Number(row.id), row]));
+
+  const horseIds = Array.from(
+    new Set(
+      predictions
+        .flatMap((row) => [
+          row.horse_id,
+          runnerMap.get(Number(row.runner_id))?.horse_id,
+        ])
+        .filter(Boolean),
+    ),
+  );
 
   const races = raceIds.length
     ? await serviceSelect<RaceRow>(
@@ -270,31 +296,25 @@ const predictions = await serviceSelectAllRows<Prediction>(
   const horses = horseIds.length
     ? await serviceSelect<HorseRow>(`horses?select=id,horse_name&id=in.(${horseIds.join(",")})`)
     : [];
-  const raceRunners = runnerIds.length
-  ? await serviceSelect<any>(
-      `race_runners?select=*&id=in.(${runnerIds.join(",")})`,
-    )
-  : [];
 
   const raceMap = new Map(races.map((row) => [Number(row.id), row]));
   const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
   const horseMap = new Map(horses.map((row) => [Number(row.id), row]));
-  const runnerMap = new Map(
-  raceRunners.map((row) => [Number(row.id), row]),
-);
 
   return predictions.map((prediction) => {
     const race = raceMap.get(Number(prediction.race_id)) || null;
     const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
-    const horse = horseMap.get(Number(prediction.horse_id)) || null;
     const runner = runnerMap.get(Number(prediction.runner_id)) || null;
+    const horse =
+      horseMap.get(Number(prediction.horse_id)) ||
+      horseMap.get(Number(runner?.horse_id)) ||
+      null;
 
-return {
-  ...prediction,
-  race: race ? { ...race, meeting } : null,
-  horse,
-  runner_horse_name: runner?.horse_name || null,
-};
+    return {
+      ...prediction,
+      race: race ? { ...race, meeting } : null,
+      horse,
+    };
   });
 }
 
@@ -543,7 +563,7 @@ export default async function CalculatorReportPage({
               {strongestWinner ? (
                 <div className="mt-4 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
                   <p className="text-sm text-zinc-600">{raceLabel(strongestWinner)}</p>
-                  <h3 className="mt-1 text-2xl font-bold">{strongestWinner.horse?.horse_name || "Unknown horse"}</h3>
+                  <h3 className="mt-1 text-2xl font-bold">{getHorseName(strongestWinner)}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="green">Won</Badge>
                     <Badge tone="amber">Rank #{strongestWinner.rank}</Badge>
@@ -562,7 +582,7 @@ export default async function CalculatorReportPage({
               {biggestMiss ? (
                 <div className="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-5">
                   <p className="text-sm text-zinc-600">{raceLabel(biggestMiss)}</p>
-                  <h3 className="mt-1 text-2xl font-bold">{biggestMiss.horse?.horse_name || "Unknown horse"}</h3>
+                  <h3 className="mt-1 text-2xl font-bold">{getHorseName(biggestMiss)}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="rose">Finished {biggestMiss.finishing_position}</Badge>
                     <Badge tone="amber">Rank #{biggestMiss.rank}</Badge>
@@ -608,7 +628,7 @@ export default async function CalculatorReportPage({
                               {race.label}
                             </h3>
                             <p className="mt-2 text-sm text-zinc-600">
-                              Top rated: {topRated?.horse?.horse_name || "—"} · Winner: {raceWinner?.horse?.horse_name || "—"}
+                              Top rated: {topRated ? getHorseName(topRated) : "—"} · Winner: {raceWinner ? getHorseName(raceWinner) : "—"}
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -627,7 +647,7 @@ export default async function CalculatorReportPage({
                         <div className="grid gap-3 md:grid-cols-2">
                           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Top rated</p>
-                            <p className="mt-2 font-bold text-zinc-950">{topRated?.horse?.horse_name || "—"}</p>
+                            <p className="mt-2 font-bold text-zinc-950">{topRated ? getHorseName(topRated) : "—"}</p>
                             <p className="mt-1 text-sm text-zinc-600">
                               Score {Math.round(toNumber(topRated?.score))} · Win {topRated?.win_percent ?? 0}% · Place {topRated?.place_percent ?? 0}%
                             </p>
@@ -635,7 +655,7 @@ export default async function CalculatorReportPage({
 
                           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Winner</p>
-                            <p className="mt-2 font-bold text-zinc-950">{raceWinner?.horse?.horse_name || "—"}</p>
+                            <p className="mt-2 font-bold text-zinc-950">{raceWinner ? getHorseName(raceWinner) : "—"}</p>
                             <p className="mt-1 text-sm text-zinc-600">
                               Calculator rank #{raceWinner?.rank ?? "—"} · Score {raceWinner ? Math.round(toNumber(raceWinner.score)) : "—"}
                             </p>
@@ -664,7 +684,7 @@ export default async function CalculatorReportPage({
                               {race.rows.map((row) => (
                                 <tr key={row.id} className="border-b border-zinc-100 last:border-0">
                                   <td className="py-3 pr-3 font-semibold">#{row.rank}</td>
-                                  <td className="py-3 pr-3 font-semibold text-zinc-950">{row.horse?.horse_name || row.runner_horse_name || "Unknown"}</td>
+                                  <td className="py-3 pr-3 font-semibold text-zinc-950">{getHorseName(row)}</td>
                                   <td className="py-3 pr-3">{Math.round(toNumber(row.score))}</td>
                                   <td className="py-3 pr-3">{row.win_percent}%</td>
                                   <td className="py-3 pr-3">{row.place_percent}%</td>
