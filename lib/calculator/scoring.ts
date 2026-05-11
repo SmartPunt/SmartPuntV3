@@ -384,17 +384,25 @@ function scoreBarrier(
     return 54;
   }
 
-  if (distance && distance <= 1200) {
-    if (barrier <= 4) return 82;
-    if (barrier <= 8) return 58;
-    return 32;
-  }
+if (distance && distance <= 1200) {
+  if (barrier <= 4) return 82;
+  if (barrier <= 8) return 60;
+  if (barrier <= 12) return 44;
+  return 34;
+}
 
-  if (barrier <= 3) return 73;
-  if (barrier <= 6) return 66;
-  if (barrier <= 9) return 58;
-  if (barrier <= 12) return 50;
-  return 42;
+if (distance && distance <= 1400) {
+  if (barrier <= 4) return 74;
+  if (barrier <= 8) return 66;
+  if (barrier <= 12) return 56;
+  return 48;
+}
+
+// 1400m+ barrier becomes much less important
+if (barrier <= 4) return 68;
+if (barrier <= 8) return 64;
+if (barrier <= 12) return 60;
+return 56;
 }
 
 export function getEffectiveWeight(runner: Runner) {
