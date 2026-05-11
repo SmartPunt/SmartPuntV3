@@ -798,9 +798,36 @@ export function calculateRaceScores({
       activeRace.id,
     );
 
-    const recentForm = scoreRecentForm(historyRuns);
-    const distance = scoreDistanceSuitability(historyRuns, activeRace.distance_m);
-    const track = scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name);
+const recentForm =
+  historyRuns.length >= 3
+    ? scoreRecentForm(historyRuns)
+    : Math.round(
+        (scoreRecentForm(historyRuns) * 0.35) +
+          (scoreImportedRecentForm(runner.form_last_6) * 0.65),
+      );
+
+const distance =
+  historyRuns.filter(
+    (run) =>
+      getDistanceBucket(run.race?.distance_m) ===
+      getDistanceBucket(activeRace.distance_m),
+  ).length >= 2
+    ? scoreDistanceSuitability(historyRuns, activeRace.distance_m)
+    : Math.round(
+        (scoreDistanceSuitability(historyRuns, activeRace.distance_m) * 0.4) +
+          (scoreImportedStatRecord(runner.distance_form_last_6) * 0.6),
+      );
+
+const track =
+  historyRuns.filter(
+    (run) =>
+      run.meeting?.meeting_name === raceMeeting?.meeting_name,
+  ).length >= 2
+    ? scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name)
+    : Math.round(
+        (scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name) * 0.4) +
+          (scoreImportedStatRecord(runner.track_form_last_6) * 0.6),
+      );
     const condition = scoreConditionSuitability(historyRuns, raceMeeting?.track_condition);
     const barrier = scoreBarrier(
       runner.barrier,
