@@ -227,9 +227,9 @@ function parseImportedFormString(form?: string | null) {
   return String(form)
     .replace(/[^0-9xX]/g, "")
     .split("")
+    .filter((char) => char.toLowerCase() !== "x")
+    .reverse()
     .map((char) => {
-      if (char.toLowerCase() === "x") return 10;
-
       const num = Number(char);
 
       if (!Number.isFinite(num) || num <= 0) return 10;
@@ -296,11 +296,15 @@ function parseImportedStatRecord(record?: string | null) {
     };
   }
 
-  return {
-    runs: Number(match[1]) || 0,
-    wins: Number(match[2]) || 0,
-    places: Number(match[3]) || 0,
-  };
+const wins = Number(match[2]) || 0;
+const seconds = Number(match[3]) || 0;
+const thirds = Number(match[4]) || 0;
+
+return {
+  runs: Number(match[1]) || 0,
+  wins,
+  places: wins + seconds + thirds,
+};
 }
 
 function scoreImportedStatRecord(record?: string | null) {
