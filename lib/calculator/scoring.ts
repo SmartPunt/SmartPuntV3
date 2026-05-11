@@ -180,37 +180,47 @@ export function getRaceVerdict(runners: ScoredRunner[]): RaceVerdict | null {
   const scoreGap = second ? top.score - second.score : 0;
   const topFourCompression = fourth ? top.score - fourth.score : scoreGap;
 
-  if (fourth && topFourCompression <= 4) {
-    return {
-      type: "No Bet",
-      confidence: "Low Edge",
-      reason:
-        "Race is tightly compressed across the top four runners. No clear calculator edge.",
-    };
-  }
-
-  if (top.winPercent >= 30 && scoreGap >= 7) {
+  if (top.score >= 72 && scoreGap >= 5) {
     return {
       type: "Win",
       confidence: "Strong",
       reason:
-        "Clear top-rated runner with strong profile and meaningful separation from the field.",
+        "Clear top-rated runner with a strong score and enough separation from the main dangers.",
     };
   }
 
-  if (top.placePercent >= 58 && scoreGap >= 4) {
+  if (top.score >= 66 && scoreGap >= 3) {
     return {
       type: "Place",
       confidence: "Safe",
       reason:
-        "Rates consistently above the field and profiles better to place than win.",
+        "Top-rated runner has a solid profile and enough edge to be considered a safer place play.",
+    };
+  }
+
+  if (top.score >= 62 && top.placePercent >= 45) {
+    return {
+      type: "Place",
+      confidence: "Safe",
+      reason:
+        "No standout win edge, but the top-rated runner profiles as a reasonable place option.",
+    };
+  }
+
+  if (fourth && topFourCompression <= 3 && top.score < 64) {
+    return {
+      type: "No Bet",
+      confidence: "Low Edge",
+      reason:
+        "Race is tightly compressed across the main chances with no clear calculator edge.",
     };
   }
 
   return {
-    type: "No Bet",
+    type: "Place",
     confidence: "Low Edge",
-    reason: "Race is too competitive with no strong edge identified.",
+    reason:
+      "Calculator has found a preferred runner, but the race lacks enough separation for a strong win call.",
   };
 }
 
