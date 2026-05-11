@@ -32,6 +32,7 @@ type Prediction = {
   settled_at: string | null;
   race?: RaceWithMeeting | null;
   horse?: { horse_name: string } | null;
+  runner_horse_name?: string | null;
 };
 
 type RaceRow = {
