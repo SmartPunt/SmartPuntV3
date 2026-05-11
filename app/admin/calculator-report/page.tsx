@@ -85,7 +85,6 @@ function headers() {
 
 async function serviceSelect<T>(path: string): Promise<T[]> {
   const { supabaseUrl, headers: h } = headers();
-
   const separator = path.includes("?") ? "&" : "?";
   const pathWithLimit = `${path}${separator}limit=1000`;
 
@@ -127,14 +126,53 @@ async function serviceSelectAllRows<T>(path: string): Promise<T[]> {
     const rows = (await response.json()) as T[];
     allRows.push(...rows);
 
-    if (rows.length < pageSize) {
-      break;
-    }
+    if (rows.length < pageSize) break;
 
     offset += pageSize;
   }
 
   return allRows;
+}
+
+function chunkValues<T>(values: T[], size = 400) {
+  const chunks: T[][] = [];
+
+  for (let i = 0; i < values.length; i += size) {
+    chunks.push(values.slice(i, i + size));
+  }
+
+  return chunks;
+}
+
+async function serviceSelectByIdChunks<T>({
+  table,
+  select,
+  ids,
+}: {
+  table: string;
+  select: string;
+  ids: Array<number | string>;
+}): Promise<T[]> {
+  const cleanIds = Array.from(
+    new Set(
+      ids
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0),
+    ),
+  );
+
+  if (!cleanIds.length) return [];
+
+  const rows: T[] = [];
+
+  for (const chunk of chunkValues(cleanIds)) {
+    const chunkRows = await serviceSelect<T>(
+      `${table}?select=${select}&id=in.(${chunk.join(",")})`,
+    );
+    rows.push(...chunkRows);
+  }
+
+  return rows;
 }
 
 function first(value: SearchValue) {
@@ -260,42 +298,42 @@ async function fetchPredictions() {
   const raceIds = Array.from(new Set(predictions.map((row) => row.race_id).filter(Boolean)));
   const runnerIds = Array.from(new Set(predictions.map((row) => row.runner_id).filter(Boolean)));
 
-  const raceRunners = runnerIds.length
-    ? await serviceSelect<RaceRunnerRow>(
-        `race_runners?select=id,horse_id&id=in.(${runnerIds.join(",")})`,
-      )
-    : [];
+  const raceRunners = await serviceSelectByIdChunks<RaceRunnerRow>({
+    table: "race_runners",
+    select: "id,horse_id",
+    ids: runnerIds,
+  });
 
   const runnerMap = new Map(raceRunners.map((row) => [Number(row.id), row]));
 
   const horseIds = Array.from(
     new Set(
       predictions
-        .flatMap((row) => [
-          row.horse_id,
-          runnerMap.get(Number(row.runner_id))?.horse_id,
-        ])
+        .flatMap((row) => [row.horse_id, runnerMap.get(Number(row.runner_id))?.horse_id])
         .filter(Boolean),
     ),
   );
 
-  const races = raceIds.length
-    ? await serviceSelect<RaceRow>(
-        `races?select=id,race_number,race_name,distance_m,meeting_id,status&id=in.(${raceIds.join(",")})`,
-      )
-    : [];
+  const [races, horses] = await Promise.all([
+    serviceSelectByIdChunks<RaceRow>({
+      table: "races",
+      select: "id,race_number,race_name,distance_m,meeting_id,status",
+      ids: raceIds,
+    }),
+    serviceSelectByIdChunks<HorseRow>({
+      table: "horses",
+      select: "id,horse_name",
+      ids: horseIds,
+    }),
+  ]);
 
   const meetingIds = Array.from(new Set(races.map((row) => row.meeting_id).filter(Boolean)));
 
-  const meetings = meetingIds.length
-    ? await serviceSelect<MeetingRow>(
-        `meetings?select=id,meeting_name,meeting_date,track_condition&id=in.(${meetingIds.join(",")})`,
-      )
-    : [];
-
-  const horses = horseIds.length
-    ? await serviceSelect<HorseRow>(`horses?select=id,horse_name&id=in.(${horseIds.join(",")})`)
-    : [];
+  const meetings = await serviceSelectByIdChunks<MeetingRow>({
+    table: "meetings",
+    select: "id,meeting_name,meeting_date,track_condition",
+    ids: meetingIds,
+  });
 
   const raceMap = new Map(races.map((row) => [Number(row.id), row]));
   const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
