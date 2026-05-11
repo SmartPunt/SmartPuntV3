@@ -81,7 +81,10 @@ function headers() {
 async function serviceSelect<T>(path: string): Promise<T[]> {
   const { supabaseUrl, headers: h } = headers();
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+  const separator = path.includes("?") ? "&" : "?";
+  const pathWithLimit = `${path}${separator}limit=1000`;
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/${pathWithLimit}`, {
     method: "GET",
     headers: h,
     cache: "no-store",
@@ -93,6 +96,40 @@ async function serviceSelect<T>(path: string): Promise<T[]> {
   }
 
   return response.json();
+}
+
+async function serviceSelectAllRows<T>(path: string): Promise<T[]> {
+  const allRows: T[] = [];
+  let offset = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const { supabaseUrl, headers: h } = headers();
+    const separator = path.includes("?") ? "&" : "?";
+    const pagedPath = `${path}${separator}limit=${pageSize}&offset=${offset}`;
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/${pagedPath}`, {
+      method: "GET",
+      headers: h,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `Service role request failed for ${path}`);
+    }
+
+    const rows = (await response.json()) as T[];
+    allRows.push(...rows);
+
+    if (rows.length < pageSize) {
+      break;
+    }
+
+    offset += pageSize;
+  }
+
+  return allRows;
 }
 
 function first(value: SearchValue) {
@@ -205,7 +242,7 @@ function filterByDate(rows: Prediction[], from: string, to: string) {
 }
 
 async function fetchPredictions() {
-const predictions = await serviceSelect<Prediction>(
+const predictions = await serviceSelectAllRows<Prediction>(
   `calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&scoring_version=eq.${encodeURIComponent(
     SMARTPUNT_SCORING_VERSION,
   )}&order=settled_at.desc`,
