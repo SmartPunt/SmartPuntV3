@@ -101,8 +101,17 @@ export default function AdminCalculator({
     .slice(0, 3);
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
-  const strongestBets = useMemo(() => {
+const strongestBets = useMemo(() => {
+  const today = new Date().toISOString().slice(0, 10);
+
   return publishedRaces
+    .filter((race) => {
+      const meeting = meetings.find(
+        (item) => item.id === race.meeting_id,
+      );
+
+      return meeting?.meeting_date === today;
+    })
     .map((race) => {
       const scored = calculateRaceScores({
         activeRace: race,
@@ -133,10 +142,12 @@ export default function AdminCalculator({
     .filter(Boolean)
     .sort((a, b) => {
       const aStrength =
-        Number(a?.top?.score || 0) + Number(a?.gap || 0);
+        Number(a?.top?.score || 0) +
+        Number(a?.gap || 0);
 
       const bStrength =
-        Number(b?.top?.score || 0) + Number(b?.gap || 0);
+        Number(b?.top?.score || 0) +
+        Number(b?.gap || 0);
 
       return bStrength - aStrength;
     })
@@ -478,11 +489,11 @@ export default function AdminCalculator({
     <div className="flex items-center justify-between gap-3">
       <div>
         <h2 className="text-xl font-semibold">
-          🔥 Strongest bets of the day
+🔥 Today’s strongest bets
         </h2>
 
         <p className="text-sm text-zinc-500">
-          Highest-rated calculator opportunities across all published races.
+Highest-rated calculator opportunities across today’s published races.
         </p>
       </div>
 
