@@ -251,6 +251,7 @@ const predictions = await serviceSelectAllRows<Prediction>(
 
   const raceIds = Array.from(new Set(predictions.map((row) => row.race_id).filter(Boolean)));
   const horseIds = Array.from(new Set(predictions.map((row) => row.horse_id).filter(Boolean)));
+  const runnerIds = Array.from(new Set(predictions.map((row) => row.runner_id).filter(Boolean)));
 
   const races = raceIds.length
     ? await serviceSelect<RaceRow>(
@@ -269,6 +270,11 @@ const predictions = await serviceSelectAllRows<Prediction>(
   const horses = horseIds.length
     ? await serviceSelect<HorseRow>(`horses?select=id,horse_name&id=in.(${horseIds.join(",")})`)
     : [];
+  const raceRunners = runnerIds.length
+  ? await serviceSelect<any>(
+      `race_runners?select=id,horse_name&id=in.(${runnerIds.join(",")})`,
+    )
+  : [];
 
   const raceMap = new Map(races.map((row) => [Number(row.id), row]));
   const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
