@@ -1136,9 +1136,9 @@ export default function RaceBuilderPage({
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold">Quick race import</h2>
-                  <p className="text-sm text-zinc-500">
-                    Paste one raw race from Tabtouch here, preview it, then import runners into a selected draft race.
-                  </p>
+<p className="text-sm text-zinc-500">
+  Paste one raw race here, preview it, then import runners into a selected draft race.
+</p>
                 </div>
                 <Badge tone="amber">Stage 2</Badge>
               </div>
@@ -1183,7 +1183,7 @@ export default function RaceBuilderPage({
 
               <Field
                 label="Paste raw race text"
-                hint="Paste the messy Tabtouch race text exactly as copied. SmartPunt will parse the runners for preview."
+hint="Paste the raw race text exactly as copied. SmartPunt will parse the runners for preview."
               >
                 <textarea
                   value={importText}
