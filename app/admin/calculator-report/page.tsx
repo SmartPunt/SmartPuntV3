@@ -272,7 +272,7 @@ const predictions = await serviceSelectAllRows<Prediction>(
     : [];
   const raceRunners = runnerIds.length
   ? await serviceSelect<any>(
-      `race_runners?select=id,horse_name&id=in.(${runnerIds.join(",")})`,
+      `race_runners?select=*&id=in.(${runnerIds.join(",")})`,
     )
   : [];
 
