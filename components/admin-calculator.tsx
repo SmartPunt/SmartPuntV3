@@ -102,7 +102,12 @@ export default function AdminCalculator({
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
 const strongestBets = useMemo(() => {
-  const today = new Date().toISOString().slice(0, 10);
+const today = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Australia/Perth",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(new Date());
 
   return publishedRaces
     .filter((race) => {
