@@ -790,17 +790,24 @@ export function calculateRaceScores({
 }): ScoredRunner[] {
   if (!activeRace) return [];
 
-  const raceMeeting = meetings.find(
-    (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
-  ) || null;
-  const field = runners.filter((runner) => Number(runner.race_id) === Number(activeRace.id));
-  const fieldEffectiveWeights = field.map((runner) => getEffectiveWeight(runner));
-  const allHistoryRuns = buildAllHistoryRuns(
-    runners,
-    races,
-    meetings,
-    activeRace.id,
-  );
+ const raceMeeting = meetings.find(
+  (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
+) || null;
+
+const field = runners.filter(
+  (runner) =>
+    Number(runner.race_id) === Number(activeRace.id) &&
+    runner.scratched !== true,
+);
+
+const fieldEffectiveWeights = field.map((runner) => getEffectiveWeight(runner));
+
+const allHistoryRuns = buildAllHistoryRuns(
+  runners,
+  races,
+  meetings,
+  activeRace.id,
+);
 
   const baseScored = field.map((runner) => {
     const horse = horses.find((item) => Number(item.id) === Number(runner.horse_id));
