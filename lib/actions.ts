@@ -2389,28 +2389,63 @@ if (horseIds.length > 0) {
       horseRow?.distance_form_last_6 ||
       String(matchingRunner?.distance_form_last_6 || "");
 
-    const { error: horseUpdateError } = await supabase
-      .from("horses")
-      .update({
-        form_last_6: updateFormStringWithResult(
-          existingHorseForm || null,
-          Number(update.finishing_position),
-        ),
-        track_form_last_6: updateStatRecordWithResult(
-          existingTrackForm || null,
-          Number(update.finishing_position),
-        ),
-        distance_form_last_6: updateStatRecordWithResult(
-          existingDistanceForm || null,
-          Number(update.finishing_position),
-        ),
-        updated_at: now,
-      })
-      .eq("id", horseId);
+const trackCondition = String(
+  raceMeeting?.track_condition || "",
+).toLowerCase();
 
-    if (horseUpdateError) {
-      return { success: false, error: horseUpdateError.message };
-    }
+const { error: horseUpdateError } = await supabase
+  .from("horses")
+  .update({
+    form_last_6: updateFormStringWithResult(
+      existingHorseForm || null,
+      Number(update.finishing_position),
+    ),
+
+    track_form_last_6: updateStatRecordWithResult(
+      existingTrackForm || null,
+      Number(update.finishing_position),
+    ),
+
+    distance_form_last_6: updateStatRecordWithResult(
+      existingDistanceForm || null,
+      Number(update.finishing_position),
+    ),
+
+    good_track_record: trackCondition.startsWith("good")
+      ? updateStatRecordWithResult(
+          horseRow?.good_track_record || null,
+          Number(update.finishing_position),
+        )
+      : horseRow?.good_track_record || null,
+
+    soft_track_record: trackCondition.startsWith("soft")
+      ? updateStatRecordWithResult(
+          horseRow?.soft_track_record || null,
+          Number(update.finishing_position),
+        )
+      : horseRow?.soft_track_record || null,
+
+    heavy_track_record: trackCondition.startsWith("heavy")
+      ? updateStatRecordWithResult(
+          horseRow?.heavy_track_record || null,
+          Number(update.finishing_position),
+        )
+      : horseRow?.heavy_track_record || null,
+
+    synthetic_track_record: trackCondition.startsWith("synthetic")
+      ? updateStatRecordWithResult(
+          horseRow?.synthetic_track_record || null,
+          Number(update.finishing_position),
+        )
+      : horseRow?.synthetic_track_record || null,
+
+    updated_at: now,
+  })
+  .eq("id", horseId);
+
+if (horseUpdateError) {
+  return { success: false, error: horseUpdateError.message };
+}
   }
 }
 
