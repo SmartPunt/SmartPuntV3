@@ -2310,7 +2310,17 @@ export async function settleRaceRunnersAction(
 if (horseIds.length > 0) {
   const { data: horseRows, error: horseFetchError } = await supabase
     .from("horses")
-    .select("id, horse_name, form_last_6, track_form_last_6, distance_form_last_6")
+.select(`
+  id,
+  horse_name,
+  form_last_6,
+  track_form_last_6,
+  distance_form_last_6,
+  good_track_record,
+  soft_track_record,
+  heavy_track_record,
+  synthetic_track_record
+`)
     .in("id", horseIds);
 
   if (horseFetchError) {
