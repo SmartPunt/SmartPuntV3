@@ -156,7 +156,7 @@ const today = new Intl.DateTimeFormat("en-CA", {
 
       return bStrength - aStrength;
     })
-    .slice(0, 5);
+    .slice(0, 6);
 }, [horses, meetings, publishedRaces, races, runners]);
 
   const alertCandidates = useMemo(() => {
@@ -502,7 +502,7 @@ Highest-rated calculator opportunities across today’s published races.
         </p>
       </div>
 
-      <Badge tone="green">{strongestBets.length} ranked</Badge>
+<Badge tone="green">Top {strongestBets.length}</Badge>
     </div>
 
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
