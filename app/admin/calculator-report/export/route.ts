@@ -180,17 +180,47 @@ async function fetchPredictions() {
   const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
   const horseMap = new Map(horses.map((row) => [Number(row.id), row]));
 
-  return predictions.map((prediction) => {
-    const race = raceMap.get(Number(prediction.race_id)) || null;
-    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
-    const horse = horseMap.get(Number(prediction.horse_id)) || null;
+const runnerIds = Array.from(
+  new Set(predictions.map((row) => row.runner_id).filter(Boolean)),
+);
 
-    return {
-      ...prediction,
-      race: race ? { ...race, meeting } : null,
-      horse,
-    };
-  });
+const raceRunners = runnerIds.length
+  ? await serviceSelectAllRows<any>(
+      `race_runners?select=id,horse_name,horse_id&id=in.(${runnerIds.join(",")})`,
+    )
+  : [];
+
+const runnerMap = new Map(
+  raceRunners.map((row) => [Number(row.id), row]),
+);
+
+return predictions.map((prediction) => {
+  const race = raceMap.get(Number(prediction.race_id)) || null;
+
+  const meeting = race
+    ? meetingMap.get(Number(race.meeting_id)) || null
+    : null;
+
+  const horse =
+    horseMap.get(Number(prediction.horse_id)) || null;
+
+  const runner =
+    runnerMap.get(Number(prediction.runner_id)) || null;
+
+  return {
+    ...prediction,
+
+    race: race ? { ...race, meeting } : null,
+
+    horse:
+      horse ||
+      (runner?.horse_name
+        ? {
+            horse_name: runner.horse_name,
+          }
+        : null),
+  };
+});
 }
 
 function buildCsv(rows: Prediction[]) {
