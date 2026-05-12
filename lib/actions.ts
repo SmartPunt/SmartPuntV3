@@ -2332,7 +2332,38 @@ if (horseIds.length > 0) {
   for (const horse of horseRows || []) {
     horseRowsById.set(Number((horse as any).id), horse);
   }
+const raceIdsForCondition = Array.from(
+  new Set(
+    updates
+      .map((update) => runnersById.get(update.id)?.race_id)
+      .filter(Boolean),
+  ),
+);
 
+const { data: raceConditionRows, error: raceConditionError } =
+  raceIdsForCondition.length > 0
+    ? await supabase
+        .from("races")
+        .select("id, meeting_id, meetings(track_condition)")
+        .in("id", raceIdsForCondition)
+    : { data: [], error: null };
+
+if (raceConditionError) {
+  return { success: false, error: raceConditionError.message };
+}
+
+const raceConditionByRaceId = new Map<number, string>();
+
+for (const raceRow of raceConditionRows || []) {
+  const meetingData = Array.isArray((raceRow as any).meetings)
+    ? (raceRow as any).meetings[0]
+    : (raceRow as any).meetings;
+
+  raceConditionByRaceId.set(
+    Number((raceRow as any).id),
+    String(meetingData?.track_condition || ""),
+  );
+}
   for (const update of updates) {
     if (
       update.finishing_position === null ||
@@ -2390,7 +2421,7 @@ if (horseIds.length > 0) {
       String(matchingRunner?.distance_form_last_6 || "");
 
 const trackCondition = String(
-  race?.track_condition || "",
+  raceConditionByRaceId.get(Number(matchingRunner?.race_id)) || "",
 ).toLowerCase();
 
 const { error: horseUpdateError } = await supabase
