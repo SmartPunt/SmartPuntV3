@@ -2390,7 +2390,7 @@ if (horseIds.length > 0) {
       String(matchingRunner?.distance_form_last_6 || "");
 
 const trackCondition = String(
-  raceMeeting?.track_condition || "",
+  meeting?.track_condition || "",
 ).toLowerCase();
 
 const { error: horseUpdateError } = await supabase
