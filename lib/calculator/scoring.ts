@@ -414,7 +414,7 @@ function scoreDistanceSuitability(
     (run) => getDistanceBucket(run.race?.distance_m) === targetBucket,
   );
 
-if (!matchingRuns.length) return 42;
+if (!matchingRuns.length) return 48;
 
   const places = matchingRuns.filter((run) => {
     const pos = run.finishing_position;
@@ -582,7 +582,7 @@ function scoreJockey(
     (run) => String(run.jockey_name || "").trim().toLowerCase() === jockey,
   );
 
-  if (!jockeyRuns.length) return 50;
+  if (!jockeyRuns.length) return 55;
 
   const places = jockeyRuns.filter((run) => {
     const pos = run.finishing_position;
