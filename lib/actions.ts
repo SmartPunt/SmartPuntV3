@@ -2387,17 +2387,31 @@ for (const raceRow of raceConditionRows || []) {
 
       const { data: createdHorseRow, error: createHorseError } = await supabase
         .from("horses")
-        .insert({
-          id: horseId,
-          horse_name: horseName,
-          normalised_name: normaliseHorseName(horseName),
-          form_last_6: null,
-          track_form_last_6: null,
-          distance_form_last_6: null,
-        })
-        .select(
-          "id, horse_name, form_last_6, track_form_last_6, distance_form_last_6",
-        )
+.insert({
+  id: horseId,
+  horse_name: horseName,
+  normalised_name: normaliseHorseName(horseName),
+
+  form_last_6: null,
+  track_form_last_6: null,
+  distance_form_last_6: null,
+
+  good_track_record: null,
+  soft_track_record: null,
+  heavy_track_record: null,
+  synthetic_track_record: null,
+})
+.select(`
+  id,
+  horse_name,
+  form_last_6,
+  track_form_last_6,
+  distance_form_last_6,
+  good_track_record,
+  soft_track_record,
+  heavy_track_record,
+  synthetic_track_record
+`)
         .single();
 
       if (createHorseError) {
