@@ -13,7 +13,12 @@ type Horse = {
 
   form_last_6: string | null;
   track_form_last_6: string | null;
-  distance_form_last_6: string | null;
+distance_form_last_6: string | null;
+
+good_track_record: string | null;
+soft_track_record: string | null;
+heavy_track_record: string | null;
+synthetic_track_record: string | null;
 
   created_at: string;
   updated_at: string;
@@ -433,7 +438,12 @@ const uniqueTrainers = Array.from(
 
 const importedDistanceRecord = parseImportedRecord(importedDistanceSource);
 const importedTrackRecord = parseImportedRecord(importedTrackSource);
-
+const conditionRecordRows: StatRow[] = [
+  { label: "Good", ...(parseImportedRecord(horse.good_track_record) || { runs: 0, wins: 0, places: 0 }) },
+  { label: "Soft", ...(parseImportedRecord(horse.soft_track_record) || { runs: 0, wins: 0, places: 0 }) },
+  { label: "Heavy", ...(parseImportedRecord(horse.heavy_track_record) || { runs: 0, wins: 0, places: 0 }) },
+  { label: "Synthetic", ...(parseImportedRecord(horse.synthetic_track_record) || { runs: 0, wins: 0, places: 0 }) },
+];
 const distanceStats = buildStatRows(
   sortedResultedRuns,
   (run) => getDistanceBucket(run.race?.distance_m),
@@ -443,9 +453,11 @@ const trackStats = buildStatRows(sortedResultedRuns, (run) =>
   run.meeting?.meeting_name || null,
 );
 
-const conditionStats = buildStatRows(sortedResultedRuns, (run) =>
-  getConditionBucket(run.meeting?.track_condition),
-);
+const conditionStats = conditionRecordRows.some((row) => row.runs > 0)
+  ? conditionRecordRows
+  : buildStatRows(sortedResultedRuns, (run) =>
+      getConditionBucket(run.meeting?.track_condition),
+    );
 
 const recentFormLine =
   horse.form_last_6 ||
