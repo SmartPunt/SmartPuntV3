@@ -528,7 +528,7 @@ Highest-rated calculator opportunities across today’s published races.
 
   <Badge tone="green">Top {strongestBets.length}</Badge>
 </div>
-
+</div>
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
       {strongestBets.map((item, index) => (
         <div
