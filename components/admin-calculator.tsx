@@ -32,6 +32,7 @@ export default function AdminCalculator({
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
   const [alertThreshold, setAlertThreshold] = useState("80");
+  const [strongestBetMode, setStrongestBetMode] = useState<"win" | "place">("win");
 
   const publishedRaces = useMemo(
     () => races.filter((race) => race.status === "published"),
@@ -102,19 +103,16 @@ export default function AdminCalculator({
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
 const strongestBets = useMemo(() => {
-const today = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Australia/Perth",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-}).format(new Date());
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   return publishedRaces
     .filter((race) => {
-      const meeting = meetings.find(
-        (item) => item.id === race.meeting_id,
-      );
-
+      const meeting = meetings.find((item) => item.id === race.meeting_id);
       return meeting?.meeting_date === today;
     })
     .map((race) => {
@@ -128,18 +126,17 @@ const today = new Intl.DateTimeFormat("en-CA", {
 
       if (!scored.length) return null;
 
-      const top = scored[0];
-      const second = scored[1];
+      const topWin = scored[0];
+      const topPlace = [...scored].sort((a, b) => b.placePercent - a.placePercent)[0];
+      const selected = strongestBetMode === "win" ? topWin : topPlace;
+      const second = scored.find((runner) => runner.id !== selected.id);
 
-      const gap = second
-        ? roundScore(top.score - second.score)
-        : roundScore(top.score);
-
+      const gap = second ? roundScore(selected.score - second.score) : roundScore(selected.score);
       const verdict = getRaceVerdict(scored);
 
       return {
         race,
-        top,
+        top: selected,
         gap,
         verdict,
       };
@@ -147,17 +144,19 @@ const today = new Intl.DateTimeFormat("en-CA", {
     .filter(Boolean)
     .sort((a, b) => {
       const aStrength =
-        Number(a?.top?.score || 0) +
-        Number(a?.gap || 0);
+        strongestBetMode === "win"
+          ? Number(a?.top?.score || 0) + Number(a?.gap || 0)
+          : Number(a?.top?.placePercent || 0) + Number(a?.top?.score || 0) * 0.25;
 
       const bStrength =
-        Number(b?.top?.score || 0) +
-        Number(b?.gap || 0);
+        strongestBetMode === "win"
+          ? Number(b?.top?.score || 0) + Number(b?.gap || 0)
+          : Number(b?.top?.placePercent || 0) + Number(b?.top?.score || 0) * 0.25;
 
       return bStrength - aStrength;
     })
     .slice(0, 6);
-}, [horses, meetings, publishedRaces, races, runners]);
+}, [horses, meetings, publishedRaces, races, runners, strongestBetMode]);
 
   const alertCandidates = useMemo(() => {
     const threshold = Number(alertThreshold);
@@ -502,8 +501,33 @@ Highest-rated calculator opportunities across today’s published races.
         </p>
       </div>
 
-<Badge tone="green">Top {strongestBets.length}</Badge>
-    </div>
+<div className="flex flex-wrap items-center gap-2">
+  <button
+    type="button"
+    onClick={() => setStrongestBetMode("win")}
+    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+      strongestBetMode === "win"
+        ? "bg-black text-amber-300"
+        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+    }`}
+  >
+    Win
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setStrongestBetMode("place")}
+    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+      strongestBetMode === "place"
+        ? "bg-black text-amber-300"
+        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+    }`}
+  >
+    Place
+  </button>
+
+  <Badge tone="green">Top {strongestBets.length}</Badge>
+</div>
 
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
       {strongestBets.map((item, index) => (
