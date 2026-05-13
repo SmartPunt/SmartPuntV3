@@ -127,43 +127,93 @@ const strongestBets = useMemo(() => {
       if (!scored.length) return null;
 
       const topWin = scored[0];
-      const topPlace = [...scored].sort((a, b) => b.placePercent - a.placePercent)[0];
-      const selected = strongestBetMode === "win" ? topWin : topPlace;
-      const second = scored.find((runner) => runner.id !== selected.id);
 
-      const gap = second ? roundScore(selected.score - second.score) : roundScore(selected.score);
-      const verdict = getRaceVerdict(scored);
+      const topPlace = [...scored].sort(
+        (a, b) => b.placePercent - a.placePercent,
+      )[0];
 
-if (
-  strongestBetMode === "win" &&
-  verdict?.type !== "Win"
-) {
-  return null;
-}
+      const selected =
+        strongestBetMode === "win" ? topWin : topPlace;
 
-return {
-  race,
-  top: selected,
-  gap,
-  verdict,
-};
+      const second = scored.find(
+        (runner) => runner.id !== selected.id,
+      );
+
+      const gap = second
+        ? roundScore(selected.score - second.score)
+        : roundScore(selected.score);
+
+      const qualifiesAsWin =
+        selected.score >= 68 &&
+        gap >= 4 &&
+        selected.winPercent >= 8;
+
+      const qualifiesAsPlace =
+        selected.score >= 62 &&
+        selected.placePercent >= 30 &&
+        gap >= 2;
+
+      if (
+        strongestBetMode === "win" &&
+        !qualifiesAsWin
+      ) {
+        return null;
+      }
+
+      if (
+        strongestBetMode === "place" &&
+        !qualifiesAsPlace
+      ) {
+        return null;
+      }
+
+      return {
+        race,
+        top: selected,
+        gap,
+        qualifiesAsStrongWin:
+          selected.score >= 72 &&
+          gap >= 6 &&
+          selected.winPercent >= 10,
+
+        qualifiesAsStrongPlace:
+          selected.score >= 66 &&
+          selected.placePercent >= 34 &&
+          gap >= 3,
+      };
     })
-.filter((item): item is NonNullable<typeof item> => Boolean(item))
+    .filter(
+      (item): item is NonNullable<typeof item> =>
+        Boolean(item),
+    )
     .sort((a, b) => {
       const aStrength =
         strongestBetMode === "win"
-          ? Number(a?.top?.score || 0) + Number(a?.gap || 0)
-          : Number(a?.top?.placePercent || 0) + Number(a?.top?.score || 0) * 0.25;
+          ? Number(a.top.score) +
+            Number(a.gap) * 2 +
+            Number(a.top.winPercent)
+          : Number(a.top.placePercent) +
+            Number(a.top.score) * 0.35;
 
       const bStrength =
         strongestBetMode === "win"
-          ? Number(b?.top?.score || 0) + Number(b?.gap || 0)
-          : Number(b?.top?.placePercent || 0) + Number(b?.top?.score || 0) * 0.25;
+          ? Number(b.top.score) +
+            Number(b.gap) * 2 +
+            Number(b.top.winPercent)
+          : Number(b.top.placePercent) +
+            Number(b.top.score) * 0.35;
 
       return bStrength - aStrength;
     })
     .slice(0, 6);
-}, [horses, meetings, publishedRaces, races, runners, strongestBetMode]);
+}, [
+  horses,
+  meetings,
+  publishedRaces,
+  races,
+  runners,
+  strongestBetMode,
+]);
 
   const alertCandidates = useMemo(() => {
     const threshold = Number(alertThreshold);
