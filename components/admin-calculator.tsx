@@ -570,11 +570,9 @@ Highest-rated calculator opportunities across today’s published races.
               Gap +{item?.gap}
             </Badge>
 
-            {item?.verdict ? (
-              <Badge tone="slate">
-                {item.verdict.type}
-              </Badge>
-            ) : null}
+<Badge tone="slate">
+  {strongestBetMode === "win" ? "Win" : "Place"}
+</Badge>
           </div>
 
           <div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
