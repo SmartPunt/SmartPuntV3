@@ -1084,12 +1084,18 @@ function handleScratchMissingResults(raceId: number) {
                                             <div className="flex flex-wrap items-start justify-between gap-3">
                                               <div>
 <div className="group relative inline-block">
+{isAdmin ? (
   <Link
     href={`/admin/horses/${runner.horse_id}`}
     className="font-semibold text-zinc-950 underline-offset-4 transition hover:text-amber-700 hover:underline"
   >
     {findHorseName(runner.horse_id)}
   </Link>
+) : (
+  <p className="font-semibold text-zinc-950">
+    {findHorseName(runner.horse_id)}
+  </p>
+)}
 
   <div className="pointer-events-none absolute left-0 top-full z-50 mt-3 hidden w-[320px] rounded-[24px] border border-amber-200 bg-white p-4 shadow-2xl group-hover:block">
     <div className="flex items-start justify-between gap-3">
@@ -1159,15 +1165,17 @@ function handleScratchMissingResults(raceId: number) {
       ) : null}
     </div>
 
-    <div className="mt-4 border-t border-zinc-200 pt-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-        Open profile
-      </p>
+{isAdmin ? (
+  <div className="mt-4 border-t border-zinc-200 pt-3">
+    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+      Open profile
+    </p>
 
-      <p className="mt-1 text-sm text-zinc-600">
-        Click horse name to open full saved horse profile.
-      </p>
-    </div>
+    <p className="mt-1 text-sm text-zinc-600">
+      Click horse name to open full saved horse profile.
+    </p>
+  </div>
+) : null}
   </div>
 </div>
                                                 <p className="text-sm text-zinc-500">
