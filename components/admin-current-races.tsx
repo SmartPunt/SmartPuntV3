@@ -1083,9 +1083,93 @@ function handleScratchMissingResults(raceId: number) {
                                           >
                                             <div className="flex flex-wrap items-start justify-between gap-3">
                                               <div>
-                                                <p className="font-semibold text-zinc-950">
-                                                  {findHorseName(runner.horse_id)}
-                                                </p>
+<div className="group relative inline-block">
+  <Link
+    href={`/admin/horses/${runner.horse_id}`}
+    className="font-semibold text-zinc-950 underline-offset-4 transition hover:text-amber-700 hover:underline"
+  >
+    {findHorseName(runner.horse_id)}
+  </Link>
+
+  <div className="pointer-events-none absolute left-0 top-full z-50 mt-3 hidden w-[320px] rounded-[24px] border border-amber-200 bg-white p-4 shadow-2xl group-hover:block">
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <p className="text-lg font-bold text-zinc-950">
+          {findHorseName(runner.horse_id)}
+        </p>
+
+        <p className="mt-1 text-sm text-zinc-500">
+          {formatHorseMeta(horse) || "Horse profile"}
+        </p>
+      </div>
+
+      {runner.market_price !== null ? (
+        <Badge tone="green">${runner.market_price}</Badge>
+      ) : null}
+    </div>
+
+    <div className="mt-4 grid gap-3 grid-cols-3">
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+          Last 6
+        </p>
+
+        <p className="mt-2 text-sm font-bold text-zinc-900">
+          {runner.form_last_6 || "—"}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+          Track
+        </p>
+
+        <p className="mt-2 text-sm font-bold text-zinc-900">
+          {runner.track_form_last_6 || "—"}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+          Distance
+        </p>
+
+        <p className="mt-2 text-sm font-bold text-zinc-900">
+          {runner.distance_form_last_6 || "—"}
+        </p>
+      </div>
+    </div>
+
+    <div className="mt-4 flex flex-wrap gap-2">
+      {runner.barrier ? (
+        <Badge tone="blue">Barrier {runner.barrier}</Badge>
+      ) : null}
+
+      {runner.weight_kg !== null &&
+      runner.weight_kg !== undefined ? (
+        <Badge tone="amber">
+          {runner.weight_kg}kg
+        </Badge>
+      ) : null}
+
+      {runner.jockey_name ? (
+        <Badge tone="slate">
+          {runner.jockey_name}
+        </Badge>
+      ) : null}
+    </div>
+
+    <div className="mt-4 border-t border-zinc-200 pt-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+        Open profile
+      </p>
+
+      <p className="mt-1 text-sm text-zinc-600">
+        Click horse name to open full saved horse profile.
+      </p>
+    </div>
+  </div>
+</div>
                                                 <p className="text-sm text-zinc-500">
                                                   {formatHorseMeta(horse) || "Horse profile not loaded yet"}
                                                 </p>
