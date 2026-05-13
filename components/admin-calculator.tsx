@@ -134,14 +134,21 @@ const strongestBets = useMemo(() => {
       const gap = second ? roundScore(selected.score - second.score) : roundScore(selected.score);
       const verdict = getRaceVerdict(scored);
 
-      return {
-        race,
-        top: selected,
-        gap,
-        verdict,
-      };
+if (
+  strongestBetMode === "win" &&
+  verdict?.type !== "Win"
+) {
+  return null;
+}
+
+return {
+  race,
+  top: selected,
+  gap,
+  verdict,
+};
     })
-    .filter(Boolean)
+.filter((item): item is NonNullable<typeof item> => Boolean(item))
     .sort((a, b) => {
       const aStrength =
         strongestBetMode === "win"
