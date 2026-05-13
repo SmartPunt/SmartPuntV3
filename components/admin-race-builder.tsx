@@ -513,7 +513,8 @@ export default function RaceBuilderPage({
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
 
-  const [meetingName, setMeetingName] = useState("");
+const [selectedExistingMeeting, setSelectedExistingMeeting] = useState("");
+const [meetingName, setMeetingName] = useState("");
   const [meetingDate, setMeetingDate] = useState("");
   const [meetingTrackCondition, setMeetingTrackCondition] = useState("Good 4");
 
@@ -578,6 +579,15 @@ export default function RaceBuilderPage({
   }, [meetings, races]);
 
   const closedRaceIds = useMemo(() => new Set(closedRaces.map((race) => race.id)), [closedRaces]);
+  const knownMeetingNames = useMemo(() => {
+  return Array.from(
+    new Set(
+      meetings
+        .map((meeting) => meeting.meeting_name.trim())
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+}, [meetings]);
 
   const filteredHorseSuggestions = useMemo(() => {
     const query = horseQuery.trim().toLowerCase();
@@ -720,7 +730,16 @@ export default function RaceBuilderPage({
       setDistanceFormLast6(suggestedDistanceForm);
     }
   }, [activeHorseId, selectedRace, suggestedDistanceForm, distanceFormLast6]);
+useEffect(() => {
+  if (!selectedExistingMeeting) return;
 
+  if (selectedExistingMeeting === "__manual__") {
+    setMeetingName("");
+    return;
+  }
+
+  setMeetingName(selectedExistingMeeting);
+}, [selectedExistingMeeting]);
   function applySuggestedHorseForm() {
     if (suggestedOverallForm) setFormLast6(suggestedOverallForm);
     if (suggestedTrackForm) setTrackFormLast6(suggestedTrackForm);
@@ -1342,13 +1361,36 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <Field label="Meeting name">
-                  <TextInput
-                    value={meetingName}
-                    onChange={setMeetingName}
-                    placeholder="Randwick"
-                  />
-                </Field>
+<Field
+  label="Meeting name"
+  hint="Select an existing meeting to keep track history clean, or choose Manual Entry."
+>
+  <div className="space-y-3">
+    <Select
+      value={selectedExistingMeeting}
+      onChange={setSelectedExistingMeeting}
+    >
+      <option value="">Select existing meeting</option>
+
+      {knownMeetingNames.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+
+      <option value="__manual__">Manual entry</option>
+    </Select>
+
+    {(selectedExistingMeeting === "__manual__" ||
+      !selectedExistingMeeting) && (
+      <TextInput
+        value={meetingName}
+        onChange={setMeetingName}
+        placeholder="Randwick"
+      />
+    )}
+  </div>
+</Field>
 
                 <Field label="Meeting date">
                   <TextInput
