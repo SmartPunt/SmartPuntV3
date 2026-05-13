@@ -186,7 +186,7 @@ const runnerIds = Array.from(
 
 const raceRunners = runnerIds.length
   ? await serviceSelectAllRows<any>(
-      `race_runners?select=id,horse_name,horse_id&id=in.(${runnerIds.join(",")})`,
+      `race_runners?select=id,horse_id&id=in.(${runnerIds.join(",")})`,
     )
   : [];
 
@@ -212,13 +212,11 @@ return predictions.map((prediction) => {
 
     race: race ? { ...race, meeting } : null,
 
-    horse:
-      horse ||
-      (runner?.horse_name
-        ? {
-            horse_name: runner.horse_name,
-          }
-        : null),
+horse:
+  horse ||
+  (runner?.horse_id && horseMap.get(Number(runner.horse_id))
+    ? horseMap.get(Number(runner.horse_id)) || null
+    : null),
   };
 });
 }
