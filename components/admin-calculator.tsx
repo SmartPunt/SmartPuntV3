@@ -553,9 +553,15 @@ const strongestBets = useMemo(() => {
 🔥 Today’s strongest {strongestBetMode === "win" ? "win" : "place"} bets
         </h2>
 
-        <p className="text-sm text-zinc-500">
-Highest-rated calculator opportunities across today’s published races.
-        </p>
+<div className="space-y-1">
+  <p className="text-sm text-zinc-500">
+    Highest-rated calculator opportunities across today’s published races.
+  </p>
+
+  <p className="text-xs text-zinc-500">
+    Win requires score 68+, gap 4+, win chance 8%+. Place requires score 62+, place chance 30%+, gap 2+.
+  </p>
+</div>
       </div>
 
 <div className="flex flex-wrap items-center gap-2">
