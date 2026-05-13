@@ -156,25 +156,45 @@ async function fetchPredictions() {
   );
 
   const raceIds = Array.from(new Set(predictions.map((row) => row.race_id).filter(Boolean)));
-  const horseIds = Array.from(new Set(predictions.map((row) => row.horse_id).filter(Boolean)));
+const runnerIds = Array.from(
+  new Set(predictions.map((row) => row.runner_id).filter(Boolean)),
+);
 
-  const races = raceIds.length
-    ? await serviceSelect<RaceRow>(
-        `races?select=id,race_number,race_name,distance_m,meeting_id,status&id=in.(${raceIds.join(",")})`,
-      )
-    : [];
+const races = raceIds.length
+  ? await serviceSelect<RaceRow>(
+      `races?select=id,race_number,race_name,distance_m,meeting_id,status&id=in.(${raceIds.join(",")})`,
+    )
+  : [];
 
-  const meetingIds = Array.from(new Set(races.map((row) => row.meeting_id).filter(Boolean)));
+const meetingIds = Array.from(
+  new Set(races.map((row) => row.meeting_id).filter(Boolean)),
+);
 
-  const meetings = meetingIds.length
-    ? await serviceSelect<MeetingRow>(
-        `meetings?select=id,meeting_name,meeting_date,track_condition&id=in.(${meetingIds.join(",")})`,
-      )
-    : [];
+const meetings = meetingIds.length
+  ? await serviceSelect<MeetingRow>(
+      `meetings?select=id,meeting_name,meeting_date,track_condition&id=in.(${meetingIds.join(",")})`,
+    )
+  : [];
 
-  const horses = horseIds.length
-    ? await serviceSelect<HorseRow>(`horses?select=id,horse_name&id=in.(${horseIds.join(",")})`)
-    : [];
+const raceRunners = runnerIds.length
+  ? await serviceSelectAllRows<any>(
+      `race_runners?select=id,horse_id&id=in.(${runnerIds.join(",")})`,
+    )
+  : [];
+
+const resolvedHorseIds = Array.from(
+  new Set(
+    raceRunners
+      .map((row) => row.horse_id)
+      .filter(Boolean),
+  ),
+);
+
+const horses = resolvedHorseIds.length
+  ? await serviceSelectAllRows<HorseRow>(
+      `horses?select=id,horse_name&id=in.(${resolvedHorseIds.join(",")})`,
+    )
+  : [];
 
   const raceMap = new Map(races.map((row) => [Number(row.id), row]));
   const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
