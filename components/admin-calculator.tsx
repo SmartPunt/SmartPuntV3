@@ -493,7 +493,7 @@ const strongestBets = useMemo(() => {
     <div className="flex items-center justify-between gap-3">
       <div>
         <h2 className="text-xl font-semibold">
-🔥 Today’s strongest bets
+🔥 Today’s strongest {strongestBetMode === "win" ? "win" : "place"} bets
         </h2>
 
         <p className="text-sm text-zinc-500">
