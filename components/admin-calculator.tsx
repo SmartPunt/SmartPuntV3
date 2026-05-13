@@ -627,8 +627,24 @@ Highest-rated calculator opportunities across today’s published races.
               Gap +{item?.gap}
             </Badge>
 
-<Badge tone="slate">
-  {strongestBetMode === "win" ? "Win" : "Place"}
+<Badge
+  tone={
+    strongestBetMode === "win"
+      ? item.qualifiesAsStrongWin
+        ? "green"
+        : "amber"
+      : item.qualifiesAsStrongPlace
+        ? "green"
+        : "blue"
+  }
+>
+  {strongestBetMode === "win"
+    ? item.qualifiesAsStrongWin
+      ? "Strong Win"
+      : "Win"
+    : item.qualifiesAsStrongPlace
+      ? "Strong Place"
+      : "Place"}
 </Badge>
           </div>
 
