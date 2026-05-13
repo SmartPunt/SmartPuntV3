@@ -200,15 +200,6 @@ const horses = resolvedHorseIds.length
   const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
   const horseMap = new Map(horses.map((row) => [Number(row.id), row]));
 
-const runnerIds = Array.from(
-  new Set(predictions.map((row) => row.runner_id).filter(Boolean)),
-);
-
-const raceRunners = runnerIds.length
-  ? await serviceSelectAllRows<any>(
-      `race_runners?select=id,horse_id&id=in.(${runnerIds.join(",")})`,
-    )
-  : [];
 
 const runnerMap = new Map(
   raceRunners.map((row) => [Number(row.id), row]),
