@@ -12,6 +12,7 @@ import {
   deleteRaceAction,
   deleteRaceRunnerAction,
   toggleRacePublishAction,
+  publishMeetingRacesAction,
   signOutAction,
 } from "@/lib/actions";
 
@@ -1461,17 +1462,29 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                           <p className="text-sm text-zinc-500">{meeting.meeting_date}</p>
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          <Badge tone="amber">{meeting.track_condition || "—"}</Badge>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMeeting(meeting.id)}
-                            disabled={isPending}
-                            className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
-                          >
-                            Delete
-                          </button>
-                        </div>
+<div className="flex flex-wrap gap-2">
+  <Badge tone="amber">{meeting.track_condition || "—"}</Badge>
+
+  <form action={publishMeetingRacesAction}>
+    <input type="hidden" name="meeting_id" value={meeting.id} />
+
+    <button
+      type="submit"
+      className="rounded-2xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500"
+    >
+      Send Meeting to Current Races
+    </button>
+  </form>
+
+  <button
+    type="button"
+    onClick={() => handleDeleteMeeting(meeting.id)}
+    disabled={isPending}
+    className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+  >
+    Delete
+  </button>
+</div>
                       </div>
                     </div>
                   ))
