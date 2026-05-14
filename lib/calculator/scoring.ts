@@ -953,13 +953,25 @@ recentForm * 0.25 +
       ),
     );
 
-    const score = applyOverconfidenceDampener({
-      baseScore,
-      recentForm,
-      distance,
-      track,
-      condition,
-    });
+const standoutBonus =
+  recentForm >= 80 &&
+  distance >= 75 &&
+  track >= 70 &&
+  barrier >= 70
+    ? 8
+    : recentForm >= 75 &&
+        distance >= 70 &&
+        barrier >= 65
+      ? 5
+      : 0;
+
+const score = applyOverconfidenceDampener({
+  baseScore: clamp(baseScore + standoutBonus),
+  recentForm,
+  distance,
+  track,
+  condition,
+});
 
     return {
       ...runner,
