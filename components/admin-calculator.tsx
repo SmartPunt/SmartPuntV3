@@ -12,6 +12,7 @@ import {
   getSelectedHorseSummary,
   roundScore,
   type Horse,
+  type JockeyProfile,
   type Meeting,
   type Race,
   type Runner,
@@ -23,11 +24,13 @@ export default function AdminCalculator({
   runners,
   horses,
   meetings,
+  jockeyProfiles,
 }: {
   races: Race[];
   runners: Runner[];
   horses: Horse[];
   meetings: Meeting[];
+  jockeyProfiles: JockeyProfile[];
 }) {
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
@@ -87,8 +90,9 @@ export default function AdminCalculator({
         runners,
         horses,
         meetings,
+        jockeyProfiles,
       }),
-    [activeRace, horses, meetings, races, runners],
+    [activeRace, horses, jockeyProfiles, meetings, races, runners],
   );
 
   const selectedHorseScore = useMemo(() => {
@@ -102,118 +106,112 @@ export default function AdminCalculator({
     .slice(0, 3);
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
-const strongestBets = useMemo(() => {
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Australia/Perth",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
 
-  return publishedRaces
-    .filter((race) => {
-      const meeting = meetings.find((item) => item.id === race.meeting_id);
-      return meeting?.meeting_date === today;
-    })
-    .map((race) => {
-      const scored = calculateRaceScores({
-        activeRace: race,
-        races,
-        runners,
-        horses,
-        meetings,
-      });
+  const strongestBets = useMemo(() => {
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Australia/Perth",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
 
-      if (!scored.length) return null;
+    return publishedRaces
+      .filter((race) => {
+        const meeting = meetings.find((item) => item.id === race.meeting_id);
+        return meeting?.meeting_date === today;
+      })
+      .map((race) => {
+        const scored = calculateRaceScores({
+          activeRace: race,
+          races,
+          runners,
+          horses,
+          meetings,
+          jockeyProfiles,
+        });
 
-      const topWin = scored[0];
+        if (!scored.length) return null;
 
-      const topPlace = [...scored].sort(
-        (a, b) => b.placePercent - a.placePercent,
-      )[0];
+        const topWin = scored[0];
 
-      const selected =
-        strongestBetMode === "win" ? topWin : topPlace;
+        const topPlace = [...scored].sort(
+          (a, b) => b.placePercent - a.placePercent,
+        )[0];
 
-      const second = scored.find(
-        (runner) => runner.id !== selected.id,
-      );
+        const selected = strongestBetMode === "win" ? topWin : topPlace;
 
-      const gap = second
-        ? roundScore(selected.score - second.score)
-        : roundScore(selected.score);
+        const second = scored.find((runner) => runner.id !== selected.id);
 
-      const qualifiesAsWin =
-        selected.score >= 68 &&
-        gap >= 4 &&
-        selected.winPercent >= 8;
+        const gap = second
+          ? roundScore(selected.score - second.score)
+          : roundScore(selected.score);
 
-      const qualifiesAsPlace =
-        selected.score >= 62 &&
-        selected.placePercent >= 30 &&
-        gap >= 2;
+        const qualifiesAsWin =
+          selected.score >= 68 &&
+          gap >= 4 &&
+          selected.winPercent >= 8;
 
-      if (
-        strongestBetMode === "win" &&
-        !qualifiesAsWin
-      ) {
-        return null;
-      }
+        const qualifiesAsPlace =
+          selected.score >= 62 &&
+          selected.placePercent >= 30 &&
+          gap >= 2;
 
-      if (
-        strongestBetMode === "place" &&
-        !qualifiesAsPlace
-      ) {
-        return null;
-      }
+        if (strongestBetMode === "win" && !qualifiesAsWin) {
+          return null;
+        }
 
-      return {
-        race,
-        top: selected,
-        gap,
-        qualifiesAsStrongWin:
-          selected.score >= 72 &&
-          gap >= 6 &&
-          selected.winPercent >= 10,
+        if (strongestBetMode === "place" && !qualifiesAsPlace) {
+          return null;
+        }
 
-        qualifiesAsStrongPlace:
-          selected.score >= 66 &&
-          selected.placePercent >= 34 &&
-          gap >= 3,
-      };
-    })
-    .filter(
-      (item): item is NonNullable<typeof item> =>
-        Boolean(item),
-    )
-    .sort((a, b) => {
-      const aStrength =
-        strongestBetMode === "win"
-          ? Number(a.top.score) +
-            Number(a.gap) * 2 +
-            Number(a.top.winPercent)
-          : Number(a.top.placePercent) +
-            Number(a.top.score) * 0.35;
+        return {
+          race,
+          top: selected,
+          gap,
+          qualifiesAsStrongWin:
+            selected.score >= 72 &&
+            gap >= 6 &&
+            selected.winPercent >= 10,
 
-      const bStrength =
-        strongestBetMode === "win"
-          ? Number(b.top.score) +
-            Number(b.gap) * 2 +
-            Number(b.top.winPercent)
-          : Number(b.top.placePercent) +
-            Number(b.top.score) * 0.35;
+          qualifiesAsStrongPlace:
+            selected.score >= 66 &&
+            selected.placePercent >= 34 &&
+            gap >= 3,
+        };
+      })
+      .filter(
+        (item): item is NonNullable<typeof item> =>
+          Boolean(item),
+      )
+      .sort((a, b) => {
+        const aStrength =
+          strongestBetMode === "win"
+            ? Number(a.top.score) +
+              Number(a.gap) * 2 +
+              Number(a.top.winPercent)
+            : Number(a.top.placePercent) +
+              Number(a.top.score) * 0.35;
 
-      return bStrength - aStrength;
-    })
-    .slice(0, 6);
-}, [
-  horses,
-  meetings,
-  publishedRaces,
-  races,
-  runners,
-  strongestBetMode,
-]);
+        const bStrength =
+          strongestBetMode === "win"
+            ? Number(b.top.score) +
+              Number(b.gap) * 2 +
+              Number(b.top.winPercent)
+            : Number(b.top.placePercent) +
+              Number(b.top.score) * 0.35;
+
+        return bStrength - aStrength;
+      })
+      .slice(0, 6);
+  }, [
+    horses,
+    jockeyProfiles,
+    meetings,
+    publishedRaces,
+    races,
+    runners,
+    strongestBetMode,
+  ]);
 
   const alertCandidates = useMemo(() => {
     const threshold = Number(alertThreshold);
@@ -253,8 +251,8 @@ const strongestBets = useMemo(() => {
                   Race Archive
                 </Link>
                 <Link href="/admin/calculator-report" className="rounded-2xl border border-amber-400/40 bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-500/30">
-  Calculator Report
-</Link>
+                  Calculator Report
+                </Link>
                 <Link href="/admin/horses" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
                   Saved Horses
                 </Link>
@@ -545,143 +543,150 @@ const strongestBets = useMemo(() => {
             </div>
           </Panel>
         </div>
-<Panel className="mt-6 bg-white/95">
-  <div className="p-6 text-zinc-950">
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <h2 className="text-xl font-semibold">
-🔥 Today’s strongest {strongestBetMode === "win" ? "win" : "place"} bets
-        </h2>
 
-<div className="space-y-1">
-  <p className="text-sm text-zinc-500">
-    Highest-rated calculator opportunities across today’s published races.
-  </p>
+        <Panel className="mt-6 bg-white/95">
+          <div className="p-6 text-zinc-950">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  🔥 Today’s strongest {strongestBetMode === "win" ? "win" : "place"} bets
+                </h2>
 
-  <p className="text-xs text-zinc-500">
-    Win requires score 68+, gap 4+, win chance 8%+. Place requires score 62+, place chance 30%+, gap 2+.
-  </p>
-</div>
-      </div>
-
-<div className="flex flex-wrap items-center gap-2">
-  <button
-    type="button"
-    onClick={() => setStrongestBetMode("win")}
-    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-      strongestBetMode === "win"
-        ? "bg-black text-amber-300"
-        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-    }`}
-  >
-    Win
-  </button>
-
-  <button
-    type="button"
-    onClick={() => setStrongestBetMode("place")}
-    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-      strongestBetMode === "place"
-        ? "bg-black text-amber-300"
-        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-    }`}
-  >
-    Place
-  </button>
-
-  <Badge tone="green">Top {strongestBets.length}</Badge>
-</div>
-</div>
-    <div className="mt-5 grid gap-4 lg:grid-cols-2">
-      {strongestBets.map((item, index) => (
-        <div
-          key={item?.race?.id}
-          className="rounded-[24px] border border-amber-200/30 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-zinc-500">
-                #{index + 1} strongest play
-              </p>
-
-              <h3 className="mt-1 text-2xl font-bold text-zinc-950">
-                {item?.top?.horse_name}
-              </h3>
-
-              <p className="mt-2 text-sm text-zinc-600">
-                {item?.top?.meeting_name} · R
-                {item?.race?.race_number}{" "}
-                {item?.race?.race_name}
-              </p>
-            </div>
-
-            <Badge tone="green">
-              Score {roundScore(item?.top?.score || 0)}
-            </Badge>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Badge tone="green">
-              Win {item?.top?.winPercent}%
-            </Badge>
-
-            <Badge tone="blue">
-              Place {item?.top?.placePercent}%
-            </Badge>
-
-            <Badge tone="amber">
-              Gap +{item?.gap}
-            </Badge>
-
-<Badge
-  tone={
-    strongestBetMode === "win"
-      ? item.qualifiesAsStrongWin
-        ? "green"
-        : "amber"
-      : item.qualifiesAsStrongPlace
-        ? "green"
-        : "blue"
-  }
->
-  {strongestBetMode === "win"
-    ? item.qualifiesAsStrongWin
-      ? "Strong Win"
-      : "Win"
-    : item.qualifiesAsStrongPlace
-      ? "Strong Place"
-      : "Place"}
-</Badge>
-          </div>
-
-          <div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
-            <div className="grid grid-cols-4 gap-3 text-center">
-              {[
-                ["Form", item?.top?.components?.recentForm],
-                ["Distance", item?.top?.components?.distance],
-                ["Track", item?.top?.components?.track],
-                ["Barrier", item?.top?.components?.barrier],
-              ].map(([label, score]) => (
-                <div
-                  key={String(label)}
-                  className="rounded-2xl bg-zinc-50 p-3"
-                >
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                    {label}
+                <div className="space-y-1">
+                  <p className="text-sm text-zinc-500">
+                    Highest-rated calculator opportunities across today’s published races.
                   </p>
 
-                  <p className="mt-2 text-sm font-bold text-zinc-900">
-                    {roundScore(Number(score))}
+                  <p className="text-xs text-zinc-500">
+                    Win requires score 68+, gap 4+, win chance 8%+. Place requires score 62+, place chance 30%+, gap 2+.
                   </p>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStrongestBetMode("win")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    strongestBetMode === "win"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Win
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStrongestBetMode("place")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    strongestBetMode === "place"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Place
+                </button>
+
+                <Badge tone="green">Top {strongestBets.length}</Badge>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {strongestBets.map((item, index) => (
+                <div
+                  key={item.race.id}
+                  className="rounded-[24px] border border-amber-200/30 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-zinc-500">
+                        #{index + 1} strongest play
+                      </p>
+
+                      <h3 className="mt-1 text-2xl font-bold text-zinc-950">
+                        {item.top.horse_name}
+                      </h3>
+
+                      <p className="mt-2 text-sm text-zinc-600">
+                        {item.top.meeting_name} · R{item.race.race_number} {item.race.race_name}
+                      </p>
+                    </div>
+
+                    <Badge tone="green">
+                      Score {roundScore(item.top.score)}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Badge tone="green">
+                      Win {item.top.winPercent}%
+                    </Badge>
+
+                    <Badge tone="blue">
+                      Place {item.top.placePercent}%
+                    </Badge>
+
+                    <Badge tone="amber">
+                      Gap +{item.gap}
+                    </Badge>
+
+                    <Badge
+                      tone={
+                        strongestBetMode === "win"
+                          ? item.qualifiesAsStrongWin
+                            ? "green"
+                            : "amber"
+                          : item.qualifiesAsStrongPlace
+                            ? "green"
+                            : "blue"
+                      }
+                    >
+                      {strongestBetMode === "win"
+                        ? item.qualifiesAsStrongWin
+                          ? "Strong Win"
+                          : "Win"
+                        : item.qualifiesAsStrongPlace
+                          ? "Strong Place"
+                          : "Place"}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
+                    <div className="grid grid-cols-4 gap-3 text-center">
+                      {[
+                        ["Form", item.top.components.recentForm],
+                        ["Distance", item.top.components.distance],
+                        ["Track", item.top.components.track],
+                        ["Barrier", item.top.components.barrier],
+                      ].map(([label, score]) => (
+                        <div
+                          key={String(label)}
+                          className="rounded-2xl bg-zinc-50 p-3"
+                        >
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            {label}
+                          </p>
+
+                          <p className="mt-2 text-sm font-bold text-zinc-900">
+                            {roundScore(Number(score))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               ))}
+
+              {strongestBets.length === 0 ? (
+                <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center text-sm text-zinc-500 lg:col-span-2">
+                  No qualifying {strongestBetMode} plays today.
+                </div>
+              ) : null}
             </div>
           </div>
-        </div>
-      ))}
-    </div>
-  </div>
-</Panel>
+        </Panel>
+
         <Panel className="mt-6 bg-white/95">
           <div className="p-6 text-zinc-950">
             <div className="flex items-center justify-between gap-3">
@@ -781,7 +786,7 @@ const strongestBets = useMemo(() => {
               <h3 className="text-lg font-semibold">What this version adds</h3>
               <div className="mt-4 space-y-2 text-sm text-zinc-600">
                 <p>• Market removed completely</p>
-<p>• New v2 weighted SmartPunt score</p>
+                <p>• New v2 weighted SmartPunt score</p>
                 <p>• Distance-aware barrier logic</p>
                 <p>• Flemington wide-barrier exception</p>
                 <p>• Effective weight using apprentice claim</p>
@@ -793,18 +798,18 @@ const strongestBets = useMemo(() => {
 
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-<h3 className="text-lg font-semibold">Scoring weights v2</h3>
-<div className="mt-4 space-y-2 text-sm text-zinc-600">
-  <p>• Recent form: 26%</p>
-  <p>• Barrier: 16%</p>
-  <p>• Distance: 12%</p>
-  <p>• Track: 9%</p>
-  <p>• Condition: 8%</p>
-  <p>• Weight / claim: 8%</p>
-  <p>• Jockey: 8%</p>
-  <p>• Trainer: 5%</p>
-  <p>• Consistency: 8%</p>
-</div>
+              <h3 className="text-lg font-semibold">Scoring weights v2</h3>
+              <div className="mt-4 space-y-2 text-sm text-zinc-600">
+                <p>• Recent form: 26%</p>
+                <p>• Barrier: 16%</p>
+                <p>• Distance: 12%</p>
+                <p>• Track: 9%</p>
+                <p>• Condition: 8%</p>
+                <p>• Weight / claim: 8%</p>
+                <p>• Jockey: 8%</p>
+                <p>• Trainer: 5%</p>
+                <p>• Consistency: 8%</p>
+              </div>
             </div>
           </Panel>
 
