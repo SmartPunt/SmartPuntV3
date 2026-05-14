@@ -179,6 +179,12 @@ export default function AdminCalculatorTest({
         : [...horses, syntheticHorse],
       meetings: [...meetings, syntheticMeeting],
       jockeyProfiles,
+      scoreOverrides: {
+  condition:
+    conditionOverride.trim() && Number.isFinite(Number(conditionOverride))
+      ? Number(conditionOverride)
+      : null,
+},
     });
 
     return scored[0] || null;
