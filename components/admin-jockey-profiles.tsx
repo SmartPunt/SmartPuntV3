@@ -32,18 +32,21 @@ type JockeyRun = {
   jockey_name: string | null;
   finishing_position: number | null;
   settled_at: string | null;
-  race?: {
-    id: number;
-    race_number: number;
-    race_name: string;
-    meeting?: {
+race?:
+  | {
       id: number;
-      meeting_name: string;
-      meeting_date: string;
-      state: string | null;
-    } | null;
-  } | null;
-};
+      race_number: number;
+      race_name: string;
+      meeting?:
+        | {
+            id: number;
+            meeting_name: string;
+            meeting_date: string;
+            state: string | null;
+          }[]
+        | null;
+    }[]
+  | null;
 
 function normaliseName(value: string) {
   return String(value || "").trim().toLowerCase();
@@ -72,8 +75,8 @@ function getJockeyStats(profile: JockeyProfile, jockeyRuns: JockeyRun[]) {
       run.finishing_position <= 3,
   ).length;
 
-  const states = runs
-    .map((run) => run.race?.meeting?.state)
+const states = runs
+  .map((run) => run.race?.[0]?.meeting?.[0]?.state)
     .filter((state): state is string => Boolean(state));
 
   const stateCounts = new Map<string, number>();
