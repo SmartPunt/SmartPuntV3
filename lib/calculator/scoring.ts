@@ -965,6 +965,19 @@ const standoutBonus =
       ? 5
       : 0;
 
+const standoutBonus =
+  recentForm >= 80 &&
+  distance >= 75 &&
+  track >= 70 &&
+  barrier >= 70
+    ? 8
+    : recentForm >= 72 &&
+        distance >= 70 &&
+        track >= 65 &&
+        barrier >= 65
+      ? 5
+      : 0;
+
 const score = applyOverconfidenceDampener({
   baseScore: clamp(baseScore + standoutBonus),
   recentForm,
