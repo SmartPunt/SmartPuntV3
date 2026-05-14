@@ -1465,7 +1465,11 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
 <div className="flex flex-wrap gap-2">
   <Badge tone="amber">{meeting.track_condition || "—"}</Badge>
 
-  <form action={publishMeetingRacesAction}>
+<form
+  action={async (formData) => {
+    await publishMeetingRacesAction(formData);
+  }}
+>
     <input type="hidden" name="meeting_id" value={meeting.id} />
 
     <button
