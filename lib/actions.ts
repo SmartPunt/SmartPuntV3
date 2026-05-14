@@ -734,13 +734,29 @@ async function saveCalculatorPredictionsForRace(
       )
     : runners;
 
-  const scoredRunners = calculateRaceScores({
-    activeRace,
-    races,
-    runners: runnersForScoring,
-    horses,
-    meetings,
-  });
+const jockeyProfiles = await fetchAllRows({
+  getPage: async (from, to) => {
+    const result = await supabase
+      .from("jockey_profiles")
+      .select("*")
+      .order("jockey_name", { ascending: true })
+      .range(from, to);
+
+    return {
+      data: result.data ?? [],
+      error: result.error,
+    };
+  },
+});
+
+const scoredRunners = calculateRaceScores({
+  activeRace,
+  races,
+  runners: runnersForScoring,
+  horses,
+  meetings,
+  jockeyProfiles,
+});
 
   if (!scoredRunners.length) {
     return;
