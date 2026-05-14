@@ -56,7 +56,23 @@ export type Meeting = {
   created_at: string;
   updated_at: string;
 };
-
+export type JockeyProfile = {
+  id: number;
+  jockey_name: string;
+  normalised_name: string;
+  state: string | null;
+  category: string | null;
+  rides: number;
+  wins: number;
+  seconds: number;
+  thirds: number;
+  strike_rate: number;
+  place_rate: number;
+  rating: number;
+  manual_rating: number | null;
+  confidence_tag: string | null;
+  notes: string | null;
+};
 export type HistoryRun = Runner & {
   race: Race | null;
   meeting: Meeting | null;
@@ -553,49 +569,105 @@ function scoreJockey(
   runner: Runner,
   horseHistoryRuns: HistoryRun[],
   allHistoryRuns: HistoryRun[],
+  jockeyProfiles: JockeyProfile[],
 ) {
   const jockey = String(runner.jockey_name || "").trim().toLowerCase();
-  if (!jockey) return 50;
 
+  if (!jockey) return 55;
+
+  // HORSE + JOCKEY COMBO HISTORY
   const horseJockeyRuns = horseHistoryRuns.filter(
     (run) => String(run.jockey_name || "").trim().toLowerCase() === jockey,
   );
 
-  if (horseJockeyRuns.length > 0) {
+  if (horseJockeyRuns.length >= 2) {
     const places = horseJockeyRuns.filter((run) => {
       const pos = run.finishing_position;
       return pos !== null && pos !== undefined && pos <= 3;
     }).length;
 
-    const wins = horseJockeyRuns.filter((run) => run.finishing_position === 1).length;
+    const wins = horseJockeyRuns.filter(
+      (run) => run.finishing_position === 1,
+    ).length;
 
     const rawScore = Math.round(
-      45 + (places / horseJockeyRuns.length) * 28 + (wins / horseJockeyRuns.length) * 18,
+      48 +
+        (places / horseJockeyRuns.length) * 26 +
+        (wins / horseJockeyRuns.length) * 18,
     );
 
-    if (horseJockeyRuns.length === 1) return clamp(rawScore, 35, 68);
-    if (horseJockeyRuns.length === 2) return clamp(rawScore, 35, 78);
-    return clamp(rawScore, 35, 88);
+    return clamp(rawScore, 45, 90);
   }
 
+  // SMARTPUNT JOCKEY HISTORY
   const jockeyRuns = allHistoryRuns.filter(
-    (run) => String(run.jockey_name || "").trim().toLowerCase() === jockey,
+    (run) =>
+      String(run.jockey_name || "").trim().toLowerCase() === jockey,
   );
 
-  if (!jockeyRuns.length) return 55;
+  let smartPuntScore: number | null = null;
 
-  const places = jockeyRuns.filter((run) => {
-    const pos = run.finishing_position;
-    return pos !== null && pos !== undefined && pos <= 3;
-  }).length;
+  if (jockeyRuns.length >= 3) {
+    const places = jockeyRuns.filter((run) => {
+      const pos = run.finishing_position;
+      return pos !== null && pos !== undefined && pos <= 3;
+    }).length;
 
-  const wins = jockeyRuns.filter((run) => run.finishing_position === 1).length;
+    const wins = jockeyRuns.filter(
+      (run) => run.finishing_position === 1,
+    ).length;
 
-  return clamp(
-    Math.round(43 + (places / jockeyRuns.length) * 25 + (wins / jockeyRuns.length) * 15),
-    35,
-    85,
-  );
+    smartPuntScore = clamp(
+      Math.round(
+        45 +
+          (places / jockeyRuns.length) * 24 +
+          (wins / jockeyRuns.length) * 16,
+      ),
+      42,
+      88,
+    );
+  }
+
+  // IMPORTED / MANUAL PROFILE
+  const profile =
+    jockeyProfiles.find(
+      (item) =>
+        item.normalised_name === jockey,
+    ) || null;
+
+  let profileScore: number | null = null;
+
+  if (profile) {
+    const imported = Number(profile.rating || 55);
+    const manual = profile.manual_rating;
+
+    profileScore =
+      manual !== null && manual !== undefined
+        ? Math.round(imported * 0.55 + Number(manual) * 0.45)
+        : imported;
+  }
+
+  // COMBINED
+  if (smartPuntScore !== null && profileScore !== null) {
+    return clamp(
+      Math.round(
+        smartPuntScore * 0.7 +
+          profileScore * 0.3,
+      ),
+      42,
+      90,
+    );
+  }
+
+  if (smartPuntScore !== null) {
+    return smartPuntScore;
+  }
+
+  if (profileScore !== null) {
+    return clamp(profileScore, 45, 88);
+  }
+
+  return 55;
 }
 
 function scoreTrainer(runner: Runner, allHistoryRuns: HistoryRun[]) {
@@ -780,13 +852,15 @@ export function calculateRaceScores({
   races,
   runners,
   horses,
-  meetings,
+meetings,
+  jockeyProfiles,
 }: {
   activeRace: Race | null | undefined;
   races: Race[];
   runners: Runner[];
   horses: Horse[];
   meetings: Meeting[];
+  jockeyProfiles: JockeyProfile[];
 }): ScoredRunner[] {
   if (!activeRace) return [];
 
@@ -856,7 +930,12 @@ const track =
       raceMeeting?.meeting_name,
     );
     const weight = scoreWeight(runner, fieldEffectiveWeights);
-    const jockey = scoreJockey(runner, historyRuns, allHistoryRuns);
+const jockey = scoreJockey(
+  runner,
+  historyRuns,
+  allHistoryRuns,
+  jockeyProfiles,
+);
     const trainer = scoreTrainer(runner, allHistoryRuns);
     const consistency = scoreConsistency(historyRuns);
 
