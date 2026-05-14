@@ -27,10 +27,93 @@ type JockeyProfile = {
   notes: string | null;
 };
 
+type JockeyRun = {
+  id: number;
+  jockey_name: string | null;
+  finishing_position: number | null;
+  settled_at: string | null;
+  race?: {
+    id: number;
+    race_number: number;
+    race_name: string;
+    meeting?: {
+      id: number;
+      meeting_name: string;
+      meeting_date: string;
+      state: string | null;
+    } | null;
+  } | null;
+};
+
+function normaliseName(value: string) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function percent(part: number, total: number) {
+  return total ? Math.round((part / total) * 100) : 0;
+}
+
+function getJockeyStats(profile: JockeyProfile, jockeyRuns: JockeyRun[]) {
+  const key = normaliseName(profile.jockey_name);
+
+  const runs = jockeyRuns
+    .filter((run) => normaliseName(run.jockey_name || "") === key)
+    .sort((a, b) => {
+      const aTime = a.settled_at ? new Date(a.settled_at).getTime() : 0;
+      const bTime = b.settled_at ? new Date(b.settled_at).getTime() : 0;
+      return bTime - aTime;
+    });
+
+  const wins = runs.filter((run) => run.finishing_position === 1).length;
+  const places = runs.filter(
+    (run) =>
+      run.finishing_position !== null &&
+      run.finishing_position !== undefined &&
+      run.finishing_position <= 3,
+  ).length;
+
+  const states = runs
+    .map((run) => run.race?.meeting?.state)
+    .filter((state): state is string => Boolean(state));
+
+  const stateCounts = new Map<string, number>();
+
+  states.forEach((state) => {
+    stateCounts.set(state, (stateCounts.get(state) || 0) + 1);
+  });
+
+  const mainState =
+    Array.from(stateCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    profile.state ||
+    "—";
+
+  const last10 = runs
+    .slice(0, 10)
+    .map((run) =>
+      run.finishing_position !== null && run.finishing_position !== undefined
+        ? String(run.finishing_position)
+        : "—",
+    )
+    .join(" • ");
+
+  return {
+    runs,
+    rides: runs.length,
+    wins,
+    places,
+    strikeRate: percent(wins, runs.length),
+    placeRate: percent(places, runs.length),
+    mainState,
+    last10: last10 || "No resulted rides yet",
+  };
+}
+
 export default function AdminJockeyProfiles({
   initialProfiles,
+  jockeyRuns,
 }: {
   initialProfiles: JockeyProfile[];
+  jockeyRuns: JockeyRun[];
 }) {
   const [search, setSearch] = useState("");
 
@@ -134,68 +217,110 @@ export default function AdminJockeyProfiles({
 
             <div className="mt-5 space-y-4">
               {filteredProfiles.length > 0 ? (
-                filteredProfiles.map((profile) => (
-                  <div key={profile.id} className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
-                    <form action={upsertJockeyProfileAction}>
-                      <input type="hidden" name="id" value={profile.id} />
+                filteredProfiles.map((profile) => {
+                  const stats = getJockeyStats(profile, jockeyRuns);
 
-                      <div className="grid gap-4 md:grid-cols-[1.2fr_0.7fr_0.9fr_auto]">
-                        <input
-                          name="jockey_name"
-                          defaultValue={profile.jockey_name}
-                          className="rounded-2xl border border-zinc-200 px-4 py-3 font-semibold"
+                  return (
+                    <div key={profile.id} className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
+                      <form action={upsertJockeyProfileAction}>
+                        <input type="hidden" name="id" value={profile.id} />
+
+                        <div className="grid gap-4 md:grid-cols-[1.2fr_0.7fr_0.9fr_auto]">
+                          <input
+                            name="jockey_name"
+                            defaultValue={profile.jockey_name}
+                            className="rounded-2xl border border-zinc-200 px-4 py-3 font-semibold"
+                          />
+
+                          <input
+                            name="manual_rating"
+                            type="number"
+                            min="1"
+                            max="100"
+                            defaultValue={profile.manual_rating ?? ""}
+                            placeholder="Manual rating"
+                            className="rounded-2xl border border-zinc-200 px-4 py-3"
+                          />
+
+                          <input
+                            name="confidence_tag"
+                            defaultValue={profile.confidence_tag ?? ""}
+                            placeholder="Tag"
+                            className="rounded-2xl border border-zinc-200 px-4 py-3"
+                          />
+
+                          <button type="submit" className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300">
+                            Save
+                          </button>
+                        </div>
+
+                        <textarea
+                          name="notes"
+                          defaultValue={profile.notes ?? ""}
+                          placeholder="Notes..."
+                          className="mt-3 min-h-[80px] w-full rounded-2xl border border-zinc-200 px-4 py-3"
                         />
+                      </form>
 
-                        <input
-                          name="manual_rating"
-                          type="number"
-                          min="1"
-                          max="100"
-                          defaultValue={profile.manual_rating ?? ""}
-                          placeholder="Manual rating"
-                          className="rounded-2xl border border-zinc-200 px-4 py-3"
-                        />
+                      <div className="mt-4 grid gap-3 md:grid-cols-4">
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Last 10
+                          </p>
+                          <p className="mt-2 text-sm font-bold text-zinc-900">
+                            {stats.last10}
+                          </p>
+                        </div>
 
-                        <input
-                          name="confidence_tag"
-                          defaultValue={profile.confidence_tag ?? ""}
-                          placeholder="Tag"
-                          className="rounded-2xl border border-zinc-200 px-4 py-3"
-                        />
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            SmartPunt
+                          </p>
+                          <p className="mt-2 text-sm font-bold text-zinc-900">
+                            {stats.rides} rides · {stats.wins} wins · {stats.places} places
+                          </p>
+                        </div>
 
-                        <button type="submit" className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300">
-                          Save
-                        </button>
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Strike
+                          </p>
+                          <p className="mt-2 text-sm font-bold text-zinc-900">
+                            {stats.strikeRate}% win · {stats.placeRate}% place
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Main state
+                          </p>
+                          <p className="mt-2 text-sm font-bold text-zinc-900">
+                            {stats.mainState}
+                          </p>
+                        </div>
                       </div>
 
-                      <textarea
-                        name="notes"
-                        defaultValue={profile.notes ?? ""}
-                        placeholder="Notes..."
-                        className="mt-3 min-h-[80px] w-full rounded-2xl border border-zinc-200 px-4 py-3"
-                      />
-                    </form>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Badge tone="blue">Imported {profile.rating ?? 55}</Badge>
+                        <Badge tone="amber">Manual {profile.manual_rating ?? "—"}</Badge>
+                        <Badge tone="green">
+                          Final approx{" "}
+                          {profile.manual_rating !== null && profile.manual_rating !== undefined
+                            ? Math.round(Number(profile.rating || 55) * 0.55 + Number(profile.manual_rating) * 0.45)
+                            : profile.rating || 55}
+                        </Badge>
+                        {profile.confidence_tag ? <Badge tone="slate">{profile.confidence_tag}</Badge> : null}
 
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Badge tone="blue">Imported {profile.rating ?? 55}</Badge>
-                      <Badge tone="amber">Manual {profile.manual_rating ?? "—"}</Badge>
-                      <Badge tone="green">
-                        Final approx{" "}
-                        {profile.manual_rating !== null && profile.manual_rating !== undefined
-                          ? Math.round(Number(profile.rating || 55) * 0.55 + Number(profile.manual_rating) * 0.45)
-                          : profile.rating || 55}
-                      </Badge>
-                      {profile.confidence_tag ? <Badge tone="slate">{profile.confidence_tag}</Badge> : null}
-
-                      <form action={deleteJockeyProfileAction} className="ml-auto">
-                        <input type="hidden" name="id" value={profile.id} />
-                        <button className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white">
-                          Delete
-                        </button>
-                      </form>
+                        <form action={deleteJockeyProfileAction} className="ml-auto">
+                          <input type="hidden" name="id" value={profile.id} />
+                          <button className="rounded-2xl bg-red-600 px-3 py-2 text-xs font-semibold text-white">
+                            Delete
+                          </button>
+                        </form>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <p className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
                   No jockey profiles found.
