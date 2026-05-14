@@ -2526,3 +2526,94 @@ if (horseUpdateError) {
     };
   }
 }
+function normaliseJockeyProfileName(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export async function upsertJockeyProfileAction(formData: FormData): Promise<void> {
+  const profile = await getCurrentProfile();
+
+  if (!profile || !["admin", "staff_admin"].includes(profile.role)) {
+    throw new Error("Unauthorized");
+  }
+
+  const supabase = await createClient();
+
+  const id = String(formData.get("id") || "").trim();
+  const jockeyName = String(formData.get("jockey_name") || "").trim();
+  const manualRatingRaw = String(formData.get("manual_rating") || "").trim();
+  const confidenceTag = String(formData.get("confidence_tag") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+
+  if (!jockeyName) {
+    throw new Error("Jockey name is required.");
+  }
+
+  const manualRating = manualRatingRaw ? Number(manualRatingRaw) : null;
+
+  if (
+    manualRating !== null &&
+    (!Number.isFinite(manualRating) || manualRating < 1 || manualRating > 100)
+  ) {
+    throw new Error("Manual rating must be between 1 and 100.");
+  }
+
+  const payload = {
+    jockey_name: jockeyName,
+    normalised_name: normaliseJockeyProfileName(jockeyName),
+    manual_rating: manualRating,
+    confidence_tag: confidenceTag || null,
+    notes: notes || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (id) {
+    const { error } = await supabase
+      .from("jockey_profiles")
+      .update(payload)
+      .eq("id", Number(id));
+
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase
+      .from("jockey_profiles")
+      .upsert(
+        {
+          ...payload,
+          rating: 55,
+        },
+        { onConflict: "normalised_name" },
+      );
+
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath("/admin/jockeys");
+  revalidatePath("/admin/calculator");
+}
+
+export async function deleteJockeyProfileAction(formData: FormData): Promise<void> {
+  const profile = await getCurrentProfile();
+
+  if (!profile || !["admin", "staff_admin"].includes(profile.role)) {
+    throw new Error("Unauthorized");
+  }
+
+  const supabase = await createClient();
+  const id = Number(formData.get("id"));
+
+  if (!id) {
+    throw new Error("Jockey profile is required.");
+  }
+
+  const { error } = await supabase.from("jockey_profiles").delete().eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/jockeys");
+  revalidatePath("/admin/calculator");
+}
