@@ -1735,7 +1735,84 @@ export async function toggleRacePublishAction(
     };
   }
 }
+export async function publishMeetingRacesAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
 
+    const supabase = await createClient();
+
+    const meetingId = Number(formData.get("meeting_id"));
+
+    if (!meetingId) {
+      return { success: false, error: "Meeting is required." };
+    }
+
+    const { data: races, error: racesError } = await supabase
+      .from("races")
+      .select("id,status")
+      .eq("meeting_id", meetingId);
+
+    if (racesError) {
+      return { success: false, error: racesError.message };
+    }
+
+    const draftRaces = (races || []).filter(
+      (race) => race.status === "draft",
+    );
+
+    if (!draftRaces.length) {
+      return {
+        success: false,
+        error: "No draft races found for this meeting.",
+      };
+    }
+
+    const raceIds = draftRaces.map((race) => race.id);
+
+    const { error: updateError } = await supabase
+      .from("races")
+      .update({
+        status: "published",
+        published_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .in("id", raceIds);
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    for (const raceId of raceIds) {
+      try {
+        await saveCalculatorPredictionsForRace(raceId);
+      } catch (predictionError) {
+        console.error(
+          `Prediction snapshot failed for race ${raceId}:`,
+          predictionError,
+        );
+      }
+    }
+
+    revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
+    revalidatePath("/");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/admin/calculator-report");
+
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to publish meeting races.",
+    };
+  }
+}
 export async function deleteRaceAction(
   formData: FormData,
 ): Promise<ActionResult> {
