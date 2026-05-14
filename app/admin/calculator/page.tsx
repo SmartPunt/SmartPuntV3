@@ -108,12 +108,28 @@ export default async function Page() {
     },
   });
 
+  const jockeyProfiles = await fetchAllRows({
+    getPage: async (from, to) => {
+      const result = await supabase
+        .from("jockey_profiles")
+        .select("*")
+        .order("jockey_name", { ascending: true })
+        .range(from, to);
+
+      return {
+        data: result.data ?? [],
+        error: result.error,
+      };
+    },
+  });
+
   return (
     <AdminCalculator
       races={races}
       runners={runners}
       horses={horses}
       meetings={meetings}
+      jockeyProfiles={jockeyProfiles}
     />
   );
 }
