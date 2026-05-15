@@ -605,7 +605,7 @@ function scoreJockey(
         (wins / horseJockeyRuns.length) * 18,
     );
 
-    return clamp(rawScore, 45, 90);
+return clamp(rawScore, 45, horseJockeyRuns.length >= 5 ? 88 : 78);
   }
 
   // SMARTPUNT JOCKEY HISTORY
@@ -672,9 +672,9 @@ function scoreJockey(
     return smartPuntScore;
   }
 
-  if (profileScore !== null) {
-    return clamp(profileScore, 45, 88);
-  }
+if (profileScore !== null) {
+  return clamp(profileScore, 45, 82);
+}
 
   return 55;
 }
