@@ -1399,11 +1399,51 @@ export async function deleteSuggestedTipAction(
   formData: FormData,
 ): Promise<void> {
   await requireAdmin();
+
   const id = Number(formData.get("id"));
   const supabase = await createClient();
 
-  const { error } = await supabase.from("suggested_tips").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  const { data: tip, error: tipError } = await supabase
+    .from("suggested_tips")
+    .select(`
+      id,
+      race_start_at,
+      races:races (
+        id,
+        race_number,
+        races_meeting:meetings (
+          meeting_name,
+          meeting_date
+        )
+      )
+    `)
+    .eq("id", id)
+    .single();
+
+  if (tipError) {
+    throw new Error(tipError.message);
+  }
+
+  const now = new Date();
+
+  if (tip?.race_start_at) {
+    const raceStart = new Date(tip.race_start_at);
+
+    if (raceStart <= now) {
+      throw new Error(
+        "This tip is locked because the race has already started.",
+      );
+    }
+  }
+
+  const { error } = await supabase
+    .from("suggested_tips")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
 
   revalidatePath("/");
   revalidatePath("/resulted-tips");
