@@ -1742,7 +1742,6 @@ export async function publishMeetingRacesAction(
     await requireRacingAdmin();
 
     const supabase = await createClient();
-
     const meetingId = Number(formData.get("meeting_id"));
 
     if (!meetingId) {
@@ -1758,9 +1757,7 @@ export async function publishMeetingRacesAction(
       return { success: false, error: racesError.message };
     }
 
-    const draftRaces = (races || []).filter(
-      (race) => race.status === "draft",
-    );
+    const draftRaces = (races || []).filter((race) => race.status === "draft");
 
     if (!draftRaces.length) {
       return {
@@ -1770,13 +1767,14 @@ export async function publishMeetingRacesAction(
     }
 
     const raceIds = draftRaces.map((race) => race.id);
+    const now = new Date().toISOString();
 
     const { error: updateError } = await supabase
       .from("races")
       .update({
         status: "published",
-        published_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        published_at: now,
+        updated_at: now,
       })
       .in("id", raceIds);
 
@@ -1784,16 +1782,9 @@ export async function publishMeetingRacesAction(
       return { success: false, error: updateError.message };
     }
 
-    for (const raceId of raceIds) {
-      try {
-        await saveCalculatorPredictionsForRace(raceId);
-      } catch (predictionError) {
-        console.error(
-          `Prediction snapshot failed for race ${raceId}:`,
-          predictionError,
-        );
-      }
-    }
+    await Promise.allSettled(
+      raceIds.map((raceId) => saveCalculatorPredictionsForRace(raceId)),
+    );
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
