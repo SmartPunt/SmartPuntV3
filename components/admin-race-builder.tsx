@@ -181,7 +181,11 @@ type ImportedRunner = {
 };
 
 function cleanImportedValue(value: string) {
-  return value.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/\u00a0/g, " ")
+    .replace(/[‘’`´]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function stripHorseSuffixes(value: string) {
@@ -242,6 +246,13 @@ function isNoiseLine(line: string) {
     "no deductions",
     "scr",
     "scratched",
+    "result",
+"results",
+"race result",
+"race results",
+"final results",
+"full results",
+"dividends",
   ]);
 
   if (exactNoise.has(lower)) return true;
@@ -255,7 +266,22 @@ function isNoiseLine(line: string) {
   if (/^\d{1,2}-[a-z]{3}-\d{2}$/i.test(line)) return true;
   if (/^\d{3,4}m$/i.test(line)) return true;
   if (/^(mon|tue|wed|thu|fri|sat|sun)\b/i.test(line)) return true;
-  if (/^magic millions|maiden|benchmark|plate|handicap|stakes/i.test(line)) return true;
+if (
+  /^magic millions|maiden|benchmark|plate|handicap|stakes|class\s+\d|ratings\s+band|open\s+handicap|set\s+weights|quality|cup\b/i.test(
+    line,
+  )
+) {
+  return true;
+}
+
+if (
+  /\b(race|maiden|benchmark|handicap|stakes|plate|cup|classic|trophy|quality|ratings band|set weights)\b/i.test(
+    line,
+  ) &&
+  !/^r\d+\s+/i.test(line)
+) {
+  return true;
+}
 
   if (
     /^(last starts|trainer|age \/ sex|sire \/ dam|distance|track|trk\/dist|good|soft|heavy|firm|synthetic)\b/i.test(
@@ -323,7 +349,7 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
 
   const words = cleanedLine.split(/\s+/).filter(Boolean);
   if (words.length < 1 || words.length > 6) return false;
-  if (!words.every((word) => /^[A-Za-z'’.\-]+$/.test(word))) return false;
+if (!words.every((word) => /^[A-Za-z'’.\-]+$/.test(word))) return false;
 
   const supportScore = nextLines.reduce((score, entry) => {
     if (/^br[:\s]*[0-9]+/i.test(entry) || /^barrier[:\s]*[0-9]+/i.test(entry)) score++;
