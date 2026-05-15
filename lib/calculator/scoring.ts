@@ -960,8 +960,8 @@ const consistency = scoreConsistency(historyRuns, runner.form_last_6);
 recentForm * 0.25 +
   distance * 0.14 +
   track * 0.09 +
-  condition * 0.08 +
-  barrier * 0.14 +
+  condition * 0.11 +
+  barrier * 0.10 +
   weight * 0.03 +
   jockey * 0.11 +
   trainer * 0.04 +
@@ -974,12 +974,12 @@ const standoutBonus =
   distance >= 75 &&
   track >= 70 &&
   barrier >= 70
-    ? 8
+? 10
     : recentForm >= 72 &&
         distance >= 70 &&
         track >= 65 &&
         barrier >= 65
-      ? 5
+? 6
       : 0;
 
 const score = applyOverconfidenceDampener({
