@@ -1662,6 +1662,117 @@ export async function deleteMeetingAction(
     };
   }
 }
+export async function updateMeetingDetailsAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
+
+    const supabase = await createClient();
+
+    const meetingId = Number(formData.get("meeting_id"));
+    const meetingName = String(formData.get("meeting_name") || "").trim();
+    const meetingDate = String(formData.get("meeting_date") || "").trim();
+
+    if (!meetingId) {
+      return { success: false, error: "Meeting is required." };
+    }
+
+    if (!meetingName) {
+      return { success: false, error: "Meeting name is required." };
+    }
+
+    if (!meetingDate) {
+      return { success: false, error: "Meeting date is required." };
+    }
+
+    const { error } = await supabase
+      .from("meetings")
+      .update({
+        meeting_name: meetingName,
+        meeting_date: meetingDate,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", meetingId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/current-races");
+    revalidatePath("/admin/race-builder");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/admin/calculator-report");
+    revalidatePath("/");
+
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update meeting.",
+    };
+  }
+}
+
+export async function updateRaceDetailsAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
+
+    const supabase = await createClient();
+
+    const raceId = Number(formData.get("race_id"));
+    const raceNumber = Number(formData.get("race_number"));
+    const raceName = String(formData.get("race_name") || "").trim();
+    const distanceRaw = String(formData.get("distance_m") || "").trim();
+    const distanceM = distanceRaw ? Number(distanceRaw) : null;
+
+    if (!raceId) {
+      return { success: false, error: "Race is required." };
+    }
+
+    if (!raceNumber || raceNumber <= 0) {
+      return { success: false, error: "Race number is required." };
+    }
+
+    if (!raceName) {
+      return { success: false, error: "Race name is required." };
+    }
+
+    const { error } = await supabase
+      .from("races")
+      .update({
+        race_number: raceNumber,
+        race_name: raceName,
+        distance_m:
+          distanceM !== null && Number.isFinite(distanceM) ? distanceM : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", raceId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/current-races");
+    revalidatePath("/admin/race-builder");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/admin/calculator-report");
+    revalidatePath("/");
+
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to update race.",
+    };
+  }
+}
 
 export async function createRaceAction(
   formData: FormData,
