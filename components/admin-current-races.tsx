@@ -11,7 +11,9 @@ import {
   toggleRacePublishAction,
   toggleRaceRunnerScratchAction,
   updateRaceRunnerDetailsAction,
-  updateMeetingConditionAction,
+updateMeetingConditionAction,
+updateMeetingDetailsAction,
+updateRaceDetailsAction,
 } from "@/lib/actions";
 
 type Horse = {
@@ -873,32 +875,66 @@ function handleScratchMissingResults(raceId: number) {
                           className="rounded-[28px] border border-amber-200/30 bg-white p-5 shadow-sm"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
-                                {meeting.meeting_name}
-                              </h3>
-<div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
-  <span>{formatMeetingDate(meeting.meeting_date)}</span>
-
+<div className="space-y-3">
   {isAdmin ? (
-    <select
-      value={meeting.track_condition || ""}
-      onChange={(e) => handleUpdateTrackCondition(meeting.id, e.target.value)}
-      className="rounded-xl border border-zinc-300 bg-white px-3 py-1 text-sm font-semibold text-zinc-700"
+    <form
+      action={async (formData) => {
+        await updateMeetingDetailsAction(formData);
+      }}
+      className="flex flex-wrap items-center gap-2"
     >
-      <option value="">Set condition</option>
-      <option value="Good">Good</option>
-      <option value="Soft">Soft</option>
-      <option value="Heavy">Heavy</option>
-      <option value="Synthetic">Synthetic</option>
-    </select>
+      <input type="hidden" name="meeting_id" value={meeting.id} />
+
+      <input
+        name="meeting_name"
+        defaultValue={meeting.meeting_name}
+        className="rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+      />
+
+      <input
+        type="date"
+        name="meeting_date"
+        defaultValue={meeting.meeting_date}
+        className="rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
+      />
+
+      <button
+        type="submit"
+        className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
+      >
+        Save Meeting
+      </button>
+    </form>
   ) : (
-    meeting.track_condition && (
-      <Badge tone="blue">{meeting.track_condition}</Badge>
-    )
+    <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
+      {meeting.meeting_name}
+    </h3>
   )}
+
+  <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
+    <span>{formatMeetingDate(meeting.meeting_date)}</span>
+
+    {isAdmin ? (
+      <select
+        value={meeting.track_condition || ""}
+        onChange={(e) =>
+          handleUpdateTrackCondition(meeting.id, e.target.value)
+        }
+        className="rounded-xl border border-zinc-300 bg-white px-3 py-1 text-sm font-semibold text-zinc-700"
+      >
+        <option value="">Set condition</option>
+        <option value="Good">Good</option>
+        <option value="Soft">Soft</option>
+        <option value="Heavy">Heavy</option>
+        <option value="Synthetic">Synthetic</option>
+      </select>
+    ) : (
+      meeting.track_condition && (
+        <Badge tone="blue">{meeting.track_condition}</Badge>
+      )
+    )}
+  </div>
 </div>
-                            </div>
 
                             <Badge tone="blue">{meeting.races.length} current races</Badge>
                           </div>
@@ -921,21 +957,74 @@ function handleScratchMissingResults(raceId: number) {
   onClick={() => toggleRaceOpen(race.id)}
   className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
 >
-  <div>
-    <div className="flex flex-wrap items-center gap-2">
-      <p className="text-lg font-semibold text-zinc-950">
-        {raceIsOpen ? "▾" : "▸"} R{race.race_number} {race.race_name}
-      </p>
+<div className="space-y-2">
+  {isAdmin ? (
+    <form
+      action={async (formData) => {
+        await updateRaceDetailsAction(formData);
+      }}
+      className="flex flex-wrap items-center gap-2"
+    >
+      <input type="hidden" name="race_id" value={race.id} />
+
+      <span className="text-lg font-semibold text-zinc-950">
+        {raceIsOpen ? "▾" : "▸"}
+      </span>
+
+      <input
+        type="number"
+        name="race_number"
+        defaultValue={race.race_number}
+        className="w-[90px] rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+      />
+
+      <input
+        name="race_name"
+        defaultValue={race.race_name}
+        className="min-w-[260px] flex-1 rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+      />
+
+      <input
+        type="number"
+        name="distance_m"
+        defaultValue={race.distance_m || ""}
+        placeholder="Distance"
+        className="w-[120px] rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
+      />
+
+      <button
+        type="submit"
+        className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
+      >
+        Save Race
+      </button>
+
       <Badge tone="green">published</Badge>
+
       <Badge tone={getRaceResultTone(raceRunners)}>
         {settledCount}/{activeRunnerCount} completed
       </Badge>
-    </div>
+    </form>
+  ) : (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-lg font-semibold text-zinc-950">
+          {raceIsOpen ? "▾" : "▸"} R{race.race_number} {race.race_name}
+        </p>
 
-    <p className="mt-1 text-sm text-zinc-500">
-      {race.distance_m || "—"}m
-    </p>
-  </div>
+        <Badge tone="green">published</Badge>
+
+        <Badge tone={getRaceResultTone(raceRunners)}>
+          {settledCount}/{activeRunnerCount} completed
+        </Badge>
+      </div>
+
+      <p className="mt-1 text-sm text-zinc-500">
+        {race.distance_m || "—"}m
+      </p>
+    </>
+  )}
+</div>
 
   <Badge tone={raceIsOpen ? "blue" : "amber"}>
     {raceIsOpen ? "Open" : "Collapsed"}
