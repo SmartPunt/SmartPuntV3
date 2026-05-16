@@ -288,6 +288,7 @@ export default function CurrentRacesPage({
 
   const [editingRunnerId, setEditingRunnerId] = useState<number | null>(null);
   const [runnerEditState, setRunnerEditState] = useState<Record<number, RunnerEditState>>({});
+  const [editingRaceIds, setEditingRaceIds] = useState<Record<number, boolean>>({});
 
   const [resultImportTextByRace, setResultImportTextByRace] = useState<Record<number, string>>({});
   const [parsedResultsByRace, setParsedResultsByRace] = useState<Record<number, ParsedResultRow[]>>(
@@ -314,6 +315,13 @@ function toggleRaceOpen(raceId: number) {
   setOpenRaceIds((prev) => ({
     ...prev,
     [raceId]: !prev[raceId],
+  }));
+}
+
+function toggleRaceEdit(raceId: number) {
+  setEditingRaceIds((current) => ({
+    ...current,
+    [raceId]: !current[raceId],
   }));
 }
 
@@ -946,114 +954,114 @@ function handleScratchMissingResults(raceId: number) {
                               const settledCount = getSettledCount(race.id);
                               const parsedRows = parsedResultsByRace[race.id] || [];
                           const raceIsOpen = isRaceOpen(race.id);
+                          const raceIsEditing = editingRaceIds[race.id] === true;
 
                               return (
                                 <div
                                   key={race.id}
                                   className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-5"
                                 >
-<button
-  type="button"
-  onClick={() => toggleRaceOpen(race.id)}
-  className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
->
-<div className="space-y-2">
-  {isAdmin ? (
-    <form
-      action={async (formData) => {
-        await updateRaceDetailsAction(formData);
-      }}
-      className="flex flex-wrap items-center gap-2"
-    >
-      <input type="hidden" name="race_id" value={race.id} />
+<div className="flex w-full flex-wrap items-start justify-between gap-3 text-left">
+  <div
+    className="flex-1 cursor-pointer"
+    onClick={() => toggleRaceOpen(race.id)}
+  >
+    <div className="space-y-2">
+      {isAdmin && raceIsEditing ? (
+        <form
+          action={async (formData) => {
+            await updateRaceDetailsAction(formData);
+            toggleRaceEdit(race.id);
+          }}
+          className="flex flex-wrap items-center gap-2"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <input type="hidden" name="race_id" value={race.id} />
 
-      <span className="text-lg font-semibold text-zinc-950">
-        {raceIsOpen ? "▾" : "▸"}
-      </span>
+          <span className="text-lg font-semibold text-zinc-950">
+            {raceIsOpen ? "▾" : "▸"}
+          </span>
 
-      <input
-        type="number"
-        name="race_number"
-        defaultValue={race.race_number}
-        className="w-[90px] rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
-      />
+          <input
+            type="number"
+            name="race_number"
+            defaultValue={race.race_number}
+            className="w-[90px] rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+          />
 
-      <input
-        name="race_name"
-        defaultValue={race.race_name}
-        className="min-w-[260px] flex-1 rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
-      />
+          <input
+            name="race_name"
+            defaultValue={race.race_name}
+            className="min-w-[260px] flex-1 rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+          />
 
-      <input
-        type="number"
-        name="distance_m"
-        defaultValue={race.distance_m || ""}
-        placeholder="Distance"
-        className="w-[120px] rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
-      />
+          <input
+            type="number"
+            name="distance_m"
+            defaultValue={race.distance_m || ""}
+            placeholder="Distance"
+            className="w-[120px] rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
+          />
 
-      <button
-        type="submit"
-        className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
-      >
-        Save Race
-      </button>
+          <button
+            type="submit"
+            className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
+          >
+            Save Race
+          </button>
 
-      <Badge tone="green">published</Badge>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleRaceEdit(race.id);
+            }}
+            className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700"
+          >
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-lg font-semibold text-zinc-950">
+              {raceIsOpen ? "▾" : "▸"} R{race.race_number}{" "}
+              {race.race_name}
+            </p>
 
-      <Badge tone={getRaceResultTone(raceRunners)}>
-        {settledCount}/{activeRunnerCount} completed
-      </Badge>
-    </form>
-  ) : (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-lg font-semibold text-zinc-950">
-          {raceIsOpen ? "▾" : "▸"} R{race.race_number} {race.race_name}
-        </p>
+            <Badge tone="green">published</Badge>
 
-        <Badge tone="green">published</Badge>
+            <Badge tone={getRaceResultTone(raceRunners)}>
+              {settledCount}/{activeRunnerCount} completed
+            </Badge>
 
-        <Badge tone={getRaceResultTone(raceRunners)}>
-          {settledCount}/{activeRunnerCount} completed
-        </Badge>
-      </div>
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleRaceEdit(race.id);
+                }}
+                className="rounded-xl border border-zinc-300 bg-white px-3 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+              >
+                Edit Race
+              </button>
+            ) : null}
+          </div>
 
-      <p className="mt-1 text-sm text-zinc-500">
-        {race.distance_m || "—"}m
-      </p>
-    </>
-  )}
-</div>
+          <p className="mt-1 text-sm text-zinc-500">
+            {race.distance_m || "—"}m
+          </p>
+        </>
+      )}
+    </div>
+  </div>
 
   <Badge tone={raceIsOpen ? "blue" : "amber"}>
     {raceIsOpen ? "Open" : "Collapsed"}
   </Badge>
-</button>
+</div>
 
-{raceIsOpen ? (
-  <>
-    {isAdmin ? (
-  <div className="mt-4 flex flex-wrap gap-2">
-    <button
-      type="button"
-      onClick={() => handleMoveBackToBuilder(race.id)}
-      disabled={isPending}
-      className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
-    >
-      Move Back to Builder
-    </button>
-
-    <button
-      type="button"
-      onClick={() => handleSaveResultsAndCloseRace(race.id)}
-      disabled={isPending}
-      className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
-    >
-      {isPending ? "Saving..." : "Save Results + Close Race"}
-    </button>
-  </div>
-) : null}
                                   <div className="mt-4 rounded-[20px] border border-blue-200/40 bg-blue-50 p-4 text-sm text-zinc-700">
                                     {isAdmin
                                       ? "Live admin lane: edit the runner, scratch it if needed, then result the race when the field is official."
