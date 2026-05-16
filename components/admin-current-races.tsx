@@ -11,9 +11,9 @@ import {
   toggleRacePublishAction,
   toggleRaceRunnerScratchAction,
   updateRaceRunnerDetailsAction,
-updateMeetingConditionAction,
-updateMeetingDetailsAction,
-updateRaceDetailsAction,
+  updateMeetingConditionAction,
+  updateMeetingDetailsAction,
+  updateRaceDetailsAction,
 } from "@/lib/actions";
 
 type Horse = {
@@ -288,6 +288,7 @@ export default function CurrentRacesPage({
 
   const [editingRunnerId, setEditingRunnerId] = useState<number | null>(null);
   const [runnerEditState, setRunnerEditState] = useState<Record<number, RunnerEditState>>({});
+  const [editingMeetingIds, setEditingMeetingIds] = useState<Record<number, boolean>>({});
   const [editingRaceIds, setEditingRaceIds] = useState<Record<number, boolean>>({});
 
   const [resultImportTextByRace, setResultImportTextByRace] = useState<Record<number, string>>({});
@@ -318,6 +319,17 @@ function toggleRaceOpen(raceId: number) {
   }));
 }
 
+function isRaceOpen(raceId: number) {
+  return openRaceIds[raceId] === true;
+}
+
+function toggleMeetingEdit(meetingId: number) {
+  setEditingMeetingIds((current) => ({
+    ...current,
+    [meetingId]: !current[meetingId],
+  }));
+}
+
 function toggleRaceEdit(raceId: number) {
   setEditingRaceIds((current) => ({
     ...current,
@@ -325,9 +337,6 @@ function toggleRaceEdit(raceId: number) {
   }));
 }
 
-function isRaceOpen(raceId: number) {
-  return openRaceIds[raceId] === true;
-}
   function setSuccess(message: string) {
     setStatusTone("success");
     setStatusMessage(message);
@@ -884,10 +893,11 @@ function handleScratchMissingResults(raceId: number) {
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
 <div className="space-y-3">
-  {isAdmin ? (
+  {isAdmin && editingMeetingIds[meeting.id] === true ? (
     <form
       action={async (formData) => {
         await updateMeetingDetailsAction(formData);
+        toggleMeetingEdit(meeting.id);
       }}
       className="flex flex-wrap items-center gap-2"
     >
@@ -912,11 +922,31 @@ function handleScratchMissingResults(raceId: number) {
       >
         Save Meeting
       </button>
+
+      <button
+        type="button"
+        onClick={() => toggleMeetingEdit(meeting.id)}
+        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700"
+      >
+        Cancel
+      </button>
     </form>
   ) : (
-    <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
-      {meeting.meeting_name}
-    </h3>
+    <div className="flex flex-wrap items-center gap-2">
+      <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
+        {meeting.meeting_name}
+      </h3>
+
+      {isAdmin ? (
+        <button
+          type="button"
+          onClick={() => toggleMeetingEdit(meeting.id)}
+          className="rounded-xl border border-zinc-300 bg-white px-3 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+        >
+          Edit Meeting
+        </button>
+      ) : null}
+    </div>
   )}
 
   <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
@@ -1062,6 +1092,29 @@ function handleScratchMissingResults(raceId: number) {
   </Badge>
 </div>
 
+{raceIsOpen ? (
+  <>
+    {isAdmin ? (
+  <div className="mt-4 flex flex-wrap gap-2">
+    <button
+      type="button"
+      onClick={() => handleMoveBackToBuilder(race.id)}
+      disabled={isPending}
+      className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+    >
+      Move Back to Builder
+    </button>
+
+    <button
+      type="button"
+      onClick={() => handleSaveResultsAndCloseRace(race.id)}
+      disabled={isPending}
+      className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+    >
+      {isPending ? "Saving..." : "Save Results + Close Race"}
+    </button>
+  </div>
+) : null}
                                   <div className="mt-4 rounded-[20px] border border-blue-200/40 bg-blue-50 p-4 text-sm text-zinc-700">
                                     {isAdmin
                                       ? "Live admin lane: edit the runner, scratch it if needed, then result the race when the field is official."
