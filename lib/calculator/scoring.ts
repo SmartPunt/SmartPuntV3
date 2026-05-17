@@ -1062,6 +1062,7 @@ export function calculateRaceScores({
   horses,
   meetings,
   jockeyProfiles,
+  scoreOverrides,
 }: {
   activeRace: Race | null | undefined;
   races: Race[];
@@ -1069,6 +1070,9 @@ export function calculateRaceScores({
   horses: Horse[];
   meetings: Meeting[];
   jockeyProfiles: JockeyProfile[];
+  scoreOverrides?: {
+    condition?: number | null;
+  };
 }): ScoredRunner[] {
   if (!activeRace) return [];
 
