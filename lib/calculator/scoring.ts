@@ -1140,10 +1140,15 @@ export function calculateRaceScores({
               0.4 +
               scoreImportedStatRecord(runner.track_form_last_6) * 0.6,
           );
-    const condition = scoreConditionSuitability(
-      historyRuns,
-      raceMeeting?.track_condition,
-    );
+const condition =
+  scoreOverrides?.condition !== null &&
+  scoreOverrides?.condition !== undefined &&
+  Number.isFinite(Number(scoreOverrides.condition))
+    ? clamp(Number(scoreOverrides.condition))
+    : scoreConditionSuitability(
+        historyRuns,
+        raceMeeting?.track_condition,
+      );
     const barrier = scoreBarrier(
       runner.barrier,
       activeRace.distance_m,
