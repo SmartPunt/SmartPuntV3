@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { SMARTPUNT_SCORING_VERSION } from "@/lib/calculator/scoring";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 type Prediction = {
   race_id: number;
   runner_id: number;
@@ -53,12 +56,17 @@ type HorseRow = {
   horse_name: string;
 };
 
-function headers() {
+type RaceRunnerRow = {
+  id: number;
+  horse_id: number | null;
+};
+
+function getServiceConfig() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing Supabase service role configuration in environment variables.");
+    throw new Error("Missing Supabase service role configuration.");
   }
 
   return {
@@ -72,38 +80,19 @@ function headers() {
   };
 }
 
-async function serviceSelect<T>(path: string): Promise<T[]> {
-  const { supabaseUrl, headers: h } = headers();
-  const separator = path.includes("?") ? "&" : "?";
-  const pathWithLimit = `${path}${separator}limit=1000`;
-
-  const response = await fetch(`${supabaseUrl}/rest/v1/${pathWithLimit}`, {
-    method: "GET",
-    headers: h,
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Service role request failed for ${path}`);
-  }
-
-  return response.json();
-}
-
 async function serviceSelectAllRows<T>(path: string): Promise<T[]> {
   const allRows: T[] = [];
   let offset = 0;
   const pageSize = 1000;
 
   while (true) {
-    const { supabaseUrl, headers: h } = headers();
+    const { supabaseUrl, headers } = getServiceConfig();
     const separator = path.includes("?") ? "&" : "?";
     const pagedPath = `${path}${separator}limit=${pageSize}&offset=${offset}`;
 
     const response = await fetch(`${supabaseUrl}/rest/v1/${pagedPath}`, {
       method: "GET",
-      headers: h,
+      headers,
       cache: "no-store",
     });
 
@@ -115,9 +104,7 @@ async function serviceSelectAllRows<T>(path: string): Promise<T[]> {
     const rows = (await response.json()) as T[];
     allRows.push(...rows);
 
-    if (rows.length < pageSize) {
-      break;
-    }
+    if (rows.length < pageSize) break;
 
     offset += pageSize;
   }
@@ -125,11 +112,49 @@ async function serviceSelectAllRows<T>(path: string): Promise<T[]> {
   return allRows;
 }
 
+function chunk<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+
+  return chunks;
+}
+
+async function serviceSelectByIds<T>({
+  table,
+  select,
+  ids,
+}: {
+  table: string;
+  select: string;
+  ids: number[];
+}): Promise<T[]> {
+  const cleanIds = Array.from(new Set(ids.map(Number).filter(Boolean)));
+
+  if (!cleanIds.length) return [];
+
+  const rows: T[] = [];
+
+  for (const idChunk of chunk(cleanIds, 200)) {
+    rows.push(
+      ...(await serviceSelectAllRows<T>(
+        `${table}?select=${select}&id=in.(${idChunk.join(",")})`,
+      )),
+    );
+  }
+
+  return rows;
+}
+
 function isoDate(value?: string | null) {
   if (!value) return "";
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
+
   return date.toISOString().slice(0, 10);
 }
 
@@ -141,9 +166,11 @@ function csvCell(value: unknown) {
 function filterByDate(rows: Prediction[], from: string, to: string) {
   return rows.filter((row) => {
     const meetingDate = isoDate(row.race?.meeting?.meeting_date);
+
     if (!meetingDate) return true;
     if (from && meetingDate < from) return false;
     if (to && meetingDate > to) return false;
+
     return true;
   });
 }
@@ -155,81 +182,59 @@ async function fetchPredictions() {
     )}&order=settled_at.desc`,
   );
 
-  const raceIds = Array.from(new Set(predictions.map((row) => row.race_id).filter(Boolean)));
-const runnerIds = Array.from(
-  new Set(predictions.map((row) => row.runner_id).filter(Boolean)),
-);
+  const raceIds = predictions.map((row) => Number(row.race_id)).filter(Boolean);
+  const runnerIds = predictions.map((row) => Number(row.runner_id)).filter(Boolean);
 
-const races = raceIds.length
-  ? await serviceSelect<RaceRow>(
-      `races?select=id,race_number,race_name,distance_m,meeting_id,status&id=in.(${raceIds.join(",")})`,
-    )
-  : [];
+  const races = await serviceSelectByIds<RaceRow>({
+    table: "races",
+    select: "id,race_number,race_name,distance_m,meeting_id,status",
+    ids: raceIds,
+  });
 
-const meetingIds = Array.from(
-  new Set(races.map((row) => row.meeting_id).filter(Boolean)),
-);
+  const meetingIds = races.map((row) => Number(row.meeting_id)).filter(Boolean);
 
-const meetings = meetingIds.length
-  ? await serviceSelect<MeetingRow>(
-      `meetings?select=id,meeting_name,meeting_date,track_condition&id=in.(${meetingIds.join(",")})`,
-    )
-  : [];
+  const meetings = await serviceSelectByIds<MeetingRow>({
+    table: "meetings",
+    select: "id,meeting_name,meeting_date,track_condition",
+    ids: meetingIds,
+  });
 
-const raceRunners = runnerIds.length
-  ? await serviceSelectAllRows<any>(
-      `race_runners?select=id,horse_id&id=in.(${runnerIds.join(",")})`,
-    )
-  : [];
+  const raceRunners = await serviceSelectByIds<RaceRunnerRow>({
+    table: "race_runners",
+    select: "id,horse_id",
+    ids: runnerIds,
+  });
 
-const resolvedHorseIds = Array.from(
-  new Set(
-    raceRunners
-      .map((row) => row.horse_id)
-      .filter(Boolean),
-  ),
-);
+  const resolvedHorseIds = raceRunners
+    .map((row) => Number(row.horse_id))
+    .filter(Boolean);
 
-const horses = resolvedHorseIds.length
-  ? await serviceSelectAllRows<HorseRow>(
-      `horses?select=id,horse_name&id=in.(${resolvedHorseIds.join(",")})`,
-    )
-  : [];
+  const horses = await serviceSelectByIds<HorseRow>({
+    table: "horses",
+    select: "id,horse_name",
+    ids: resolvedHorseIds,
+  });
 
   const raceMap = new Map(races.map((row) => [Number(row.id), row]));
   const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
+  const runnerMap = new Map(raceRunners.map((row) => [Number(row.id), row]));
   const horseMap = new Map(horses.map((row) => [Number(row.id), row]));
 
+  return predictions.map((prediction) => {
+    const race = raceMap.get(Number(prediction.race_id)) || null;
+    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
+    const runner = runnerMap.get(Number(prediction.runner_id)) || null;
 
-const runnerMap = new Map(
-  raceRunners.map((row) => [Number(row.id), row]),
-);
+    const horse =
+      horseMap.get(Number(prediction.horse_id)) ||
+      (runner?.horse_id ? horseMap.get(Number(runner.horse_id)) || null : null);
 
-return predictions.map((prediction) => {
-  const race = raceMap.get(Number(prediction.race_id)) || null;
-
-  const meeting = race
-    ? meetingMap.get(Number(race.meeting_id)) || null
-    : null;
-
-  const horse =
-    horseMap.get(Number(prediction.horse_id)) || null;
-
-  const runner =
-    runnerMap.get(Number(prediction.runner_id)) || null;
-
-  return {
-    ...prediction,
-
-    race: race ? { ...race, meeting } : null,
-
-horse:
-  horse ||
-  (runner?.horse_id && horseMap.get(Number(runner.horse_id))
-    ? horseMap.get(Number(runner.horse_id)) || null
-    : null),
-  };
-});
+    return {
+      ...prediction,
+      race: race ? { ...race, meeting } : null,
+      horse,
+    };
+  });
 }
 
 function buildCsv(rows: Prediction[]) {
@@ -299,25 +304,38 @@ function buildCsv(rows: Prediction[]) {
 }
 
 export async function GET(request: Request) {
-  const profile = await getCurrentProfile();
+  try {
+    const profile = await getCurrentProfile();
 
-  if (!profile || !["admin", "staff_admin"].includes(profile.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!profile || !["admin", "staff_admin"].includes(profile.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const url = new URL(request.url);
+    const from = url.searchParams.get("from") || "";
+    const to = url.searchParams.get("to") || "";
+
+    const rows = filterByDate(await fetchPredictions(), from, to);
+    const csv = buildCsv(rows);
+    const suffix = from || to ? `${from || "start"}_to_${to || "today"}` : "all_history";
+
+    return new Response(csv, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="smartpunt-calculator-report-${suffix}.csv"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to export calculator report.",
+      },
+      { status: 500 },
+    );
   }
-
-  const url = new URL(request.url);
-  const from = url.searchParams.get("from") || "";
-  const to = url.searchParams.get("to") || "";
-  const rows = filterByDate(await fetchPredictions(), from, to);
-  const csv = buildCsv(rows);
-  const suffix = from || to ? `${from || "start"}_to_${to || "today"}` : "all_history";
-
-  return new Response(csv, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="smartpunt-calculator-report-${suffix}.csv"`,
-      "Cache-Control": "no-store",
-    },
-  });
 }
