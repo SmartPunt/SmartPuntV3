@@ -9,7 +9,8 @@ import {
   calculateRaceScores,
   formatFormLine,
   getFactorStatus,
-  getRaceVerdict,
+getRaceVerdict,
+  calculateRaceConfidence,
   getSelectedHorseSummary,
   roundScore,
   type Horse,
@@ -106,7 +107,12 @@ export default function AdminCalculator({
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
 
-  const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
+const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
+
+  const raceConfidence = useMemo(
+    () => calculateRaceConfidence(scoredRunners),
+    [scoredRunners],
+  );
 
   const raceConfidence = useMemo(
     () => (scoredRunners.length ? calculateRaceConfidence(scoredRunners) : null),
@@ -465,7 +471,7 @@ export default function AdminCalculator({
                     </div>
                   ) : null}
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-3">
                     <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
                         Most likely winner
@@ -490,6 +496,28 @@ export default function AdminCalculator({
                           </p>
                         ))}
                       </div>
+                    </div>
+                                        <div className="rounded-[24px] border border-amber-300/40 bg-amber-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                        Race confidence
+                      </p>
+
+                      <p className="mt-2 text-lg font-bold text-zinc-950">
+                        {raceConfidence.confidencePercent}%
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Badge tone="green">{raceConfidence.tier}</Badge>
+                        <Badge tone="amber">Gap +{raceConfidence.gap}</Badge>
+                      </div>
+
+                      <p className="mt-3 text-sm text-zinc-700">
+                        {raceConfidence.volatility}
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-zinc-900">
+                        Suggested: {raceConfidence.suggestedBet}
+                      </p>
                     </div>
                   </div>
 
