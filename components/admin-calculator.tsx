@@ -5,14 +5,18 @@ import { useMemo, useState } from "react";
 import { signOutAction } from "@/lib/actions";
 import {
   buildHorseHistory,
-  calculateRaceScores,
   calculateRaceConfidence,
+  calculateRaceScores,
   formatFormLine,
   getFactorStatus,
   getRaceVerdict,
   getSelectedHorseSummary,
   roundScore,
+  type Horse,
   type JockeyProfile,
+  type Meeting,
+  type Race,
+  type Runner,
 } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 
