@@ -1566,7 +1566,7 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
 }
 export async function publishSmartPuntCalculatorTipAction(
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<void> {
   try {
     const profile = await requireRacingAdmin();
     const supabase = await createClient();
@@ -1599,10 +1599,7 @@ export async function publishSmartPuntCalculatorTipAction(
     };
 
     if (!payload.race_id || !payload.race_runner_id || !payload.horse_id) {
-      return {
-        success: false,
-        error: "Race, runner, and horse are required for calculator tips.",
-      };
+throw new Error("Race, runner, and horse are required for calculator tips.");
     }
 
     const { data, error } = await supabase
@@ -1641,15 +1638,13 @@ export async function publishSmartPuntCalculatorTipAction(
     revalidatePath("/resulted-tips");
     revalidatePath("/my-resulted-tips");
 
-    return { success: true, error: null };
+return;
   } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to publish calculator tip.",
-    };
+throw new Error(
+  error instanceof Error
+    ? error.message
+    : "Failed to publish calculator tip.",
+);
   }
 }
 export async function deleteSuggestedTipAction(
