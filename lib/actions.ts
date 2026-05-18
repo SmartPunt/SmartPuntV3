@@ -519,7 +519,103 @@ async function sendSuggestedTipNotifications({
 
   await sendBatchEmails(emails);
 }
+async function sendSmartPuntCalculatorTipNotifications({
+  race,
+  horse,
+  betType,
+  score,
+  winPercent,
+  placePercent,
+  raceConfidencePercent,
+  raceConfidenceTier,
+  raceGap,
+}: {
+  race: string;
+  horse: string;
+  betType: string;
+  score: number;
+  winPercent: number;
+  placePercent: number;
+  raceConfidencePercent: number;
+  raceConfidenceTier: string;
+  raceGap: number;
+}) {
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
 
+  if (!fromEmail) return;
+
+  const recipients = await getActiveSubscriberEmails();
+  if (!recipients.length) return;
+
+  const subject = `SmartPunt Calculator Alert: ${race} - ${horse}`;
+
+  const html = (email: string) =>
+    buildEmailShell({
+      headerHtml: buildEmailHeader({
+        eyebrow: "SmartPunt Calculator",
+        title: "Calculator Tip Fired",
+        subtitle: "Model-rated betting opportunity",
+      }),
+      bodyHtml: `
+        <p style="margin: 0; font-size: 14px; color: #6b7280;">${race}</p>
+
+        <h2 style="margin: 6px 0 0; font-size: 30px; color: #111827;">
+          ${horse}
+        </h2>
+
+        <div style="margin-top: 18px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px;">
+          <div style="padding:14px;border-radius:14px;background:#111827;color:#fbbf24;">
+            <div style="font-size:11px;opacity:.7;text-transform:uppercase;">Bet Type</div>
+            <div style="margin-top:6px;font-size:20px;font-weight:700;">${betType}</div>
+          </div>
+
+          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Calculator Score</div>
+            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">${score}</div>
+          </div>
+
+          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Win Chance</div>
+            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">${winPercent}%</div>
+          </div>
+
+          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Place Chance</div>
+            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">${placePercent}%</div>
+          </div>
+
+          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Race Confidence</div>
+            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">
+              ${raceConfidencePercent}% (${raceConfidenceTier})
+            </div>
+          </div>
+
+          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Score Gap</div>
+            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">
+              +${raceGap}
+            </div>
+          </div>
+        </div>
+
+        ${buildViewInSmartPuntButton()}
+
+        <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
+          Sent to ${email} because you’re an active SmartPunt subscriber.
+        </p>
+      `,
+    });
+
+  const emails = recipients.map((email) => ({
+    from: fromEmail,
+    to: [email],
+    subject,
+    html: html(email),
+  }));
+
+  await sendBatchEmails(emails);
+}
 async function sendGetOnEarlyNotifications({
   title,
   horse,
