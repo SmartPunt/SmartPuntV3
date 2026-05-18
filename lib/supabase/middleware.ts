@@ -7,6 +7,15 @@ type CookieToSet = {
   options: CookieOptions;
 };
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs = 3500): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), timeoutMs);
+    }),
+  ]);
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -28,6 +37,11 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  try {
+    await withTimeout(supabase.auth.getUser(), 3500);
+  } catch (error) {
+    console.error("Supabase middleware session refresh failed:", error);
+  }
+
   return response;
 }
