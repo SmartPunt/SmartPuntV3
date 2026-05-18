@@ -2808,6 +2808,41 @@ export async function settleRaceRunnersAction(
     if (rpcError) {
       return { success: false, error: rpcError.message };
     }
+    try {
+  const calculatorTipUpdates = updates.map((update) => ({
+    race_id: raceId,
+    race_runner_id: update.id,
+    finishing_position: update.finishing_position,
+    won: update.won,
+    placed: update.placed,
+    settled_at: update.settled_at,
+    updated_at: now,
+  }));
+
+  for (const update of calculatorTipUpdates) {
+    await serviceRoleFetch(
+      `smartpunt_calculator_tips?race_id=eq.${raceId}&race_runner_id=eq.${update.race_runner_id}`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          finishing_position: update.finishing_position,
+          won: update.won,
+          placed: update.placed,
+          settled_at: update.settled_at,
+          updated_at: update.updated_at,
+        }),
+      },
+    );
+  }
+} catch (calculatorTipSettleError) {
+  console.error(
+    "SmartPunt calculator tip settlement update failed:",
+    calculatorTipSettleError,
+  );
+}
 
     const horseIds = Array.from(
       new Set(
