@@ -2,10 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import {
-  publishSmartPuntCalculatorTipAction,
-  signOutAction,
-} from "@/lib/actions";
+import { signOutAction } from "@/lib/actions";
 import {
   buildHorseHistory,
   calculateRaceConfidence,
@@ -509,158 +506,206 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
                         {selectedHorseScore.horse_name}
                       </h3>
 
-<div className="mt-4 flex flex-wrap gap-2">
-  <Badge tone="green">
-    Win {item.top.winPercent}%
-  </Badge>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Badge tone="green">Win {selectedHorseScore.winPercent}%</Badge>
+                        <Badge tone="blue">Place {selectedHorseScore.placePercent}%</Badge>
+                        <Badge tone="amber">{selectedHorseScore.verdict}</Badge>
+                        <Badge tone="slate">Rank #{selectedHorseScore.rank}</Badge>
+                        <Badge tone="amber">Score {roundScore(selectedHorseScore.score)}</Badge>
+                      </div>
 
-  <Badge tone="blue">
-    Place {item.top.placePercent}%
-  </Badge>
+                      <div className="mt-5 rounded-[24px] border border-zinc-200 bg-white/70 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                          Why this rating
+                        </p>
 
-  <Badge tone="amber">
-    Gap +{item.gap}
-  </Badge>
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          {[
+                            ["Recent form", selectedHorseScore.components.recentForm],
+                            ["Distance", selectedHorseScore.components.distance],
+                            ["Track", selectedHorseScore.components.track],
+                            ["Conditions", selectedHorseScore.components.condition],
+                            ["Barrier", selectedHorseScore.components.barrier],
+                            ["Effective weight", selectedHorseScore.components.weight],
+                            ["Jockey", selectedHorseScore.components.jockey],
+                            ["Trainer", selectedHorseScore.components.trainer],
+                          ].map(([label, score]) => {
+                            const status = getFactorStatus(Number(score));
+                            return (
+                              <div key={String(label)} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
+                                <span className="text-sm font-medium text-zinc-800">{label}</span>
+                                <Badge tone={status.tone}>{status.text}</Badge>
+                              </div>
+                            );
+                          })}
+                        </div>
 
-  <Badge
-    tone={
-      strongestBetMode === "win"
-        ? item.qualifiesAsStrongWin
-          ? "green"
-          : "amber"
-        : item.qualifiesAsStrongPlace
-          ? "green"
-          : "blue"
-    }
-  >
-    {strongestBetMode === "win"
-      ? item.qualifiesAsStrongWin
-        ? "Strong Win"
-        : "Win"
-      : item.qualifiesAsStrongPlace
-        ? "Strong Place"
-        : "Place"}
-  </Badge>
-</div>
+                        <p className="mt-4 text-sm leading-6 text-zinc-700">
+                          {getSelectedHorseSummary(selectedHorseScore)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
 
-<div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
-  <div className="grid grid-cols-4 gap-3 text-center">
-    {[
-      ["Form", item.top.components.recentForm],
-      ["Distance", item.top.components.distance],
-      ["Track", item.top.components.track],
-      ["Barrier", item.top.components.barrier],
-    ].map(([label, score]) => (
-      <div
-        key={String(label)}
-        className="rounded-2xl bg-zinc-50 p-3"
-      >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-          {label}
-        </p>
+                  <div className="rounded-[24px] border border-rose-200/40 bg-rose-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-800">
+                      Alert candidates
+                    </p>
+                    <div className="mt-2 space-y-1 text-sm text-zinc-700">
+                      {alertCandidates.length > 0 ? (
+                        alertCandidates.map((runner) => (
+                          <p key={runner.id}>
+                            {runner.horse_name} — Score {roundScore(runner.score)}
+                          </p>
+                        ))
+                      ) : (
+                        <p>No runners currently exceed the threshold.</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
+                  No published race found yet for that horse. Use a horse that is loaded into a published race, or pick a published race manually.
+                </div>
+              )}
+            </div>
+          </Panel>
+        </div>
 
-        <p className="mt-2 text-sm font-bold text-zinc-900">
-          {roundScore(Number(score))}
-        </p>
-      </div>
-    ))}
-  </div>
-</div>
+        <Panel className="mt-6 bg-white/95">
+          <div className="p-6 text-zinc-950">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  🔥 Today’s strongest {strongestBetMode === "win" ? "win" : "place"} bets
+                </h2>
 
-<form
-  action={publishSmartPuntCalculatorTipAction}
-  className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
->
-  <input type="hidden" name="meeting_id" value={item.race.meeting_id} />
-  <input type="hidden" name="race_id" value={item.race.id} />
-  <input type="hidden" name="race_runner_id" value={item.top.id} />
-  <input type="hidden" name="horse_id" value={item.top.horse_id} />
+                <div className="space-y-1">
+                  <p className="text-sm text-zinc-500">
+                    Highest-rated calculator opportunities across today’s published races.
+                  </p>
 
-  <input
-    type="hidden"
-    name="race"
-    value={`${item.top.meeting_name} R${item.race.race_number}`}
-  />
+                  <p className="text-xs text-zinc-500">
+                    Win requires score 68+, gap 4+, win chance 8%+. Place requires score 62+, place chance 30%+, gap 2+.
+                  </p>
+                </div>
+              </div>
 
-  <input
-    type="hidden"
-    name="horse"
-    value={item.top.horse_name}
-  />
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStrongestBetMode("win")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    strongestBetMode === "win"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Win
+                </button>
 
-  <input
-    type="hidden"
-    name="bet_type"
-    value={
-      strongestBetMode === "win"
-        ? item.qualifiesAsStrongWin
-          ? "Strong Win"
-          : "Win"
-        : item.qualifiesAsStrongPlace
-          ? "Strong Place"
-          : "Place"
-    }
-  />
+                <button
+                  type="button"
+                  onClick={() => setStrongestBetMode("place")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    strongestBetMode === "place"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Place
+                </button>
 
-  <input
-    type="hidden"
-    name="confidence"
-    value={raceConfidence?.tier || "Medium"}
-  />
+                <Badge tone="green">Top {strongestBets.length}</Badge>
+              </div>
+            </div>
 
-  <input
-    type="hidden"
-    name="score"
-    value={roundScore(item.top.score)}
-  />
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              {strongestBets.map((item, index) => (
+                <div
+                  key={item.race.id}
+                  className="rounded-[24px] border border-amber-200/30 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm text-zinc-500">
+                        #{index + 1} strongest play
+                      </p>
 
-  <input
-    type="hidden"
-    name="win_percent"
-    value={item.top.winPercent}
-  />
+                      <h3 className="mt-1 text-2xl font-bold text-zinc-950">
+                        {item.top.horse_name}
+                      </h3>
 
-  <input
-    type="hidden"
-    name="place_percent"
-    value={item.top.placePercent}
-  />
+                      <p className="mt-2 text-sm text-zinc-600">
+                        {item.top.meeting_name} · R{item.race.race_number} {item.race.race_name}
+                      </p>
+                    </div>
 
-  <input
-    type="hidden"
-    name="race_gap"
-    value={item.gap}
-  />
+                    <Badge tone="green">
+                      Score {roundScore(item.top.score)}
+                    </Badge>
+                  </div>
 
-  <input
-    type="hidden"
-    name="race_confidence_percent"
-    value={raceConfidence?.confidencePercent || 0}
-  />
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Badge tone="green">
+                      Win {item.top.winPercent}%
+                    </Badge>
 
-  <input
-    type="hidden"
-    name="race_confidence_tier"
-    value={raceConfidence?.tier || "Medium"}
-  />
+                    <Badge tone="blue">
+                      Place {item.top.placePercent}%
+                    </Badge>
 
-  <label className="flex items-center gap-2 text-sm text-zinc-700">
-    <input
-      type="checkbox"
-      name="send_notification"
-      value="true"
-      className="h-4 w-4 rounded border-zinc-300"
-    />
-    Email subscribers
-  </label>
+                    <Badge tone="amber">
+                      Gap +{item.gap}
+                    </Badge>
 
-  <button
-    type="submit"
-    className="mt-3 w-full rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-black"
-  >
-    Publish SmartPunt Calculator Tip
-  </button>
-</form>
+                    <Badge
+                      tone={
+                        strongestBetMode === "win"
+                          ? item.qualifiesAsStrongWin
+                            ? "green"
+                            : "amber"
+                          : item.qualifiesAsStrongPlace
+                            ? "green"
+                            : "blue"
+                      }
+                    >
+                      {strongestBetMode === "win"
+                        ? item.qualifiesAsStrongWin
+                          ? "Strong Win"
+                          : "Win"
+                        : item.qualifiesAsStrongPlace
+                          ? "Strong Place"
+                          : "Place"}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
+                    <div className="grid grid-cols-4 gap-3 text-center">
+                      {[
+                        ["Form", item.top.components.recentForm],
+                        ["Distance", item.top.components.distance],
+                        ["Track", item.top.components.track],
+                        ["Barrier", item.top.components.barrier],
+                      ].map(([label, score]) => (
+                        <div
+                          key={String(label)}
+                          className="rounded-2xl bg-zinc-50 p-3"
+                        >
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            {label}
+                          </p>
+
+                          <p className="mt-2 text-sm font-bold text-zinc-900">
+                            {roundScore(Number(score))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
 
               {strongestBets.length === 0 ? (
                 <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center text-sm text-zinc-500 lg:col-span-2">
