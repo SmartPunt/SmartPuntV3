@@ -189,21 +189,7 @@ export default function AdminCalculator({
 
 const existingPublishedTip = calculatorTips.find(
   (tip) =>
-    Number(tip.race_runner_id) === Number(selected.id) &&
-    String(tip.bet_type || "").toLowerCase() ===
-      (
-        strongestBetMode === "win"
-          ? selected.score >= 72 &&
-            gap >= 6 &&
-            selected.winPercent >= 10
-            ? "Strong Win"
-            : "Win"
-          : selected.score >= 66 &&
-            selected.placePercent >= 34 &&
-            gap >= 3
-            ? "Strong Place"
-            : "Place"
-      ).toLowerCase(),
+    Number(tip.race_runner_id) === Number(selected.id),
 );
 
 return {
