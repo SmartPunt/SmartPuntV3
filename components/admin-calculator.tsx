@@ -208,7 +208,7 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
 
         return bStrength - aStrength;
       })
-      .slice(0, 6);
+;
   }, [
     horses,
     jockeyProfiles,
