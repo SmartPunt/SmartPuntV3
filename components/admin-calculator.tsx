@@ -232,7 +232,7 @@ return {
 
         return bStrength - aStrength;
       });
-], [
+  }, [
   horses,
   jockeyProfiles,
   meetings,
