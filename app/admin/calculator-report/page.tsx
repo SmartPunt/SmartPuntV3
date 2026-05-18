@@ -35,6 +35,12 @@ type Prediction = {
   settled_at: string | null;
   race?: RaceWithMeeting | null;
   horse?: { horse_name: string } | null;
+    is_smartpunt_tip?: boolean | null;
+  smartpunt_tip_type?: string | null;
+  race_gap?: number | null;
+  race_confidence_tier?: string | null;
+  race_confidence_percent?: number | null;
+  suggested_bet?: string | null;
 };
 
 type RaceRow = {
@@ -289,7 +295,10 @@ function getRaceConfidenceForRows(rows: Prediction[]) {
 }
 
 function getSmartPuntCalculatorTip(rows: Prediction[]) {
-  if (!rows.length) return null;
+  return (
+    rows.find((row) => row.is_smartpunt_tip) || null
+  );
+}
 
   const topRated = rows.find((row) => row.rank === 1) || rows[0] || null;
   if (!topRated) return null;
@@ -302,10 +311,9 @@ function getSmartPuntCalculatorTip(rows: Prediction[]) {
 
   return {
     ...topRated,
-    smartPuntSuggestedBet: raceConfidence.suggestedBet,
-    smartPuntRaceConfidence: raceConfidence.confidencePercent,
-    smartPuntConfidenceTier: raceConfidence.tier,
-    smartPuntVolatility: raceConfidence.volatility,
+    suggested_bet: raceConfidence.suggestedBet,
+    race_confidence_percent: raceConfidence.confidencePercent,
+    race_confidence_tier: raceConfidence.tier,
   };
 }
 
@@ -508,7 +516,7 @@ export default async function CalculatorReportPage({
   const smartPuntTipAvgConfidence = smartPuntCalculatorTips.length
     ? Math.round(
         smartPuntCalculatorTips.reduce(
-          (sum, row) => sum + Number(row.smartPuntRaceConfidence || 0),
+          (sum, row) => sum + Number(row.race_confidence_percent || 0),
           0,
         ) / smartPuntCalculatorTips.length,
       )
@@ -918,7 +926,7 @@ export default async function CalculatorReportPage({
                                       : "rose"
                                 }
                               >
-                                SP {smartPuntTip.smartPuntSuggestedBet}:{" "}
+                                SP {smartPuntTip.suggested_bet}:{" "}
                                 {smartPuntTip.finishing_position === 1
                                   ? "Won"
                                   : smartPuntTip.finishing_position &&
@@ -960,7 +968,7 @@ export default async function CalculatorReportPage({
                             </p>
                             <p className="mt-1 text-sm text-zinc-600">
                               {smartPuntTip
-                                ? `${smartPuntTip.smartPuntSuggestedBet} · Confidence ${smartPuntTip.smartPuntRaceConfidence}% · ${smartPuntTip.smartPuntConfidenceTier}`
+                                ? `${smartPuntTip.suggested_bet} · Confidence ${smartPuntTip.race_confidence_percent}% · ${smartPuntTip.race_confidence_tier}`
                                 : "Confidence layer did not find enough edge for a SmartPunt calculator tip."}
                             </p>
                           </div>
