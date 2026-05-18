@@ -547,54 +547,80 @@ async function sendSmartPuntCalculatorTipNotifications({
   const recipients = await getActiveSubscriberEmails();
   if (!recipients.length) return;
 
-  const subject = `SmartPunt Calculator Alert: ${race} - ${horse}`;
+  const subject = `⚡ SmartPunt Model Signal: ${race} - ${horse}`;
 
   const html = (email: string) =>
     buildEmailShell({
-      headerHtml: buildEmailHeader({
-        eyebrow: "SmartPunt Calculator",
-        title: "Calculator Tip Fired",
-        subtitle: "Model-rated betting opportunity",
-      }),
+      headerHtml: `
+        <div style="padding: 22px 20px 18px; background: radial-gradient(circle at top left, rgba(251,191,36,0.22), transparent 34%), linear-gradient(135deg, #020617, #111827 48%, #18181b); color: white; border-bottom: 1px solid rgba(251,191,36,0.35);">
+          <div style="font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase; color: #fbbf24; font-weight: 800;">
+            SmartPunt Calculator
+          </div>
+
+          <h1 style="margin: 12px 0 0; font-size: 30px; line-height: 1.15; color: #ffffff;">
+            MODEL SIGNAL GENERATED
+          </h1>
+
+          <p style="margin: 10px 0 0; font-size: 14px; color: #d4d4d8;">
+            Probability-based betting signal · No human commentary attached
+          </p>
+        </div>
+      `,
       bodyHtml: `
-        <p style="margin: 0; font-size: 14px; color: #6b7280;">${race}</p>
+        <div style="border-radius: 18px; overflow: hidden; border: 1px solid #111827; background: #020617;">
+          <div style="padding: 18px; border-bottom: 1px solid rgba(251,191,36,0.28);">
+            <p style="margin: 0; font-size: 12px; color: #fbbf24; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 800;">
+              Calculator Output
+            </p>
 
-        <h2 style="margin: 6px 0 0; font-size: 30px; color: #111827;">
-          ${horse}
-        </h2>
+            <p style="margin: 12px 0 0; font-size: 14px; color: #9ca3af;">
+              ${race}
+            </p>
 
-        <div style="margin-top: 18px; display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px;">
-          <div style="padding:14px;border-radius:14px;background:#111827;color:#fbbf24;">
-            <div style="font-size:11px;opacity:.7;text-transform:uppercase;">Bet Type</div>
-            <div style="margin-top:6px;font-size:20px;font-weight:700;">${betType}</div>
+            <h2 style="margin: 6px 0 0; font-size: 32px; line-height: 1.1; color: #ffffff;">
+              ${horse}
+            </h2>
           </div>
 
-          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
-            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Calculator Score</div>
-            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">${score}</div>
-          </div>
+          <div style="padding: 18px;">
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px;">
+              <div style="padding:14px;border-radius:14px;background:#fbbf24;color:#111827;">
+                <div style="font-size:10px;opacity:.72;text-transform:uppercase;font-weight:800;letter-spacing:.12em;">Signal</div>
+                <div style="margin-top:6px;font-size:22px;font-weight:900;">${betType}</div>
+              </div>
 
-          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
-            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Win Chance</div>
-            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">${winPercent}%</div>
-          </div>
+              <div style="padding:14px;border-radius:14px;background:#111827;border:1px solid #374151;">
+                <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;font-weight:800;letter-spacing:.12em;">Score</div>
+                <div style="margin-top:6px;font-size:22px;font-weight:900;color:#ffffff;">${score}</div>
+              </div>
 
-          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
-            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Place Chance</div>
-            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">${placePercent}%</div>
-          </div>
+              <div style="padding:14px;border-radius:14px;background:#111827;border:1px solid #374151;">
+                <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;font-weight:800;letter-spacing:.12em;">Win Chance</div>
+                <div style="margin-top:6px;font-size:22px;font-weight:900;color:#ffffff;">${winPercent}%</div>
+              </div>
 
-          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
-            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Race Confidence</div>
-            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">
-              ${raceConfidencePercent}% (${raceConfidenceTier})
+              <div style="padding:14px;border-radius:14px;background:#111827;border:1px solid #374151;">
+                <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;font-weight:800;letter-spacing:.12em;">Place Chance</div>
+                <div style="margin-top:6px;font-size:22px;font-weight:900;color:#ffffff;">${placePercent}%</div>
+              </div>
+
+              <div style="padding:14px;border-radius:14px;background:#111827;border:1px solid #374151;">
+                <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;font-weight:800;letter-spacing:.12em;">Race Confidence</div>
+                <div style="margin-top:6px;font-size:20px;font-weight:900;color:#ffffff;">
+                  ${raceConfidencePercent}% ${raceConfidenceTier ? `· ${raceConfidenceTier}` : ""}
+                </div>
+              </div>
+
+              <div style="padding:14px;border-radius:14px;background:#111827;border:1px solid #374151;">
+                <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;font-weight:800;letter-spacing:.12em;">Score Gap</div>
+                <div style="margin-top:6px;font-size:22px;font-weight:900;color:#ffffff;">+${raceGap}</div>
+              </div>
             </div>
-          </div>
 
-          <div style="padding:14px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;">
-            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;">Score Gap</div>
-            <div style="margin-top:6px;font-size:20px;font-weight:700;color:#111827;">
-              +${raceGap}
+            <div style="margin-top: 18px; padding: 14px; border-radius: 14px; background: rgba(251,191,36,0.10); border: 1px solid rgba(251,191,36,0.24);">
+              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #fde68a;">
+                This is a SmartPunt Calculator signal generated from model scoring. It is separate from Head Tipper selections and will be tracked as its own performance channel.
+              </p>
             </div>
           </div>
         </div>
