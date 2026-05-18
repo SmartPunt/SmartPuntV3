@@ -13,9 +13,17 @@ type ResultedTip = {
   note: string | null;
   commentary: string | null;
   result_comment: string | null;
+  race_runner_id: number | null;
   finishing_position: number | null;
   successful: boolean | null;
   settled_at: string | null;
+  calculator_score?: number | null;
+};
+
+type CalculatorPrediction = {
+  runner_id: number | null;
+  score: number | string | null;
+  predicted_at: string | null;
 };
 
 const PERTH_TIMEZONE = "Australia/Perth";
@@ -82,6 +90,81 @@ function getDaysAgoPerthKey(daysAgo: number) {
   const day = String(perthNow.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
+}
+
+function getServiceRoleConfig() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      "Missing Supabase service role configuration in environment variables.",
+    );
+  }
+
+  return {
+    supabaseUrl,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  };
+}
+
+async function fetchCalculatorPredictionsForRunnerIds(
+  runnerIds: number[],
+): Promise<CalculatorPrediction[]> {
+  if (!runnerIds.length) return [];
+
+  const { supabaseUrl, headers } = getServiceRoleConfig();
+  const uniqueRunnerIds = Array.from(new Set(runnerIds.filter(Boolean)));
+  const allRows: CalculatorPrediction[] = [];
+
+  for (let i = 0; i < uniqueRunnerIds.length; i += 400) {
+    const chunk = uniqueRunnerIds.slice(i, i + 400);
+    const path = `calculator_predictions?select=runner_id,score,predicted_at&runner_id=in.(${chunk.join(
+      ",",
+    )})&order=predicted_at.desc`;
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || "Failed to load calculator predictions.");
+    }
+
+    allRows.push(...((await response.json()) as CalculatorPrediction[]));
+  }
+
+  return allRows;
+}
+
+function attachCalculatorScores(
+  tips: ResultedTip[],
+  predictions: CalculatorPrediction[],
+) {
+  const scoreByRunnerId = new Map<number, number>();
+
+  for (const prediction of predictions) {
+    const runnerId = Number(prediction.runner_id);
+    if (!runnerId || scoreByRunnerId.has(runnerId)) continue;
+
+    const score = Number(prediction.score ?? 0);
+    scoreByRunnerId.set(runnerId, Number.isFinite(score) ? Math.round(score) : 0);
+  }
+
+  return tips.map((tip) => ({
+    ...tip,
+    calculator_score: tip.race_runner_id
+      ? scoreByRunnerId.get(Number(tip.race_runner_id)) ?? null
+      : null,
+  }));
 }
 
 function groupTips(tips: ResultedTip[]) {
@@ -169,15 +252,25 @@ function Section({
                         </Badge>
 
                         {tip.type ? <Badge tone="blue">{tip.type}</Badge> : null}
-                        {tip.confidence ? <Badge tone="amber">{tip.confidence}</Badge> : null}
+                        {tip.confidence ? (
+                          <Badge tone="amber">{tip.confidence}</Badge>
+                        ) : null}
                         {tip.finishing_position ? (
                           <Badge tone="slate">Fin: {tip.finishing_position}</Badge>
+                        ) : null}
+                        {tip.calculator_score !== null &&
+                        tip.calculator_score !== undefined ? (
+                          <Badge tone="blue">
+                            SmartPunt Calc {tip.calculator_score}%
+                          </Badge>
                         ) : null}
                       </div>
                     </div>
 
                     <div className="shrink-0 text-right">
-                      <p className="text-xs text-zinc-500">{formatShortDate(tip.settled_at)}</p>
+                      <p className="text-xs text-zinc-500">
+                        {formatShortDate(tip.settled_at)}
+                      </p>
                       <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400 group-open:hidden">
                         Open
                       </p>
@@ -193,12 +286,29 @@ function Section({
                         {tip.successful ? "Win" : "Loss"}
                       </Badge>
                       {tip.type ? <Badge tone="blue">{tip.type}</Badge> : null}
-                      {tip.confidence ? <Badge tone="amber">{tip.confidence}</Badge> : null}
+                      {tip.confidence ? (
+                        <Badge tone="amber">{tip.confidence}</Badge>
+                      ) : null}
                       {tip.finishing_position ? (
-                        <Badge tone="slate">Finishing position: {tip.finishing_position}</Badge>
+                        <Badge tone="slate">
+                          Finishing position: {tip.finishing_position}
+                        </Badge>
                       ) : null}
                       <Badge tone="slate">{formatDate(tip.settled_at)}</Badge>
+                      {tip.calculator_score !== null &&
+                      tip.calculator_score !== undefined ? (
+                        <Badge tone="blue">
+                          SmartPunt Calc Score: {tip.calculator_score}%
+                        </Badge>
+                      ) : null}
                     </div>
+
+                    {tip.calculator_score !== null &&
+                    tip.calculator_score !== undefined ? (
+                      <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-900">
+                        SmartPunt Calculator Score: {tip.calculator_score}%
+                      </div>
+                    ) : null}
 
                     {tip.commentary ? (
                       <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm leading-6 text-zinc-700">
@@ -260,6 +370,16 @@ export default async function Page() {
 
     tips = (data || []) as ResultedTip[];
   }
+
+  const runnerIds = tips
+    .map((tip) => Number(tip.race_runner_id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+
+  const calculatorPredictions = await fetchCalculatorPredictionsForRunnerIds(
+    runnerIds,
+  );
+
+  tips = attachCalculatorScores(tips, calculatorPredictions);
 
   const { data: allSettledTipsData } = await supabase
     .from("suggested_tips")
