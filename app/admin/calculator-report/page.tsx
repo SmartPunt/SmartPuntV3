@@ -584,10 +584,16 @@ export default async function CalculatorReportPage({
   const topRatedPlaces = topRatedRows.filter(
     (row) => row.finishing_position !== null && row.finishing_position <= 3,
   ).length;
-  const smartPuntTipWins = smartPuntCalculatorTips.filter(
+  const smartPuntWinTips = smartPuntCalculatorTips.filter((row) =>
+    String(row.bet_type || "").toLowerCase().includes("win"),
+  );
+  const smartPuntPlaceTips = smartPuntCalculatorTips.filter((row) =>
+    String(row.bet_type || "").toLowerCase().includes("place"),
+  );
+  const smartPuntTipWins = smartPuntWinTips.filter(
     (row) => row.finishing_position === 1,
   ).length;
-  const smartPuntTipPlaces = smartPuntCalculatorTips.filter(
+  const smartPuntTipPlaces = smartPuntPlaceTips.filter(
     (row) => row.finishing_position !== null && row.finishing_position <= 3,
   ).length;
   const smartPuntTipAvgConfidence = smartPuntCalculatorTips.length
@@ -832,14 +838,14 @@ export default async function CalculatorReportPage({
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Tip win strike"
-              value={`${percent(smartPuntTipWins, smartPuntCalculatorTips.length)}%`}
-              hint={`${smartPuntTipWins}/${smartPuntCalculatorTips.length} SmartPunt calculator tips won.`}
+              value={`${percent(smartPuntTipWins, smartPuntWinTips.length)}%`}
+              hint={`${smartPuntTipWins}/${smartPuntWinTips.length} SmartPunt calculator win tips won.`}
               tone="green"
             />
             <StatCard
               label="Tip place strike"
-              value={`${percent(smartPuntTipPlaces, smartPuntCalculatorTips.length)}%`}
-              hint={`${smartPuntTipPlaces}/${smartPuntCalculatorTips.length} SmartPunt calculator tips placed.`}
+              value={`${percent(smartPuntTipPlaces, smartPuntPlaceTips.length)}%`}
+              hint={`${smartPuntTipPlaces}/${smartPuntPlaceTips.length} SmartPunt calculator place tips placed.`}
               tone="blue"
             />
             <StatCard
