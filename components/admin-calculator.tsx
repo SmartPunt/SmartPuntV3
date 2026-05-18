@@ -109,7 +109,7 @@ export default function AdminCalculator({
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
 
-const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
+  const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
 
   const raceConfidence = useMemo(
     () => (scoredRunners.length ? calculateRaceConfidence(scoredRunners) : null),
@@ -173,10 +173,13 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
           return null;
         }
 
+        const raceConfidenceForRace = calculateRaceConfidence(scored);
+
         return {
           race,
           top: selected,
           gap,
+          raceConfidence: raceConfidenceForRace,
           qualifiesAsStrongWin:
             selected.score >= 72 &&
             gap >= 6 &&
@@ -210,8 +213,7 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
               Number(b.top.score) * 0.35;
 
         return bStrength - aStrength;
-      })
-;
+      });
   }, [
     horses,
     jockeyProfiles,
@@ -449,56 +451,52 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
                     </div>
                   ) : null}
 
-{raceConfidence ? (
-  <div className="rounded-[24px] border border-slate-200/70 bg-slate-50 p-5">
-    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-      Race confidence layer
-    </p>
+                  {raceConfidence ? (
+                    <div className="rounded-[24px] border border-slate-200/70 bg-slate-50 p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                        Race confidence layer
+                      </p>
 
-    <p className="mt-2 text-3xl font-bold text-zinc-950">
-      {raceConfidence.confidencePercent}%
-    </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Badge tone="amber">{raceConfidence.tier} Confidence</Badge>
+                        <Badge tone="blue">Gap +{raceConfidence.gap}</Badge>
+                        <Badge tone="slate">{raceConfidence.volatility}</Badge>
+                        <Badge tone="green">Suggested: {raceConfidence.suggestedBet}</Badge>
+                      </div>
 
-    <div className="mt-3 flex flex-wrap gap-2">
-      <Badge tone="amber">{raceConfidence.tier} Confidence</Badge>
-      <Badge tone="blue">Gap +{raceConfidence.gap}</Badge>
-      <Badge tone="slate">{raceConfidence.volatility}</Badge>
-      <Badge tone="green">Suggested: {raceConfidence.suggestedBet}</Badge>
-    </div>
+                      <p className="mt-3 text-sm leading-6 text-zinc-700">
+                        Visual guide only. This does not change the current race verdict, strongest bets, auto-tip logic, or scoring output yet.
+                      </p>
+                    </div>
+                  ) : null}
 
-    <p className="mt-3 text-sm leading-6 text-zinc-700">
-      Visual guide only. This does not change the current race verdict, strongest bets, auto-tip logic, or scoring output yet.
-    </p>
-  </div>
-) : null}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                        Most likely winner
+                      </p>
+                      <p className="mt-2 text-lg font-bold text-zinc-950">
+                        {topWinChance?.horse_name || "—"}
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-700">
+                        Win chance: {topWinChance?.winPercent ?? 0}% · Score:{" "}
+                        {topWinChance ? roundScore(topWinChance.score) : 0}
+                      </p>
+                    </div>
 
-<div className="grid gap-4 md:grid-cols-2">
-  <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
-    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
-      Most likely winner
-    </p>
-    <p className="mt-2 text-lg font-bold text-zinc-950">
-      {topWinChance?.horse_name || "—"}
-    </p>
-    <p className="mt-1 text-sm text-zinc-700">
-      Win chance: {topWinChance?.winPercent ?? 0}% · Score:{" "}
-      {topWinChance ? roundScore(topWinChance.score) : 0}
-    </p>
-  </div>
-
-  <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
-    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
-      Strongest place profiles
-    </p>
-    <div className="mt-2 space-y-1 text-sm text-zinc-700">
-      {topPlaceChances.map((runner) => (
-        <p key={runner.id}>
-          {runner.horse_name} — {runner.placePercent}%
-        </p>
-      ))}
-    </div>
-  </div>
-</div>
+                    <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
+                        Strongest place profiles
+                      </p>
+                      <div className="mt-2 space-y-1 text-sm text-zinc-700">
+                        {topPlaceChances.map((runner) => (
+                          <p key={runner.id}>
+                            {runner.horse_name} — {runner.placePercent}%
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
 
                   {selectedHorseScore ? (
                     <div className="rounded-[24px] border border-amber-300/40 bg-amber-50 p-5">
@@ -627,7 +625,7 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
               {strongestBets.map((item, index) => (
                 <div
-                  key={item.race.id}
+                  key={`${item.race.id}-${item.top.id}-${strongestBetMode}`}
                   className="rounded-[24px] border border-amber-200/30 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -641,7 +639,8 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
                       </h3>
 
                       <p className="mt-2 text-sm text-zinc-600">
-                        {item.top.meeting_name} · R{item.race.race_number} {item.race.race_name}
+                        {item.top.meeting_name} · R{item.race.race_number}{" "}
+                        {item.race.race_name}
                       </p>
                     </div>
 
@@ -661,6 +660,10 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
 
                     <Badge tone="amber">
                       Gap +{item.gap}
+                    </Badge>
+
+                    <Badge tone="slate">
+                      Race confidence {item.raceConfidence.confidencePercent}%
                     </Badge>
 
                     <Badge
@@ -684,87 +687,122 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
                     </Badge>
                   </div>
 
-<div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
-    type="hidden"
-    name="race"
-    value={`${item.top.meeting_name} R${item.race.race_number}`}
-  />
+                  <div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
+                    <div className="grid grid-cols-4 gap-3 text-center">
+                      {[
+                        ["Form", item.top.components.recentForm],
+                        ["Distance", item.top.components.distance],
+                        ["Track", item.top.components.track],
+                        ["Barrier", item.top.components.barrier],
+                      ].map(([label, score]) => (
+                        <div
+                          key={String(label)}
+                          className="rounded-2xl bg-zinc-50 p-3"
+                        >
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            {label}
+                          </p>
 
-  <input
-    type="hidden"
-    name="horse"
-    value={item.top.horse_name}
-  />
+                          <p className="mt-2 text-sm font-bold text-zinc-900">
+                            {roundScore(Number(score))}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-  <input
-    type="hidden"
-    name="bet_type"
-    value={
-      strongestBetMode === "win"
-        ? item.qualifiesAsStrongWin
-          ? "Strong Win"
-          : "Win"
-        : item.qualifiesAsStrongPlace
-          ? "Strong Place"
-          : "Place"
-    }
-  />
+                  <form
+                    action={publishSmartPuntCalculatorTipAction}
+                    className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                  >
+                    <input
+                      type="hidden"
+                      name="meeting_id"
+                      value={item.race.meeting_id}
+                    />
+                    <input type="hidden" name="race_id" value={item.race.id} />
+                    <input
+                      type="hidden"
+                      name="race_runner_id"
+                      value={item.top.id}
+                    />
+                    <input
+                      type="hidden"
+                      name="horse_id"
+                      value={item.top.horse_id}
+                    />
+                    <input
+                      type="hidden"
+                      name="race"
+                      value={`${item.top.meeting_name} R${item.race.race_number} ${item.race.race_name}`}
+                    />
+                    <input
+                      type="hidden"
+                      name="horse"
+                      value={item.top.horse_name}
+                    />
+                    <input
+                      type="hidden"
+                      name="bet_type"
+                      value={
+                        strongestBetMode === "win"
+                          ? item.qualifiesAsStrongWin
+                            ? "Strong Win"
+                            : "Win"
+                          : item.qualifiesAsStrongPlace
+                            ? "Strong Place"
+                            : "Place"
+                      }
+                    />
+                    <input
+                      type="hidden"
+                      name="confidence"
+                      value={item.raceConfidence.tier}
+                    />
+                    <input
+                      type="hidden"
+                      name="score"
+                      value={roundScore(item.top.score)}
+                    />
+                    <input
+                      type="hidden"
+                      name="win_percent"
+                      value={item.top.winPercent}
+                    />
+                    <input
+                      type="hidden"
+                      name="place_percent"
+                      value={item.top.placePercent}
+                    />
+                    <input type="hidden" name="race_gap" value={item.gap} />
+                    <input
+                      type="hidden"
+                      name="race_confidence_percent"
+                      value={item.raceConfidence.confidencePercent}
+                    />
+                    <input
+                      type="hidden"
+                      name="race_confidence_tier"
+                      value={item.raceConfidence.tier}
+                    />
 
-  <input type="hidden" name="confidence" value="Calculator" />
+                    <label className="flex items-center gap-2 text-sm text-zinc-700">
+                      <input
+                        type="checkbox"
+                        name="send_notification"
+                        value="true"
+                        className="h-4 w-4 rounded border-zinc-300"
+                      />
+                      Email subscribers
+                    </label>
 
-  <input
-    type="hidden"
-    name="score"
-    value={roundScore(item.top.score)}
-  />
-
-  <input
-    type="hidden"
-    name="win_percent"
-    value={item.top.winPercent}
-  />
-
-  <input
-    type="hidden"
-    name="place_percent"
-    value={item.top.placePercent}
-  />
-
-  <input
-    type="hidden"
-    name="race_gap"
-    value={item.gap}
-  />
-
-  <input
-    type="hidden"
-    name="race_confidence_percent"
-    value={raceConfidence?.confidencePercent || 0}
-  />
-
-  <input
-    type="hidden"
-    name="race_confidence_tier"
-    value={raceConfidence?.tier || "Calculator"}
-  />
-
-  <label className="flex items-center gap-2 text-sm text-zinc-700">
-    <input
-      type="checkbox"
-      name="send_notification"
-      value="true"
-      className="h-4 w-4 rounded border-zinc-300"
-    />
-    Email subscribers
-  </label>
-
-  <button
-    type="submit"
-    className="mt-3 w-full rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-black"
-  >
-    Publish SmartPunt Calculator Tip
-  </button>
-</form>
+                    <button
+                      type="submit"
+                      className="mt-3 w-full rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-black"
+                    >
+                      Publish SmartPunt Calculator Tip
+                    </button>
+                  </form>
                 </div>
               ))}
 
