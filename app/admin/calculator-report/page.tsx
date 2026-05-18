@@ -295,28 +295,8 @@ function getRaceConfidenceForRows(rows: Prediction[]) {
 }
 
 function getSmartPuntCalculatorTip(rows: Prediction[]) {
-  return (
-    rows.find((row) => row.is_smartpunt_tip) || null
-  );
+  return rows.find((row) => row.is_smartpunt_tip) || null;
 }
-
-  const topRated = rows.find((row) => row.rank === 1) || rows[0] || null;
-  if (!topRated) return null;
-
-  const raceConfidence = getRaceConfidenceForRows(rows);
-
-  if (raceConfidence.suggestedBet === "No Bet") {
-    return null;
-  }
-
-  return {
-    ...topRated,
-    suggested_bet: raceConfidence.suggestedBet,
-    race_confidence_percent: raceConfidence.confidencePercent,
-    race_confidence_tier: raceConfidence.tier,
-  };
-}
-
 function winner(rows: Prediction[]) {
   return rows.find((row) => row.finishing_position === 1) || null;
 }
