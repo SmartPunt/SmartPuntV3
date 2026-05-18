@@ -446,74 +446,56 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
                     </div>
                   ) : null}
 
-                  {raceConfidence ? (
-                    <div className="rounded-[24px] border border-slate-200/70 bg-slate-50 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                        Race confidence layer
-                      </p>
+{raceConfidence ? (
+  <div className="rounded-[24px] border border-slate-200/70 bg-slate-50 p-5">
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+      Race confidence layer
+    </p>
 
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Badge tone="amber">{raceConfidence.tier} Confidence</Badge>
-                        <Badge tone="blue">Gap +{raceConfidence.gap}</Badge>
-                        <Badge tone="slate">{raceConfidence.volatility}</Badge>
-                        <Badge tone="green">Suggested: {raceConfidence.suggestedBet}</Badge>
-                      </div>
+    <p className="mt-2 text-3xl font-bold text-zinc-950">
+      {raceConfidence.confidencePercent}%
+    </p>
 
-                      <p className="mt-3 text-sm leading-6 text-zinc-700">
-                        Visual guide only. This does not change the current race verdict, strongest bets, auto-tip logic, or scoring output yet.
-                      </p>
-                    </div>
-                  ) : null}
+    <div className="mt-3 flex flex-wrap gap-2">
+      <Badge tone="amber">{raceConfidence.tier} Confidence</Badge>
+      <Badge tone="blue">Gap +{raceConfidence.gap}</Badge>
+      <Badge tone="slate">{raceConfidence.volatility}</Badge>
+      <Badge tone="green">Suggested: {raceConfidence.suggestedBet}</Badge>
+    </div>
 
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
-                        Most likely winner
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-zinc-950">
-                        {topWinChance?.horse_name || "—"}
-                      </p>
-                      <p className="mt-1 text-sm text-zinc-700">
-                        Win chance: {topWinChance?.winPercent ?? 0}% · Score:{" "}
-                        {topWinChance ? roundScore(topWinChance.score) : 0}
-                      </p>
-                    </div>
+    <p className="mt-3 text-sm leading-6 text-zinc-700">
+      Visual guide only. This does not change the current race verdict, strongest bets, auto-tip logic, or scoring output yet.
+    </p>
+  </div>
+) : null}
 
-                    <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
-                        Strongest place profiles
-                      </p>
-                      <div className="mt-2 space-y-1 text-sm text-zinc-700">
-                        {topPlaceChances.map((runner) => (
-                          <p key={runner.id}>
-                            {runner.horse_name} — {runner.placePercent}%
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                                        <div className="rounded-[24px] border border-amber-300/40 bg-amber-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
-                        Race confidence
-                      </p>
+<div className="grid gap-4 md:grid-cols-2">
+  <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
+      Most likely winner
+    </p>
+    <p className="mt-2 text-lg font-bold text-zinc-950">
+      {topWinChance?.horse_name || "—"}
+    </p>
+    <p className="mt-1 text-sm text-zinc-700">
+      Win chance: {topWinChance?.winPercent ?? 0}% · Score:{" "}
+      {topWinChance ? roundScore(topWinChance.score) : 0}
+    </p>
+  </div>
 
-                      <p className="mt-2 text-lg font-bold text-zinc-950">
-                        {raceConfidence.confidencePercent}%
-                      </p>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Badge tone="green">{raceConfidence.tier}</Badge>
-                        <Badge tone="amber">Gap +{raceConfidence.gap}</Badge>
-                      </div>
-
-                      <p className="mt-3 text-sm text-zinc-700">
-                        {raceConfidence.volatility}
-                      </p>
-
-                      <p className="mt-1 text-sm font-semibold text-zinc-900">
-                        Suggested: {raceConfidence.suggestedBet}
-                      </p>
-                    </div>
-                  </div>
+  <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
+      Strongest place profiles
+    </p>
+    <div className="mt-2 space-y-1 text-sm text-zinc-700">
+      {topPlaceChances.map((runner) => (
+        <p key={runner.id}>
+          {runner.horse_name} — {runner.placePercent}%
+        </p>
+      ))}
+    </div>
+  </div>
+</div>
 
                   {selectedHorseScore ? (
                     <div className="rounded-[24px] border border-amber-300/40 bg-amber-50 p-5">
