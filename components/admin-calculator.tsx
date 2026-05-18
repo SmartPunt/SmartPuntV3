@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { signOutAction } from "@/lib/actions";
+import {
+  publishSmartPuntCalculatorTipAction,
+  signOutAction,
+} from "@/lib/actions";
 import {
   buildHorseHistory,
   calculateRaceConfidence,
@@ -681,29 +684,87 @@ const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]
                     </Badge>
                   </div>
 
-                  <div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
-                    <div className="grid grid-cols-4 gap-3 text-center">
-                      {[
-                        ["Form", item.top.components.recentForm],
-                        ["Distance", item.top.components.distance],
-                        ["Track", item.top.components.track],
-                        ["Barrier", item.top.components.barrier],
-                      ].map(([label, score]) => (
-                        <div
-                          key={String(label)}
-                          className="rounded-2xl bg-zinc-50 p-3"
-                        >
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            {label}
-                          </p>
+<div className="mt-4 rounded-2xl border border-zinc-200 bg-white/80 p-4">
+    type="hidden"
+    name="race"
+    value={`${item.top.meeting_name} R${item.race.race_number}`}
+  />
 
-                          <p className="mt-2 text-sm font-bold text-zinc-900">
-                            {roundScore(Number(score))}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+  <input
+    type="hidden"
+    name="horse"
+    value={item.top.horse_name}
+  />
+
+  <input
+    type="hidden"
+    name="bet_type"
+    value={
+      strongestBetMode === "win"
+        ? item.qualifiesAsStrongWin
+          ? "Strong Win"
+          : "Win"
+        : item.qualifiesAsStrongPlace
+          ? "Strong Place"
+          : "Place"
+    }
+  />
+
+  <input type="hidden" name="confidence" value="Calculator" />
+
+  <input
+    type="hidden"
+    name="score"
+    value={roundScore(item.top.score)}
+  />
+
+  <input
+    type="hidden"
+    name="win_percent"
+    value={item.top.winPercent}
+  />
+
+  <input
+    type="hidden"
+    name="place_percent"
+    value={item.top.placePercent}
+  />
+
+  <input
+    type="hidden"
+    name="race_gap"
+    value={item.gap}
+  />
+
+  <input
+    type="hidden"
+    name="race_confidence_percent"
+    value={raceConfidence?.confidencePercent || 0}
+  />
+
+  <input
+    type="hidden"
+    name="race_confidence_tier"
+    value={raceConfidence?.tier || "Calculator"}
+  />
+
+  <label className="flex items-center gap-2 text-sm text-zinc-700">
+    <input
+      type="checkbox"
+      name="send_notification"
+      value="true"
+      className="h-4 w-4 rounded border-zinc-300"
+    />
+    Email subscribers
+  </label>
+
+  <button
+    type="submit"
+    className="mt-3 w-full rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-black"
+  >
+    Publish SmartPunt Calculator Tip
+  </button>
+</form>
                 </div>
               ))}
 
