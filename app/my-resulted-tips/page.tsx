@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { SMARTPUNT_SCORING_VERSION } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 
 type ResultedTip = {
@@ -19,12 +18,13 @@ type ResultedTip = {
   settled_at: string | null;
 };
 
-type SmartPuntCalculatorPrediction = {
+type SmartPuntCalculatorTip = {
   id: number;
+  bet_type: string | null;
+  finishing_position: number | null;
   won: boolean | null;
   placed: boolean | null;
-  finishing_position: number | null;
-  smartpunt_tip_type: string | null;
+  settled_at: string | null;
 };
 
 const PERTH_TIMEZONE = "Australia/Perth";
@@ -178,8 +178,8 @@ async function fetchServiceRoleRows<T>(tablePath: string) {
   return allRows;
 }
 
-function isCalculatorTipSuccessful(row: SmartPuntCalculatorPrediction) {
-  const type = String(row.smartpunt_tip_type || "").toLowerCase();
+function isCalculatorTipSuccessful(row: SmartPuntCalculatorTip) {
+  const type = String(row.bet_type || "").toLowerCase();
 
   if (type.includes("place")) {
     return row.placed === true;
@@ -190,10 +190,8 @@ function isCalculatorTipSuccessful(row: SmartPuntCalculatorPrediction) {
 
 async function getSmartPuntCalculatorStrikeRate() {
   try {
-    const rows = await fetchServiceRoleRows<SmartPuntCalculatorPrediction>(
-      `calculator_predictions?select=id,won,placed,finishing_position,smartpunt_tip_type&scoring_version=eq.${encodeURIComponent(
-        SMARTPUNT_SCORING_VERSION,
-      )}&is_smartpunt_tip=eq.true&settled_at=not.is.null&finishing_position=not.is.null`,
+    const rows = await fetchServiceRoleRows<SmartPuntCalculatorTip>(
+      "smartpunt_calculator_tips?select=id,bet_type,finishing_position,won,placed,settled_at&settled_at=not.is.null&finishing_position=not.is.null",
     );
 
     const total = rows.length;
