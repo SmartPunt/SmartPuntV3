@@ -6,16 +6,13 @@ import { signOutAction } from "@/lib/actions";
 import {
   buildHorseHistory,
   calculateRaceScores,
+  calculateRaceConfidence,
   formatFormLine,
   getFactorStatus,
-calculateRaceConfidence,
   getRaceVerdict,
   getSelectedHorseSummary,
   roundScore,
-  type Horse,
-  type Meeting,
-  type Race,
-  type Runner,
+  type JockeyProfile,
 } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 
