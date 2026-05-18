@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { signOutAction } from "@/lib/actions";
 import {
   buildHorseHistory,
+  calculateRaceConfidence,
   calculateRaceScores,
   formatFormLine,
   getFactorStatus,
@@ -106,6 +107,11 @@ export default function AdminCalculator({
     .slice(0, 3);
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
+
+  const raceConfidence = useMemo(
+    () => (scoredRunners.length ? calculateRaceConfidence(scoredRunners) : null),
+    [scoredRunners],
+  );
 
   const strongestBets = useMemo(() => {
     const today = new Intl.DateTimeFormat("en-CA", {
@@ -437,6 +443,25 @@ export default function AdminCalculator({
                       </div>
 
                       <p className="mt-3 text-sm text-zinc-700">{raceVerdict.reason}</p>
+                    </div>
+                  ) : null}
+
+                  {raceConfidence ? (
+                    <div className="rounded-[24px] border border-slate-200/70 bg-slate-50 p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+                        Race confidence layer
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Badge tone="amber">{raceConfidence.tier} Confidence</Badge>
+                        <Badge tone="blue">Gap +{raceConfidence.gap}</Badge>
+                        <Badge tone="slate">{raceConfidence.volatility}</Badge>
+                        <Badge tone="green">Suggested: {raceConfidence.suggestedBet}</Badge>
+                      </div>
+
+                      <p className="mt-3 text-sm leading-6 text-zinc-700">
+                        Visual guide only. This does not change the current race verdict, strongest bets, auto-tip logic, or scoring output yet.
+                      </p>
                     </div>
                   ) : null}
 
