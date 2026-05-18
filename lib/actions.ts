@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import {
   SMARTPUNT_SCORING_VERSION,
+  calculateRaceConfidence,
   calculateRaceScores,
   type Horse,
   type Meeting,
@@ -762,7 +763,74 @@ const scoredRunners = calculateRaceScores({
     return;
   }
 
-  const now = new Date().toISOString();
+const now = new Date().toISOString();
+const raceConfidence = calculateRaceConfidence(scoredRunners);
+
+const topWin = scoredRunners[0] || null;
+const topPlace =
+  [...scoredRunners].sort((a, b) => b.placePercent - a.placePercent)[0] || null;
+
+const secondForWin = topWin
+  ? scoredRunners.find((runner) => runner.id !== topWin.id) || null
+  : null;
+
+const winGap = topWin && secondForWin
+  ? Math.round(topWin.score - secondForWin.score)
+  : topWin
+    ? Math.round(topWin.score)
+    : 0;
+
+const qualifiesAsWin =
+  topWin !== null &&
+  topWin.score >= 68 &&
+  winGap >= 4 &&
+  topWin.winPercent >= 8;
+
+const qualifiesAsStrongWin =
+  topWin !== null &&
+  topWin.score >= 72 &&
+  winGap >= 6 &&
+  topWin.winPercent >= 10;
+
+const secondForPlace = topPlace
+  ? scoredRunners.find((runner) => runner.id !== topPlace.id) || null
+  : null;
+
+const placeGap = topPlace && secondForPlace
+  ? Math.round(topPlace.score - secondForPlace.score)
+  : topPlace
+    ? Math.round(topPlace.score)
+    : 0;
+
+const qualifiesAsPlace =
+  topPlace !== null &&
+  topPlace.score >= 62 &&
+  topPlace.placePercent >= 30 &&
+  placeGap >= 2;
+
+const qualifiesAsStrongPlace =
+  topPlace !== null &&
+  topPlace.score >= 66 &&
+  topPlace.placePercent >= 34 &&
+  placeGap >= 3;
+
+function getSmartPuntTipType(runnerId: number) {
+  if (topWin && runnerId === topWin.id && qualifiesAsStrongWin) return "Best Bet";
+  if (topWin && runnerId === topWin.id && qualifiesAsWin) return "Win";
+  if (topPlace && runnerId === topPlace.id && qualifiesAsStrongPlace) return "Strong Place";
+  if (topPlace && runnerId === topPlace.id && qualifiesAsPlace) return "Place";
+  return "No Bet";
+}
+
+function isSmartPuntTip(runnerId: number) {
+  return getSmartPuntTipType(runnerId) !== "No Bet";
+}
+
+function getRaceGapForRunner(runnerId: number) {
+  if (topWin && runnerId === topWin.id) return winGap;
+  if (topPlace && runnerId === topPlace.id) return placeGap;
+  return raceConfidence.gap;
+}
   const payload = scoredRunners.map((runner) => ({
     race_id: Number(runner.race_id),
     runner_id: Number(runner.id),
@@ -780,6 +848,12 @@ const scoredRunners = calculateRaceScores({
     weight_score: Number(runner.components.weight),
     jockey_score: Number(runner.components.jockey),
     trainer_score: Number(runner.components.trainer),
+        is_smartpunt_tip: isSmartPuntTip(Number(runner.id)),
+    smartpunt_tip_type: getSmartPuntTipType(Number(runner.id)),
+    race_gap: getRaceGapForRunner(Number(runner.id)),
+    race_confidence_tier: raceConfidence.tier,
+    race_confidence_percent: raceConfidence.confidencePercent,
+    suggested_bet: raceConfidence.suggestedBet,
     predicted_at: now,
     finishing_position: null,
     won: null,
