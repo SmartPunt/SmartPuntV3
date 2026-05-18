@@ -123,6 +123,21 @@ export default async function Page() {
     },
   });
 
+  const calculatorTips = await fetchAllRows({
+    getPage: async (from, to) => {
+      const result = await supabase
+        .from("smartpunt_calculator_tips")
+        .select("*")
+        .order("published_at", { ascending: false })
+        .range(from, to);
+
+      return {
+        data: result.data ?? [],
+        error: result.error,
+      };
+    },
+  });
+
   return (
     <AdminCalculator
       races={races}
@@ -130,6 +145,7 @@ export default async function Page() {
       horses={horses}
       meetings={meetings}
       jockeyProfiles={jockeyProfiles}
+      calculatorTips={calculatorTips}
     />
   );
 }
