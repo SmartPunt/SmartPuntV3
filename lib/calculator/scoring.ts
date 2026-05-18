@@ -1037,6 +1037,7 @@ const score = applyOverconfidenceDampener({
 
 export type RaceConfidence = {
   tier: "Low" | "Medium" | "High" | "Elite";
+  confidencePercent: number;
   gap: number;
   volatility: string;
   suggestedBet: string;
@@ -1047,22 +1048,51 @@ export function calculateRaceConfidence(scores: { score: number; placePercent?: 
 
   const top = sorted[0];
   const second = sorted[1];
+  const fourth = sorted[3];
 
   const gap = top && second ? Math.round(top.score - second.score) : 0;
+  const topScore = top ? Number(top.score) : 0;
+  const topPlacePercent = top?.placePercent ?? 0;
+  const topFourCompression = top && fourth ? Math.round(top.score - fourth.score) : gap;
+
+  const baseConfidence = 35;
+  const topScoreBoost = clamp(Math.round((topScore - 55) * 1.15), 0, 24);
+  const gapBoost = clamp(gap * 4, 0, 24);
+  const placeBoost = clamp(Math.round((topPlacePercent - 28) * 0.45), 0, 10);
+  const compressionPenalty =
+    sorted.length >= 4 && topFourCompression <= 3
+      ? 16
+      : sorted.length >= 4 && topFourCompression <= 5
+      ? 8
+      : 0;
+  const fieldSizePenalty = sorted.length >= 12 ? 4 : sorted.length >= 10 ? 2 : 0;
+
+  const confidencePercent = clamp(
+    Math.round(
+      baseConfidence +
+        topScoreBoost +
+        gapBoost +
+        placeBoost -
+        compressionPenalty -
+        fieldSizePenalty,
+    ),
+    0,
+    100,
+  );
 
   const tier =
-    top?.score >= 72 && gap >= 6
+    confidencePercent >= 85
       ? "Elite"
-      : top?.score >= 68 && gap >= 5
+      : confidencePercent >= 70
       ? "High"
-      : top?.score >= 64 && gap >= 3
+      : confidencePercent >= 55
       ? "Medium"
       : "Low";
 
   const volatility =
-    gap >= 8
+    gap >= 8 && topFourCompression >= 10
       ? "Clear Standout"
-      : gap >= 4
+      : gap >= 4 && topFourCompression >= 6
       ? "Competitive"
       : "Open Race";
 
@@ -1077,6 +1107,7 @@ export function calculateRaceConfidence(scores: { score: number; placePercent?: 
 
   return {
     tier,
+    confidencePercent,
     gap,
     volatility,
     suggestedBet,
