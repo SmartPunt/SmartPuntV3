@@ -232,15 +232,16 @@ return {
 
         return bStrength - aStrength;
       });
-  }, [
-    horses,
-    jockeyProfiles,
-    meetings,
-    publishedRaces,
-    races,
-    runners,
-    strongestBetMode,
-  ]);
+], [
+  horses,
+  jockeyProfiles,
+  meetings,
+  publishedRaces,
+  races,
+  runners,
+  strongestBetMode,
+  calculatorTips,
+]);
 
   const alertCandidates = useMemo(() => {
     const threshold = Number(alertThreshold);
