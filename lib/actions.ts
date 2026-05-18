@@ -1609,7 +1609,7 @@ throw new Error("Race, runner, and horse are required for calculator tips.");
       .single();
 
     if (error) {
-      return { success: false, error: error.message };
+throw new Error(error.message);
     }
 
     if (sendNotification && data) {
