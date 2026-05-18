@@ -1564,7 +1564,94 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   revalidatePath("/resulted-tips");
   revalidatePath("/my-resulted-tips");
 }
+export async function publishSmartPuntCalculatorTipAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const profile = await requireRacingAdmin();
+    const supabase = await createClient();
 
+    const sendNotification =
+      String(formData.get("send_notification") ?? "") === "true";
+
+    const payload = {
+      meeting_id: Number(formData.get("meeting_id") || 0) || null,
+      race_id: Number(formData.get("race_id") || 0) || null,
+      race_runner_id: Number(formData.get("race_runner_id") || 0) || null,
+      horse_id: Number(formData.get("horse_id") || 0) || null,
+      race: String(formData.get("race") ?? ""),
+      horse: String(formData.get("horse") ?? ""),
+      bet_type: String(formData.get("bet_type") ?? "Win"),
+      confidence: String(formData.get("confidence") ?? "High"),
+      score: Number(formData.get("score") || 0),
+      win_percent: Number(formData.get("win_percent") || 0),
+      place_percent: Number(formData.get("place_percent") || 0),
+      race_gap: Number(formData.get("race_gap") || 0),
+      race_confidence_percent: Number(
+        formData.get("race_confidence_percent") || 0,
+      ),
+      race_confidence_tier: String(
+        formData.get("race_confidence_tier") ?? "",
+      ),
+      status: "active",
+      created_by: profile.id,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (!payload.race_id || !payload.race_runner_id || !payload.horse_id) {
+      return {
+        success: false,
+        error: "Race, runner, and horse are required for calculator tips.",
+      };
+    }
+
+    const { data, error } = await supabase
+      .from("smartpunt_calculator_tips")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    if (sendNotification && data) {
+      try {
+        await sendSmartPuntCalculatorTipNotifications({
+          race: data.race || payload.race,
+          horse: data.horse || payload.horse,
+          betType: data.bet_type || payload.bet_type,
+          score: Number(data.score || payload.score),
+          winPercent: Number(data.win_percent || payload.win_percent),
+          placePercent: Number(data.place_percent || payload.place_percent),
+          raceConfidencePercent: Number(
+            data.race_confidence_percent || payload.race_confidence_percent,
+          ),
+          raceConfidenceTier:
+            data.race_confidence_tier || payload.race_confidence_tier,
+          raceGap: Number(data.race_gap || payload.race_gap),
+        });
+      } catch (notificationError) {
+        console.error(notificationError);
+      }
+    }
+
+    revalidatePath("/");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/resulted-tips");
+    revalidatePath("/my-resulted-tips");
+
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to publish calculator tip.",
+    };
+  }
+}
 export async function deleteSuggestedTipAction(
   formData: FormData,
 ): Promise<void> {
