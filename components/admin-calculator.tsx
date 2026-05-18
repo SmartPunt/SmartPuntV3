@@ -109,11 +109,6 @@ export default function AdminCalculator({
 const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
 
   const raceConfidence = useMemo(
-    () => calculateRaceConfidence(scoredRunners),
-    [scoredRunners],
-  );
-
-  const raceConfidence = useMemo(
     () => (scoredRunners.length ? calculateRaceConfidence(scoredRunners) : null),
     [scoredRunners],
   );
