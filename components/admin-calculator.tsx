@@ -17,7 +17,6 @@ calculateRaceConfidence,
   type Race,
   type Runner,
 } from "@/lib/calculator/scoring";
-import { calculateRaceConfidence } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 
 export default function AdminCalculator({
