@@ -35,12 +35,6 @@ type Prediction = {
   settled_at: string | null;
   race?: RaceWithMeeting | null;
   horse?: { horse_name: string } | null;
-    is_smartpunt_tip?: boolean | null;
-  smartpunt_tip_type?: string | null;
-  race_gap?: number | null;
-  race_confidence_tier?: string | null;
-  race_confidence_percent?: number | null;
-  suggested_bet?: string | null;
 };
 
 type RaceRow = {
@@ -71,6 +65,28 @@ type HorseRow = {
 type RaceRunnerRow = {
   id: number;
   horse_id: number | null;
+};
+
+type SmartPuntCalculatorTip = {
+  id: number;
+  race_id: number;
+  race_runner_id: number;
+  horse_id: number | null;
+  race: string | null;
+  horse: string | null;
+  bet_type: string | null;
+  score: number | string | null;
+  win_percent: number | null;
+  place_percent: number | null;
+  race_gap: number | null;
+  race_confidence_percent: number | null;
+  race_confidence_tier: string | null;
+  finishing_position: number | null;
+  won: boolean | null;
+  placed: boolean | null;
+  settled_at: string | null;
+  published_at: string | null;
+  race_row?: RaceWithMeeting | null;
 };
 
 function headers() {
@@ -295,8 +311,26 @@ function getRaceConfidenceForRows(rows: Prediction[]) {
 }
 
 function getSmartPuntCalculatorTip(rows: Prediction[]) {
-  return rows.find((row) => row.is_smartpunt_tip) || null;
+  if (!rows.length) return null;
+
+  const topRated = rows.find((row) => row.rank === 1) || rows[0] || null;
+  if (!topRated) return null;
+
+  const raceConfidence = getRaceConfidenceForRows(rows);
+
+  if (raceConfidence.suggestedBet === "No Bet") {
+    return null;
+  }
+
+  return {
+    ...topRated,
+    smartPuntSuggestedBet: raceConfidence.suggestedBet,
+    smartPuntRaceConfidence: raceConfidence.confidencePercent,
+    smartPuntConfidenceTier: raceConfidence.tier,
+    smartPuntVolatility: raceConfidence.volatility,
+  };
 }
+
 function winner(rows: Prediction[]) {
   return rows.find((row) => row.finishing_position === 1) || null;
 }
@@ -308,6 +342,61 @@ function filterByDate(rows: Prediction[], from: string, to: string) {
     if (from && meetingDate < from) return false;
     if (to && meetingDate > to) return false;
     return true;
+  });
+}
+
+function filterSmartPuntTipsByDate(
+  rows: SmartPuntCalculatorTip[],
+  from: string,
+  to: string,
+) {
+  return rows.filter((row) => {
+    const meetingDate = isoDate(row.race_row?.meeting?.meeting_date);
+
+    if (!meetingDate) return true;
+    if (from && meetingDate < from) return false;
+    if (to && meetingDate > to) return false;
+
+    return true;
+  });
+}
+
+async function fetchSmartPuntCalculatorTips() {
+  const tips = await serviceSelectAllRows<SmartPuntCalculatorTip>(
+    "smartpunt_calculator_tips?select=*&settled_at=not.is.null&finishing_position=not.is.null&order=settled_at.desc",
+  );
+
+  const raceIds = Array.from(
+    new Set(tips.map((row) => row.race_id).filter(Boolean)),
+  );
+
+  const races = await serviceSelectByIdChunks<RaceRow>({
+    table: "races",
+    select: "id,race_number,race_name,distance_m,meeting_id,status",
+    ids: raceIds,
+  });
+
+  const meetingIds = Array.from(
+    new Set(races.map((row) => row.meeting_id).filter(Boolean)),
+  );
+
+  const meetings = await serviceSelectByIdChunks<MeetingRow>({
+    table: "meetings",
+    select: "id,meeting_name,meeting_date,track_condition",
+    ids: meetingIds,
+  });
+
+  const raceMap = new Map(races.map((row) => [Number(row.id), row]));
+  const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
+
+  return tips.map((tip) => {
+    const race = raceMap.get(Number(tip.race_id)) || null;
+    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
+
+    return {
+      ...tip,
+      race_row: race ? { ...race, meeting } : null,
+    };
   });
 }
 
@@ -439,10 +528,21 @@ export default async function CalculatorReportPage({
   const dateTo = first(resolvedSearchParams.to);
 
   let predictions: Prediction[] = [];
+  let smartPuntCalculatorTips: SmartPuntCalculatorTip[] = [];
   let errorMessage = "";
 
   try {
-    predictions = filterByDate(await fetchPredictions(), dateFrom, dateTo);
+    const [allPredictions, allSmartPuntCalculatorTips] = await Promise.all([
+      fetchPredictions(),
+      fetchSmartPuntCalculatorTips(),
+    ]);
+
+    predictions = filterByDate(allPredictions, dateFrom, dateTo);
+    smartPuntCalculatorTips = filterSmartPuntTipsByDate(
+      allSmartPuntCalculatorTips,
+      dateFrom,
+      dateTo,
+    );
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -484,9 +584,6 @@ export default async function CalculatorReportPage({
   const topRatedPlaces = topRatedRows.filter(
     (row) => row.finishing_position !== null && row.finishing_position <= 3,
   ).length;
-  const smartPuntCalculatorTips = raceGroups
-    .map((race) => getSmartPuntCalculatorTip(race.rows))
-    .filter((row): row is NonNullable<typeof row> => Boolean(row));
   const smartPuntTipWins = smartPuntCalculatorTips.filter(
     (row) => row.finishing_position === 1,
   ).length;
@@ -725,9 +822,8 @@ export default async function CalculatorReportPage({
                 SmartPunt calculator tips only
               </h2>
               <p className="mt-1 text-sm text-zinc-300">
-                Measures the final calculator-backed SmartPunt tip for each
-                settled race, excluding races the confidence layer marked as No
-                Bet.
+                Measures the published SmartPunt Calculator tips after those
+                races have been resulted and settled.
               </p>
             </div>
             <Badge tone="amber">Final settled snapshots</Badge>
@@ -749,7 +845,7 @@ export default async function CalculatorReportPage({
             <StatCard
               label="Tip volume"
               value={smartPuntCalculatorTips.length}
-              hint={`${totalRaces - smartPuntCalculatorTips.length} settled races were treated as No Bet by the confidence layer.`}
+              hint={`${smartPuntCalculatorTips.length} published calculator tips have settled in this date range.`}
               tone="amber"
             />
             <StatCard
@@ -906,7 +1002,7 @@ export default async function CalculatorReportPage({
                                       : "rose"
                                 }
                               >
-                                SP {smartPuntTip.suggested_bet}:{" "}
+                                SP {smartPuntTip.smartPuntSuggestedBet}:{" "}
                                 {smartPuntTip.finishing_position === 1
                                   ? "Won"
                                   : smartPuntTip.finishing_position &&
@@ -948,7 +1044,7 @@ export default async function CalculatorReportPage({
                             </p>
                             <p className="mt-1 text-sm text-zinc-600">
                               {smartPuntTip
-                                ? `${smartPuntTip.suggested_bet} · Confidence ${smartPuntTip.race_confidence_percent}% · ${smartPuntTip.race_confidence_tier}`
+                                ? `${smartPuntTip.smartPuntSuggestedBet} · Confidence ${smartPuntTip.smartPuntRaceConfidence}% · ${smartPuntTip.smartPuntConfidenceTier}`
                                 : "Confidence layer did not find enough edge for a SmartPunt calculator tip."}
                             </p>
                           </div>
