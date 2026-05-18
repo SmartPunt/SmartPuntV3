@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { SMARTPUNT_SCORING_VERSION } from "@/lib/calculator/scoring";
+import {
+  SMARTPUNT_SCORING_VERSION,
+  calculateRaceConfidence,
+} from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 
 type SearchValue = string | string[] | undefined;
@@ -69,7 +72,9 @@ function headers() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Missing Supabase service role configuration in environment variables.");
+    throw new Error(
+      "Missing Supabase service role configuration in environment variables.",
+    );
   }
 
   return {
@@ -155,9 +160,7 @@ async function serviceSelectByIdChunks<T>({
 }): Promise<T[]> {
   const cleanIds = Array.from(
     new Set(
-      ids
-        .map((id) => Number(id))
-        .filter((id) => Number.isFinite(id) && id > 0),
+      ids.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0),
     ),
   );
 
@@ -246,7 +249,9 @@ function getHorseName(row: Prediction) {
 
 function raceLabel(row: Prediction) {
   const meeting = row.race?.meeting?.meeting_name || "Meeting";
-  const raceNumber = row.race?.race_number ? `R${row.race.race_number}` : "Race";
+  const raceNumber = row.race?.race_number
+    ? `R${row.race.race_number}`
+    : "Race";
   return `${meeting} ${raceNumber} ${row.race?.race_name || ""}`.trim();
 }
 
@@ -274,6 +279,36 @@ function groupByRace(rows: Prediction[]) {
     });
 }
 
+function getRaceConfidenceForRows(rows: Prediction[]) {
+  return calculateRaceConfidence(
+    rows.map((row) => ({
+      score: toNumber(row.score),
+      placePercent: row.place_percent,
+    })),
+  );
+}
+
+function getSmartPuntCalculatorTip(rows: Prediction[]) {
+  if (!rows.length) return null;
+
+  const topRated = rows.find((row) => row.rank === 1) || rows[0] || null;
+  if (!topRated) return null;
+
+  const raceConfidence = getRaceConfidenceForRows(rows);
+
+  if (raceConfidence.suggestedBet === "No Bet") {
+    return null;
+  }
+
+  return {
+    ...topRated,
+    smartPuntSuggestedBet: raceConfidence.suggestedBet,
+    smartPuntRaceConfidence: raceConfidence.confidencePercent,
+    smartPuntConfidenceTier: raceConfidence.tier,
+    smartPuntVolatility: raceConfidence.volatility,
+  };
+}
+
 function winner(rows: Prediction[]) {
   return rows.find((row) => row.finishing_position === 1) || null;
 }
@@ -295,8 +330,12 @@ async function fetchPredictions() {
     )}&order=settled_at.desc`,
   );
 
-  const raceIds = Array.from(new Set(predictions.map((row) => row.race_id).filter(Boolean)));
-  const runnerIds = Array.from(new Set(predictions.map((row) => row.runner_id).filter(Boolean)));
+  const raceIds = Array.from(
+    new Set(predictions.map((row) => row.race_id).filter(Boolean)),
+  );
+  const runnerIds = Array.from(
+    new Set(predictions.map((row) => row.runner_id).filter(Boolean)),
+  );
 
   const raceRunners = await serviceSelectByIdChunks<RaceRunnerRow>({
     table: "race_runners",
@@ -306,21 +345,19 @@ async function fetchPredictions() {
 
   const runnerMap = new Map(raceRunners.map((row) => [Number(row.id), row]));
 
-const horseIds = Array.from(
-  new Set(
-    predictions
-      .flatMap((row) => [
-        row.horse_id,
-        runnerMap.get(Number(row.runner_id))?.horse_id,
-      ])
-      .filter(
-        (id): id is number =>
-          typeof id === "number" &&
-          Number.isFinite(id) &&
-          id > 0,
-      ),
-  ),
-);
+  const horseIds = Array.from(
+    new Set(
+      predictions
+        .flatMap((row) => [
+          row.horse_id,
+          runnerMap.get(Number(row.runner_id))?.horse_id,
+        ])
+        .filter(
+          (id): id is number =>
+            typeof id === "number" && Number.isFinite(id) && id > 0,
+        ),
+    ),
+  );
 
   const [races, horses] = await Promise.all([
     serviceSelectByIdChunks<RaceRow>({
@@ -335,7 +372,9 @@ const horseIds = Array.from(
     }),
   ]);
 
-  const meetingIds = Array.from(new Set(races.map((row) => row.meeting_id).filter(Boolean)));
+  const meetingIds = Array.from(
+    new Set(races.map((row) => row.meeting_id).filter(Boolean)),
+  );
 
   const meetings = await serviceSelectByIdChunks<MeetingRow>({
     table: "meetings",
@@ -349,7 +388,9 @@ const horseIds = Array.from(
 
   return predictions.map((prediction) => {
     const race = raceMap.get(Number(prediction.race_id)) || null;
-    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
+    const meeting = race
+      ? meetingMap.get(Number(race.meeting_id)) || null
+      : null;
     const runner = runnerMap.get(Number(prediction.runner_id)) || null;
     const horse =
       horseMap.get(Number(prediction.horse_id)) ||
@@ -416,7 +457,9 @@ export default async function CalculatorReportPage({
     predictions = filterByDate(await fetchPredictions(), dateFrom, dateTo);
   } catch (error) {
     errorMessage =
-      error instanceof Error ? error.message : "Unknown error loading calculator report.";
+      error instanceof Error
+        ? error.message
+        : "Unknown error loading calculator report.";
   }
 
   const exportHref = `/admin/calculator-report/export${buildQuery({ from: dateFrom, to: dateTo })}`;
@@ -442,13 +485,34 @@ export default async function CalculatorReportPage({
   const totalRaces = raceGroups.length;
   const totalRunners = predictions.length;
   const topRatedRows = raceGroups
-    .map((race) => race.rows.find((row) => row.rank === 1) || race.rows[0] || null)
+    .map(
+      (race) => race.rows.find((row) => row.rank === 1) || race.rows[0] || null,
+    )
     .filter((row): row is Prediction => Boolean(row));
 
-  const topRatedWins = topRatedRows.filter((row) => row.finishing_position === 1).length;
+  const topRatedWins = topRatedRows.filter(
+    (row) => row.finishing_position === 1,
+  ).length;
   const topRatedPlaces = topRatedRows.filter(
     (row) => row.finishing_position !== null && row.finishing_position <= 3,
   ).length;
+  const smartPuntCalculatorTips = raceGroups
+    .map((race) => getSmartPuntCalculatorTip(race.rows))
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+  const smartPuntTipWins = smartPuntCalculatorTips.filter(
+    (row) => row.finishing_position === 1,
+  ).length;
+  const smartPuntTipPlaces = smartPuntCalculatorTips.filter(
+    (row) => row.finishing_position !== null && row.finishing_position <= 3,
+  ).length;
+  const smartPuntTipAvgConfidence = smartPuntCalculatorTips.length
+    ? Math.round(
+        smartPuntCalculatorTips.reduce(
+          (sum, row) => sum + Number(row.smartPuntRaceConfidence || 0),
+          0,
+        ) / smartPuntCalculatorTips.length,
+      )
+    : 0;
   const topThreeHitRaces = raceGroups.filter((race) =>
     race.rows.some((row) => row.rank <= 3 && row.finishing_position === 1),
   ).length;
@@ -456,16 +520,25 @@ export default async function CalculatorReportPage({
     .map((race) => winner(race.rows))
     .filter((row): row is Prediction => Boolean(row));
   const avgWinnerRank = winners.length
-    ? (winners.reduce((sum, row) => sum + Number(row.rank || 0), 0) / winners.length).toFixed(1)
+    ? (
+        winners.reduce((sum, row) => sum + Number(row.rank || 0), 0) /
+        winners.length
+      ).toFixed(1)
     : "—";
   const avgWinnerScore = winners.length
-    ? Math.round(winners.reduce((sum, row) => sum + toNumber(row.score), 0) / winners.length)
+    ? Math.round(
+        winners.reduce((sum, row) => sum + toNumber(row.score), 0) /
+          winners.length,
+      )
     : "—";
   const strongestWinner =
-    [...winners].sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
+    [...winners].sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] ||
+    null;
   const biggestMiss =
     [...topRatedRows]
-      .filter((row) => row.finishing_position !== null && row.finishing_position > 3)
+      .filter(
+        (row) => row.finishing_position !== null && row.finishing_position > 3,
+      )
       .sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
 
   return (
@@ -484,17 +557,29 @@ export default async function CalculatorReportPage({
               <Badge tone="amber">Calculator Report</Badge>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Link href="/current-races" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                <Link
+                  href="/current-races"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   Current Races
                 </Link>
-                <Link href="/admin/race-builder" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                <Link
+                  href="/admin/race-builder"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   Race Builder
                 </Link>
-                <Link href="/admin/calculator" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                <Link
+                  href="/admin/calculator"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   Calculator Lab
                 </Link>
                 {profile.role === "admin" ? (
-                  <Link href="/" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                  <Link
+                    href="/"
+                    className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                  >
                     Back to Admin
                   </Link>
                 ) : null}
@@ -506,7 +591,8 @@ export default async function CalculatorReportPage({
                 SmartPunt calculator performance
               </h1>
               <p className="mt-2 text-sm text-zinc-200 lg:text-base">
-                Daily and historical read on how the calculator is performing against final race results.
+                Daily and historical read on how the calculator is performing
+                against final race results.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="green">{totalRaces} races analysed</Badge>
@@ -528,22 +614,37 @@ export default async function CalculatorReportPage({
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Link href={`/admin/calculator-report${buildQuery({ from: todayIso(), to: todayIso() })}`} className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                <Link
+                  href={`/admin/calculator-report${buildQuery({ from: todayIso(), to: todayIso() })}`}
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
                   Today
                 </Link>
-                <Link href={`/admin/calculator-report${buildQuery({ from: pastIso(7), to: todayIso() })}`} className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                <Link
+                  href={`/admin/calculator-report${buildQuery({ from: pastIso(7), to: todayIso() })}`}
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
                   Last 7 days
                 </Link>
-                <Link href={`/admin/calculator-report${buildQuery({ from: pastIso(30), to: todayIso() })}`} className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                <Link
+                  href={`/admin/calculator-report${buildQuery({ from: pastIso(30), to: todayIso() })}`}
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
                   Last 30 days
                 </Link>
-                <Link href="/admin/calculator-report" className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                <Link
+                  href="/admin/calculator-report"
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
                   All history
                 </Link>
               </div>
             </div>
 
-            <form className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto]" action="/admin/calculator-report">
+            <form
+              className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto]"
+              action="/admin/calculator-report"
+            >
               <div>
                 <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
                   Date from
@@ -569,19 +670,22 @@ export default async function CalculatorReportPage({
               </div>
 
               <div className="flex items-end">
-                <button type="submit" className="w-full rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900">
+                <button
+                  type="submit"
+                  className="w-full rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                >
                   Apply Filter
                 </button>
               </div>
 
               <div className="flex items-end">
-<a
-  href={exportHref}
-  download
-  className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-500"
->
-  Export CSV
-</a>
+                <a
+                  href={exportHref}
+                  download
+                  className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-500"
+                >
+                  Export CSV
+                </a>
               </div>
             </form>
 
@@ -600,10 +704,77 @@ export default async function CalculatorReportPage({
         </Panel>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Top win strike" value={`${percent(topRatedWins, topRatedRows.length)}%`} hint={`${topRatedWins}/${topRatedRows.length} top-rated runners won.`} tone="green" />
-          <StatCard label="Top place strike" value={`${percent(topRatedPlaces, topRatedRows.length)}%`} hint={`${topRatedPlaces}/${topRatedRows.length} top-rated runners placed.`} tone="blue" />
-          <StatCard label="Top 3 winner hit" value={`${percent(topThreeHitRaces, totalRaces)}%`} hint={`${topThreeHitRaces}/${totalRaces} winners were in the calculator top 3.`} tone="amber" />
-          <StatCard label="Avg winner rank" value={avgWinnerRank} hint={`Average score of winners: ${avgWinnerScore}.`} tone="slate" />
+          <StatCard
+            label="Top win strike"
+            value={`${percent(topRatedWins, topRatedRows.length)}%`}
+            hint={`${topRatedWins}/${topRatedRows.length} top-rated runners won.`}
+            tone="green"
+          />
+          <StatCard
+            label="Top place strike"
+            value={`${percent(topRatedPlaces, topRatedRows.length)}%`}
+            hint={`${topRatedPlaces}/${topRatedRows.length} top-rated runners placed.`}
+            tone="blue"
+          />
+          <StatCard
+            label="Top 3 winner hit"
+            value={`${percent(topThreeHitRaces, totalRaces)}%`}
+            hint={`${topThreeHitRaces}/${totalRaces} winners were in the calculator top 3.`}
+            tone="amber"
+          />
+          <StatCard
+            label="Avg winner rank"
+            value={avgWinnerRank}
+            hint={`Average score of winners: ${avgWinnerScore}.`}
+            tone="slate"
+          />
+        </div>
+
+        <div className="mt-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                SmartPunt calculator tips only
+              </h2>
+              <p className="mt-1 text-sm text-zinc-300">
+                Measures the final calculator-backed SmartPunt tip for each
+                settled race, excluding races the confidence layer marked as No
+                Bet.
+              </p>
+            </div>
+            <Badge tone="amber">Final settled snapshots</Badge>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Tip win strike"
+              value={`${percent(smartPuntTipWins, smartPuntCalculatorTips.length)}%`}
+              hint={`${smartPuntTipWins}/${smartPuntCalculatorTips.length} SmartPunt calculator tips won.`}
+              tone="green"
+            />
+            <StatCard
+              label="Tip place strike"
+              value={`${percent(smartPuntTipPlaces, smartPuntCalculatorTips.length)}%`}
+              hint={`${smartPuntTipPlaces}/${smartPuntCalculatorTips.length} SmartPunt calculator tips placed.`}
+              tone="blue"
+            />
+            <StatCard
+              label="Tip volume"
+              value={smartPuntCalculatorTips.length}
+              hint={`${totalRaces - smartPuntCalculatorTips.length} settled races were treated as No Bet by the confidence layer.`}
+              tone="amber"
+            />
+            <StatCard
+              label="Avg race confidence"
+              value={
+                smartPuntCalculatorTips.length
+                  ? `${smartPuntTipAvgConfidence}%`
+                  : "—"
+              }
+              hint="Average race-confidence score across SmartPunt calculator tips only."
+              tone="slate"
+            />
+          </div>
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
@@ -612,16 +783,24 @@ export default async function CalculatorReportPage({
               <h2 className="text-xl font-semibold">Best calculator result</h2>
               {strongestWinner ? (
                 <div className="mt-4 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
-                  <p className="text-sm text-zinc-600">{raceLabel(strongestWinner)}</p>
-                  <h3 className="mt-1 text-2xl font-bold">{getHorseName(strongestWinner)}</h3>
+                  <p className="text-sm text-zinc-600">
+                    {raceLabel(strongestWinner)}
+                  </p>
+                  <h3 className="mt-1 text-2xl font-bold">
+                    {getHorseName(strongestWinner)}
+                  </h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="green">Won</Badge>
                     <Badge tone="amber">Rank #{strongestWinner.rank}</Badge>
-                    <Badge tone="blue">Score {Math.round(toNumber(strongestWinner.score))}</Badge>
+                    <Badge tone="blue">
+                      Score {Math.round(toNumber(strongestWinner.score))}
+                    </Badge>
                   </div>
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-zinc-500">No winning prediction data yet.</p>
+                <p className="mt-4 text-sm text-zinc-500">
+                  No winning prediction data yet.
+                </p>
               )}
             </div>
           </Panel>
@@ -631,16 +810,26 @@ export default async function CalculatorReportPage({
               <h2 className="text-xl font-semibold">Biggest miss</h2>
               {biggestMiss ? (
                 <div className="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-5">
-                  <p className="text-sm text-zinc-600">{raceLabel(biggestMiss)}</p>
-                  <h3 className="mt-1 text-2xl font-bold">{getHorseName(biggestMiss)}</h3>
+                  <p className="text-sm text-zinc-600">
+                    {raceLabel(biggestMiss)}
+                  </p>
+                  <h3 className="mt-1 text-2xl font-bold">
+                    {getHorseName(biggestMiss)}
+                  </h3>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge tone="rose">Finished {biggestMiss.finishing_position}</Badge>
+                    <Badge tone="rose">
+                      Finished {biggestMiss.finishing_position}
+                    </Badge>
                     <Badge tone="amber">Rank #{biggestMiss.rank}</Badge>
-                    <Badge tone="blue">Score {Math.round(toNumber(biggestMiss.score))}</Badge>
+                    <Badge tone="blue">
+                      Score {Math.round(toNumber(biggestMiss.score))}
+                    </Badge>
                   </div>
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-zinc-500">No major misses recorded yet.</p>
+                <p className="mt-4 text-sm text-zinc-500">
+                  No major misses recorded yet.
+                </p>
               )}
             </div>
           </Panel>
@@ -650,9 +839,12 @@ export default async function CalculatorReportPage({
           <div className="p-6 text-zinc-950">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold">Race-by-race breakdown</h2>
+                <h2 className="text-xl font-semibold">
+                  Race-by-race breakdown
+                </h2>
                 <p className="text-sm text-zinc-500">
-                  Each race is collapsed by default. Open a race to view the full runner table.
+                  Each race is collapsed by default. Open a race to view the
+                  full runner table.
                 </p>
               </div>
               <Badge tone="green">{totalRaces} races</Badge>
@@ -661,53 +853,130 @@ export default async function CalculatorReportPage({
             <div className="mt-5 space-y-4">
               {raceGroups.length > 0 ? (
                 raceGroups.map((race) => {
-                  const topRated = race.rows.find((row) => row.rank === 1) || race.rows[0];
+                  const topRated =
+                    race.rows.find((row) => row.rank === 1) || race.rows[0];
                   const raceWinner = winner(race.rows);
+                  const smartPuntTip = getSmartPuntCalculatorTip(race.rows);
                   const topThreeHadWinner = race.rows.some(
                     (row) => row.rank <= 3 && row.finishing_position === 1,
                   );
 
                   return (
-                    <details key={race.raceId} className="group rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
+                    <details
+                      key={race.raceId}
+                      className="group rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
+                    >
                       <summary className="cursor-pointer list-none">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
-                            <p className="text-sm text-zinc-500">{formatDate(race.meetingDate)}</p>
+                            <p className="text-sm text-zinc-500">
+                              {formatDate(race.meetingDate)}
+                            </p>
                             <h3 className="mt-1 text-lg font-bold text-zinc-950">
-                              <span className="mr-2 inline-block text-amber-700 transition group-open:rotate-90">▶</span>
+                              <span className="mr-2 inline-block text-amber-700 transition group-open:rotate-90">
+                                ▶
+                              </span>
                               {race.label}
                             </h3>
                             <p className="mt-2 text-sm text-zinc-600">
-                              Top rated: {topRated ? getHorseName(topRated) : "—"} · Winner: {raceWinner ? getHorseName(raceWinner) : "—"}
+                              Top rated:{" "}
+                              {topRated ? getHorseName(topRated) : "—"} ·
+                              Winner:{" "}
+                              {raceWinner ? getHorseName(raceWinner) : "—"}
+                              {smartPuntTip
+                                ? ` · SmartPunt tip: ${getHorseName(smartPuntTip)}`
+                                : " · SmartPunt tip: No Bet"}
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <Badge tone={topRated?.finishing_position === 1 ? "green" : "amber"}>
-                              Top: {topRated?.finishing_position === 1 ? "Won" : `Finished ${topRated?.finishing_position ?? "—"}`}
+                            <Badge
+                              tone={
+                                topRated?.finishing_position === 1
+                                  ? "green"
+                                  : "amber"
+                              }
+                            >
+                              Top:{" "}
+                              {topRated?.finishing_position === 1
+                                ? "Won"
+                                : `Finished ${topRated?.finishing_position ?? "—"}`}
                             </Badge>
                             <Badge tone={topThreeHadWinner ? "green" : "rose"}>
                               Top 3 {topThreeHadWinner ? "hit" : "miss"}
                             </Badge>
-                            <Badge tone="slate">{race.rows.length} runners</Badge>
+                            <Badge tone="slate">
+                              {race.rows.length} runners
+                            </Badge>
+                            {smartPuntTip ? (
+                              <Badge
+                                tone={
+                                  smartPuntTip.finishing_position === 1
+                                    ? "green"
+                                    : smartPuntTip.finishing_position &&
+                                        smartPuntTip.finishing_position <= 3
+                                      ? "blue"
+                                      : "rose"
+                                }
+                              >
+                                SP {smartPuntTip.smartPuntSuggestedBet}:{" "}
+                                {smartPuntTip.finishing_position === 1
+                                  ? "Won"
+                                  : smartPuntTip.finishing_position &&
+                                      smartPuntTip.finishing_position <= 3
+                                    ? "Placed"
+                                    : `Finished ${smartPuntTip.finishing_position ?? "—"}`}
+                              </Badge>
+                            ) : (
+                              <Badge tone="slate">SP No Bet</Badge>
+                            )}
                           </div>
                         </div>
                       </summary>
 
                       <div className="mt-5 border-t border-zinc-200 pt-5">
-                        <div className="grid gap-3 md:grid-cols-2">
+                        <div className="grid gap-3 md:grid-cols-3">
                           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Top rated</p>
-                            <p className="mt-2 font-bold text-zinc-950">{topRated ? getHorseName(topRated) : "—"}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                              Top rated
+                            </p>
+                            <p className="mt-2 font-bold text-zinc-950">
+                              {topRated ? getHorseName(topRated) : "—"}
+                            </p>
                             <p className="mt-1 text-sm text-zinc-600">
-                              Score {Math.round(toNumber(topRated?.score))} · Win {topRated?.win_percent ?? 0}% · Place {topRated?.place_percent ?? 0}%
+                              Score {Math.round(toNumber(topRated?.score))} ·
+                              Win {topRated?.win_percent ?? 0}% · Place{" "}
+                              {topRated?.place_percent ?? 0}%
                             </p>
                           </div>
 
                           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">Winner</p>
-                            <p className="mt-2 font-bold text-zinc-950">{raceWinner ? getHorseName(raceWinner) : "—"}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                              SmartPunt calculator tip
+                            </p>
+                            <p className="mt-2 font-bold text-zinc-950">
+                              {smartPuntTip
+                                ? getHorseName(smartPuntTip)
+                                : "No Bet"}
+                            </p>
                             <p className="mt-1 text-sm text-zinc-600">
-                              Calculator rank #{raceWinner?.rank ?? "—"} · Score {raceWinner ? Math.round(toNumber(raceWinner.score)) : "—"}
+                              {smartPuntTip
+                                ? `${smartPuntTip.smartPuntSuggestedBet} · Confidence ${smartPuntTip.smartPuntRaceConfidence}% · ${smartPuntTip.smartPuntConfidenceTier}`
+                                : "Confidence layer did not find enough edge for a SmartPunt calculator tip."}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                              Winner
+                            </p>
+                            <p className="mt-2 font-bold text-zinc-950">
+                              {raceWinner ? getHorseName(raceWinner) : "—"}
+                            </p>
+                            <p className="mt-1 text-sm text-zinc-600">
+                              Calculator rank #{raceWinner?.rank ?? "—"} · Score{" "}
+                              {raceWinner
+                                ? Math.round(toNumber(raceWinner.score))
+                                : "—"}
                             </p>
                           </div>
                         </div>
@@ -732,23 +1001,59 @@ export default async function CalculatorReportPage({
                             </thead>
                             <tbody>
                               {race.rows.map((row) => (
-                                <tr key={row.id} className="border-b border-zinc-100 last:border-0">
-                                  <td className="py-3 pr-3 font-semibold">#{row.rank}</td>
-                                  <td className="py-3 pr-3 font-semibold text-zinc-950">{getHorseName(row)}</td>
-                                  <td className="py-3 pr-3">{Math.round(toNumber(row.score))}</td>
-                                  <td className="py-3 pr-3">{row.win_percent}%</td>
-                                  <td className="py-3 pr-3">{row.place_percent}%</td>
+                                <tr
+                                  key={row.id}
+                                  className="border-b border-zinc-100 last:border-0"
+                                >
+                                  <td className="py-3 pr-3 font-semibold">
+                                    #{row.rank}
+                                  </td>
+                                  <td className="py-3 pr-3 font-semibold text-zinc-950">
+                                    {getHorseName(row)}
+                                  </td>
                                   <td className="py-3 pr-3">
-                                    <Badge tone={row.finishing_position === 1 ? "green" : row.finishing_position && row.finishing_position <= 3 ? "blue" : "rose"}>
+                                    {Math.round(toNumber(row.score))}
+                                  </td>
+                                  <td className="py-3 pr-3">
+                                    {row.win_percent}%
+                                  </td>
+                                  <td className="py-3 pr-3">
+                                    {row.place_percent}%
+                                  </td>
+                                  <td className="py-3 pr-3">
+                                    <Badge
+                                      tone={
+                                        row.finishing_position === 1
+                                          ? "green"
+                                          : row.finishing_position &&
+                                              row.finishing_position <= 3
+                                            ? "blue"
+                                            : "rose"
+                                      }
+                                    >
                                       {row.finishing_position ?? "—"}
                                     </Badge>
                                   </td>
-                                  <td className="py-3 pr-3">{Math.round(toNumber(row.recent_form_score))}</td>
-                                  <td className="py-3 pr-3">{Math.round(toNumber(row.distance_score))}</td>
-                                  <td className="py-3 pr-3">{Math.round(toNumber(row.track_score))}</td>
-                                  <td className="py-3 pr-3">{Math.round(toNumber(row.barrier_score))}</td>
-                                  <td className="py-3 pr-3">{Math.round(toNumber(row.weight_score))}</td>
-                                  <td className="py-3 pr-3">{Math.round(toNumber(row.jockey_score))}</td>
+                                  <td className="py-3 pr-3">
+                                    {Math.round(
+                                      toNumber(row.recent_form_score),
+                                    )}
+                                  </td>
+                                  <td className="py-3 pr-3">
+                                    {Math.round(toNumber(row.distance_score))}
+                                  </td>
+                                  <td className="py-3 pr-3">
+                                    {Math.round(toNumber(row.track_score))}
+                                  </td>
+                                  <td className="py-3 pr-3">
+                                    {Math.round(toNumber(row.barrier_score))}
+                                  </td>
+                                  <td className="py-3 pr-3">
+                                    {Math.round(toNumber(row.weight_score))}
+                                  </td>
+                                  <td className="py-3 pr-3">
+                                    {Math.round(toNumber(row.jockey_score))}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -756,7 +1061,8 @@ export default async function CalculatorReportPage({
                         </div>
 
                         <p className="mt-3 text-xs text-zinc-500">
-                          Snapshot settled: {formatDateTime(race.rows[0]?.settled_at)}
+                          Snapshot settled:{" "}
+                          {formatDateTime(race.rows[0]?.settled_at)}
                         </p>
                       </div>
                     </details>
@@ -764,9 +1070,12 @@ export default async function CalculatorReportPage({
                 })
               ) : (
                 <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-                  <p className="text-lg font-semibold text-zinc-900">No settled calculator predictions yet.</p>
+                  <p className="text-lg font-semibold text-zinc-900">
+                    No settled calculator predictions yet.
+                  </p>
                   <p className="mt-2 text-sm text-zinc-500">
-                    Once races are published and then resulted, the calculator report will fill in here.
+                    Once races are published and then resulted, the calculator
+                    report will fill in here.
                   </p>
                 </div>
               )}
