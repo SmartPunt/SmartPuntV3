@@ -8,7 +8,7 @@ import {
   calculateRaceScores,
   formatFormLine,
   getFactorStatus,
-  getRaceConfidence,
+calculateRaceConfidence,
   getRaceVerdict,
   getSelectedHorseSummary,
   roundScore,
@@ -114,7 +114,7 @@ export default function AdminCalculator({
     .slice(0, 3);
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
-  const raceConfidence = useMemo(() => getRaceConfidence(scoredRunners), [scoredRunners]);
+  const raceConfidence = useMemo(() => calculateRaceConfidence(scoredRunners), [scoredRunners]);
 
   const alertCandidates = useMemo(() => {
     const threshold = Number(alertThreshold);
