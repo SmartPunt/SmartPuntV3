@@ -23,18 +23,30 @@ import {
 } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 
+type CalculatorTip = {
+  id: number;
+  race_id: number | null;
+  race_runner_id: number | null;
+  horse_id: number | null;
+  bet_type: string | null;
+  status: string | null;
+  published_at: string | null;
+};
+
 export default function AdminCalculator({
   races,
   runners,
   horses,
   meetings,
   jockeyProfiles,
+  calculatorTips = [],
 }: {
   races: Race[];
   runners: Runner[];
   horses: Horse[];
   meetings: Meeting[];
   jockeyProfiles: JockeyProfile[];
+  calculatorTips?: CalculatorTip[];
 }) {
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
