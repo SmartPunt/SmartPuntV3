@@ -83,13 +83,14 @@ export default function AdminCalculator({
 
   const scoredRunners = useMemo(
     () =>
-      calculateRaceScores({
-        activeRace,
-        races,
-        runners,
-        horses,
-        meetings,
-      }),
+calculateRaceScores({
+  activeRace,
+  races,
+  runners,
+  horses,
+  meetings,
+  jockeyProfiles,
+})
     [activeRace, horses, meetings, races, runners],
   );
 
