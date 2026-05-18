@@ -187,11 +187,31 @@ export default function AdminCalculator({
 
         const raceConfidenceForRace = calculateRaceConfidence(scored);
 
-        return {
-          race,
-          top: selected,
-          gap,
-          raceConfidence: raceConfidenceForRace,
+const existingPublishedTip = calculatorTips.find(
+  (tip) =>
+    Number(tip.race_runner_id) === Number(selected.id) &&
+    String(tip.bet_type || "").toLowerCase() ===
+      (
+        strongestBetMode === "win"
+          ? selected.score >= 72 &&
+            gap >= 6 &&
+            selected.winPercent >= 10
+            ? "Strong Win"
+            : "Win"
+          : selected.score >= 66 &&
+            selected.placePercent >= 34 &&
+            gap >= 3
+            ? "Strong Place"
+            : "Place"
+      ).toLowerCase(),
+);
+
+return {
+  race,
+  top: selected,
+  gap,
+  raceConfidence: raceConfidenceForRace,
+  existingPublishedTip,
           qualifiesAsStrongWin:
             selected.score >= 72 &&
             gap >= 6 &&
@@ -797,7 +817,23 @@ export default function AdminCalculator({
                       name="race_confidence_tier"
                       value={item.raceConfidence.tier}
                     />
+{item.existingPublishedTip ? (
+  <div className="mb-3 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-semibold text-emerald-800">
+          Shared with subscribers
+        </p>
 
+        <p className="mt-1 text-xs text-emerald-700">
+          This calculator signal has already been published.
+        </p>
+      </div>
+
+      <Badge tone="green">Published</Badge>
+    </div>
+  </div>
+) : null}
                     <label className="flex items-center gap-2 text-sm text-zinc-700">
                       <input
                         type="checkbox"
@@ -808,12 +844,19 @@ export default function AdminCalculator({
                       Email subscribers
                     </label>
 
-                    <button
-                      type="submit"
-                      className="mt-3 w-full rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-black"
-                    >
-                      Publish SmartPunt Calculator Tip
-                    </button>
+                   <button
+  type="submit"
+  disabled={Boolean(item.existingPublishedTip)}
+  className={`mt-3 w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+    item.existingPublishedTip
+      ? "cursor-not-allowed bg-emerald-100 text-emerald-700"
+      : "bg-zinc-950 text-amber-300 hover:bg-black"
+  }`}
+>
+  {item.existingPublishedTip
+    ? "Already Published"
+    : "Publish SmartPunt Calculator Tip"}
+</button>
                   </form>
                 </div>
               ))}
