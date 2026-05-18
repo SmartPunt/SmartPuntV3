@@ -30,6 +30,7 @@ export default function AdminCalculator({
   runners: Runner[];
   horses: Horse[];
   meetings: Meeting[];
+  jockeyProfiles: JockeyProfile[];
 }) {
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
