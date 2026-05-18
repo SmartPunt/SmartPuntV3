@@ -178,7 +178,15 @@ export default async function Page() {
     },
   });
 
-  const calculatorTips = await fetchServiceRoleRows(
+const calculatorTips = await fetchServiceRoleRows<{
+  id: number;
+  race_id: number | null;
+  race_runner_id: number | null;
+  horse_id: number | null;
+  bet_type: string | null;
+  status: string | null;
+  published_at: string | null;
+}>(
     "smartpunt_calculator_tips?select=*&order=published_at.desc",
   );
 
