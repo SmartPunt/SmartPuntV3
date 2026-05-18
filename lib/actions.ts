@@ -1568,8 +1568,7 @@ export async function publishSmartPuntCalculatorTipAction(
   formData: FormData,
 ): Promise<void> {
   try {
-    const profile = await requireRacingAdmin();
-    const supabase = await createClient();
+const profile = await requireAdmin();
 
     const sendNotification =
       String(formData.get("send_notification") ?? "") === "true";
@@ -1602,15 +1601,19 @@ export async function publishSmartPuntCalculatorTipAction(
 throw new Error("Race, runner, and horse are required for calculator tips.");
     }
 
-    const { data, error } = await supabase
-      .from("smartpunt_calculator_tips")
-      .insert(payload)
-      .select()
-      .single();
+const insertedRows = await serviceRoleFetch("smartpunt_calculator_tips?select=*", {
+  method: "POST",
+  headers: {
+    Prefer: "return=representation",
+  },
+  body: JSON.stringify(payload),
+});
 
-    if (error) {
-throw new Error(error.message);
-    }
+const data = Array.isArray(insertedRows) ? insertedRows[0] : insertedRows;
+
+if (!data) {
+  throw new Error("Calculator tip was not created.");
+}
 
     if (sendNotification && data) {
       try {
