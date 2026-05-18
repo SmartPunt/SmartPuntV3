@@ -24,10 +24,10 @@ export type Runner = {
   weight_kg?: number | null;
   is_apprentice?: boolean | null;
   apprentice_claim_kg?: number | null;
-  form_last_3?: string | null;
-  form_last_6?: string | null;
-  track_form_last_6?: string | null;
-  distance_form_last_6?: string | null;
+form_last_3?: string | null;
+form_last_6?: string | null;
+track_form_last_6?: string | null;
+distance_form_last_6?: string | null;
   finishing_position?: number | null;
   starting_price?: number | null;
   won?: boolean | null;
@@ -97,7 +97,6 @@ export type ScoredRunner = Runner & {
   placePercent: number;
   verdict: string;
   rank: number;
-  raceConfidence?: RaceConfidence;
   components: {
     recentForm: number;
     distance: number;
@@ -116,28 +115,8 @@ export type RaceVerdict = {
   confidence: "Strong" | "Safe" | "Low Edge";
   reason: string;
 };
-
-export type RaceConfidenceLevel = "Low" | "Medium" | "High" | "Elite";
-
-export type RaceAutoTipDecision = {
-  type: "Win" | "Place" | "No Bet";
-  eligible: boolean;
-  reason: string;
-};
-
-export type RaceConfidence = {
-  level: RaceConfidenceLevel;
-  score: number;
-  fieldSize: number;
-  topScore: number;
-  secondScore: number | null;
-  thirdScore: number | null;
-  scoreGap: number;
-  topThreeGap: number;
-  topFourSpread: number;
-  averageScore: number;
-  reason: string;
-  autoTip: RaceAutoTipDecision;
+export type CalculatorScoreOverrides = {
+  condition?: number | null;
 };
 
 export function clamp(value: number, min = 0, max = 100) {
@@ -210,217 +189,57 @@ export function getVerdict(score: number) {
   return "Pass";
 }
 
-function confidenceLevelFromScore(score: number): RaceConfidenceLevel {
-  if (score >= 80) return "Elite";
-  if (score >= 65) return "High";
-  if (score >= 50) return "Medium";
-  return "Low";
-}
-
-function raceConfidenceReason({
-  level,
-  fieldSize,
-  topScore,
-  scoreGap,
-  topFourSpread,
-}: {
-  level: RaceConfidenceLevel;
-  fieldSize: number;
-  topScore: number;
-  scoreGap: number;
-  topFourSpread: number;
-}) {
-  if (level === "Elite") {
-    return "Elite confidence race: the top runner has a strong score profile and clear separation from the main dangers.";
-  }
-
-  if (level === "High") {
-    return "High confidence race: the calculator has found a clear preferred runner with enough separation to consider an auto tip.";
-  }
-
-  if (level === "Medium") {
-    return "Medium confidence race: there is a preferred runner, but the field still has enough compression or uncertainty to keep staking conservative.";
-  }
-
-  if (fieldSize >= 12 && scoreGap < 4) {
-    return "Low confidence race: bigger field and limited separation between the main chances.";
-  }
-
-  if (topFourSpread <= 4) {
-    return "Low confidence race: top chances are tightly compressed with no strong edge.";
-  }
-
-  if (topScore < 60) {
-    return "Low confidence race: top runner score is not strong enough to trust heavily.";
-  }
-
-  return "Low confidence race: calculator preference is not strong enough for an automated subscriber tip.";
-}
-
-export function getRaceConfidence(
-  runners: ScoredRunner[],
-): RaceConfidence | null {
+export function getRaceVerdict(runners: ScoredRunner[]): RaceVerdict | null {
   if (!runners.length) return null;
 
-  const sorted = [...runners].sort((a, b) => b.score - a.score);
-  const top = sorted[0];
-  const second = sorted[1] || null;
-  const third = sorted[2] || null;
-  const fourth = sorted[3] || null;
+  const top = runners[0];
+  const second = runners[1];
+  const fourth = runners[3];
 
-  const fieldSize = sorted.length;
-  const topScore = roundScore(top.score);
-  const secondScore = second ? roundScore(second.score) : null;
-  const thirdScore = third ? roundScore(third.score) : null;
-  const scoreGap = second ? roundScore(top.score - second.score) : topScore;
-  const topThreeGap = third ? roundScore(top.score - third.score) : scoreGap;
-  const topFourSpread = fourth
-    ? roundScore(top.score - fourth.score)
-    : topThreeGap;
+  const scoreGap = second ? top.score - second.score : 0;
+  const topFourCompression = fourth ? top.score - fourth.score : scoreGap;
 
-  const averageScore = roundScore(
-    sorted.reduce((sum, runner) => sum + Number(runner.score || 0), 0) /
-      Math.max(fieldSize, 1),
-  );
-
-  const topScorePoints =
-    topScore >= 76
-      ? 28
-      : topScore >= 72
-        ? 24
-        : topScore >= 68
-          ? 19
-          : topScore >= 64
-            ? 14
-            : topScore >= 60
-              ? 8
-              : 3;
-
-  const gapPoints =
-    scoreGap >= 10
-      ? 30
-      : scoreGap >= 7
-        ? 24
-        : scoreGap >= 5
-          ? 18
-          : scoreGap >= 3
-            ? 10
-            : 2;
-
-  const spreadPoints =
-    topFourSpread >= 12
-      ? 22
-      : topFourSpread >= 8
-        ? 17
-        : topFourSpread >= 5
-          ? 11
-          : 4;
-
-  const fieldPoints =
-    fieldSize <= 6 ? 15 : fieldSize <= 9 ? 12 : fieldSize <= 12 ? 8 : 4;
-
-  const compressionPenalty =
-    fieldSize >= 10 && scoreGap <= 2 ? 10 : topFourSpread <= 3 ? 7 : 0;
-
-  const rawConfidence =
-    topScorePoints +
-    gapPoints +
-    spreadPoints +
-    fieldPoints -
-    compressionPenalty;
-
-  const confidenceScore = clamp(Math.round(rawConfidence), 0, 100);
-  const level = confidenceLevelFromScore(confidenceScore);
-
-  const qualifiesAsWin =
-    (level === "Elite" || level === "High") &&
-    top.score >= 72 &&
-    scoreGap >= 6 &&
-    top.winPercent >= 10;
-
-  const qualifiesAsPlace =
-    level !== "Low" &&
-    top.score >= 66 &&
-    top.placePercent >= 34 &&
-    scoreGap >= 3;
-
-  const autoTip: RaceAutoTipDecision = qualifiesAsWin
-    ? {
-        type: "Win",
-        eligible: true,
-        reason:
-          "Top runner qualifies as a win auto tip: strong score, clear gap and enough race confidence.",
-      }
-    : qualifiesAsPlace
-      ? {
-          type: "Place",
-          eligible: true,
-          reason:
-            "Top runner qualifies as a place auto tip: solid score, usable gap and acceptable race confidence.",
-        }
-      : {
-          type: "No Bet",
-          eligible: false,
-          reason:
-            "No auto tip: either the top runner score, race gap or race confidence is not strong enough.",
-        };
-
-  return {
-    level,
-    score: confidenceScore,
-    fieldSize,
-    topScore,
-    secondScore,
-    thirdScore,
-    scoreGap,
-    topThreeGap,
-    topFourSpread,
-    averageScore,
-    reason: raceConfidenceReason({
-      level,
-      fieldSize,
-      topScore,
-      scoreGap,
-      topFourSpread,
-    }),
-    autoTip,
-  };
-}
-
-export function getRaceVerdict(runners: ScoredRunner[]): RaceVerdict | null {
-  const confidence = getRaceConfidence(runners);
-
-  if (!confidence) return null;
-
-  if (confidence.autoTip.type === "Win") {
+  if (top.score >= 72 && scoreGap >= 5) {
     return {
       type: "Win",
       confidence: "Strong",
-      reason: confidence.autoTip.reason,
+      reason:
+        "Clear top-rated runner with a strong score and enough separation from the main dangers.",
     };
   }
 
-  if (confidence.autoTip.type === "Place" && confidence.level !== "Medium") {
+  if (top.score >= 66 && scoreGap >= 3) {
     return {
       type: "Place",
       confidence: "Safe",
-      reason: confidence.autoTip.reason,
+      reason:
+        "Top-rated runner has a solid profile and enough edge to be considered a safer place play.",
     };
   }
 
-  if (confidence.autoTip.type === "Place") {
+  if (top.score >= 62 && top.placePercent >= 45) {
     return {
       type: "Place",
+      confidence: "Safe",
+      reason:
+        "No standout win edge, but the top-rated runner profiles as a reasonable place option.",
+    };
+  }
+
+  if (fourth && topFourCompression <= 3 && top.score < 64) {
+    return {
+      type: "No Bet",
       confidence: "Low Edge",
       reason:
-        "Calculator found a place-leaning runner, but race confidence is only medium.",
+        "Race is tightly compressed across the main chances with no clear calculator edge.",
     };
   }
 
   return {
-    type: "No Bet",
+    type: "Place",
     confidence: "Low Edge",
-    reason: confidence.reason,
+    reason:
+      "Calculator has found a preferred runner, but the race lacks enough separation for a strong win call.",
   };
 }
 
@@ -506,15 +325,15 @@ function parseImportedStatRecord(record?: string | null) {
     };
   }
 
-  const wins = Number(match[2]) || 0;
-  const seconds = Number(match[3]) || 0;
-  const thirds = Number(match[4]) || 0;
+const wins = Number(match[2]) || 0;
+const seconds = Number(match[3]) || 0;
+const thirds = Number(match[4]) || 0;
 
-  return {
-    runs: Number(match[1]) || 0,
-    wins,
-    places: wins + seconds + thirds,
-  };
+return {
+  runs: Number(match[1]) || 0,
+  wins,
+  places: wins + seconds + thirds,
+};
 }
 
 function scoreImportedStatRecord(record?: string | null) {
@@ -525,7 +344,9 @@ function scoreImportedStatRecord(record?: string | null) {
   const placeRate = stats.places / stats.runs;
   const winRate = stats.wins / stats.runs;
 
-  const rawScore = Math.round(42 + placeRate * 30 + winRate * 22);
+  const rawScore = Math.round(
+    42 + placeRate * 30 + winRate * 22,
+  );
 
   return evidenceCap(rawScore, stats.runs);
 }
@@ -576,7 +397,7 @@ function scoreRecentForm(historyRuns: HistoryRun[]) {
   return clamp(score, 20, 95);
 }
 
-function scoreConsistency(historyRuns: HistoryRun[]) {
+function scoreConsistency(historyRuns: HistoryRun[], importedForm?: string | null) {
   const recent = historyRuns
     .slice(0, 5)
     .filter(
@@ -586,18 +407,19 @@ function scoreConsistency(historyRuns: HistoryRun[]) {
         Number.isFinite(Number(run.finishing_position)),
     );
 
-  if (!recent.length) return 50;
+  const importedRuns = parseImportedFormString(importedForm);
+
+  const positions = recent.length
+    ? recent.map((run) => Number(run.finishing_position))
+    : importedRuns;
+
+  if (!positions.length) return 50;
 
   const averageFinish =
-    recent.reduce((sum, run) => sum + Number(run.finishing_position || 0), 0) /
-    recent.length;
+    positions.reduce((sum, pos) => sum + Number(pos || 0), 0) / positions.length;
 
-  const topThreeCount = recent.filter(
-    (run) => Number(run.finishing_position) <= 3,
-  ).length;
-  const poorRunCount = recent.filter(
-    (run) => Number(run.finishing_position) >= 8,
-  ).length;
+  const topThreeCount = positions.filter((pos) => Number(pos) <= 3).length;
+  const poorRunCount = positions.filter((pos) => Number(pos) >= 8).length;
 
   const averageScore = clamp(Math.round(82 - averageFinish * 5), 25, 82);
   const topThreeBonus = topThreeCount * 4;
@@ -617,16 +439,14 @@ function scoreDistanceSuitability(
     (run) => getDistanceBucket(run.race?.distance_m) === targetBucket,
   );
 
-  if (!matchingRuns.length) return 48;
+if (!matchingRuns.length) return 48;
 
   const places = matchingRuns.filter((run) => {
     const pos = run.finishing_position;
     return pos !== null && pos !== undefined && pos <= 3;
   }).length;
 
-  const wins = matchingRuns.filter(
-    (run) => run.finishing_position === 1,
-  ).length;
+  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
@@ -651,9 +471,7 @@ function scoreTrackSuitability(
     return pos !== null && pos !== undefined && pos <= 3;
   }).length;
 
-  const wins = matchingRuns.filter(
-    (run) => run.finishing_position === 1,
-  ).length;
+  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
@@ -679,9 +497,7 @@ function scoreConditionSuitability(
     return pos !== null && pos !== undefined && pos <= 3;
   }).length;
 
-  const wins = matchingRuns.filter(
-    (run) => run.finishing_position === 1,
-  ).length;
+  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
@@ -706,33 +522,32 @@ function scoreBarrier(
     return 54;
   }
 
-  if (distance && distance <= 1200) {
-    if (barrier <= 4) return 82;
-    if (barrier <= 8) return 60;
-    if (barrier <= 12) return 44;
-    return 34;
-  }
+if (distance && distance <= 1200) {
+  if (barrier <= 4) return 82;
+  if (barrier <= 8) return 60;
+  if (barrier <= 12) return 44;
+  return 34;
+}
 
-  if (distance && distance <= 1400) {
-    if (barrier <= 4) return 74;
-    if (barrier <= 8) return 66;
-    if (barrier <= 12) return 56;
-    return 48;
-  }
+if (distance && distance <= 1400) {
+  if (barrier <= 4) return 74;
+  if (barrier <= 8) return 66;
+  if (barrier <= 12) return 56;
+  return 48;
+}
 
-  // 1400m+ barrier becomes much less important
-  if (barrier <= 4) return 68;
-  if (barrier <= 8) return 64;
-  if (barrier <= 12) return 60;
-  return 56;
+// 1400m+ barrier becomes much less important
+if (barrier <= 4) return 68;
+if (barrier <= 8) return 64;
+if (barrier <= 12) return 60;
+return 56;
 }
 
 export function getEffectiveWeight(runner: Runner) {
   if (runner.weight_kg === null || runner.weight_kg === undefined) return null;
 
   const claim =
-    runner.apprentice_claim_kg !== null &&
-    runner.apprentice_claim_kg !== undefined
+    runner.apprentice_claim_kg !== null && runner.apprentice_claim_kg !== undefined
       ? runner.apprentice_claim_kg
       : 0;
 
@@ -765,18 +580,13 @@ function scoreJockey(
   allHistoryRuns: HistoryRun[],
   jockeyProfiles: JockeyProfile[],
 ) {
-  const jockey = String(runner.jockey_name || "")
-    .trim()
-    .toLowerCase();
+  const jockey = String(runner.jockey_name || "").trim().toLowerCase();
 
   if (!jockey) return 55;
 
   // HORSE + JOCKEY COMBO HISTORY
   const horseJockeyRuns = horseHistoryRuns.filter(
-    (run) =>
-      String(run.jockey_name || "")
-        .trim()
-        .toLowerCase() === jockey,
+    (run) => String(run.jockey_name || "").trim().toLowerCase() === jockey,
   );
 
   if (horseJockeyRuns.length >= 2) {
@@ -795,15 +605,13 @@ function scoreJockey(
         (wins / horseJockeyRuns.length) * 18,
     );
 
-    return clamp(rawScore, 45, 90);
+return clamp(rawScore, 45, horseJockeyRuns.length >= 5 ? 86 : 70);
   }
 
   // SMARTPUNT JOCKEY HISTORY
   const jockeyRuns = allHistoryRuns.filter(
     (run) =>
-      String(run.jockey_name || "")
-        .trim()
-        .toLowerCase() === jockey,
+      String(run.jockey_name || "").trim().toLowerCase() === jockey,
   );
 
   let smartPuntScore: number | null = null;
@@ -831,7 +639,10 @@ function scoreJockey(
 
   // IMPORTED / MANUAL PROFILE
   const profile =
-    jockeyProfiles.find((item) => item.normalised_name === jockey) || null;
+    jockeyProfiles.find(
+      (item) =>
+        item.normalised_name === jockey,
+    ) || null;
 
   let profileScore: number | null = null;
 
@@ -847,31 +658,33 @@ function scoreJockey(
 
   // COMBINED
   if (smartPuntScore !== null && profileScore !== null) {
-    return clamp(Math.round(smartPuntScore * 0.7 + profileScore * 0.3), 42, 90);
+    return clamp(
+      Math.round(
+        smartPuntScore * 0.7 +
+          profileScore * 0.3,
+      ),
+      42,
+      90,
+    );
   }
 
   if (smartPuntScore !== null) {
     return smartPuntScore;
   }
 
-  if (profileScore !== null) {
-    return clamp(profileScore, 45, 88);
-  }
+if (profileScore !== null) {
+  return clamp(profileScore, 45, 82);
+}
 
   return 55;
 }
 
 function scoreTrainer(runner: Runner, allHistoryRuns: HistoryRun[]) {
-  const trainer = String(runner.trainer_name || "")
-    .trim()
-    .toLowerCase();
+  const trainer = String(runner.trainer_name || "").trim().toLowerCase();
   if (!trainer) return 50;
 
   const trainerRuns = allHistoryRuns.filter(
-    (run) =>
-      String(run.trainer_name || "")
-        .trim()
-        .toLowerCase() === trainer,
+    (run) => String(run.trainer_name || "").trim().toLowerCase() === trainer,
   );
 
   if (!trainerRuns.length) return 50;
@@ -943,14 +756,10 @@ export function buildHorseHistory(
         runner.finishing_position !== null &&
         runner.finishing_position !== undefined,
     )
-    .filter((runner) =>
-      excludeRaceId ? Number(runner.race_id) !== Number(excludeRaceId) : true,
-    )
+    .filter((runner) => (excludeRaceId ? Number(runner.race_id) !== Number(excludeRaceId) : true))
     .map((runner) => {
       const race = racesById.get(Number(runner.race_id)) || null;
-      const meeting = race
-        ? meetingsById.get(Number(race.meeting_id)) || null
-        : null;
+      const meeting = race ? meetingsById.get(Number(race.meeting_id)) || null : null;
 
       return {
         ...runner,
@@ -976,14 +785,10 @@ function buildAllHistoryRuns(
         runner.finishing_position !== null &&
         runner.finishing_position !== undefined,
     )
-    .filter((runner) =>
-      excludeRaceId ? Number(runner.race_id) !== Number(excludeRaceId) : true,
-    )
+    .filter((runner) => (excludeRaceId ? Number(runner.race_id) !== Number(excludeRaceId) : true))
     .map((runner) => {
       const race = racesById.get(Number(runner.race_id)) || null;
-      const meeting = race
-        ? meetingsById.get(Number(race.meeting_id)) || null
-        : null;
+      const meeting = race ? meetingsById.get(Number(race.meeting_id)) || null : null;
 
       return {
         ...runner,
@@ -1000,11 +805,7 @@ export function formatFormLine(historyRuns: HistoryRun[]) {
   return historyRuns
     .slice(0, 5)
     .map((run) => {
-      if (
-        run.finishing_position === null ||
-        run.finishing_position === undefined
-      )
-        return "—";
+      if (run.finishing_position === null || run.finishing_position === undefined) return "—";
       return String(run.finishing_position);
     })
     .join(" • ");
@@ -1060,8 +861,8 @@ export function calculateRaceScores({
   races,
   runners,
   horses,
-  meetings,
-  jockeyProfiles,
+meetings,
+jockeyProfiles,
   scoreOverrides,
 }: {
   activeRace: Race | null | undefined;
@@ -1069,39 +870,32 @@ export function calculateRaceScores({
   runners: Runner[];
   horses: Horse[];
   meetings: Meeting[];
-  jockeyProfiles: JockeyProfile[];
-  scoreOverrides?: {
-    condition?: number | null;
-  };
+jockeyProfiles: JockeyProfile[];
+  scoreOverrides?: CalculatorScoreOverrides;
 }): ScoredRunner[] {
   if (!activeRace) return [];
 
-  const raceMeeting =
-    meetings.find(
-      (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
-    ) || null;
+ const raceMeeting = meetings.find(
+  (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
+) || null;
 
-  const field = runners.filter(
-    (runner) =>
-      Number(runner.race_id) === Number(activeRace.id) &&
-      runner.scratched !== true,
-  );
+const field = runners.filter(
+  (runner) =>
+    Number(runner.race_id) === Number(activeRace.id) &&
+    runner.scratched !== true,
+);
 
-  const fieldEffectiveWeights = field.map((runner) =>
-    getEffectiveWeight(runner),
-  );
+const fieldEffectiveWeights = field.map((runner) => getEffectiveWeight(runner));
 
-  const allHistoryRuns = buildAllHistoryRuns(
-    runners,
-    races,
-    meetings,
-    activeRace.id,
-  );
+const allHistoryRuns = buildAllHistoryRuns(
+  runners,
+  races,
+  meetings,
+  activeRace.id,
+);
 
   const baseScored = field.map((runner) => {
-    const horse = horses.find(
-      (item) => Number(item.id) === Number(runner.horse_id),
-    );
+    const horse = horses.find((item) => Number(item.id) === Number(runner.horse_id));
     const historyRuns = buildHorseHistory(
       runner.horse_id,
       runners,
@@ -1110,81 +904,91 @@ export function calculateRaceScores({
       activeRace.id,
     );
 
-    const recentForm =
-      historyRuns.length >= 3
-        ? scoreRecentForm(historyRuns)
-        : Math.round(
-            scoreRecentForm(historyRuns) * 0.35 +
-              scoreImportedRecentForm(runner.form_last_6) * 0.65,
-          );
+const recentForm =
+  historyRuns.length >= 3
+    ? scoreRecentForm(historyRuns)
+    : Math.round(
+        (scoreRecentForm(historyRuns) * 0.35) +
+          (scoreImportedRecentForm(runner.form_last_6) * 0.65),
+      );
 
-    const distance =
-      historyRuns.filter(
-        (run) =>
-          getDistanceBucket(run.race?.distance_m) ===
-          getDistanceBucket(activeRace.distance_m),
-      ).length >= 2
-        ? scoreDistanceSuitability(historyRuns, activeRace.distance_m)
-        : Math.round(
-            scoreDistanceSuitability(historyRuns, activeRace.distance_m) * 0.4 +
-              scoreImportedStatRecord(runner.distance_form_last_6) * 0.6,
-          );
+const distance =
+  historyRuns.filter(
+    (run) =>
+      getDistanceBucket(run.race?.distance_m) ===
+      getDistanceBucket(activeRace.distance_m),
+  ).length >= 2
+    ? scoreDistanceSuitability(historyRuns, activeRace.distance_m)
+    : Math.round(
+        (scoreDistanceSuitability(historyRuns, activeRace.distance_m) * 0.4) +
+          (scoreImportedStatRecord(runner.distance_form_last_6) * 0.6),
+      );
 
-    const track =
-      historyRuns.filter(
-        (run) => run.meeting?.meeting_name === raceMeeting?.meeting_name,
-      ).length >= 2
-        ? scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name)
-        : Math.round(
-            scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name) *
-              0.4 +
-              scoreImportedStatRecord(runner.track_form_last_6) * 0.6,
-          );
+const track =
+  historyRuns.filter(
+    (run) =>
+      run.meeting?.meeting_name === raceMeeting?.meeting_name,
+  ).length >= 2
+    ? scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name)
+    : Math.round(
+        (scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name) * 0.4) +
+          (scoreImportedStatRecord(runner.track_form_last_6) * 0.6),
+      );
 const condition =
   scoreOverrides?.condition !== null &&
   scoreOverrides?.condition !== undefined &&
   Number.isFinite(Number(scoreOverrides.condition))
     ? clamp(Number(scoreOverrides.condition))
-    : scoreConditionSuitability(
-        historyRuns,
-        raceMeeting?.track_condition,
-      );
+    : scoreConditionSuitability(historyRuns, raceMeeting?.track_condition);
     const barrier = scoreBarrier(
       runner.barrier,
       activeRace.distance_m,
       raceMeeting?.meeting_name,
     );
     const weight = scoreWeight(runner, fieldEffectiveWeights);
-    const jockey = scoreJockey(
-      runner,
-      historyRuns,
-      allHistoryRuns,
-      jockeyProfiles,
-    );
+const jockey = scoreJockey(
+  runner,
+  historyRuns,
+  allHistoryRuns,
+  jockeyProfiles,
+);
     const trainer = scoreTrainer(runner, allHistoryRuns);
-    const consistency = scoreConsistency(historyRuns);
+const consistency = scoreConsistency(historyRuns, runner.form_last_6);
 
     const baseScore = clamp(
       Math.round(
-        recentForm * 0.25 +
-          distance * 0.14 +
-          track * 0.09 +
-          condition * 0.08 +
-          barrier * 0.14 +
-          weight * 0.03 +
-          jockey * 0.11 +
-          trainer * 0.04 +
-          consistency * 0.1,
+recentForm * 0.25 +
+  distance * 0.14 +
+  track * 0.09 +
+  condition * 0.11 +
+  barrier * 0.10 +
+  weight * 0.03 +
+  jockey * 0.11 +
+  trainer * 0.04 +
+  consistency * 0.10
       ),
     );
 
-    const score = applyOverconfidenceDampener({
-      baseScore,
-      recentForm,
-      distance,
-      track,
-      condition,
-    });
+const standoutBonus =
+  recentForm >= 80 &&
+  distance >= 75 &&
+  track >= 70 &&
+  barrier >= 70
+? 10
+    : recentForm >= 72 &&
+        distance >= 70 &&
+        track >= 65 &&
+        barrier >= 65
+? 6
+      : 0;
+
+const score = applyOverconfidenceDampener({
+  baseScore: clamp(baseScore + standoutBonus),
+  recentForm,
+  distance,
+  track,
+  condition,
+});
 
     return {
       ...runner,
@@ -1215,11 +1019,9 @@ const condition =
     };
   });
 
-  const percentages = normalisePercentages(
-    baseScored.map((runner) => runner.score),
-  );
+  const percentages = normalisePercentages(baseScored.map((runner) => runner.score));
 
-  const ranked = baseScored
+  return baseScored
     .map((runner, index) => ({
       ...runner,
       winPercent: percentages[index].winPercent,
@@ -1230,11 +1032,4 @@ const condition =
       ...runner,
       rank: index + 1,
     }));
-
-  const raceConfidence = getRaceConfidence(ranked);
-
-  return ranked.map((runner) => ({
-    ...runner,
-    raceConfidence: raceConfidence || undefined,
-  }));
 }
