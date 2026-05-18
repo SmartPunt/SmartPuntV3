@@ -81,18 +81,18 @@ export default function AdminCalculator({
     return horseRace;
   }, [horseRace, publishedRaces, selectedRaceId]);
 
-  const scoredRunners = useMemo(
-    () =>
-calculateRaceScores({
-  activeRace,
-  races,
-  runners,
-  horses,
-  meetings,
-  jockeyProfiles,
-})
-    [activeRace, horses, meetings, races, runners],
-  );
+const scoredRunners = useMemo(
+  () =>
+    calculateRaceScores({
+      activeRace,
+      races,
+      runners,
+      horses,
+      meetings,
+      jockeyProfiles,
+    }),
+  [activeRace, races, runners, horses, meetings, jockeyProfiles],
+);
 
   const selectedHorseScore = useMemo(() => {
     if (!selectedHorse) return null;
