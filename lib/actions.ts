@@ -2951,7 +2951,76 @@ export async function settleRaceRunnersAction(
     calculatorTipSettleError,
   );
 }
+try {
+  for (const update of updates) {
+    const finishingPosition = update.finishing_position;
 
+    const won = finishingPosition === 1;
+    const placed =
+      finishingPosition !== null &&
+      finishingPosition !== undefined &&
+      finishingPosition <= 3;
+
+    const { data: matchingUserBets, error: userBetFetchError } =
+      await supabase
+        .from("user_bets")
+        .select("*")
+        .eq("race_runner_id", update.id)
+        .is("settled_at", null);
+
+    if (userBetFetchError) {
+      console.error(
+        "User bet settlement fetch failed:",
+        userBetFetchError,
+      );
+      continue;
+    }
+
+    for (const bet of matchingUserBets || []) {
+      const betType = String(bet.bet_type || "Win");
+      const oddsTaken = Number(bet.odds_taken || 0);
+      const stakePoints = Number(bet.stake_points || 1);
+
+      const successful =
+        betType.toLowerCase().includes("place")
+          ? placed
+          : won;
+
+      const returnPoints = successful
+        ? Number((oddsTaken * stakePoints).toFixed(2))
+        : 0;
+
+      const profitLossPoints = Number(
+        (returnPoints - stakePoints).toFixed(2),
+      );
+
+      const { error: updateUserBetError } = await supabase
+        .from("user_bets")
+        .update({
+          finishing_position: finishingPosition,
+          won,
+          placed,
+          return_points: returnPoints,
+          profit_loss_points: profitLossPoints,
+          settled_at: now,
+          updated_at: now,
+        })
+        .eq("id", bet.id);
+
+      if (updateUserBetError) {
+        console.error(
+          "User bet settlement update failed:",
+          updateUserBetError,
+        );
+      }
+    }
+  }
+} catch (userBetSettlementError) {
+  console.error(
+    "User bet settlement process failed:",
+    userBetSettlementError,
+  );
+}
     const horseIds = Array.from(
       new Set(
         updates
