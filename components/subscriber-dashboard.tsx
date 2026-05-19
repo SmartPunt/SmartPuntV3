@@ -213,13 +213,22 @@ initialActiveUserBetCount: number;
 );
 const calculatorTips = useMemo(
   () =>
-    initialCalculatorTips.filter(
-      (tip) =>
-        tip.settled_at === null &&
-        (tip.status || "active") === "active" &&
-        !activeCalculatorTipIdSet.has(tip.id),
-    ),
-  [initialCalculatorTips, activeCalculatorTipIdSet],
+    initialCalculatorTips.filter((tip) => {
+      if (tip.settled_at !== null) return false;
+
+      if ((tip.status || "active") !== "active") return false;
+
+      if (activeCalculatorTipIdSet.has(tip.id)) return false;
+
+      if (!tip.race_runner_id) return true;
+
+      const linkedRunner = runnerMap.get(tip.race_runner_id);
+
+      if (!linkedRunner) return true;
+
+      return linkedRunner.scratched !== true;
+    }),
+  [initialCalculatorTips, activeCalculatorTipIdSet, runnerMap],
 );
 
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
