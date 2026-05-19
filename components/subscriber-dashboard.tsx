@@ -210,23 +210,26 @@ initialActiveUserBetCount: number;
     () => allTips.filter((tip) => tip.settled_at === null),
     [allTips],
   );
-
-  const calculatorTips = useMemo(
-    () =>
-      initialCalculatorTips.filter(
-        (tip) => tip.settled_at === null && (tip.status || "active") === "active",
-      ),
-    [initialCalculatorTips],
-  );
+  const activeCalculatorTipIdSet = useMemo(
+  () => new Set(initialActiveCalculatorTipIds),
+  [initialActiveCalculatorTipIds],
+);
+const calculatorTips = useMemo(
+  () =>
+    initialCalculatorTips.filter(
+      (tip) =>
+        tip.settled_at === null &&
+        (tip.status || "active") === "active" &&
+        !activeCalculatorTipIdSet.has(tip.id),
+    ),
+  [initialCalculatorTips, activeCalculatorTipIdSet],
+);
 
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
   const activeTipIdSet = useMemo(() => new Set(initialActiveTipIds), [initialActiveTipIds]);
-  const activeCalculatorTipIdSet = useMemo(
-  () => new Set(initialActiveCalculatorTipIds),
-  [initialActiveCalculatorTipIds],
-);
+
 
   const meetingMap = useMemo(
     () => new Map(initialMeetings.map((meeting) => [meeting.id, meeting])),
