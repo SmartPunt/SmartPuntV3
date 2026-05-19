@@ -256,12 +256,19 @@ export default async function HomePage() {
     );
   }
 
-  const activeSelectionsQuery = await supabase
-    .from("user_active_tips")
-    .select("tip_id")
-    .eq("user_id", profile.id);
+const activeUserBetsQuery = await supabase
+  .from("user_bets")
+  .select("suggested_tip_id, calculator_tip_id")
+  .eq("user_id", profile.id)
+  .is("settled_at", null);
 
-  const activeTipIds = (activeSelectionsQuery.data || []).map((row: any) => row.tip_id);
+const activeTipIds = (activeUserBetsQuery.data || [])
+  .map((row: any) => row.suggested_tip_id)
+  .filter(Boolean);
+
+const activeCalculatorTipIds = (activeUserBetsQuery.data || [])
+  .map((row: any) => row.calculator_tip_id)
+  .filter(Boolean);
 
   return (
     <AppEntryLoader>
@@ -272,6 +279,7 @@ export default async function HomePage() {
         initialWatchlistItems={watchlistItems}
         initialLongTermBets={longTermBets}
         initialActiveTipIds={activeTipIds}
+        initialActiveCalculatorTipIds={activeCalculatorTipIds}
         initialPublishedRaces={publishedRaces}
         initialPublishedRunners={publishedRunners}
         initialHorses={horses}
