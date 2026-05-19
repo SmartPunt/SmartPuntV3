@@ -179,7 +179,8 @@ export default function SubscriberDashboard({
   initialWatchlistItems,
   initialLongTermBets,
   initialActiveTipIds,
-  initialActiveCalculatorTipIds,
+initialActiveCalculatorTipIds,
+initialActiveUserBetCount,
   initialPublishedRaces,
   initialPublishedRunners,
   initialHorses,
@@ -191,7 +192,8 @@ export default function SubscriberDashboard({
   initialWatchlistItems: WatchItem[];
   initialLongTermBets: LongTermBet[];
   initialActiveTipIds: number[];
-  initialActiveCalculatorTipIds: number[];
+initialActiveCalculatorTipIds: number[];
+initialActiveUserBetCount: number;
   initialPublishedRaces: Race[];
   initialPublishedRunners: Runner[];
   initialHorses: Horse[];
@@ -726,7 +728,7 @@ const activeCalculatorTips = useMemo(
                     Active Tips
                   </p>
 <p className="mt-2 text-2xl font-bold text-white">
-  {activeLiveTips.length + activeCalculatorTips.length}
+  {initialActiveUserBetCount}
 </p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -765,7 +767,7 @@ const activeCalculatorTips = useMemo(
                     <Badge tone="blue">{watchlistItems.length} watchlist notes</Badge>
                     <Badge tone="amber">{longTermBets.length} get on early</Badge>
 <Badge tone="rose">
-  {activeLiveTips.length + activeCalculatorTips.length} active tips
+  {initialActiveUserBetCount} active tips
 </Badge>
                   </div>
                 </div>
@@ -805,7 +807,7 @@ const activeCalculatorTips = useMemo(
                     My active tips
                   </p>
 <p className="mt-2 text-3xl font-bold">
-  {activeLiveTips.length + activeCalculatorTips.length}
+  {initialActiveUserBetCount}
 </p>
                   <p className="mt-2 text-sm text-zinc-500">
                     Tips you’ve accepted and moved off the live board.
@@ -876,7 +878,7 @@ const activeCalculatorTips = useMemo(
                       </p>
                     </div>
 <Badge tone="rose">
-  {activeLiveTips.length + activeCalculatorTips.length}
+  {initialActiveUserBetCount}
 </Badge>
                   </div>
 
