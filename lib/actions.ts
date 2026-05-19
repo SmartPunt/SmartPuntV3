@@ -1684,9 +1684,10 @@ if (!profile || profile.status !== "active") {
     revalidatePath("/");
     revalidatePath("/my-resulted-tips");
 
-    return {
-      success: true,
-    };
+return {
+  success: true,
+  error: null,
+};
   } catch (error) {
     return {
       success: false,
