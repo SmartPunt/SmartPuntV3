@@ -221,6 +221,10 @@ export default function SubscriberDashboard({
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
   const activeTipIdSet = useMemo(() => new Set(initialActiveTipIds), [initialActiveTipIds]);
+  const activeCalculatorTipIdSet = useMemo(
+  () => new Set(initialActiveCalculatorTipIds),
+  [initialActiveCalculatorTipIds],
+);
 
   const meetingMap = useMemo(
     () => new Map(initialMeetings.map((meeting) => [meeting.id, meeting])),
@@ -246,7 +250,13 @@ export default function SubscriberDashboard({
     () => suggestedTips.filter((tip) => activeTipIdSet.has(tip.id)),
     [suggestedTips, activeTipIdSet],
   );
-
+const activeCalculatorTips = useMemo(
+  () =>
+    calculatorTips.filter((tip) =>
+      activeCalculatorTipIdSet.has(tip.id),
+    ),
+  [calculatorTips, activeCalculatorTipIdSet],
+);
   const availableTips = useMemo(
     () => suggestedTips.filter((tip) => !activeTipIdSet.has(tip.id)),
     [suggestedTips, activeTipIdSet],
@@ -715,7 +725,9 @@ export default function SubscriberDashboard({
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
                     Active Tips
                   </p>
-                  <p className="mt-2 text-2xl font-bold text-white">{activeLiveTips.length}</p>
+<p className="mt-2 text-2xl font-bold text-white">
+  {activeLiveTips.length + activeCalculatorTips.length}
+</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
@@ -752,7 +764,9 @@ export default function SubscriberDashboard({
                     <Badge tone="blue">{calculatorTips.length} calculator signals</Badge>
                     <Badge tone="blue">{watchlistItems.length} watchlist notes</Badge>
                     <Badge tone="amber">{longTermBets.length} get on early</Badge>
-                    <Badge tone="rose">{activeLiveTips.length} active tips</Badge>
+<Badge tone="rose">
+  {activeLiveTips.length + activeCalculatorTips.length} active tips
+</Badge>
                   </div>
                 </div>
               </div>
@@ -790,7 +804,9 @@ export default function SubscriberDashboard({
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                     My active tips
                   </p>
-                  <p className="mt-2 text-3xl font-bold">{activeLiveTips.length}</p>
+<p className="mt-2 text-3xl font-bold">
+  {activeLiveTips.length + activeCalculatorTips.length}
+</p>
                   <p className="mt-2 text-sm text-zinc-500">
                     Tips you’ve accepted and moved off the live board.
                   </p>
@@ -859,7 +875,9 @@ export default function SubscriberDashboard({
                         Your active plays and quick links in one tidy strip.
                       </p>
                     </div>
-                    <Badge tone="rose">{activeLiveTips.length}</Badge>
+<Badge tone="rose">
+  {activeLiveTips.length + activeCalculatorTips.length}
+</Badge>
                   </div>
 
                   <div className="space-y-4">
