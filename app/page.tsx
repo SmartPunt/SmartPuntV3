@@ -270,6 +270,9 @@ const activeCalculatorTipIds = (activeUserBetsQuery.data || [])
   .map((row: any) => row.calculator_tip_id)
   .filter(Boolean);
 
+const activeUserBetCount =
+  (activeUserBetsQuery.data || []).length;
+
   return (
     <AppEntryLoader>
       <SubscriberDashboard
@@ -279,7 +282,8 @@ const activeCalculatorTipIds = (activeUserBetsQuery.data || [])
         initialWatchlistItems={watchlistItems}
         initialLongTermBets={longTermBets}
         initialActiveTipIds={activeTipIds}
-        initialActiveCalculatorTipIds={activeCalculatorTipIds}
+initialActiveCalculatorTipIds={activeCalculatorTipIds}
+initialActiveUserBetCount={activeUserBetCount}
         initialPublishedRaces={publishedRaces}
         initialPublishedRunners={publishedRunners}
         initialHorses={horses}
