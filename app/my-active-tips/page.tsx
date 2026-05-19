@@ -74,18 +74,33 @@ export default async function Page() {
 
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("user_bets")
-    .select("*")
-    .eq("user_id", profile.id)
-    .is("settled_at", null)
-    .order("created_at", { ascending: false });
+const { data, error } = await supabase
+  .from("user_bets")
+  .select(
+    `
+    *,
+    race_runner:race_runners!user_bets_race_runner_id_fkey (
+      id,
+      scratched
+    )
+  `,
+  )
+  .eq("user_id", profile.id)
+  .is("settled_at", null)
+  .order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const activeBets = (data || []) as UserBet[];
+const activeBets = ((data || []) as Array<
+  UserBet & {
+    race_runner?: {
+      id: number;
+      scratched: boolean | null;
+    } | null;
+  }
+>).filter((bet) => bet.race_runner?.scratched !== true);
   const totalStake = activeBets.reduce(
     (sum, bet) => sum + (toNumber(bet.stake_points) || 1),
     0,
