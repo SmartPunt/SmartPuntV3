@@ -51,11 +51,11 @@ export default function AdminCalculator({
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
   const [alertThreshold, setAlertThreshold] = useState("80");
-const [strongestBetMode, setStrongestBetMode] = useState<"win" | "place">("win");
+  const [strongestBetMode, setStrongestBetMode] = useState<"win" | "place">("win");
 
-const [raceDayFilter, setRaceDayFilter] = useState<
-  "today" | "tomorrow" | "upcoming"
->("today");
+  const [raceDayFilter, setRaceDayFilter] = useState<
+    "today" | "tomorrow" | "upcoming"
+  >("today");
 
   const publishedRaces = useMemo(
     () => races.filter((race) => race.status === "published"),
@@ -132,39 +132,45 @@ const [raceDayFilter, setRaceDayFilter] = useState<
     [scoredRunners],
   );
 
-const perthNow = new Date(
-  new Date().toLocaleString("en-US", {
-    timeZone: "Australia/Perth",
-  }),
-);
+  const strongestBets = useMemo(() => {
+    const perthNow = new Date(
+      new Date().toLocaleString("en-US", {
+        timeZone: "Australia/Perth",
+      }),
+    );
 
-const today = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Australia/Perth",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-}).format(perthNow);
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Australia/Perth",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(perthNow);
 
-const tomorrowDate = new Date(perthNow);
-tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrowDate = new Date(perthNow);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
 
-const tomorrow = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Australia/Perth",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-}).format(tomorrowDate);
-if (!meeting?.meeting_date) return false;
+    const tomorrow = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Australia/Perth",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(tomorrowDate);
 
-if (raceDayFilter === "today") {
-  return meeting.meeting_date === today;
-}
+    return publishedRaces
+      .filter((race) => {
+        const meeting = meetings.find((item) => item.id === race.meeting_id);
 
-if (raceDayFilter === "tomorrow") {
-  return meeting.meeting_date === tomorrow;
-}
+        if (!meeting?.meeting_date) return false;
 
-return meeting.meeting_date >= today;
+        if (raceDayFilter === "today") {
+          return meeting.meeting_date === today;
+        }
+
+        if (raceDayFilter === "tomorrow") {
+          return meeting.meeting_date === tomorrow;
+        }
+
+        return meeting.meeting_date >= today;
       })
       .map((race) => {
         const scored = calculateRaceScores({
@@ -179,13 +185,11 @@ return meeting.meeting_date >= today;
         if (!scored.length) return null;
 
         const topWin = scored[0];
-
         const topPlace = [...scored].sort(
           (a, b) => b.placePercent - a.placePercent,
         )[0];
 
         const selected = strongestBetMode === "win" ? topWin : topPlace;
-
         const second = scored.find((runner) => runner.id !== selected.id);
 
         const gap = second
@@ -193,80 +197,57 @@ return meeting.meeting_date >= today;
           : roundScore(selected.score);
 
         const qualifiesAsWin =
-          selected.score >= 68 &&
-          gap >= 4 &&
-          selected.winPercent >= 8;
+          selected.score >= 68 && gap >= 4 && selected.winPercent >= 8;
 
         const qualifiesAsPlace =
-          selected.score >= 62 &&
-          selected.placePercent >= 30 &&
-          gap >= 2;
+          selected.score >= 62 && selected.placePercent >= 30 && gap >= 2;
 
-        if (strongestBetMode === "win" && !qualifiesAsWin) {
-          return null;
-        }
-
-        if (strongestBetMode === "place" && !qualifiesAsPlace) {
-          return null;
-        }
+        if (strongestBetMode === "win" && !qualifiesAsWin) return null;
+        if (strongestBetMode === "place" && !qualifiesAsPlace) return null;
 
         const raceConfidenceForRace = calculateRaceConfidence(scored);
 
-const existingPublishedTip = calculatorTips.find(
-  (tip) =>
-    Number(tip.race_runner_id) === Number(selected.id),
-);
+        const existingPublishedTip = calculatorTips.find(
+          (tip) => Number(tip.race_runner_id) === Number(selected.id),
+        );
 
-return {
-  race,
-  top: selected,
-  gap,
-  raceConfidence: raceConfidenceForRace,
-  existingPublishedTip,
+        return {
+          race,
+          top: selected,
+          gap,
+          raceConfidence: raceConfidenceForRace,
+          existingPublishedTip,
           qualifiesAsStrongWin:
-            selected.score >= 72 &&
-            gap >= 6 &&
-            selected.winPercent >= 10,
-
+            selected.score >= 72 && gap >= 6 && selected.winPercent >= 10,
           qualifiesAsStrongPlace:
-            selected.score >= 66 &&
-            selected.placePercent >= 34 &&
-            gap >= 3,
+            selected.score >= 66 && selected.placePercent >= 34 && gap >= 3,
         };
       })
-      .filter(
-        (item): item is NonNullable<typeof item> =>
-          Boolean(item),
-      )
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
       .sort((a, b) => {
         const aStrength =
           strongestBetMode === "win"
-            ? Number(a.top.score) +
-              Number(a.gap) * 2 +
-              Number(a.top.winPercent)
-            : Number(a.top.placePercent) +
-              Number(a.top.score) * 0.35;
+            ? Number(a.top.score) + Number(a.gap) * 2 + Number(a.top.winPercent)
+            : Number(a.top.placePercent) + Number(a.top.score) * 0.35;
 
         const bStrength =
           strongestBetMode === "win"
-            ? Number(b.top.score) +
-              Number(b.gap) * 2 +
-              Number(b.top.winPercent)
-            : Number(b.top.placePercent) +
-              Number(b.top.score) * 0.35;
+            ? Number(b.top.score) + Number(b.gap) * 2 + Number(b.top.winPercent)
+            : Number(b.top.placePercent) + Number(b.top.score) * 0.35;
 
         return bStrength - aStrength;
       });
   }, [
-  horses,
-  jockeyProfiles,
-  meetings,
-  publishedRaces,
-  races,
-  runners,
-  strongestBetMode,
-  calculatorTips,
-]);
+    horses,
+    jockeyProfiles,
+    meetings,
+    publishedRaces,
+    races,
+    runners,
+    strongestBetMode,
+    raceDayFilter,
+    calculatorTips,
+  ]);
 
   const alertCandidates = useMemo(() => {
     const threshold = Number(alertThreshold);
@@ -623,12 +604,22 @@ return {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold">
-                  🔥 Today’s strongest {strongestBetMode === "win" ? "win" : "place"} bets
+                  🔥 {raceDayFilter === "today"
+                    ? "Today’s"
+                    : raceDayFilter === "tomorrow"
+                      ? "Tomorrow’s"
+                      : "Upcoming"} strongest {strongestBetMode === "win" ? "win" : "place"} bets
                 </h2>
 
                 <div className="space-y-1">
                   <p className="text-sm text-zinc-500">
-                    Highest-rated calculator opportunities across today’s published races.
+                    Highest-rated calculator opportunities across{" "}
+                    {raceDayFilter === "today"
+                      ? "today’s published races"
+                      : raceDayFilter === "tomorrow"
+                        ? "tomorrow’s published races"
+                        : "all upcoming published races"}
+                    .
                   </p>
 
                   <p className="text-xs text-zinc-500">
@@ -638,6 +629,44 @@ return {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("today")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "today"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Today
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("tomorrow")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "tomorrow"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("upcoming")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "upcoming"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  All Upcoming
+                </button>
+
+                <span className="mx-1 hidden h-8 w-px bg-zinc-200 sm:block" />
+
                 <button
                   type="button"
                   onClick={() => setStrongestBetMode("win")}
@@ -875,7 +904,7 @@ return {
 
               {strongestBets.length === 0 ? (
                 <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center text-sm text-zinc-500 lg:col-span-2">
-                  No qualifying {strongestBetMode} plays today.
+                  No qualifying {strongestBetMode} plays for this filter.
                 </div>
               ) : null}
             </div>
