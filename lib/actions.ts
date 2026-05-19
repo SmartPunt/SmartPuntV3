@@ -1616,7 +1616,18 @@ if (!profile || profile.status !== "active") {
     const horse = String(formData.get("horse") ?? "");
     const race = String(formData.get("race") ?? "");
 
-    const betType = String(formData.get("bet_type") ?? "Win");
+const rawBetType = String(
+  formData.get("bet_type") ?? "Win",
+).toLowerCase();
+
+const betType =
+  rawBetType.includes("place") || rawBetType.includes("each")
+    ? "Place"
+    : rawBetType.includes("strong win")
+      ? "Strong Win"
+      : rawBetType.includes("strong place")
+        ? "Strong Place"
+        : "Win";
 
     const oddsTaken = Number(formData.get("odds_taken") || 0);
 
