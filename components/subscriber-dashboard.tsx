@@ -206,21 +206,7 @@ initialActiveUserBetCount: number;
 
   const allTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
 
-const suggestedTips = useMemo(
-  () =>
-    allTips.filter((tip) => {
-      if (tip.settled_at !== null) return false;
 
-      if (!tip.race_runner_id) return true;
-
-      const linkedRunner = runnerMap.get(tip.race_runner_id);
-
-      if (!linkedRunner) return true;
-
-      return linkedRunner.scratched !== true;
-    }),
-  [allTips, runnerMap],
-);
   const activeCalculatorTipIdSet = useMemo(
   () => new Set(initialActiveCalculatorTipIds),
   [initialActiveCalculatorTipIds],
@@ -256,7 +242,21 @@ const calculatorTips = useMemo(
     () => new Map(initialPublishedRunners.map((runner) => [runner.id, runner])),
     [initialPublishedRunners],
   );
+const suggestedTips = useMemo(
+  () =>
+    allTips.filter((tip) => {
+      if (tip.settled_at !== null) return false;
 
+      if (!tip.race_runner_id) return true;
+
+      const linkedRunner = runnerMap.get(tip.race_runner_id);
+
+      if (!linkedRunner) return true;
+
+      return linkedRunner.scratched !== true;
+    }),
+  [allTips, runnerMap],
+);
   const horseMap = useMemo(
     () => new Map(initialHorses.map((horse) => [horse.id, horse])),
     [initialHorses],
