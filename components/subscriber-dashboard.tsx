@@ -197,6 +197,8 @@ export default function SubscriberDashboard({
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
   const [customRunnerId, setCustomRunnerId] = useState("");
+  const [customBetMessage, setCustomBetMessage] = useState("");
+  const [customBetError, setCustomBetError] = useState("");
 
   const allTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
 
@@ -293,6 +295,22 @@ export default function SubscriberDashboard({
     await addUserBetAction(formData);
   }
 
+  async function addCustomUserBetFormAction(formData: FormData) {
+    setCustomBetMessage("");
+    setCustomBetError("");
+
+    const result = await addUserBetAction(formData);
+
+    if (result.success) {
+      setCustomRaceId("");
+      setCustomRunnerId("");
+      setCustomBetMessage("Added to My Bets.");
+      return;
+    }
+
+    setCustomBetError(result.error || "Could not add this pick.");
+  }
+
   function renderOddsInput(featured = false) {
     return (
       <label className={`text-xs font-semibold uppercase tracking-[0.12em] ${featured ? "text-amber-100/80" : "text-zinc-600"}`}>
@@ -386,7 +404,7 @@ export default function SubscriberDashboard({
             <Badge tone="slate">My Pick</Badge>
           </div>
 
-          <form action={addUserBetFormAction} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <form action={addCustomUserBetFormAction} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <input type="hidden" name="source" value="subscriber" />
             <input
               type="hidden"
@@ -467,9 +485,24 @@ export default function SubscriberDashboard({
               />
             </div>
 
-            <button className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 md:col-span-2 xl:col-span-4">
+            <button
+              type="submit"
+              className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 md:col-span-2 xl:col-span-4"
+            >
               Add My Pick To My Bets
             </button>
+
+            {customBetMessage ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 md:col-span-2 xl:col-span-4">
+                {customBetMessage}
+              </div>
+            ) : null}
+
+            {customBetError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 md:col-span-2 xl:col-span-4">
+                {customBetError}
+              </div>
+            ) : null}
           </form>
         </div>
       </Panel>
