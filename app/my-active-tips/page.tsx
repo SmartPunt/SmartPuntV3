@@ -2,40 +2,67 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { removeTipActiveAction } from "@/lib/actions";
-import { Badge, Panel, TipPill } from "@/components/ui";
+import { Badge, Panel } from "@/components/ui";
 
-type SuggestedTip = {
+type UserBet = {
   id: number;
-  race: string;
-  horse: string;
-  type: string;
-  confidence: string | null;
-  note: string | null;
-  commentary: string | null;
-  race_start_at: string | null;
-  race_timezone: string | null;
+  source: "head_tipper" | "calculator" | "subscriber" | string;
+  suggested_tip_id: number | null;
+  calculator_tip_id: number | null;
+  race_id: number | null;
+  race_runner_id: number | null;
+  horse_id: number | null;
+  horse: string | null;
+  race: string | null;
+  bet_type: string | null;
+  odds_taken: number | string | null;
+  stake_points: number | string | null;
+  finishing_position: number | null;
+  won: boolean | null;
+  placed: boolean | null;
+  settled_at: string | null;
+  created_at: string | null;
 };
 
-function formatRaceDateTime(value?: string | null, timezone?: string | null) {
-  if (!value) return null;
+const PERTH_TIMEZONE = "Australia/Perth";
 
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
+  if (Number.isNaN(date.getTime())) return "—";
 
-  try {
-    return new Intl.DateTimeFormat("en-AU", {
-      timeZone: timezone || "Australia/Perth",
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
-  } catch {
-    return null;
-  }
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: PERTH_TIMEZONE,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
+function toNumber(value: number | string | null | undefined) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function sourceLabel(source: string | null | undefined) {
+  if (source === "calculator") return "SmartPunt Calculator";
+  if (source === "subscriber") return "My Pick";
+  return "Head Tipper";
+}
+
+function sourceTone(source: string | null | undefined): "amber" | "blue" | "green" | "slate" {
+  if (source === "calculator") return "blue";
+  if (source === "subscriber") return "green";
+  return "amber";
+}
+
+function sourceDescription(source: string | null | undefined) {
+  if (source === "calculator") return "Model Signal";
+  if (source === "subscriber") return "Your own selection";
+  return "Published head tipper selection";
 }
 
 export default async function Page() {
@@ -47,26 +74,25 @@ export default async function Page() {
 
   const supabase = await createClient();
 
-  const { data: userTips } = await supabase
-    .from("user_active_tips")
-    .select("tip_id")
-    .eq("user_id", profile.id);
+  const { data, error } = await supabase
+    .from("user_bets")
+    .select("*")
+    .eq("user_id", profile.id)
+    .is("settled_at", null)
+    .order("created_at", { ascending: false });
 
-  const tipIds = (userTips || []).map((t: any) => t.tip_id);
-
-  let activeTips: SuggestedTip[] = [];
-
-  if (tipIds.length > 0) {
-    const { data } = await supabase
-      .from("suggested_tips")
-      .select("*")
-      .in("id", tipIds)
-      .is("settled_at", null)
-      .order("race_start_at", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false });
-
-    activeTips = (data || []) as SuggestedTip[];
+  if (error) {
+    throw new Error(error.message);
   }
+
+  const activeBets = (data || []) as UserBet[];
+  const totalStake = activeBets.reduce(
+    (sum, bet) => sum + (toNumber(bet.stake_points) || 1),
+    0,
+  );
+  const headTipperCount = activeBets.filter((bet) => bet.source === "head_tipper").length;
+  const calculatorCount = activeBets.filter((bet) => bet.source === "calculator").length;
+  const subscriberCount = activeBets.filter((bet) => bet.source === "subscriber").length;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
@@ -79,7 +105,7 @@ export default async function Page() {
 
         <div className="relative z-10 flex items-center justify-between px-4 py-4 lg:px-8">
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-            My Active Tips
+            My Active Bets
           </h1>
 
           <Link
@@ -92,26 +118,46 @@ export default async function Page() {
       </div>
 
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-5">
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Active Tips</p>
-              <p className="mt-2 text-2xl font-semibold">{activeTips.length}</p>
+              <p className="text-sm text-zinc-500">Active Bets</p>
+              <p className="mt-2 text-2xl font-semibold">{activeBets.length}</p>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Status</p>
-              <p className="mt-2 text-2xl font-semibold text-amber-700">Live</p>
+              <p className="text-sm text-zinc-500">Stake Points</p>
+              <p className="mt-2 text-2xl font-semibold text-amber-700">
+                {totalStake.toFixed(1)}
+              </p>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Workflow</p>
-              <p className="mt-2 text-sm font-medium text-zinc-600">
-                Accepted tips move here until they result.
+              <p className="text-sm text-zinc-500">Head Tipper</p>
+              <p className="mt-2 text-2xl font-semibold text-amber-700">
+                {headTipperCount}
+              </p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Calculator</p>
+              <p className="mt-2 text-2xl font-semibold text-blue-700">
+                {calculatorCount}
+              </p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">My Picks</p>
+              <p className="mt-2 text-2xl font-semibold text-emerald-700">
+                {subscriberCount}
               </p>
             </div>
           </Panel>
@@ -122,55 +168,53 @@ export default async function Page() {
             <div className="space-y-5 p-6 text-zinc-950">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-semibold">Active board</h2>
+                  <h2 className="text-xl font-semibold">Active betting ledger</h2>
                   <p className="text-sm text-zinc-500">
-                    These are the tips you’ve accepted and moved off the live board.
+                    These are your accepted bets waiting to be resulted. ROI will be calculated from your odds once the race is settled.
                   </p>
                 </div>
-                <Badge tone="amber">{activeTips.length}</Badge>
+                <Badge tone="amber">{activeBets.length}</Badge>
               </div>
 
-              {activeTips.length > 0 ? (
+              {activeBets.length > 0 ? (
                 <div className="grid gap-5 lg:grid-cols-2">
-                  {activeTips.map((tip) => {
-                    const raceDateTime = formatRaceDateTime(tip.race_start_at, tip.race_timezone);
+                  {activeBets.map((bet) => {
+                    const stake = toNumber(bet.stake_points) || 1;
+                    const odds = toNumber(bet.odds_taken);
 
                     return (
                       <div
-                        key={tip.id}
+                        key={bet.id}
                         className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-sm text-zinc-500">{tip.race}</p>
+                            <p className="text-sm text-zinc-500">{bet.race || "Race"}</p>
                             <h3 className="mt-1 text-xl font-bold text-zinc-950">
-                              {tip.horse}
+                              {bet.horse || "Unnamed horse"}
                             </h3>
                           </div>
 
-                          <TipPill type={tip.type} />
+                          <Badge tone={sourceTone(bet.source)}>{sourceLabel(bet.source)}</Badge>
                         </div>
 
                         <div className="mt-4 flex flex-wrap gap-2">
-                          {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
-                          {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                          {raceDateTime ? <Badge tone="slate">{raceDateTime}</Badge> : null}
-                          <Badge tone="green">Active</Badge>
+                          <Badge tone="blue">{bet.bet_type || "Win"}</Badge>
+                          <Badge tone="green">Odds {odds.toFixed(2)}</Badge>
+                          <Badge tone="amber">Stake {stake.toFixed(1)} pt</Badge>
+                          <Badge tone="slate">Active</Badge>
                         </div>
 
-                        {tip.commentary ? (
-                          <p className="mt-4 text-sm leading-7 text-zinc-700">
-                            {tip.commentary}
+                        <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                            Source
                           </p>
-                        ) : null}
-
-                        <div className="mt-5">
-                          <form action={removeTipActiveAction}>
-                            <input type="hidden" name="tip_id" value={tip.id} />
-                            <button className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
-                              Remove from My Active Tips
-                            </button>
-                          </form>
+                          <p className="mt-2 text-sm text-zinc-700">
+                            {sourceDescription(bet.source)}
+                          </p>
+                          <p className="mt-2 text-xs text-zinc-500">
+                            Added {formatDateTime(bet.created_at)}
+                          </p>
                         </div>
                       </div>
                     );
@@ -179,10 +223,10 @@ export default async function Page() {
               ) : (
                 <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
                   <p className="text-lg font-semibold text-zinc-900">
-                    No active tips yet.
+                    No active bets yet.
                   </p>
                   <p className="mt-2 text-sm text-zinc-500">
-                    Accept a tip from the subscriber dashboard and it’ll land here.
+                    Add a Head Tipper tip, Calculator signal, or your own pick from the dashboard.
                   </p>
                 </div>
               )}
