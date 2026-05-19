@@ -1594,7 +1594,14 @@ export async function addUserBetAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-    const profile = await requireAuthenticatedProfile();
+const profile = await getCurrentProfile();
+
+if (!profile || profile.status !== "active") {
+  return {
+    success: false,
+    error: "Unauthorized",
+  };
+}
     const supabase = await createClient();
 
     const source = String(formData.get("source") ?? "");
