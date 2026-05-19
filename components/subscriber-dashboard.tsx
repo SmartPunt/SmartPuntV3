@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
+  addUserBetAction,
   markTipActiveAction,
   removeTipActiveAction,
   signOutAction,
@@ -78,6 +79,29 @@ type SuggestedTip = {
   updated_at: string;
 };
 
+type CalculatorTip = {
+  id: number;
+  race_id: number | null;
+  race_runner_id: number | null;
+  horse_id: number | null;
+  race: string | null;
+  horse: string | null;
+  bet_type: string | null;
+  confidence: string | null;
+  score: number | string | null;
+  win_percent: number | string | null;
+  place_percent: number | string | null;
+  race_gap: number | string | null;
+  race_confidence_percent: number | string | null;
+  race_confidence_tier: string | null;
+  status: string | null;
+  finishing_position: number | null;
+  won: boolean | null;
+  placed: boolean | null;
+  settled_at: string | null;
+  published_at: string | null;
+};
+
 type WatchItem = {
   id: number;
   race: string;
@@ -151,6 +175,7 @@ function formatLinkedRaceLabel(race: Race | null, meeting: Meeting | null) {
 export default function SubscriberDashboard({
   currentUser,
   initialSuggestedTips,
+  initialCalculatorTips,
   initialWatchlistItems,
   initialLongTermBets,
   initialActiveTipIds,
@@ -161,6 +186,7 @@ export default function SubscriberDashboard({
 }: {
   currentUser: any;
   initialSuggestedTips: SuggestedTip[];
+  initialCalculatorTips: CalculatorTip[];
   initialWatchlistItems: WatchItem[];
   initialLongTermBets: LongTermBet[];
   initialActiveTipIds: number[];
@@ -169,11 +195,22 @@ export default function SubscriberDashboard({
   initialHorses: Horse[];
   initialMeetings: Meeting[];
 }) {
+  const [customRaceId, setCustomRaceId] = useState("");
+  const [customRunnerId, setCustomRunnerId] = useState("");
+
   const allTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
 
   const suggestedTips = useMemo(
     () => allTips.filter((tip) => tip.settled_at === null),
     [allTips],
+  );
+
+  const calculatorTips = useMemo(
+    () =>
+      initialCalculatorTips.filter(
+        (tip) => tip.settled_at === null && (tip.status || "active") === "active",
+      ),
+    [initialCalculatorTips],
   );
 
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
@@ -250,6 +287,193 @@ export default function SubscriberDashboard({
 
   function getRunnersForRace(raceId: number) {
     return initialPublishedRunners.filter((runner) => runner.race_id === raceId);
+  }
+
+  async function addUserBetFormAction(formData: FormData) {
+    await addUserBetAction(formData);
+  }
+
+  function renderOddsInput(featured = false) {
+    return (
+      <label className={`text-xs font-semibold uppercase tracking-[0.12em] ${featured ? "text-amber-100/80" : "text-zinc-600"}`}>
+        Odds taken
+        <input
+          type="number"
+          name="odds_taken"
+          min="1.01"
+          step="0.01"
+          required
+          placeholder="e.g. 3.40"
+          className={`mt-2 w-32 rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${
+            featured
+              ? "border-white/20 bg-white/10 text-white placeholder:text-white/45"
+              : "border-zinc-300 bg-white text-zinc-950 placeholder:text-zinc-400"
+          }`}
+        />
+      </label>
+    );
+  }
+
+  function renderHeadTipperBetForm(tip: SuggestedTip, featured = false) {
+    return (
+      <form action={addUserBetFormAction} className="flex flex-wrap items-end gap-3">
+        <input type="hidden" name="source" value="head_tipper" />
+        <input type="hidden" name="suggested_tip_id" value={tip.id} />
+        <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
+        <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
+        <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
+        <input type="hidden" name="horse" value={tip.horse} />
+        <input type="hidden" name="race" value={tip.race} />
+        <input type="hidden" name="bet_type" value={tip.type} />
+
+        {renderOddsInput(featured)}
+
+        <button
+          className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+            featured
+              ? "bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 text-black shadow-md hover:brightness-110"
+              : "bg-black text-amber-300 hover:bg-zinc-900"
+          }`}
+        >
+          Add To My Bets
+        </button>
+      </form>
+    );
+  }
+
+  function renderCalculatorBetForm(tip: CalculatorTip) {
+    return (
+      <form action={addUserBetFormAction} className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+        <input type="hidden" name="source" value="calculator" />
+        <input type="hidden" name="calculator_tip_id" value={tip.id} />
+        <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
+        <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
+        <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
+        <input type="hidden" name="horse" value={tip.horse || ""} />
+        <input type="hidden" name="race" value={tip.race || ""} />
+        <input type="hidden" name="bet_type" value={tip.bet_type || "Win"} />
+
+        {renderOddsInput(false)}
+
+        <button className="rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-sky-200 transition hover:bg-black">
+          Add Model Signal To My Bets
+        </button>
+      </form>
+    );
+  }
+
+  function renderCustomBetBuilder() {
+    const selectedRace = customRaceId
+      ? initialPublishedRaces.find((race) => String(race.id) === customRaceId) || null
+      : null;
+    const selectedMeeting = selectedRace ? meetingMap.get(selectedRace.meeting_id) || null : null;
+    const runners = selectedRace ? getRunnersForRace(selectedRace.id) : [];
+    const selectedRunner = customRunnerId
+      ? runners.find((runner) => String(runner.id) === customRunnerId) || null
+      : null;
+    const selectedHorse = selectedRunner ? horseMap.get(selectedRunner.horse_id) || null : null;
+
+    return (
+      <Panel className="bg-white/95">
+        <div className="space-y-5 p-6 text-zinc-950">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Build my own pick</h2>
+              <p className="text-sm text-zinc-500">
+                Choose any horse from a current race, enter Win or Place, and record the odds you took.
+              </p>
+            </div>
+            <Badge tone="slate">My Pick</Badge>
+          </div>
+
+          <form action={addUserBetFormAction} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <input type="hidden" name="source" value="subscriber" />
+            <input
+              type="hidden"
+              name="race"
+              value={selectedRace ? formatLinkedRaceLabel(selectedRace, selectedMeeting) || "Race" : "Race"}
+            />
+
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Race</label>
+              <select
+                name="race_id"
+                value={customRaceId}
+                onChange={(event) => {
+                  setCustomRaceId(event.target.value);
+                  setCustomRunnerId("");
+                }}
+                required
+                className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-amber-400"
+              >
+                <option value="">Choose race</option>
+                {initialPublishedRaces.map((race) => {
+                  const meeting = meetingMap.get(race.meeting_id) || null;
+                  return (
+                    <option key={race.id} value={race.id}>
+                      {formatLinkedRaceLabel(race, meeting)}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Horse</label>
+              <select
+                name="race_runner_id"
+                value={customRunnerId}
+                onChange={(event) => setCustomRunnerId(event.target.value)}
+                required
+                className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-amber-400"
+              >
+                <option value="">Choose horse</option>
+                {runners.map((runner) => {
+                  const horse = horseMap.get(runner.horse_id);
+                  return (
+                    <option key={runner.id} value={runner.id}>
+                      {horse?.horse_name || `Runner ${runner.id}`}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <input type="hidden" name="horse_id" value={selectedHorse?.id ?? ""} />
+            <input type="hidden" name="horse" value={selectedHorse?.horse_name || "Selected runner"} />
+
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Bet type</label>
+              <select
+                name="bet_type"
+                required
+                className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-amber-400"
+              >
+                <option value="Win">Win</option>
+                <option value="Place">Place</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">Odds taken</label>
+              <input
+                type="number"
+                name="odds_taken"
+                min="1.01"
+                step="0.01"
+                required
+                placeholder="e.g. 4.20"
+                className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm outline-none focus:border-amber-400"
+              />
+            </div>
+
+            <button className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 md:col-span-2 xl:col-span-4">
+              Add My Pick To My Bets
+            </button>
+          </form>
+        </div>
+      </Panel>
+    );
   }
 
   function renderLinkedRaceBadges(tip: SuggestedTip) {
@@ -361,7 +585,14 @@ export default function SubscriberDashboard({
           </p>
         ) : null}
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Badge tone="amber">Head Tipper</Badge>
+            <Badge tone="slate">1 point stake</Badge>
+          </div>
+
+          {renderHeadTipperBetForm(tip, featured)}
+
           {isActive ? (
             <form action={removeTipActiveAction}>
               <input type="hidden" name="tip_id" value={tip.id} />
@@ -372,23 +603,10 @@ export default function SubscriberDashboard({
                     : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
                 }`}
               >
-                Remove from My Active Tips
+                Remove legacy active marker
               </button>
             </form>
-          ) : (
-            <form action={markTipActiveAction}>
-              <input type="hidden" name="tip_id" value={tip.id} />
-              <button
-                className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
-                  featured
-                    ? "bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 text-black shadow-md hover:brightness-110"
-                    : "bg-black text-amber-300 hover:bg-zinc-900"
-                }`}
-              >
-                Mark as Active
-              </button>
-            </form>
-          )}
+          ) : null}
         </div>
       </div>
     );
@@ -495,7 +713,8 @@ export default function SubscriberDashboard({
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge tone="green">{availableTips.length} live tips</Badge>
+                    <Badge tone="green">{availableTips.length} head tipper tips</Badge>
+                    <Badge tone="blue">{calculatorTips.length} calculator signals</Badge>
                     <Badge tone="blue">{watchlistItems.length} watchlist notes</Badge>
                     <Badge tone="amber">{longTermBets.length} get on early</Badge>
                     <Badge tone="rose">{activeLiveTips.length} active tips</Badge>
@@ -504,7 +723,7 @@ export default function SubscriberDashboard({
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
               <Panel className="bg-white/95">
                 <div className="p-6 text-zinc-950">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
@@ -513,6 +732,20 @@ export default function SubscriberDashboard({
                   <p className="mt-2 text-3xl font-bold">{availableTips.length}</p>
                   <p className="mt-2 text-sm text-zinc-500">
                     Current SmartPunt plays ready to follow.
+                  </p>
+                </div>
+              </Panel>
+
+
+
+              <Panel className="bg-white/95">
+                <div className="p-6 text-zinc-950">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    Calculator signals
+                  </p>
+                  <p className="mt-2 text-3xl font-bold">{calculatorTips.length}</p>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Model-rated plays separate from the Head Tipper.
                   </p>
                 </div>
               </Panel>
@@ -748,6 +981,75 @@ export default function SubscriberDashboard({
                 </div>
               </Panel>
             </div>
+
+
+            <div>
+              <Panel className="bg-white/95">
+                <div className="space-y-5 p-6 text-zinc-950">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-semibold">SmartPunt Calculator signals</h2>
+                      <p className="text-sm text-zinc-500">
+                        Model-rated opportunities published separately from Head Tipper selections.
+                      </p>
+                    </div>
+                    <Badge tone="blue">Model Signal</Badge>
+                  </div>
+
+                  {calculatorTips.length > 0 ? (
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      {calculatorTips.map((tip) => (
+                        <div
+                          key={tip.id}
+                          className="rounded-[24px] border border-sky-200 bg-gradient-to-br from-slate-950 to-slate-800 p-5 text-white shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm text-sky-200/80">{tip.race || "Race"}</p>
+                              <h3 className="mt-1 text-2xl font-bold text-white">
+                                {tip.horse || "Unnamed horse"}
+                              </h3>
+                            </div>
+                            <Badge tone="blue">Calculator</Badge>
+                          </div>
+
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {tip.bet_type ? <Badge tone="green">{tip.bet_type}</Badge> : null}
+                            {tip.score !== null && tip.score !== undefined ? (
+                              <Badge tone="amber">Score {Math.round(Number(tip.score))}</Badge>
+                            ) : null}
+                            {tip.win_percent !== null && tip.win_percent !== undefined ? (
+                              <Badge tone="green">Win {Number(tip.win_percent)}%</Badge>
+                            ) : null}
+                            {tip.place_percent !== null && tip.place_percent !== undefined ? (
+                              <Badge tone="blue">Place {Number(tip.place_percent)}%</Badge>
+                            ) : null}
+                            {tip.race_confidence_percent !== null && tip.race_confidence_percent !== undefined ? (
+                              <Badge tone="slate">Race confidence {Number(tip.race_confidence_percent)}%</Badge>
+                            ) : null}
+                          </div>
+
+                          <p className="mt-4 text-sm leading-6 text-slate-200">
+                            This is a SmartPunt Calculator signal. It is tracked separately from Head Tipper selections.
+                          </p>
+
+                          {renderCalculatorBetForm(tip)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
+                      <p className="text-lg font-semibold text-zinc-900">No calculator signals published yet.</p>
+                      <p className="mt-2 text-sm text-zinc-500">
+                        Once the model publishes a play, it’ll appear here as a separate channel.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Panel>
+            </div>
+
+            <div>{renderCustomBetBuilder()}</div>
 
             <div>
               <Panel className="bg-white/95">
