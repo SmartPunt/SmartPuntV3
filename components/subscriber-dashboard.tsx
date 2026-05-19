@@ -179,6 +179,7 @@ export default function SubscriberDashboard({
   initialWatchlistItems,
   initialLongTermBets,
   initialActiveTipIds,
+  initialActiveCalculatorTipIds,
   initialPublishedRaces,
   initialPublishedRunners,
   initialHorses,
@@ -190,6 +191,7 @@ export default function SubscriberDashboard({
   initialWatchlistItems: WatchItem[];
   initialLongTermBets: LongTermBet[];
   initialActiveTipIds: number[];
+  initialActiveCalculatorTipIds: number[];
   initialPublishedRaces: Race[];
   initialPublishedRunners: Runner[];
   initialHorses: Horse[];
