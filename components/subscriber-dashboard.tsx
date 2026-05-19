@@ -206,10 +206,21 @@ initialActiveUserBetCount: number;
 
   const allTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
 
-  const suggestedTips = useMemo(
-    () => allTips.filter((tip) => tip.settled_at === null),
-    [allTips],
-  );
+const suggestedTips = useMemo(
+  () =>
+    allTips.filter((tip) => {
+      if (tip.settled_at !== null) return false;
+
+      if (!tip.race_runner_id) return true;
+
+      const linkedRunner = runnerMap.get(tip.race_runner_id);
+
+      if (!linkedRunner) return true;
+
+      return linkedRunner.scratched !== true;
+    }),
+  [allTips, runnerMap],
+);
   const activeCalculatorTipIdSet = useMemo(
   () => new Set(initialActiveCalculatorTipIds),
   [initialActiveCalculatorTipIds],
