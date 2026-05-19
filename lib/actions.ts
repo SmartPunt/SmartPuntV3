@@ -2961,30 +2961,18 @@ try {
       finishingPosition !== undefined &&
       finishingPosition <= 3;
 
-    const { data: matchingUserBets, error: userBetFetchError } =
-      await supabase
-        .from("user_bets")
-        .select("*")
-        .eq("race_runner_id", update.id)
-        .is("settled_at", null);
-
-    if (userBetFetchError) {
-      console.error(
-        "User bet settlement fetch failed:",
-        userBetFetchError,
-      );
-      continue;
-    }
+    const matchingUserBets = await serviceRoleSelect(
+      `user_bets?race_runner_id=eq.${update.id}&settled_at=is.null`,
+    );
 
     for (const bet of matchingUserBets || []) {
       const betType = String(bet.bet_type || "Win");
       const oddsTaken = Number(bet.odds_taken || 0);
       const stakePoints = Number(bet.stake_points || 1);
 
-      const successful =
-        betType.toLowerCase().includes("place")
-          ? placed
-          : won;
+      const successful = betType.toLowerCase().includes("place")
+        ? placed
+        : won;
 
       const returnPoints = successful
         ? Number((oddsTaken * stakePoints).toFixed(2))
@@ -2994,25 +2982,15 @@ try {
         (returnPoints - stakePoints).toFixed(2),
       );
 
-      const { error: updateUserBetError } = await supabase
-        .from("user_bets")
-        .update({
-          finishing_position: finishingPosition,
-          won,
-          placed,
-          return_points: returnPoints,
-          profit_loss_points: profitLossPoints,
-          settled_at: now,
-          updated_at: now,
-        })
-        .eq("id", bet.id);
-
-      if (updateUserBetError) {
-        console.error(
-          "User bet settlement update failed:",
-          updateUserBetError,
-        );
-      }
+      await serviceRolePatch(`user_bets?id=eq.${bet.id}`, {
+        finishing_position: finishingPosition,
+        won,
+        placed,
+        return_points: returnPoints,
+        profit_loss_points: profitLossPoints,
+        settled_at: now,
+        updated_at: now,
+      });
     }
   }
 } catch (userBetSettlementError) {
