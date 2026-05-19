@@ -8,6 +8,7 @@ import {
   createMeetingAction,
   createRaceAction,
   createRaceRunnerAction,
+  createRaceRunnersBulkAction,
   deleteMeetingAction,
   deleteRaceAction,
   deleteRaceRunnerAction,
@@ -842,31 +843,17 @@ useEffect(() => {
     }
 
     setImportingRunners(true);
+    setStatusMessage("");
 
     try {
-      for (const runner of parsedImportRunners) {
-        const formData = new FormData();
-        formData.set("race_id", selectedRaceIdForRunner);
-        formData.set("selected_horse_id", "");
-        formData.set("horse_name", runner.horse_name);
-        formData.set("jockey_name", runner.jockey_name);
-        formData.set("trainer_name", runner.trainer_name);
-        formData.set("barrier", runner.barrier);
-        formData.set("market_price", runner.market_price);
-        formData.set("weight_kg", runner.weight_kg);
-        formData.set("is_apprentice", String(runner.is_apprentice));
-        formData.set("apprentice_claim_kg", runner.apprentice_claim_kg);
-        formData.set("form_last_6", runner.form_last_6);
-        formData.set("track_form_last_6", runner.track_form_last_6);
-        formData.set("distance_form_last_6", runner.distance_form_last_6);
+      const formData = new FormData();
+      formData.set("race_id", selectedRaceIdForRunner);
+      formData.set("runners_json", JSON.stringify(parsedImportRunners));
 
-        const result = await createRaceRunnerAction(formData);
+      const result = await createRaceRunnersBulkAction(formData);
 
-        if (!result.success) {
-          throw new Error(
-            result.error || `Failed to import runner ${runner.horse_name}.`,
-          );
-        }
+      if (!result.success) {
+        throw new Error(result.error || "Failed to import runners.");
       }
 
       setSuccess(`Imported ${parsedImportRunners.length} runners into the selected race.`);
