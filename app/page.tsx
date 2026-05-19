@@ -36,6 +36,59 @@ async function fetchAllRows<T>({
   return allRows;
 }
 
+function getServiceRoleConfig() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Missing Supabase service role configuration in environment variables.");
+  }
+
+  return {
+    supabaseUrl,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  };
+}
+
+async function fetchServiceRoleRows<T>(tablePath: string) {
+  const allRows: T[] = [];
+  let offset = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const { supabaseUrl, headers } = getServiceRoleConfig();
+    const separator = tablePath.includes("?") ? "&" : "?";
+    const path = `${tablePath}${separator}limit=${pageSize}&offset=${offset}`;
+
+    const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `Service role request failed for ${tablePath}`);
+    }
+
+    const rows = (await response.json()) as T[];
+    allRows.push(...rows);
+
+    if (rows.length < pageSize) {
+      break;
+    }
+
+    offset += pageSize;
+  }
+
+  return allRows;
+}
+
 export default async function HomePage() {
   const profile = await getCurrentProfile();
 
@@ -65,6 +118,31 @@ export default async function HomePage() {
       };
     },
   });
+
+  const calculatorTips = await fetchServiceRoleRows<{
+    id: number;
+    race_id: number | null;
+    race_runner_id: number | null;
+    horse_id: number | null;
+    race: string | null;
+    horse: string | null;
+    bet_type: string | null;
+    confidence: string | null;
+    score: number | string | null;
+    win_percent: number | string | null;
+    place_percent: number | string | null;
+    race_gap: number | string | null;
+    race_confidence_percent: number | string | null;
+    race_confidence_tier: string | null;
+    status: string | null;
+    finishing_position: number | null;
+    won: boolean | null;
+    placed: boolean | null;
+    settled_at: string | null;
+    published_at: string | null;
+  }>(
+    "smartpunt_calculator_tips?select=*&settled_at=is.null&status=eq.active&order=published_at.desc",
+  );
 
   const watchlistItems = await fetchAllRows({
     getPage: async (from, to) => {
@@ -190,6 +268,7 @@ export default async function HomePage() {
       <SubscriberDashboard
         currentUser={profile}
         initialSuggestedTips={suggestedTips}
+        initialCalculatorTips={calculatorTips}
         initialWatchlistItems={watchlistItems}
         initialLongTermBets={longTermBets}
         initialActiveTipIds={activeTipIds}
