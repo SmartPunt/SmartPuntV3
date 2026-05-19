@@ -1590,6 +1590,106 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   revalidatePath("/resulted-tips");
   revalidatePath("/my-resulted-tips");
 }
+export async function addUserBetAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const profile = await requireAuthenticatedProfile();
+    const supabase = await createClient();
+
+    const source = String(formData.get("source") ?? "");
+    const suggestedTipIdRaw = formData.get("suggested_tip_id");
+    const calculatorTipIdRaw = formData.get("calculator_tip_id");
+
+    const raceId = Number(formData.get("race_id") || 0) || null;
+    const raceRunnerId =
+      Number(formData.get("race_runner_id") || 0) || null;
+    const horseId = Number(formData.get("horse_id") || 0) || null;
+
+    const horse = String(formData.get("horse") ?? "");
+    const race = String(formData.get("race") ?? "");
+
+    const betType = String(formData.get("bet_type") ?? "Win");
+
+    const oddsTaken = Number(formData.get("odds_taken") || 0);
+
+    if (!source) {
+      return {
+        success: false,
+        error: "Bet source is required.",
+      };
+    }
+
+    if (!horse || !race) {
+      return {
+        success: false,
+        error: "Horse and race are required.",
+      };
+    }
+
+    if (!oddsTaken || Number.isNaN(oddsTaken) || oddsTaken <= 1) {
+      return {
+        success: false,
+        error: "Valid odds are required.",
+      };
+    }
+
+    const payload = {
+      user_id: profile.id,
+
+      source,
+
+      suggested_tip_id: suggestedTipIdRaw
+        ? Number(suggestedTipIdRaw)
+        : null,
+
+      calculator_tip_id: calculatorTipIdRaw
+        ? Number(calculatorTipIdRaw)
+        : null,
+
+      race_id: raceId,
+      race_runner_id: raceRunnerId,
+      horse_id: horseId,
+
+      horse,
+      race,
+
+      bet_type: betType,
+
+      odds_taken: oddsTaken,
+      stake_points: 1,
+
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("user_bets")
+      .insert(payload);
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    revalidatePath("/");
+    revalidatePath("/my-resulted-tips");
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to add user bet.",
+    };
+  }
+}
 export async function publishSmartPuntCalculatorTipAction(
   formData: FormData,
 ): Promise<void> {
