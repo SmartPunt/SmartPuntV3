@@ -51,7 +51,11 @@ export default function AdminCalculator({
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
   const [alertThreshold, setAlertThreshold] = useState("80");
-  const [strongestBetMode, setStrongestBetMode] = useState<"win" | "place">("win");
+const [strongestBetMode, setStrongestBetMode] = useState<"win" | "place">("win");
+
+const [raceDayFilter, setRaceDayFilter] = useState<
+  "today" | "tomorrow" | "upcoming"
+>("today");
 
   const publishedRaces = useMemo(
     () => races.filter((race) => race.status === "published"),
@@ -128,18 +132,39 @@ export default function AdminCalculator({
     [scoredRunners],
   );
 
-  const strongestBets = useMemo(() => {
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Australia/Perth",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
+const perthNow = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Australia/Perth",
+  }),
+);
 
-    return publishedRaces
-      .filter((race) => {
-        const meeting = meetings.find((item) => item.id === race.meeting_id);
-        return meeting?.meeting_date === today;
+const today = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Australia/Perth",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(perthNow);
+
+const tomorrowDate = new Date(perthNow);
+tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+const tomorrow = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Australia/Perth",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+}).format(tomorrowDate);
+if (!meeting?.meeting_date) return false;
+
+if (raceDayFilter === "today") {
+  return meeting.meeting_date === today;
+}
+
+if (raceDayFilter === "tomorrow") {
+  return meeting.meeting_date === tomorrow;
+}
+
+return meeting.meeting_date >= today;
       })
       .map((race) => {
         const scored = calculateRaceScores({
@@ -897,7 +922,43 @@ return {
                               : ""}
                           </p>
                         </div>
+<div className="mb-3 flex flex-wrap gap-2">
+  <button
+    type="button"
+    onClick={() => setRaceDayFilter("today")}
+    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+      raceDayFilter === "today"
+        ? "bg-zinc-950 text-amber-300"
+        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+    }`}
+  >
+    Today
+  </button>
 
+  <button
+    type="button"
+    onClick={() => setRaceDayFilter("tomorrow")}
+    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+      raceDayFilter === "tomorrow"
+        ? "bg-zinc-950 text-amber-300"
+        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+    }`}
+  >
+    Tomorrow
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setRaceDayFilter("upcoming")}
+    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+      raceDayFilter === "upcoming"
+        ? "bg-zinc-950 text-amber-300"
+        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+    }`}
+  >
+    All Upcoming
+  </button>
+</div>
                         <div className="flex flex-wrap gap-2">
                           <Badge tone="green">Win {runner.winPercent}%</Badge>
                           <Badge tone="blue">Place {runner.placePercent}%</Badge>
