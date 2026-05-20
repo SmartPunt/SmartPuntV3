@@ -884,6 +884,9 @@ function handleScratchMissingResults(raceId: number) {
       <form
         action={async (formData) => {
           await updateMeetingDetailsAction(formData);
+          setEditingMeetingIds((current) =>
+            current.filter((id) => id !== meeting.id),
+          );
         }}
         className="flex flex-wrap items-center gap-2"
       >
@@ -984,6 +987,8 @@ function handleScratchMissingResults(raceId: number) {
                                 </form>
                               ) : null}
                             </div>
+                          </div>
+
                           <div className="mt-5 space-y-5">
                             {meeting.races.map((race) => {
                               const raceRunners = runnersForRace(race.id);
@@ -998,79 +1003,65 @@ function handleScratchMissingResults(raceId: number) {
                                   className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-5"
                                 >
 <div className="flex w-full flex-wrap items-start justify-between gap-3">
-<div className="space-y-2">
-  {isAdmin && editingRaceIds.includes(race.id) ? (
-    <form
-      action={async (formData) => {
-        await updateRaceDetailsAction(formData);
-      }}
-      className="flex flex-wrap items-center gap-2"
-    >
-      <input type="hidden" name="race_id" value={race.id} />
-
-      <button
-        type="button"
-        onClick={() => toggleRaceOpen(race.id)}
-        className="text-lg font-semibold text-zinc-950"
-      >
-        {raceIsOpen ? "▾" : "▸"}
-      </button>
-
-      <input
-        type="number"
-        name="race_number"
-        defaultValue={race.race_number}
-        className="w-[90px] rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
-      />
-
-      <input
-        name="race_name"
-        defaultValue={race.race_name}
-        className="min-w-[260px] flex-1 rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
-      />
-
-      <input
-        type="number"
-        name="distance_m"
-        defaultValue={race.distance_m || ""}
-        placeholder="Distance"
-        className="w-[120px] rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
-      />
-
-      <button
-        type="button"
-        onClick={() =>
+  <div className="min-w-0 flex-1 space-y-2">
+    {isAdmin && editingRaceIds.includes(race.id) ? (
+      <form
+        action={async (formData) => {
+          await updateRaceDetailsAction(formData);
           setEditingRaceIds((current) =>
             current.filter((id) => id !== race.id),
-          )
-        }
-        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700"
+          );
+        }}
+        className="flex flex-wrap items-center gap-2"
       >
-        Cancel
-      </button>
+        <input type="hidden" name="race_id" value={race.id} />
 
-      <button
-        type="submit"
-        className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
-      >
-        Save Race
-      </button>
-
-      <Badge tone="green">published</Badge>
-
-      <Badge tone={getRaceResultTone(raceRunners)}>
-        {settledCount}/{activeRunnerCount} completed
-      </Badge>
-    </form>
-  ) : (
-    <>
-      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => toggleRaceOpen(race.id)}
           className="text-lg font-semibold text-zinc-950"
         >
-          {raceIsOpen ? "▾" : "▸"} R{race.race_number} {race.race_name}
+          {raceIsOpen ? "▾" : "▸"}
+        </button>
+
+        <input
+          type="number"
+          name="race_number"
+          defaultValue={race.race_number}
+          className="w-[90px] rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+        />
+
+        <input
+          name="race_name"
+          defaultValue={race.race_name}
+          className="min-w-[260px] flex-1 rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+        />
+
+        <input
+          type="number"
+          name="distance_m"
+          defaultValue={race.distance_m || ""}
+          placeholder="Distance"
+          className="w-[120px] rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
+        />
+
+        <button
+          type="button"
+          onClick={() =>
+            setEditingRaceIds((current) =>
+              current.filter((id) => id !== race.id),
+            )
+          }
+          className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
+        >
+          Save Race
         </button>
 
         <Badge tone="green">published</Badge>
@@ -1078,36 +1069,53 @@ function handleScratchMissingResults(raceId: number) {
         <Badge tone={getRaceResultTone(raceRunners)}>
           {settledCount}/{activeRunnerCount} completed
         </Badge>
-      </div>
+      </form>
+    ) : (
+      <>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => toggleRaceOpen(race.id)}
+            className="text-lg font-semibold text-zinc-950"
+          >
+            {raceIsOpen ? "▾" : "▸"} R{race.race_number} {race.race_name}
+          </button>
 
-      <p className="mt-1 text-sm text-zinc-500">
-        {race.distance_m || "—"}m
-      </p>
-    </>
-  )}
-</div>
+          <Badge tone="green">published</Badge>
 
-<div className="flex flex-wrap items-center gap-2">
-  {isAdmin ? (
-    <button
-      type="button"
-      onClick={() =>
-        setEditingRaceIds((current) =>
-          current.includes(race.id)
-            ? current.filter((id) => id !== race.id)
-            : [...current, race.id],
-        )
-      }
-      className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-white"
-    >
-      {editingRaceIds.includes(race.id) ? "Cancel Edit" : "Edit Race"}
-    </button>
-  ) : null}
+          <Badge tone={getRaceResultTone(raceRunners)}>
+            {settledCount}/{activeRunnerCount} completed
+          </Badge>
+        </div>
 
-  <Badge tone={raceIsOpen ? "blue" : "amber"}>
-    {raceIsOpen ? "Open" : "Collapsed"}
-  </Badge>
-</div>
+        <p className="mt-1 text-sm text-zinc-500">
+          {race.distance_m || "—"}m
+        </p>
+      </>
+    )}
+  </div>
+
+  <div className="flex flex-wrap items-center gap-2">
+    {isAdmin ? (
+      <button
+        type="button"
+        onClick={() =>
+          setEditingRaceIds((current) =>
+            current.includes(race.id)
+              ? current.filter((id) => id !== race.id)
+              : [...current, race.id],
+          )
+        }
+        className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-white"
+      >
+        {editingRaceIds.includes(race.id) ? "Cancel Edit" : "Edit Race"}
+      </button>
+    ) : null}
+
+    <Badge tone={raceIsOpen ? "blue" : "amber"}>
+      {raceIsOpen ? "Open" : "Collapsed"}
+    </Badge>
+  </div>
 </div>
 
 {raceIsOpen ? (
