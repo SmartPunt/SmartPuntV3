@@ -2382,16 +2382,17 @@ export async function publishMeetingRacesAction(
 }
 export async function abandonMeetingAction(
   formData: FormData,
-): Promise<ActionResult> {
+): Promise<void> {
   try {
     await requireRacingAdmin();
 
     const meetingId = Number(formData.get("meeting_id"));
-    const reason = String(formData.get("abandonment_reason") ?? "Meeting abandoned.").trim() ||
+    const reason =
+      String(formData.get("abandonment_reason") ?? "Meeting abandoned.").trim() ||
       "Meeting abandoned.";
 
     if (!meetingId) {
-      return { success: false, error: "Meeting is required." };
+      throw new Error("Meeting is required.");
     }
 
     const now = new Date().toISOString();
@@ -2405,7 +2406,7 @@ export async function abandonMeetingAction(
       .filter(Boolean);
 
     if (!raceIds.length) {
-      return { success: false, error: "No races found for this meeting." };
+      throw new Error("No races found for this meeting.");
     }
 
     const runners = (await serviceRoleSelect(
@@ -2419,7 +2420,6 @@ export async function abandonMeetingAction(
     await serviceRolePatch(`meetings?id=eq.${meetingId}`, {
       abandoned_at: now,
       abandonment_reason: reason,
-      updated_at: now,
     });
 
     await serviceRolePatch(`races?id=${buildInFilter(raceIds)}`, {
@@ -2462,17 +2462,20 @@ export async function abandonMeetingAction(
       },
     );
 
-    await serviceRolePatch(`user_bets?race_id=${buildInFilter(raceIds)}&settled_at=is.null`, {
-      voided: true,
-      void_reason: reason,
-      finishing_position: null,
-      won: null,
-      placed: null,
-      return_points: null,
-      profit_loss_points: 0,
-      settled_at: now,
-      updated_at: now,
-    });
+    await serviceRolePatch(
+      `user_bets?race_id=${buildInFilter(raceIds)}&settled_at=is.null`,
+      {
+        voided: true,
+        void_reason: reason,
+        finishing_position: null,
+        won: null,
+        placed: null,
+        return_points: null,
+        profit_loss_points: 0,
+        settled_at: now,
+        updated_at: now,
+      },
+    );
 
     revalidatePath("/");
     revalidatePath("/current-races");
@@ -2482,18 +2485,12 @@ export async function abandonMeetingAction(
     revalidatePath("/admin/calculator");
     revalidatePath("/admin/calculator-report");
 
-    return { success: true, error: null };
+    return;
   } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to abandon meeting.",
-    };
+    console.error("Failed to abandon meeting:", error);
+    return;
   }
 }
-
 export async function deleteRaceAction(
   formData: FormData,
 ): Promise<ActionResult> {
