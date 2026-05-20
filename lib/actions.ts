@@ -1221,8 +1221,7 @@ export async function toggleSubscriberEmailAlertsAction(
       email_alerts_enabled: enabled,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", profileId)
-    .eq("role", "user");
+.eq("id", profileId);
 
   if (error) {
     throw new Error(error.message);
