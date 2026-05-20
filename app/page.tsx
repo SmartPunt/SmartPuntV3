@@ -192,36 +192,57 @@ export default async function HomePage() {
     },
   });
 
-  const publishedRunners = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
-        .from("race_runners")
-        .select("*")
-        .order("race_id", { ascending: true })
-        .order("barrier", { ascending: true, nullsFirst: false })
-        .range(from, to);
+const publishedRaceIds = publishedRaces.map((race) => race.id);
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
-  });
+const publishedRunners =
+  publishedRaceIds.length === 0
+    ? []
+    : await fetchAllRows({
+        getPage: async (from, to) => {
+          const result = await supabase
+            .from("race_runners")
+            .select("*")
+            .in("race_id", publishedRaceIds)
+            .order("race_id", { ascending: true })
+            .order("barrier", {
+              ascending: true,
+              nullsFirst: false,
+            })
+            .range(from, to);
 
-  const horses = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
-        .from("horses")
-        .select("*")
-        .order("horse_name", { ascending: true })
-        .range(from, to);
+          return {
+            data: result.data ?? [],
+            error: result.error,
+          };
+        },
+      });
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
-  });
+const publishedHorseIds = [
+  ...new Set(
+    publishedRunners
+      .map((runner) => runner.horse_id)
+      .filter(Boolean),
+  ),
+];
+
+const horses =
+  publishedHorseIds.length === 0
+    ? []
+    : await fetchAllRows({
+        getPage: async (from, to) => {
+          const result = await supabase
+            .from("horses")
+            .select("*")
+            .in("id", publishedHorseIds)
+            .order("horse_name", { ascending: true })
+            .range(from, to);
+
+          return {
+            data: result.data ?? [],
+            error: result.error,
+          };
+        },
+      });
 
   const meetings = await fetchAllRows({
     getPage: async (from, to) => {
