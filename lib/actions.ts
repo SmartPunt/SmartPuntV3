@@ -1702,7 +1702,13 @@ export async function publishSmartPuntCalculatorTipAction(
   formData: FormData,
 ): Promise<void> {
   try {
-const profile = await requireAdmin();
+const profile = await getCurrentProfile();
+
+if (!profile || profile.role !== "admin") {
+  throw new Error(
+    "Only Full Admin can publish SmartPunt Calculator tips.",
+  );
+}
 
     const sendNotification =
       String(formData.get("send_notification") ?? "") === "true";
