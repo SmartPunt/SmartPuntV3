@@ -1202,43 +1202,33 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
 export async function toggleSubscriberEmailAlertsAction(
   formData: FormData,
-): Promise<ActionResult> {
-  try {
-    await requireAdmin();
+): Promise<void> {
+  await requireAdmin();
 
-    const profileId = String(formData.get("profile_id") ?? "").trim();
-    const enabled = String(formData.get("email_alerts_enabled") ?? "") === "true";
+  const profileId = String(formData.get("profile_id") ?? "").trim();
+  const enabled =
+    String(formData.get("email_alerts_enabled") ?? "") === "true";
 
-    if (!profileId) {
-      return { success: false, error: "Subscriber is required." };
-    }
-
-    const supabase = await createClient();
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        email_alerts_enabled: enabled,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", profileId)
-      .eq("role", "user");
-
-    if (error) {
-      return { success: false, error: error.message };
-    }
-
-    revalidatePath("/");
-    return { success: true, error: null };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to update subscriber alerts.",
-    };
+  if (!profileId) {
+    throw new Error("Subscriber is required.");
   }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      email_alerts_enabled: enabled,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", profileId)
+    .eq("role", "user");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/");
 }
 
 export async function createSubscriberUserAction(
