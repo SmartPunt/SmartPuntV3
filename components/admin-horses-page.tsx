@@ -201,7 +201,7 @@ export default function AdminHorsesPage({
               <Badge tone="amber">Saved Horses</Badge>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <NavLink href="/race-builder" label="Race Builder" currentPath={pathname} />
+<NavLink href="/admin/race-builder" label="Race Builder" currentPath={pathname} />
                 <NavLink href="/current-races" label="Current Races" currentPath={pathname} />
                 <NavLink href="/race-archive" label="Race Archive" currentPath={pathname} />
                 <NavLink href="/admin/horses" label="Saved Horses" currentPath={pathname} />
