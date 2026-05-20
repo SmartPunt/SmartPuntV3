@@ -290,7 +290,8 @@ const activeTipIds = (activeUserBetsQuery.data || [])
 const activeCalculatorTipIds = (activeUserBetsQuery.data || [])
   .map((row: any) => row.calculator_tip_id)
   .filter(Boolean);
-
+const activeUserBetCount =
+  (activeUserBetsQuery.data || []).length;
   return (
     <AppEntryLoader>
       <SubscriberDashboard
