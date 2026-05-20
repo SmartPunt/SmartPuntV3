@@ -3182,8 +3182,9 @@ export async function settleRaceRunnersAction(
     updated_at: now,
   }));
 
-  for (const update of calculatorTipUpdates) {
-    await serviceRoleFetch(
+await Promise.all(
+  calculatorTipUpdates.map((update) =>
+    serviceRoleFetch(
       `smartpunt_calculator_tips?race_id=eq.${raceId}&race_runner_id=eq.${update.race_runner_id}`,
       {
         method: "PATCH",
@@ -3198,8 +3199,9 @@ export async function settleRaceRunnersAction(
           updated_at: update.updated_at,
         }),
       },
-    );
-  }
+    ),
+  ),
+);
 } catch (calculatorTipSettleError) {
   console.error(
     "SmartPunt calculator tip settlement update failed:",
