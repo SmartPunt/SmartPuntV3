@@ -24,6 +24,7 @@ type FortuneFiveLeg = {
   race: string;
   horse: string;
   bet_type: string;
+  won: boolean | null;
 };
 
 type UserFortuneFive = {
@@ -113,6 +114,12 @@ function statusBadge(fortune: FortuneFive, accepted?: UserFortuneFive | null) {
   if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Lost</Badge>;
   if (accepted) return <Badge tone="blue">Accepted</Badge>;
   return <Badge tone="amber">Available</Badge>;
+}
+
+function legStatusBadge(won: boolean | null) {
+  if (won === true) return <Badge tone="green">✓ Won</Badge>;
+  if (won === false) return <Badge tone="rose">✕ Lost</Badge>;
+  return <Badge tone="amber">Pending</Badge>;
 }
 
 export default async function Page() {
@@ -270,11 +277,18 @@ export default async function Page() {
                     <div className="space-y-2">
                       {legs.map((leg) => (
                         <div key={leg.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Leg {leg.leg_number} · {leg.bet_type}
-                          </p>
-                          <p className="mt-1 text-base font-bold">{leg.horse}</p>
-                          <p className="mt-1 text-sm text-zinc-500">{leg.race}</p>
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                                Leg {leg.leg_number} · {leg.bet_type}
+                              </p>
+                              <p className="mt-1 text-base font-bold">{leg.horse}</p>
+                              <p className="mt-1 text-sm font-medium text-zinc-600">
+                                {leg.race}
+                              </p>
+                            </div>
+                            {legStatusBadge(leg.won)}
+                          </div>
                         </div>
                       ))}
                     </div>
