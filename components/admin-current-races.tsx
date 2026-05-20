@@ -12,7 +12,9 @@ import {
   toggleRacePublishAction,
   toggleRaceRunnerScratchAction,
   updateRaceRunnerDetailsAction,
-  updateMeetingConditionAction,
+updateMeetingConditionAction,
+updateMeetingDetailsAction,
+updateRaceDetailsAction,
 } from "@/lib/actions";
 
 type Horse = {
@@ -899,9 +901,40 @@ function handleScratchMissingResults(raceId: number) {
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
 <div className="space-y-3">
-  <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
-    {meeting.meeting_name}
-  </h3>
+  {isAdmin ? (
+    <form
+      action={async (formData) => {
+        await updateMeetingDetailsAction(formData);
+      }}
+      className="flex flex-wrap items-center gap-2"
+    >
+      <input type="hidden" name="meeting_id" value={meeting.id} />
+
+      <input
+        name="meeting_name"
+        defaultValue={meeting.meeting_name}
+        className="rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+      />
+
+      <input
+        type="date"
+        name="meeting_date"
+        defaultValue={meeting.meeting_date}
+        className="rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
+      />
+
+      <button
+        type="submit"
+        className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
+      >
+        Save Meeting
+      </button>
+    </form>
+  ) : (
+    <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
+      {meeting.meeting_name}
+    </h3>
+  )}
 
   <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
     <span>{formatMeetingDate(meeting.meeting_date)}</span>
@@ -961,21 +994,72 @@ function handleScratchMissingResults(raceId: number) {
   className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
 >
 <div className="space-y-2">
-  <div className="flex flex-wrap items-center gap-2">
-    <p className="text-lg font-semibold text-zinc-950">
-      {raceIsOpen ? "▾" : "▸"} R{race.race_number} {race.race_name}
-    </p>
+  {isAdmin ? (
+    <form
+      action={async (formData) => {
+        await updateRaceDetailsAction(formData);
+      }}
+      className="flex flex-wrap items-center gap-2"
+    >
+      <input type="hidden" name="race_id" value={race.id} />
 
-    <Badge tone="green">published</Badge>
+      <span className="text-lg font-semibold text-zinc-950">
+        {raceIsOpen ? "▾" : "▸"}
+      </span>
 
-    <Badge tone={getRaceResultTone(raceRunners)}>
-      {settledCount}/{activeRunnerCount} completed
-    </Badge>
-  </div>
+      <input
+        type="number"
+        name="race_number"
+        defaultValue={race.race_number}
+        className="w-[90px] rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+      />
 
-  <p className="mt-1 text-sm text-zinc-500">
-    {race.distance_m || "—"}m
-  </p>
+      <input
+        name="race_name"
+        defaultValue={race.race_name}
+        className="min-w-[260px] flex-1 rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+      />
+
+      <input
+        type="number"
+        name="distance_m"
+        defaultValue={race.distance_m || ""}
+        placeholder="Distance"
+        className="w-[120px] rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
+      />
+
+      <button
+        type="submit"
+        className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
+      >
+        Save Race
+      </button>
+
+      <Badge tone="green">published</Badge>
+
+      <Badge tone={getRaceResultTone(raceRunners)}>
+        {settledCount}/{activeRunnerCount} completed
+      </Badge>
+    </form>
+  ) : (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-lg font-semibold text-zinc-950">
+          {raceIsOpen ? "▾" : "▸"} R{race.race_number} {race.race_name}
+        </p>
+
+        <Badge tone="green">published</Badge>
+
+        <Badge tone={getRaceResultTone(raceRunners)}>
+          {settledCount}/{activeRunnerCount} completed
+        </Badge>
+      </div>
+
+      <p className="mt-1 text-sm text-zinc-500">
+        {race.distance_m || "—"}m
+      </p>
+    </>
+  )}
 </div>
 
   <Badge tone={raceIsOpen ? "blue" : "amber"}>
