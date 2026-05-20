@@ -675,12 +675,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     {alertsEnabled ? "Alerts on" : "Alerts off"}
                   </Badge>
 
-<form
-  action={async (formData) => {
-    "use server";
-    await toggleSubscriberEmailAlertsAction(formData);
-  }}
->
+<form action={toggleSubscriberEmailAlertsAction}>
                     <input type="hidden" name="profile_id" value={subscriber.id} />
                     <input
                       type="hidden"
