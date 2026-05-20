@@ -8,6 +8,7 @@ import {
   deleteSuggestedTipAction,
   deleteWatchItemAction,
   signOutAction,
+  toggleSubscriberEmailAlertsAction,
   upsertLongTermBet,
   upsertSuggestedTip,
   upsertWatchItem,
@@ -59,6 +60,16 @@ type Horse = {
   normalised_name: string;
   sex: string | null;
   age: number | null;
+};
+
+type SubscriberProfile = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
+  status: string | null;
+  email_alerts_enabled: boolean | null;
+  created_at: string | null;
 };
 
 function Field({
@@ -207,6 +218,7 @@ export default function AdminDashboard({
   initialPublishedRunners,
   initialHorses,
   initialMeetings,
+  initialSubscriberProfiles = [],
 }: {
   currentUser: any;
   initialSuggestedTips: any[];
@@ -216,10 +228,20 @@ export default function AdminDashboard({
   initialPublishedRunners: Runner[];
   initialHorses: Horse[];
   initialMeetings: Meeting[];
+  initialSubscriberProfiles?: SubscriberProfile[];
 }) {
   const suggestedTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
   const getOnEarlyItems = useRealtimeTable("long_term_bets", initialLongTermBets);
+
+  const subscriberProfiles = useMemo(
+    () => initialSubscriberProfiles || [],
+    [initialSubscriberProfiles],
+  );
+
+  const subscribersWithAlertsOn = subscriberProfiles.filter(
+    (subscriber) => subscriber.email_alerts_enabled !== false,
+  ).length;
 
   const [tipEdit, setTipEdit] = useState<any | null>(null);
   const [watchEdit, setWatchEdit] = useState<any | null>(null);
@@ -614,6 +636,75 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
       Create User Login
     </button>
   </form>
+</Panel>
+
+<Panel className="bg-white/95">
+  <div className="space-y-5 p-6 text-zinc-950">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h3 className="text-xl font-semibold">Subscriber Alert Controls</h3>
+        <p className="text-sm text-zinc-500">
+          Turn email alerts on or off for individual subscribers without changing their login access.
+        </p>
+      </div>
+      <Badge tone="blue">{subscribersWithAlertsOn} alerts on</Badge>
+    </div>
+
+    {subscriberProfiles.length > 0 ? (
+      <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
+        {subscriberProfiles.map((subscriber) => {
+          const alertsEnabled = subscriber.email_alerts_enabled !== false;
+
+          return (
+            <div
+              key={subscriber.id}
+              className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-zinc-950">
+                    {subscriber.full_name || subscriber.email || "Subscriber"}
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {subscriber.email || "No email saved"}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Badge tone={alertsEnabled ? "green" : "slate"}>
+                    {alertsEnabled ? "Alerts on" : "Alerts off"}
+                  </Badge>
+
+                  <form action={toggleSubscriberEmailAlertsAction}>
+                    <input type="hidden" name="profile_id" value={subscriber.id} />
+                    <input
+                      type="hidden"
+                      name="email_alerts_enabled"
+                      value={alertsEnabled ? "false" : "true"}
+                    />
+                    <button
+                      type="submit"
+                      className={`rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] transition ${
+                        alertsEnabled
+                          ? "bg-red-50 text-red-700 hover:bg-red-100"
+                          : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      }`}
+                    >
+                      {alertsEnabled ? "Turn off" : "Turn on"}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-500">
+        No subscriber accounts found yet.
+      </div>
+    )}
+  </div>
 </Panel>
 
               <Panel className="bg-white/95">
