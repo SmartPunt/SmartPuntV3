@@ -2382,17 +2382,16 @@ export async function publishMeetingRacesAction(
 }
 export async function abandonMeetingAction(
   formData: FormData,
-): Promise<void> {
+): Promise<ActionResult> {
   try {
     await requireRacingAdmin();
 
     const meetingId = Number(formData.get("meeting_id"));
-    const reason =
-      String(formData.get("abandonment_reason") ?? "Meeting abandoned.").trim() ||
+    const reason = String(formData.get("abandonment_reason") ?? "Meeting abandoned.").trim() ||
       "Meeting abandoned.";
 
     if (!meetingId) {
-      throw new Error("Meeting is required.");
+      return { success: false, error: "Meeting is required." };
     }
 
     const now = new Date().toISOString();
@@ -2401,10 +2400,12 @@ export async function abandonMeetingAction(
       `races?meeting_id=eq.${meetingId}&select=id,status`,
     )) as Array<{ id: number; status: string | null }> | null;
 
-    const raceIds = (races || []).map((race) => Number(race.id)).filter(Boolean);
+    const raceIds = (races || [])
+      .map((race) => Number(race.id))
+      .filter(Boolean);
 
     if (!raceIds.length) {
-      throw new Error("No races found for this meeting.");
+      return { success: false, error: "No races found for this meeting." };
     }
 
     const runners = (await serviceRoleSelect(
@@ -2418,6 +2419,7 @@ export async function abandonMeetingAction(
     await serviceRolePatch(`meetings?id=eq.${meetingId}`, {
       abandoned_at: now,
       abandonment_reason: reason,
+      updated_at: now,
     });
 
     await serviceRolePatch(`races?id=${buildInFilter(raceIds)}`, {
@@ -2460,20 +2462,17 @@ export async function abandonMeetingAction(
       },
     );
 
-    await serviceRolePatch(
-      `user_bets?race_id=${buildInFilter(raceIds)}&settled_at=is.null`,
-      {
-        voided: true,
-        void_reason: reason,
-        finishing_position: null,
-        won: null,
-        placed: null,
-        return_points: null,
-        profit_loss_points: 0,
-        settled_at: now,
-        updated_at: now,
-      },
-    );
+    await serviceRolePatch(`user_bets?race_id=${buildInFilter(raceIds)}&settled_at=is.null`, {
+      voided: true,
+      void_reason: reason,
+      finishing_position: null,
+      won: null,
+      placed: null,
+      return_points: null,
+      profit_loss_points: 0,
+      settled_at: now,
+      updated_at: now,
+    });
 
     revalidatePath("/");
     revalidatePath("/current-races");
@@ -2483,11 +2482,18 @@ export async function abandonMeetingAction(
     revalidatePath("/admin/calculator");
     revalidatePath("/admin/calculator-report");
 
-    return;
+    return { success: true, error: null };
   } catch (error) {
-    console.error("Failed to abandon meeting:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to abandon meeting.",
+    };
   }
 }
+
 export async function deleteRaceAction(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -3784,32 +3790,56 @@ export async function createFortuneFiveAction(
     throw new Error("One of the selected Fortune on 5 runners could not be found.");
   }
 
-const insertedFortuneFives = await serviceRoleFetch(
-  "fortune_fives?select=id",
-  {
-    method: "POST",
-    headers: {
-      Prefer: "return=representation",
+  const meetingIds = Array.from(
+    new Set(
+      (runnerRows || [])
+        .map((runner: any) => Number(runner?.races?.meeting_id || 0))
+        .filter(Boolean),
+    ),
+  );
+
+  const { data: meetingRows, error: meetingsError } = meetingIds.length
+    ? await supabase
+        .from("meetings")
+        .select("id, meeting_name")
+        .in("id", meetingIds)
+    : { data: [], error: null };
+
+  if (meetingsError) {
+    throw new Error(meetingsError.message);
+  }
+
+  const meetingsById = new Map<number, any>();
+  for (const meeting of meetingRows || []) {
+    meetingsById.set(Number((meeting as any).id), meeting);
+  }
+
+  const insertedFortuneFives = await serviceRoleFetch(
+    "fortune_fives?select=id",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        title,
+        description: description || null,
+        week_start_date: weekStartDate,
+        week_end_date: weekEndDate,
+        published_date: publishedDate,
+        status: "active",
+        created_by: profile.id,
+      }),
     },
-    body: JSON.stringify({
-      title,
-      description: description || null,
-      week_start_date: weekStartDate,
-      week_end_date: weekEndDate,
-      published_date: publishedDate,
-      status: "active",
-      created_by: profile.id,
-    }),
-  },
-);
+  );
 
-const fortuneFive = Array.isArray(insertedFortuneFives)
-  ? insertedFortuneFives[0]
-  : insertedFortuneFives;
+  const fortuneFive = Array.isArray(insertedFortuneFives)
+    ? insertedFortuneFives[0]
+    : insertedFortuneFives;
 
-if (!fortuneFive?.id) {
-  throw new Error("Fortune on 5 could not be created.");
-}
+  if (!fortuneFive?.id) {
+    throw new Error("Fortune on 5 could not be created.");
+  }
 
   const legRows = [1, 2, 3, 4, 5].map((legNumber) => {
     const runnerId = Number(formData.get(`leg_${legNumber}_race_runner_id`) || 0);
@@ -3825,20 +3855,20 @@ if (!fortuneFive?.id) {
       race_runner_id: runner.id,
       horse_id: horse?.id || runner.horse_id || null,
       race: race
-        ? `R${race.race_number} ${race.race_name || "Race"}`
+        ? `${meetingsById.get(Number(race.meeting_id))?.meeting_name || "Meeting"} — R${race.race_number} ${race.race_name || "Race"}`
         : "Race",
       horse: horse?.horse_name || "Unknown horse",
       bet_type: betType,
     };
   });
 
-await serviceRoleFetch("fortune_five_legs", {
-  method: "POST",
-  headers: {
-    Prefer: "return=minimal",
-  },
-  body: JSON.stringify(legRows),
-});
+  await serviceRoleFetch("fortune_five_legs", {
+    method: "POST",
+    headers: {
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(legRows),
+  });
 
   revalidatePath("/");
   revalidatePath("/admin/fortune-on-5");
@@ -3957,3 +3987,117 @@ export async function resultFortuneFiveAction(
   revalidatePath("/admin/fortune-on-5");
   revalidatePath("/fortune-on-5");
 }
+
+export async function updateFortuneFiveLegResultAction(
+  formData: FormData,
+): Promise<void> {
+  await requireAdmin();
+
+  const legId = Number(formData.get("leg_id") || 0);
+  const result = String(formData.get("result") ?? "pending");
+
+  if (!legId) {
+    throw new Error("Fortune on 5 leg is required.");
+  }
+
+  const legRows = (await serviceRoleSelect(
+    `fortune_five_legs?id=eq.${legId}&select=id,fortune_five_id`,
+  )) as Array<{ id: number; fortune_five_id: number }> | null;
+
+  const leg = legRows?.[0];
+
+  if (!leg?.fortune_five_id) {
+    throw new Error("Fortune on 5 leg could not be found.");
+  }
+
+  const legWon =
+    result === "won" ? true : result === "lost" ? false : null;
+
+  await serviceRolePatch(`fortune_five_legs?id=eq.${legId}`, {
+    won: legWon,
+  });
+
+  const allLegs = (await serviceRoleSelect(
+    `fortune_five_legs?fortune_five_id=eq.${leg.fortune_five_id}&select=id,won`,
+  )) as Array<{ id: number; won: boolean | null }> | null;
+
+  const legs = allLegs || [];
+  const now = new Date().toISOString();
+  const hasLostLeg = legs.some((item) => item.won === false);
+  const allLegsWon = legs.length === 5 && legs.every((item) => item.won === true);
+
+  if (hasLostLeg) {
+    await serviceRolePatch(`fortune_fives?id=eq.${leg.fortune_five_id}`, {
+      won: false,
+      settled_at: now,
+      status: "active",
+    });
+
+    const userEntries = (await serviceRoleSelect(
+      `user_fortune_fives?fortune_five_id=eq.${leg.fortune_five_id}&settled_at=is.null&select=id,stake_points`,
+    )) as Array<{ id: number; stake_points: number | string | null }> | null;
+
+    await Promise.all(
+      (userEntries || []).map((entry) => {
+        const stakePoints = Number(entry.stake_points || 1);
+
+        return serviceRolePatch(`user_fortune_fives?id=eq.${entry.id}`, {
+          won: false,
+          return_points: 0,
+          profit_loss_points: Number((-stakePoints).toFixed(2)),
+          settled_at: now,
+        });
+      }),
+    );
+  } else if (allLegsWon) {
+    await serviceRolePatch(`fortune_fives?id=eq.${leg.fortune_five_id}`, {
+      won: true,
+      settled_at: now,
+      status: "active",
+    });
+
+    const userEntries = (await serviceRoleSelect(
+      `user_fortune_fives?fortune_five_id=eq.${leg.fortune_five_id}&settled_at=is.null&select=id,odds_taken,stake_points`,
+    )) as Array<{
+      id: number;
+      odds_taken: number | string | null;
+      stake_points: number | string | null;
+    }> | null;
+
+    await Promise.all(
+      (userEntries || []).map((entry) => {
+        const oddsTaken = Number(entry.odds_taken || 0);
+        const stakePoints = Number(entry.stake_points || 1);
+        const returnPoints = Number((oddsTaken * stakePoints).toFixed(2));
+        const profitLossPoints = Number((returnPoints - stakePoints).toFixed(2));
+
+        return serviceRolePatch(`user_fortune_fives?id=eq.${entry.id}`, {
+          won: true,
+          return_points: returnPoints,
+          profit_loss_points: profitLossPoints,
+          settled_at: now,
+        });
+      }),
+    );
+  } else {
+    await serviceRolePatch(`fortune_fives?id=eq.${leg.fortune_five_id}`, {
+      won: null,
+      settled_at: null,
+      status: "active",
+    });
+
+    await serviceRolePatch(
+      `user_fortune_fives?fortune_five_id=eq.${leg.fortune_five_id}`,
+      {
+        won: null,
+        return_points: null,
+        profit_loss_points: null,
+        settled_at: null,
+      },
+    );
+  }
+
+  revalidatePath("/admin/fortune-on-5");
+  revalidatePath("/fortune-on-5");
+}
+
