@@ -192,57 +192,36 @@ export default async function HomePage() {
     },
   });
 
-const publishedRaceIds = publishedRaces.map((race) => race.id);
+  const publishedRunners = await fetchAllRows({
+    getPage: async (from, to) => {
+      const result = await supabase
+        .from("race_runners")
+        .select("*")
+        .order("race_id", { ascending: true })
+        .order("barrier", { ascending: true, nullsFirst: false })
+        .range(from, to);
 
-const publishedRunners =
-  publishedRaceIds.length === 0
-    ? []
-    : await fetchAllRows({
-        getPage: async (from, to) => {
-          const result = await supabase
-            .from("race_runners")
-            .select("*")
-            .in("race_id", publishedRaceIds)
-            .order("race_id", { ascending: true })
-            .order("barrier", {
-              ascending: true,
-              nullsFirst: false,
-            })
-            .range(from, to);
+      return {
+        data: result.data ?? [],
+        error: result.error,
+      };
+    },
+  });
 
-          return {
-            data: result.data ?? [],
-            error: result.error,
-          };
-        },
-      });
+  const horses = await fetchAllRows({
+    getPage: async (from, to) => {
+      const result = await supabase
+        .from("horses")
+        .select("*")
+        .order("horse_name", { ascending: true })
+        .range(from, to);
 
-const publishedHorseIds = [
-  ...new Set(
-    publishedRunners
-      .map((runner) => runner.horse_id)
-      .filter(Boolean),
-  ),
-];
-
-const horses =
-  publishedHorseIds.length === 0
-    ? []
-    : await fetchAllRows({
-        getPage: async (from, to) => {
-          const result = await supabase
-            .from("horses")
-            .select("*")
-            .in("id", publishedHorseIds)
-            .order("horse_name", { ascending: true })
-            .range(from, to);
-
-          return {
-            data: result.data ?? [],
-            error: result.error,
-          };
-        },
-      });
+      return {
+        data: result.data ?? [],
+        error: result.error,
+      };
+    },
+  });
 
   const meetings = await fetchAllRows({
     getPage: async (from, to) => {
@@ -260,6 +239,26 @@ const horses =
     },
   });
 
+  const subscriberProfiles =
+    profile.role === "admin"
+      ? await fetchAllRows({
+          getPage: async (from, to) => {
+            const result = await supabase
+              .from("profiles")
+              .select("id, full_name, email, role, status, email_alerts_enabled, created_at")
+              .eq("role", "user")
+              .order("full_name", { ascending: true, nullsFirst: false })
+              .order("email", { ascending: true, nullsFirst: false })
+              .range(from, to);
+
+            return {
+              data: result.data ?? [],
+              error: result.error,
+            };
+          },
+        })
+      : [];
+
   if (profile.role === "admin") {
     return (
       <AppEntryLoader>
@@ -272,6 +271,7 @@ const horses =
           initialPublishedRunners={publishedRunners}
           initialHorses={horses}
           initialMeetings={meetings}
+          initialSubscriberProfiles={subscriberProfiles}
         />
       </AppEntryLoader>
     );
@@ -291,9 +291,6 @@ const activeCalculatorTipIds = (activeUserBetsQuery.data || [])
   .map((row: any) => row.calculator_tip_id)
   .filter(Boolean);
 
-const activeUserBetCount =
-  (activeUserBetsQuery.data || []).length;
-
   return (
     <AppEntryLoader>
       <SubscriberDashboard
@@ -303,8 +300,7 @@ const activeUserBetCount =
         initialWatchlistItems={watchlistItems}
         initialLongTermBets={longTermBets}
         initialActiveTipIds={activeTipIds}
-initialActiveCalculatorTipIds={activeCalculatorTipIds}
-initialActiveUserBetCount={activeUserBetCount}
+        initialActiveCalculatorTipIds={activeCalculatorTipIds}
         initialPublishedRaces={publishedRaces}
         initialPublishedRunners={publishedRunners}
         initialHorses={horses}
