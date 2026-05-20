@@ -231,20 +231,35 @@ export default async function Page() {
   const raceMap = new Map(races.map((race) => [race.id, race]));
   const horseMap = new Map(horses.map((horse) => [horse.id, horse]));
 
-  const runnerOptions = runners
-    .map((runner) => {
-      const race = raceMap.get(runner.race_id);
-      const meeting = race ? meetingMap.get(race.meeting_id) : null;
-      const horse = horseMap.get(runner.horse_id);
+  const raceOptions = races
+    .map((race) => {
+      const meeting = meetingMap.get(race.meeting_id);
 
-      if (!race || !meeting || !horse) return null;
+      if (!meeting) return null;
 
       return {
-        id: runner.id,
-        label: `${formatDate(meeting.meeting_date)} — ${meeting.meeting_name} R${race.race_number} ${race.race_name || "Race"} — ${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
+        id: race.id,
+        label: `${formatDate(meeting.meeting_date)} — ${meeting.meeting_name} R${race.race_number} ${race.race_name || "Race"}`,
       };
     })
     .filter((item): item is { id: number; label: string } => Boolean(item));
+
+  const runnerOptions = runners
+    .map((runner) => {
+      const horse = horseMap.get(runner.horse_id);
+
+      if (!horse) return null;
+
+      return {
+        id: runner.id,
+        raceId: runner.race_id,
+        label: `${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
+      };
+    })
+    .filter(
+      (item): item is { id: number; raceId: number; label: string } =>
+        Boolean(item),
+    );
 
   const legsByFortuneId = new Map<number, FortuneFiveLeg[]>();
   for (const leg of fortuneFiveLegs) {
@@ -322,27 +337,55 @@ export default async function Page() {
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
                     Leg {legNumber}
                   </p>
-                  <select
-                    name={`leg_${legNumber}_race_runner_id`}
-                    required
-                    className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
-                  >
-                    <option value="">Select runner</option>
-                    {runnerOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="mt-3 block text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    Race
+                    <select
+                      data-fortune-race-select={`leg-${legNumber}`}
+                      required
+                      className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm normal-case tracking-normal outline-none transition focus:border-amber-300"
+                    >
+                      <option value="">Select race</option>
+                      {raceOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                  <select
-                    name={`leg_${legNumber}_bet_type`}
-                    defaultValue="Win"
-                    className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
-                  >
-                    <option value="Win">Win</option>
-                    <option value="Place">Place</option>
-                  </select>
+                  <label className="mt-3 block text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    Horse
+                    <select
+                      name={`leg_${legNumber}_race_runner_id`}
+                      data-fortune-runner-select={`leg-${legNumber}`}
+                      required
+                      disabled
+                      className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm normal-case tracking-normal outline-none transition disabled:bg-zinc-100 disabled:text-zinc-400 focus:border-amber-300"
+                    >
+                      <option value="">Select race first</option>
+                      {runnerOptions.map((option) => (
+                        <option
+                          key={option.id}
+                          value={option.id}
+                          data-race-id={option.raceId}
+                        >
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="mt-3 block text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                    Bet type
+                    <select
+                      name={`leg_${legNumber}_bet_type`}
+                      defaultValue="Win"
+                      className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm normal-case tracking-normal outline-none transition focus:border-amber-300"
+                    >
+                      <option value="Win">Win</option>
+                      <option value="Place">Place</option>
+                    </select>
+                  </label>
                 </div>
               ))}
             </div>
@@ -432,6 +475,44 @@ export default async function Page() {
             )}
           </div>
         </Panel>
+
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              document.querySelectorAll("[data-fortune-race-select]").forEach((raceSelect) => {
+                const legKey = raceSelect.getAttribute("data-fortune-race-select");
+                const runnerSelect = document.querySelector('[data-fortune-runner-select="' + legKey + '"]');
+
+                if (!runnerSelect) return;
+
+                const allRunnerOptions = Array.from(runnerSelect.querySelectorAll("option[data-race-id]"));
+
+                function syncRunnerOptions() {
+                  const selectedRaceId = raceSelect.value;
+
+                  runnerSelect.value = "";
+                  runnerSelect.disabled = !selectedRaceId;
+
+                  const placeholder = runnerSelect.querySelector("option:not([data-race-id])");
+                  if (placeholder) {
+                    placeholder.textContent = selectedRaceId
+                      ? "Select horse"
+                      : "Select race first";
+                  }
+
+                  allRunnerOptions.forEach((option) => {
+                    const matchesRace = option.getAttribute("data-race-id") === selectedRaceId;
+                    option.hidden = !matchesRace;
+                    option.disabled = !matchesRace;
+                  });
+                }
+
+                syncRunnerOptions();
+                raceSelect.addEventListener("change", syncRunnerOptions);
+              });
+            `,
+          }}
+        />
       </div>
     </div>
   );
