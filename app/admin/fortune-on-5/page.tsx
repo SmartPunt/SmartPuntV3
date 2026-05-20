@@ -5,6 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import {
   createFortuneFiveAction,
   resultFortuneFiveAction,
+  updateFortuneFiveLegResultAction,
 } from "@/lib/actions";
 import { Badge, Panel } from "@/components/ui";
 
@@ -123,6 +124,12 @@ function statusBadge(fortune: FortuneFive) {
   return <Badge tone="amber">Active</Badge>;
 }
 
+function legStatusBadge(won: boolean | null) {
+  if (won === true) return <Badge tone="green">✓ Won</Badge>;
+  if (won === false) return <Badge tone="rose">✕ Lost</Badge>;
+  return <Badge tone="amber">Pending</Badge>;
+}
+
 export default async function Page() {
   const profile = await getCurrentProfile();
 
@@ -231,44 +238,20 @@ export default async function Page() {
   const raceMap = new Map(races.map((race) => [race.id, race]));
   const horseMap = new Map(horses.map((horse) => [horse.id, horse]));
 
-  const runnerGroups = races
-    .map((race) => {
-      const meeting = meetingMap.get(race.meeting_id);
+  const runnerOptions = runners
+    .map((runner) => {
+      const race = raceMap.get(runner.race_id);
+      const meeting = race ? meetingMap.get(race.meeting_id) : null;
+      const horse = horseMap.get(runner.horse_id);
 
-      if (!meeting) return null;
-
-      const raceRunners = runners
-        .filter((runner) => runner.race_id === race.id && runner.scratched !== true)
-        .map((runner) => {
-          const horse = horseMap.get(runner.horse_id);
-
-          if (!horse) return null;
-
-          return {
-            id: runner.id,
-            label: `${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
-          };
-        })
-        .filter((item): item is { id: number; label: string } => Boolean(item))
-        .sort((a, b) => a.label.localeCompare(b.label));
-
-      if (!raceRunners.length) return null;
+      if (!race || !meeting || !horse) return null;
 
       return {
-        id: race.id,
-        label: `${formatDate(meeting.meeting_date)} — ${meeting.meeting_name} R${race.race_number} ${race.race_name || "Race"}`,
-        runners: raceRunners,
+        id: runner.id,
+        label: `${formatDate(meeting.meeting_date)} — ${meeting.meeting_name} R${race.race_number} ${race.race_name || "Race"} — ${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
       };
     })
-    .filter(
-      (
-        item,
-      ): item is {
-        id: number;
-        label: string;
-        runners: { id: number; label: string }[];
-      } => Boolean(item),
-    );
+    .filter((item): item is { id: number; label: string } => Boolean(item));
 
   const legsByFortuneId = new Map<number, FortuneFiveLeg[]>();
   for (const leg of fortuneFiveLegs) {
@@ -352,14 +335,10 @@ export default async function Page() {
                     className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
                   >
                     <option value="">Select runner</option>
-                    {runnerGroups.map((group) => (
-                      <optgroup key={group.id} label={group.label}>
-                        {group.runners.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </optgroup>
+                    {runnerOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
                     ))}
                   </select>
 
@@ -416,9 +395,48 @@ export default async function Page() {
 
                       <div className="mt-4 space-y-2">
                         {legs.map((leg) => (
-                          <div key={leg.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-sm">
-                            <span className="font-semibold">Leg {leg.leg_number}:</span>{" "}
-                            {leg.horse} — {leg.race} ({leg.bet_type})
+                          <div
+                            key={leg.id}
+                            className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-sm"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                                  Leg {leg.leg_number} · {leg.bet_type}
+                                </p>
+                                <p className="mt-1 font-bold text-zinc-950">{leg.horse}</p>
+                                <p className="mt-1 text-zinc-600">{leg.race}</p>
+                              </div>
+                              {legStatusBadge(leg.won)}
+                            </div>
+
+                            <form action={updateFortuneFiveLegResultAction} className="mt-3 flex flex-wrap gap-2">
+                              <input type="hidden" name="leg_id" value={leg.id} />
+                              <button
+                                type="submit"
+                                name="result"
+                                value="won"
+                                className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+                              >
+                                Tick Won
+                              </button>
+                              <button
+                                type="submit"
+                                name="result"
+                                value="lost"
+                                className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800"
+                              >
+                                Mark Lost
+                              </button>
+                              <button
+                                type="submit"
+                                name="result"
+                                value="pending"
+                                className="rounded-xl bg-zinc-700 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+                              >
+                                Reset Pending
+                              </button>
+                            </form>
                           </div>
                         ))}
                       </div>
