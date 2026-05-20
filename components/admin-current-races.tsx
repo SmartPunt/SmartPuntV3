@@ -281,6 +281,8 @@ export default function CurrentRacesPage({
 
   const [statusMessage, setStatusMessage] = useState("");
   const [openRaceIds, setOpenRaceIds] = useState<Record<number, boolean>>({});
+  const [editingMeetingIds, setEditingMeetingIds] = useState<number[]>([]);
+const [editingRaceIds, setEditingRaceIds] = useState<number[]>([]);
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
 
   const [raceResultState, setRaceResultState] = useState<
@@ -910,11 +912,17 @@ function handleScratchMissingResults(raceId: number) {
     >
       <input type="hidden" name="meeting_id" value={meeting.id} />
 
-      <input
-        name="meeting_name"
-        defaultValue={meeting.meeting_name}
-        className="rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
-      />
+{editingMeetingIds.includes(meeting.id) ? (
+  <input
+    value={meeting.meeting_name}
+    className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-950"
+    readOnly
+  />
+) : (
+  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-950">
+    {meeting.meeting_name}
+  </div>
+)}
 
       <input
         type="date"
@@ -927,6 +935,21 @@ function handleScratchMissingResults(raceId: number) {
         type="submit"
         className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
       >
+        <button
+  type="button"
+  onClick={() =>
+    setEditingMeetingIds((current) =>
+      current.includes(meeting.id)
+        ? current.filter((id) => id !== meeting.id)
+        : [...current, meeting.id],
+    )
+  }
+  className="rounded-2xl border border-white/15 bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+>
+  {editingMeetingIds.includes(meeting.id)
+    ? "Cancel Edit"
+    : "Edit Meeting"}
+</button>
         Save Meeting
       </button>
     </form>
@@ -1014,11 +1037,17 @@ function handleScratchMissingResults(raceId: number) {
         className="w-[90px] rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
       />
 
-      <input
-        name="race_name"
-        defaultValue={race.race_name}
-        className="min-w-[260px] flex-1 rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
-      />
+{editingRaceIds.includes(race.id) ? (
+  <input
+    value={race.race_name}
+    className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-950"
+    readOnly
+  />
+) : (
+  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-950">
+    {race.race_name}
+  </div>
+)}
 
       <input
         type="number"
@@ -1032,6 +1061,21 @@ function handleScratchMissingResults(raceId: number) {
         type="submit"
         className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
       >
+        <button
+  type="button"
+  onClick={() =>
+    setEditingRaceIds((current) =>
+      current.includes(race.id)
+        ? current.filter((id) => id !== race.id)
+        : [...current, race.id],
+    )
+  }
+  className="rounded-2xl border border-white/15 bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+>
+  {editingRaceIds.includes(race.id)
+    ? "Cancel Edit"
+    : "Edit Race"}
+</button>
         Save Race
       </button>
 
