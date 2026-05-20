@@ -17,7 +17,9 @@ export default async function Page() {
 
   try {
     const supabase = await createClient();
-
+const { count: totalHorseCount } = await supabase
+  .from("horses")
+  .select("*", { count: "exact", head: true });
     const { data: horses, error: horsesError } = await supabase
       .from("horses")
       .select("*")
@@ -31,7 +33,8 @@ export default async function Page() {
     return (
       <AdminHorsesPage
         currentUser={profile}
-        initialHorses={horses || []}
+initialHorses={horses || []}
+totalHorseCount={totalHorseCount || 0}
         initialRunners={[]}
         initialRaces={[]}
         initialMeetings={[]}
