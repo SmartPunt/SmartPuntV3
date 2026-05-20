@@ -1219,10 +1219,9 @@ export async function toggleSubscriberEmailAlertsAction(
 
     const { error } = await supabase
       .from("profiles")
-      .update({
-        email_alerts_enabled: enabled,
-        updated_at: new Date().toISOString(),
-      })
+.update({
+  email_alerts_enabled: enabled,
+})
       .eq("id", profileId);
 
     if (error) {
