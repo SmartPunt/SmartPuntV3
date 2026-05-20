@@ -410,9 +410,10 @@ async function getActiveSubscriberEmails() {
 
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("email")
+    .select("email, email_alerts_enabled")
     .eq("role", "user")
-    .eq("status", "active");
+    .eq("status", "active")
+    .eq("email_alerts_enabled", true);
 
   if (error) {
     throw new Error(`Failed to load subscriber emails: ${error.message}`);
@@ -1199,6 +1200,47 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
   }
 }
 
+export async function toggleSubscriberEmailAlertsAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireAdmin();
+
+    const profileId = String(formData.get("profile_id") ?? "").trim();
+    const enabled = String(formData.get("email_alerts_enabled") ?? "") === "true";
+
+    if (!profileId) {
+      return { success: false, error: "Subscriber is required." };
+    }
+
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        email_alerts_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", profileId)
+      .eq("role", "user");
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/");
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update subscriber alerts.",
+    };
+  }
+}
+
 export async function createSubscriberUserAction(
   _: { error: string | null; success: string | null },
   formData: FormData,
@@ -1702,13 +1744,7 @@ export async function publishSmartPuntCalculatorTipAction(
   formData: FormData,
 ): Promise<void> {
   try {
-const profile = await getCurrentProfile();
-
-if (!profile || profile.role !== "admin") {
-  throw new Error(
-    "Only Full Admin can publish SmartPunt Calculator tips.",
-  );
-}
+const profile = await requireAdmin();
 
     const sendNotification =
       String(formData.get("send_notification") ?? "") === "true";
@@ -2350,6 +2386,120 @@ export async function publishMeetingRacesAction(
     };
   }
 }
+export async function abandonMeetingAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
+
+    const meetingId = Number(formData.get("meeting_id"));
+    const reason = String(formData.get("abandonment_reason") ?? "Meeting abandoned.").trim() ||
+      "Meeting abandoned.";
+
+    if (!meetingId) {
+      return { success: false, error: "Meeting is required." };
+    }
+
+    const now = new Date().toISOString();
+
+    const races = (await serviceRoleSelect(
+      `races?meeting_id=eq.${meetingId}&select=id,status`,
+    )) as Array<{ id: number; status: string | null }> | null;
+
+    const raceIds = (races || [])
+      .map((race) => Number(race.id))
+      .filter(Boolean);
+
+    if (!raceIds.length) {
+      return { success: false, error: "No races found for this meeting." };
+    }
+
+    const runners = (await serviceRoleSelect(
+      `race_runners?race_id=${buildInFilter(raceIds)}&select=id`,
+    )) as Array<{ id: number }> | null;
+
+    const runnerIds = (runners || [])
+      .map((runner) => Number(runner.id))
+      .filter(Boolean);
+
+    await serviceRolePatch(`meetings?id=eq.${meetingId}`, {
+      abandoned_at: now,
+      abandonment_reason: reason,
+      updated_at: now,
+    });
+
+    await serviceRolePatch(`races?id=${buildInFilter(raceIds)}`, {
+      status: "closed",
+      abandoned_at: now,
+      abandonment_reason: reason,
+      updated_at: now,
+    });
+
+    if (runnerIds.length > 0) {
+      await serviceRolePatch(`race_runners?id=${buildInFilter(runnerIds)}`, {
+        finishing_position: null,
+        starting_price: null,
+        won: false,
+        placed: false,
+        settled_at: now,
+        updated_at: now,
+      });
+    }
+
+    await serviceRolePatch(`suggested_tips?race_id=${buildInFilter(raceIds)}`, {
+      finishing_position: null,
+      successful: null,
+      result_comment: reason,
+      settled_at: now,
+      updated_at: now,
+    });
+
+    await serviceRolePatch(
+      `smartpunt_calculator_tips?race_id=${buildInFilter(raceIds)}`,
+      {
+        status: "voided",
+        voided: true,
+        void_reason: reason,
+        finishing_position: null,
+        won: null,
+        placed: null,
+        settled_at: now,
+        updated_at: now,
+      },
+    );
+
+    await serviceRolePatch(`user_bets?race_id=${buildInFilter(raceIds)}&settled_at=is.null`, {
+      voided: true,
+      void_reason: reason,
+      finishing_position: null,
+      won: null,
+      placed: null,
+      return_points: null,
+      profit_loss_points: 0,
+      settled_at: now,
+      updated_at: now,
+    });
+
+    revalidatePath("/");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
+    revalidatePath("/my-active-tips");
+    revalidatePath("/my-resulted-tips");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/admin/calculator-report");
+
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to abandon meeting.",
+    };
+  }
+}
+
 export async function deleteRaceAction(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -3188,9 +3338,8 @@ export async function settleRaceRunnersAction(
     updated_at: now,
   }));
 
-await Promise.all(
-  calculatorTipUpdates.map((update) =>
-    serviceRoleFetch(
+  for (const update of calculatorTipUpdates) {
+    await serviceRoleFetch(
       `smartpunt_calculator_tips?race_id=eq.${raceId}&race_runner_id=eq.${update.race_runner_id}`,
       {
         method: "PATCH",
@@ -3205,9 +3354,8 @@ await Promise.all(
           updated_at: update.updated_at,
         }),
       },
-    ),
-  ),
-);
+    );
+  }
 } catch (calculatorTipSettleError) {
   console.error(
     "SmartPunt calculator tip settlement update failed:",
