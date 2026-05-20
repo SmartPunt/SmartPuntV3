@@ -301,6 +301,7 @@ const activeCalculatorTipIds = (activeUserBetsQuery.data || [])
         initialLongTermBets={longTermBets}
         initialActiveTipIds={activeTipIds}
         initialActiveCalculatorTipIds={activeCalculatorTipIds}
+        initialActiveUserBetCount={activeUserBetCount}
         initialPublishedRaces={publishedRaces}
         initialPublishedRunners={publishedRunners}
         initialHorses={horses}
