@@ -733,6 +733,12 @@ const activeCalculatorTips = useMemo(
                 >
                   Get On Early
                 </Link>
+                <Link
+  href="/fortune-on-5"
+  className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+>
+  Fortune on 5
+</Link>
                 <form action={signOutAction}>
                   <button className="w-full rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-left text-sm font-semibold text-white transition hover:bg-white/15">
                     Log out
