@@ -121,6 +121,8 @@ export default function AdminHorsesPage({
   initialRaces,
   initialMeetings,
   totalHorseCount,
+  initialSearch = "",
+  initialSortMode = "alphabetical",
 }: {
   currentUser: any;
   initialHorses: Horse[];
@@ -128,10 +130,12 @@ export default function AdminHorsesPage({
   initialRaces: Race[];
   initialMeetings: Meeting[];
   totalHorseCount: number;
+  initialSearch?: string;
+  initialSortMode?: SortMode;
 }) {
   const pathname = usePathname();
-  const [search, setSearch] = useState("");
-  const [sortMode, setSortMode] = useState<SortMode>("alphabetical");
+  const [search, setSearch] = useState(initialSearch);
+  const [sortMode, setSortMode] = useState<SortMode>(initialSortMode);
 
   const horseRows = useMemo<HorseRow[]>(() => {
     const rows: HorseRow[] = initialHorses.map((horse) => {
@@ -163,29 +167,27 @@ export default function AdminHorsesPage({
       };
     });
 
-    const filtered = rows.filter((horseRow: HorseRow) =>
-      horseRow.horse_name.toLowerCase().includes(search.trim().toLowerCase()),
-    );
-
     if (sortMode === "most_used") {
-      return filtered.sort(
+      return rows.sort(
         (a: HorseRow, b: HorseRow) =>
           b.appearances - a.appearances || a.horse_name.localeCompare(b.horse_name),
       );
     }
 
     if (sortMode === "newest") {
-      return filtered.sort(
+      return rows.sort(
         (a: HorseRow, b: HorseRow) =>
           new Date(b.latestRunnerDate || b.created_at).getTime() -
           new Date(a.latestRunnerDate || a.created_at).getTime(),
       );
     }
 
-    return filtered.sort((a: HorseRow, b: HorseRow) =>
+    return rows.sort((a: HorseRow, b: HorseRow) =>
       a.horse_name.localeCompare(b.horse_name),
     );
-  }, [initialHorses, initialMeetings, initialRaces, initialRunners, search, sortMode]);
+  }, [initialHorses, initialMeetings, initialRaces, initialRunners, sortMode]);
+
+  const isSearching = initialSearch.trim().length > 0;
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
@@ -203,7 +205,7 @@ export default function AdminHorsesPage({
               <Badge tone="amber">Saved Horses</Badge>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
-<NavLink href="/admin/race-builder" label="Race Builder" currentPath={pathname} />
+                <NavLink href="/admin/race-builder" label="Race Builder" currentPath={pathname} />
                 <NavLink href="/current-races" label="Current Races" currentPath={pathname} />
                 <NavLink href="/race-archive" label="Race Archive" currentPath={pathname} />
                 <NavLink href="/admin/horses" label="Saved Horses" currentPath={pathname} />
@@ -218,38 +220,38 @@ export default function AdminHorsesPage({
             </div>
 
             <div className="mt-auto rounded-2xl bg-black/20 px-4 py-4 backdrop-blur-[1px] lg:px-5">
-<div className="flex flex-wrap items-center justify-between gap-3">
-  <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-    <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-      Fortune on 5 current races
-    </h1>
-<p className="text-sm text-zinc-200 lg:text-base">
-  Your saved horse master list, built from Race Builder and runner history.
-</p>
-  </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+                    Saved horse library
+                  </h1>
+                  <p className="text-sm text-zinc-200 lg:text-base">
+                    Search the full SmartPunt horse database without loading every horse at once.
+                  </p>
+                </div>
 
-  <div className="flex items-center gap-2">
-    <Link
-      href="/"
-      className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
-    >
-      Back to Dashboard
-    </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/"
+                    className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
+                  >
+                    Back to Dashboard
+                  </Link>
 
-    <form action={signOutAction}>
-      <button
-        type="submit"
-        className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/30"
-      >
-        Log Out
-      </button>
-    </form>
-  </div>
-</div>
+                  <form action={signOutAction}>
+                    <button
+                      type="submit"
+                      className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 transition hover:bg-red-500/30"
+                    >
+                      Log Out
+                    </button>
+                  </form>
+                </div>
+              </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="green">{initialHorses.length} horses saved</Badge>
-                <Badge tone="blue">{initialRunners.length} runner records</Badge>
+                <Badge tone="green">{totalHorseCount} horses total</Badge>
+                <Badge tone="blue">{horseRows.length} currently shown</Badge>
                 <Badge tone="amber">Admin only</Badge>
               </div>
             </div>
@@ -259,9 +261,9 @@ export default function AdminHorsesPage({
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Saved Horses</p>
+              <p className="text-sm text-zinc-500">Total Saved Horses</p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{initialHorses.length}</p>
+                <p className="text-2xl font-semibold">{totalHorseCount}</p>
                 <Badge tone="amber">Master list</Badge>
               </div>
             </div>
@@ -269,43 +271,54 @@ export default function AdminHorsesPage({
 
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Runner Records</p>
+              <p className="text-sm text-zinc-500">
+                {isSearching ? "Search Results" : "Loaded Preview"}
+              </p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{initialRunners.length}</p>
-                <Badge tone="blue">History</Badge>
+                <p className="text-2xl font-semibold">{horseRows.length}</p>
+                <Badge tone="blue">{isSearching ? "Search" : "First 100"}</Badge>
               </div>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Visible Rows</p>
+              <p className="text-sm text-zinc-500">Runner Records Loaded</p>
               <div className="mt-3 flex items-center justify-between">
-                <p className="text-2xl font-semibold">{horseRows.length}</p>
-                <Badge tone="green">Filtered</Badge>
+                <p className="text-2xl font-semibold">{initialRunners.length}</p>
+                <Badge tone="green">For shown horses</Badge>
               </div>
             </div>
           </Panel>
         </div>
 
         <Panel className="mt-6 bg-white/95">
-          <div className="grid gap-4 p-6 text-zinc-950 md:grid-cols-[1fr_220px]">
+          <form
+            action="/admin/horses"
+            method="get"
+            className="grid gap-4 p-6 text-zinc-950 md:grid-cols-[1fr_220px_auto]"
+          >
             <div>
               <label className="text-sm font-medium text-zinc-700">Search horses</label>
               <div className="mt-2">
                 <input
                   value={search}
+                  name="q"
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search saved horse name"
+                  placeholder="Search any saved horse name"
                   className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                 />
               </div>
+              <p className="mt-2 text-xs text-zinc-500">
+                Leave blank to show the first 100 horses alphabetically.
+              </p>
             </div>
 
             <div>
               <label className="text-sm font-medium text-zinc-700">Sort by</label>
               <div className="mt-2">
                 <select
+                  name="sort"
                   value={sortMode}
                   onChange={(e) => setSortMode(e.target.value as SortMode)}
                   className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
@@ -316,7 +329,25 @@ export default function AdminHorsesPage({
                 </select>
               </div>
             </div>
-          </div>
+
+            <div className="flex items-end gap-2">
+              <button
+                type="submit"
+                className="rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-black"
+              >
+                Search
+              </button>
+
+              {isSearching ? (
+                <Link
+                  href="/admin/horses"
+                  className="rounded-2xl border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  Clear
+                </Link>
+              ) : null}
+            </div>
+          </form>
         </Panel>
 
         <Panel className="mt-6 bg-white/95">
@@ -325,7 +356,9 @@ export default function AdminHorsesPage({
               <div>
                 <h2 className="text-xl font-semibold">Horse library</h2>
                 <p className="text-sm text-zinc-500">
-                  Click into any horse to inspect its saved runner history and build out form later.
+                  {isSearching
+                    ? `Showing matches for "${initialSearch}".`
+                    : `Showing the first 100 horses of ${totalHorseCount} total.`}
                 </p>
               </div>
               <Badge tone="amber">{horseRows.length} shown</Badge>
@@ -353,7 +386,7 @@ export default function AdminHorsesPage({
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        <Badge tone="blue">{horse.appearances} appearances</Badge>
+                        <Badge tone="blue">{horse.appearances} recent appearances loaded</Badge>
                         {horse.latestJockey ? (
                           <Badge tone="slate">Jockey: {horse.latestJockey}</Badge>
                         ) : null}
