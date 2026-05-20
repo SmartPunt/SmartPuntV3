@@ -903,7 +903,8 @@ function handleScratchMissingResults(raceId: number) {
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
 <div className="space-y-3">
-  {isAdmin ? (
+{isAdmin ? (
+  editingMeetingIds.includes(meeting.id) ? (
     <form
       action={async (formData) => {
         await updateMeetingDetailsAction(formData);
@@ -912,17 +913,11 @@ function handleScratchMissingResults(raceId: number) {
     >
       <input type="hidden" name="meeting_id" value={meeting.id} />
 
-{editingMeetingIds.includes(meeting.id) ? (
-  <input
-    value={meeting.meeting_name}
-    className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-950"
-    readOnly
-  />
-) : (
-  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-950">
-    {meeting.meeting_name}
-  </div>
-)}
+      <input
+        name="meeting_name"
+        defaultValue={meeting.meeting_name}
+        className="rounded-xl border border-zinc-300 px-3 py-2 text-sm font-semibold text-zinc-950"
+      />
 
       <input
         type="date"
@@ -932,32 +927,46 @@ function handleScratchMissingResults(raceId: number) {
       />
 
       <button
+        type="button"
+        onClick={() =>
+          setEditingMeetingIds((current) =>
+            current.filter((id) => id !== meeting.id),
+          )
+        }
+        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700"
+      >
+        Cancel
+      </button>
+
+      <button
         type="submit"
         className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-amber-300"
       >
-        <button
-  type="button"
-  onClick={() =>
-    setEditingMeetingIds((current) =>
-      current.includes(meeting.id)
-        ? current.filter((id) => id !== meeting.id)
-        : [...current, meeting.id],
-    )
-  }
-  className="rounded-2xl border border-white/15 bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
->
-  {editingMeetingIds.includes(meeting.id)
-    ? "Cancel Edit"
-    : "Edit Meeting"}
-</button>
         Save Meeting
       </button>
     </form>
   ) : (
-    <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
-      {meeting.meeting_name}
-    </h3>
-  )}
+    <div className="flex flex-wrap items-center gap-3">
+      <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
+        {meeting.meeting_name}
+      </h3>
+
+      <button
+        type="button"
+        onClick={() =>
+          setEditingMeetingIds((current) => [...current, meeting.id])
+        }
+        className="rounded-xl bg-black px-3 py-2 text-sm font-semibold text-white"
+      >
+        Edit Meeting
+      </button>
+    </div>
+  )
+) : (
+  <h3 className="text-2xl font-bold tracking-tight text-zinc-950">
+    {meeting.meeting_name}
+  </h3>
+)}
 
   <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
     <span>{formatMeetingDate(meeting.meeting_date)}</span>
