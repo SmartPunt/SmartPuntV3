@@ -1203,31 +1203,37 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 export async function toggleSubscriberEmailAlertsAction(
   formData: FormData,
 ): Promise<void> {
-  await requireAdmin();
+  try {
+    await requireAdmin();
 
-  const profileId = String(formData.get("profile_id") ?? "").trim();
-  const enabled =
-    String(formData.get("email_alerts_enabled") ?? "") === "true";
+    const profileId = String(formData.get("profile_id") ?? "").trim();
+    const enabled =
+      String(formData.get("email_alerts_enabled") ?? "") === "true";
 
-  if (!profileId) {
-    throw new Error("Subscriber is required.");
+    if (!profileId) {
+      console.error("Subscriber alert toggle failed: missing profile_id.");
+      return;
+    }
+
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        email_alerts_enabled: enabled,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", profileId);
+
+    if (error) {
+      console.error("Subscriber alert toggle failed:", error.message);
+      return;
+    }
+
+    revalidatePath("/");
+  } catch (error) {
+    console.error("Subscriber alert toggle crashed:", error);
   }
-
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      email_alerts_enabled: enabled,
-      updated_at: new Date().toISOString(),
-    })
-.eq("id", profileId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath("/");
 }
 
 export async function createSubscriberUserAction(
