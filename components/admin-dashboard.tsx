@@ -465,7 +465,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                   <ToolLink href="/admin/calculator" label="Calculator Lab" />
                   <ToolLink href="/admin/calculator-test" label="Calculator Test" />
                   <ToolLink href="/admin/calculator-report" label="Calculator Report" />
-                  <ToolLink href="/admin/fortune-on-5" label="Fortune on 5" tone="primary" />
+<ToolLink href="/admin/fortune-on-5" label="Fortune on 5" />
                   <ToolLink href="/admin/jockeys" label="Jockey Profiles" />
                 </div>
               </div>
