@@ -4,7 +4,37 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import AdminHorsesPage from "@/components/admin-horses-page";
 
-export default async function Page() {
+type SortMode = "alphabetical" | "newest" | "most_used";
+
+async function fetchRows<T>({
+  getPage,
+}: {
+  getPage: () => Promise<{ data: T[] | null; error: any }>;
+}) {
+  const { data, error } = await getPage();
+
+  if (error) {
+    throw new Error(error.message || "Failed to fetch rows.");
+  }
+
+  return data || [];
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    q?: string;
+    sort?: SortMode;
+  }>;
+}) {
+  const params = await searchParams;
+  const search = String(params?.q ?? "").trim();
+  const sortMode: SortMode =
+    params?.sort === "newest" || params?.sort === "most_used"
+      ? params.sort
+      : "alphabetical";
+
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -17,12 +47,24 @@ export default async function Page() {
 
   try {
     const supabase = await createClient();
-const { count: totalHorseCount } = await supabase
-  .from("horses")
-  .select("*", { count: "exact", head: true });
-    const { data: horses, error: horsesError } = await supabase
+
+    const { count: totalHorseCount, error: countError } = await supabase
       .from("horses")
-      .select("*")
+      .select("*", { count: "exact", head: true });
+
+    if (countError) {
+      throw new Error(countError.message);
+    }
+
+    let horseQuery = supabase
+      .from("horses")
+      .select("*");
+
+    if (search) {
+      horseQuery = horseQuery.ilike("horse_name", `%${search}%`);
+    }
+
+    const { data: horses, error: horsesError } = await horseQuery
       .order("horse_name", { ascending: true })
       .range(0, 99);
 
@@ -30,14 +72,92 @@ const { count: totalHorseCount } = await supabase
       throw new Error(horsesError.message);
     }
 
+    const horseIds = (horses || [])
+      .map((horse: any) => Number(horse.id))
+      .filter(Boolean);
+
+    const raceRunners =
+      horseIds.length === 0
+        ? []
+        : await fetchRows<any>({
+            getPage: async () => {
+              const result = await supabase
+                .from("race_runners")
+                .select("*")
+                .in("horse_id", horseIds)
+                .order("created_at", { ascending: false })
+                .limit(1000);
+
+              return {
+                data: result.data ?? [],
+                error: result.error,
+              };
+            },
+          });
+
+    const raceIds = Array.from(
+      new Set(
+        (raceRunners || [])
+          .map((runner: any) => Number(runner.race_id))
+          .filter(Boolean),
+      ),
+    );
+
+    const races =
+      raceIds.length === 0
+        ? []
+        : await fetchRows<any>({
+            getPage: async () => {
+              const result = await supabase
+                .from("races")
+                .select("*")
+                .in("id", raceIds)
+                .order("meeting_id", { ascending: false })
+                .order("race_number", { ascending: true });
+
+              return {
+                data: result.data ?? [],
+                error: result.error,
+              };
+            },
+          });
+
+    const meetingIds = Array.from(
+      new Set(
+        (races || [])
+          .map((race: any) => Number(race.meeting_id))
+          .filter(Boolean),
+      ),
+    );
+
+    const meetings =
+      meetingIds.length === 0
+        ? []
+        : await fetchRows<any>({
+            getPage: async () => {
+              const result = await supabase
+                .from("meetings")
+                .select("*")
+                .in("id", meetingIds)
+                .order("meeting_date", { ascending: false });
+
+              return {
+                data: result.data ?? [],
+                error: result.error,
+              };
+            },
+          });
+
     return (
       <AdminHorsesPage
         currentUser={profile}
-initialHorses={horses || []}
-totalHorseCount={totalHorseCount || 0}
-        initialRunners={[]}
-        initialRaces={[]}
-        initialMeetings={[]}
+        initialHorses={horses || []}
+        initialRunners={raceRunners || []}
+        initialRaces={races || []}
+        initialMeetings={meetings || []}
+        totalHorseCount={totalHorseCount || 0}
+        initialSearch={search}
+        initialSortMode={sortMode}
       />
     );
   } catch (error) {
