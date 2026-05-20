@@ -120,12 +120,14 @@ export default function AdminHorsesPage({
   initialRunners,
   initialRaces,
   initialMeetings,
+  totalHorseCount,
 }: {
   currentUser: any;
   initialHorses: Horse[];
   initialRunners: Runner[];
   initialRaces: Race[];
   initialMeetings: Meeting[];
+  totalHorseCount: number;
 }) {
   const pathname = usePathname();
   const [search, setSearch] = useState("");
