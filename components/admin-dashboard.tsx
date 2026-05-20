@@ -207,6 +207,7 @@ export default function AdminDashboard({
   initialPublishedRunners,
   initialHorses,
   initialMeetings,
+  initialSubscriberProfiles,
 }: {
   currentUser: any;
   initialSuggestedTips: any[];
@@ -216,6 +217,7 @@ export default function AdminDashboard({
   initialPublishedRunners: Runner[];
   initialHorses: Horse[];
   initialMeetings: Meeting[];
+  initialSubscriberProfiles: any[];
 }) {
   const suggestedTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
