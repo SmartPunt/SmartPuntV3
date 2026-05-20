@@ -3790,9 +3790,14 @@ export async function createFortuneFiveAction(
     throw new Error("One of the selected Fortune on 5 runners could not be found.");
   }
 
-  const { data: fortuneFive, error: insertError } = await supabase
-    .from("fortune_fives")
-    .insert({
+const insertedFortuneFives = await serviceRoleFetch(
+  "fortune_fives?select=id",
+  {
+    method: "POST",
+    headers: {
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
       title,
       description: description || null,
       week_start_date: weekStartDate,
@@ -3800,13 +3805,17 @@ export async function createFortuneFiveAction(
       published_date: publishedDate,
       status: "active",
       created_by: profile.id,
-    })
-    .select("id")
-    .single();
+    }),
+  },
+);
 
-  if (insertError) {
-    throw new Error(insertError.message);
-  }
+const fortuneFive = Array.isArray(insertedFortuneFives)
+  ? insertedFortuneFives[0]
+  : insertedFortuneFives;
+
+if (!fortuneFive?.id) {
+  throw new Error("Fortune on 5 could not be created.");
+}
 
   const legRows = [1, 2, 3, 4, 5].map((legNumber) => {
     const runnerId = Number(formData.get(`leg_${legNumber}_race_runner_id`) || 0);
@@ -3829,13 +3838,13 @@ export async function createFortuneFiveAction(
     };
   });
 
-  const { error: legsError } = await supabase
-    .from("fortune_five_legs")
-    .insert(legRows);
-
-  if (legsError) {
-    throw new Error(legsError.message);
-  }
+await serviceRoleFetch("fortune_five_legs", {
+  method: "POST",
+  headers: {
+    Prefer: "return=minimal",
+  },
+  body: JSON.stringify(legRows),
+});
 
   revalidatePath("/");
   revalidatePath("/admin/fortune-on-5");
