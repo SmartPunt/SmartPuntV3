@@ -411,9 +411,23 @@ export default async function Page({
                             {formatDate(fortune.published_date)}
                           </p>
                           <h3 className="mt-1 text-xl font-bold">{fortune.title}</h3>
-                          {fortune.description ? (
-                            <p className="mt-2 text-sm text-zinc-600">{fortune.description}</p>
-                          ) : null}
+<form action={updateFortuneFiveNotesAction} className="mt-3 space-y-2">
+  <input type="hidden" name="fortune_five_id" value={fortune.id} />
+
+  <textarea
+    name="description"
+    defaultValue={fortune.description || ""}
+    placeholder="Update notes as the multi unfolds..."
+    className="min-h-[72px] w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition focus:border-amber-300"
+  />
+
+  <button
+    type="submit"
+    className="rounded-xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900"
+  >
+    Update Notes
+  </button>
+</form>
                         </div>
                         {statusBadge(fortune)}
                       </div>
