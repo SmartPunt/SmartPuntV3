@@ -1718,6 +1718,7 @@ if (!profile || profile.status !== "active") {
     }
 
     revalidatePath("/");
+    revalidatePath("/my-active-tips");
     revalidatePath("/my-resulted-tips");
 
 return {
