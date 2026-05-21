@@ -2491,6 +2491,7 @@ export async function abandonMeetingAction(
     return;
   }
 }
+
 export async function deleteRaceAction(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -3856,6 +3857,7 @@ export async function createFortuneFiveAction(
         : "Race",
       horse: horse?.horse_name || "Unknown horse",
       bet_type: betType,
+      leg_status: "pending",
     };
   });
 
@@ -3985,6 +3987,27 @@ export async function resultFortuneFiveAction(
   revalidatePath("/fortune-on-5");
 }
 
+
+export async function updateFortuneFiveNotesAction(
+  formData: FormData,
+): Promise<void> {
+  await requireAdmin();
+
+  const fortuneFiveId = Number(formData.get("fortune_five_id") || 0);
+  const description = String(formData.get("description") ?? "").trim();
+
+  if (!fortuneFiveId) {
+    throw new Error("Fortune on 5 multi is required.");
+  }
+
+  await serviceRolePatch(`fortune_fives?id=eq.${fortuneFiveId}`, {
+    description: description || null,
+  });
+
+  revalidatePath("/admin/fortune-on-5");
+  revalidatePath("/fortune-on-5");
+}
+
 export async function updateFortuneFiveLegResultAction(
   formData: FormData,
 ): Promise<void> {
@@ -3997,6 +4020,10 @@ export async function updateFortuneFiveLegResultAction(
     throw new Error("Fortune on 5 leg is required.");
   }
 
+  if (!["pending", "won", "lost", "scratched"].includes(result)) {
+    throw new Error("Choose Pending, Won, Lost, or Scratched.");
+  }
+
   const legRows = (await serviceRoleSelect(
     `fortune_five_legs?id=eq.${legId}&select=id,fortune_five_id`,
   )) as Array<{ id: number; fortune_five_id: number }> | null;
@@ -4007,27 +4034,34 @@ export async function updateFortuneFiveLegResultAction(
     throw new Error("Fortune on 5 leg could not be found.");
   }
 
-  const legWon =
-    result === "won" ? true : result === "lost" ? false : null;
+  const legWon = result === "won" ? true : result === "lost" ? false : null;
 
   await serviceRolePatch(`fortune_five_legs?id=eq.${legId}`, {
     won: legWon,
+    leg_status: result,
   });
 
   const allLegs = (await serviceRoleSelect(
-    `fortune_five_legs?fortune_five_id=eq.${leg.fortune_five_id}&select=id,won`,
-  )) as Array<{ id: number; won: boolean | null }> | null;
+    `fortune_five_legs?fortune_five_id=eq.${leg.fortune_five_id}&select=id,won,leg_status`,
+  )) as Array<{ id: number; won: boolean | null; leg_status: string | null }> | null;
 
   const legs = allLegs || [];
   const now = new Date().toISOString();
-  const hasLostLeg = legs.some((item) => item.won === false);
-  const allLegsWon = legs.length === 5 && legs.every((item) => item.won === true);
+  const hasLostLeg = legs.some(
+    (item) => item.leg_status === "lost" || item.won === false,
+  );
+  const hasPendingLeg =
+    legs.length !== 5 ||
+    legs.some(
+      (item) => !item.leg_status || item.leg_status === "pending",
+    );
+  const isCompleteWinningMulti = !hasLostLeg && !hasPendingLeg;
 
   if (hasLostLeg) {
     await serviceRolePatch(`fortune_fives?id=eq.${leg.fortune_five_id}`, {
       won: false,
       settled_at: now,
-      status: "active",
+      status: "settled",
     });
 
     const userEntries = (await serviceRoleSelect(
@@ -4046,11 +4080,11 @@ export async function updateFortuneFiveLegResultAction(
         });
       }),
     );
-  } else if (allLegsWon) {
+  } else if (isCompleteWinningMulti) {
     await serviceRolePatch(`fortune_fives?id=eq.${leg.fortune_five_id}`, {
       won: true,
       settled_at: now,
-      status: "active",
+      status: "settled",
     });
 
     const userEntries = (await serviceRoleSelect(
