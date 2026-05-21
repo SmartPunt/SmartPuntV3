@@ -926,7 +926,7 @@ async function addUserBetFormAction(formData: FormData) {
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                         Active tips
                       </p>
-                      <p className="mt-2 text-3xl font-bold text-zinc-950">{activeLiveTips.length}</p>
+                      <p className="mt-2 text-3xl font-bold text-zinc-950">{initialActiveUserBetCount}</p>
                       <p className="mt-2 text-sm text-zinc-600">
                         Accepted tips move off the live board and into your own page.
                       </p>
