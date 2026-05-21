@@ -9,6 +9,7 @@ import {
   updateFortuneFiveNotesAction,
 } from "@/lib/actions";
 import { Badge, Panel } from "@/components/ui";
+import AdminFortuneFiveLegSelector from "@/components/admin-fortune-five-leg-selector";
 
 type Meeting = {
   id: number;
@@ -243,20 +244,31 @@ export default async function Page() {
   const raceMap = new Map(races.map((race) => [race.id, race]));
   const horseMap = new Map(horses.map((horse) => [horse.id, horse]));
 
-  const runnerOptions = runners
-    .map((runner) => {
-      const race = raceMap.get(runner.race_id);
-      const meeting = race ? meetingMap.get(race.meeting_id) : null;
-      const horse = horseMap.get(runner.horse_id);
+const runnerOptions = runners
+  .map((runner) => {
+    const race = raceMap.get(runner.race_id);
+    const meeting = race ? meetingMap.get(race.meeting_id) : null;
+    const horse = horseMap.get(runner.horse_id);
 
-      if (!race || !meeting || !horse) return null;
+    if (!race || !meeting || !horse) return null;
 
-      return {
-        id: runner.id,
-        label: `${formatDate(meeting.meeting_date)} — ${meeting.meeting_name} R${race.race_number} ${race.race_name || "Race"} — ${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
-      };
-    })
-    .filter((item): item is { id: number; label: string } => Boolean(item));
+    return {
+      id: runner.id,
+      raceId: race.id,
+      raceLabel: `${formatDate(meeting.meeting_date)} — ${meeting.meeting_name} R${race.race_number} ${race.race_name || "Race"}`,
+      horseLabel: `${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
+    };
+  })
+  .filter(
+    (
+      item,
+    ): item is {
+      id: number;
+      raceId: number;
+      raceLabel: string;
+      horseLabel: string;
+    } => Boolean(item),
+  );
 
   const legsByFortuneId = new Map<number, FortuneFiveLeg[]>();
   for (const leg of fortuneFiveLegs) {
@@ -329,22 +341,13 @@ export default async function Page() {
             </label>
 
             <div className="grid gap-4 lg:grid-cols-5">
-              {[1, 2, 3, 4, 5].map((legNumber) => (
-                <div key={legNumber} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
-                    Leg {legNumber}
-                  </p>
-                  <select
-                    name={`leg_${legNumber}_race_runner_id`}
-                    required
-                    className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
-                  >
-                    <option value="">Select runner</option>
-                    {runnerOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
+{[1, 2, 3, 4, 5].map((legNumber) => (
+  <AdminFortuneFiveLegSelector
+    key={legNumber}
+    legNumber={legNumber}
+    runnerOptions={runnerOptions}
+  />
+))}
                   </select>
 
                   <select
