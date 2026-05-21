@@ -6,6 +6,7 @@ import {
   createFortuneFiveAction,
   resultFortuneFiveAction,
   updateFortuneFiveLegResultAction,
+  updateFortuneFiveNotesAction,
 } from "@/lib/actions";
 import { Badge, Panel } from "@/components/ui";
 
@@ -58,6 +59,7 @@ type FortuneFiveLeg = {
   horse: string;
   bet_type: string;
   won: boolean | null;
+  leg_status?: string | null;
 };
 
 const PERTH_TIMEZONE = "Australia/Perth";
@@ -107,7 +109,7 @@ function getWeekStart(dateValue: string) {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
-  const date = new Date(`${value}T00:00:00`);
+  const date = new Date(`${value}T12:00:00+08:00`);
   if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-AU", {
     timeZone: PERTH_TIMEZONE,
@@ -119,14 +121,17 @@ function formatDate(value?: string | null) {
 
 function statusBadge(fortune: FortuneFive) {
   if (fortune.status === "void") return <Badge tone="slate">Void</Badge>;
-  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Won</Badge>;
-  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Lost</Badge>;
-  return <Badge tone="amber">Active</Badge>;
+  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Multi Won</Badge>;
+  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Multi Lost</Badge>;
+  return <Badge tone="amber">Live / Pending</Badge>;
 }
 
-function legStatusBadge(won: boolean | null) {
-  if (won === true) return <Badge tone="green">✓ Won</Badge>;
-  if (won === false) return <Badge tone="rose">✕ Lost</Badge>;
+function legStatusBadge(leg: FortuneFiveLeg) {
+  const status = leg.leg_status || (leg.won === true ? "won" : leg.won === false ? "lost" : "pending");
+
+  if (status === "won") return <Badge tone="green">✓ Won</Badge>;
+  if (status === "lost") return <Badge tone="rose">✕ Lost</Badge>;
+  if (status === "scratched") return <Badge tone="slate">Scratched</Badge>;
   return <Badge tone="amber">Pending</Badge>;
 }
 
@@ -386,12 +391,30 @@ export default async function Page() {
                             {formatDate(fortune.published_date)}
                           </p>
                           <h3 className="mt-1 text-xl font-bold">{fortune.title}</h3>
-                          {fortune.description ? (
-                            <p className="mt-2 text-sm text-zinc-600">{fortune.description}</p>
-                          ) : null}
+                          <form action={updateFortuneFiveNotesAction} className="mt-3 space-y-2">
+                            <input type="hidden" name="fortune_five_id" value={fortune.id} />
+                            <textarea
+                              name="description"
+                              defaultValue={fortune.description || ""}
+                              placeholder="Update notes as the multi unfolds, e.g. scratched runner / odds changes..."
+                              className="min-h-[72px] w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition focus:border-amber-300"
+                            />
+                            <button
+                              type="submit"
+                              className="rounded-xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900"
+                            >
+                              Update Notes
+                            </button>
+                          </form>
                         </div>
                         {statusBadge(fortune)}
                       </div>
+
+                      {isSettled ? (
+                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+                          Final multi result: {fortune.won === true ? "Won" : fortune.won === false ? "Lost" : "Void"}
+                        </div>
+                      ) : null}
 
                       <div className="mt-4 space-y-2">
                         {legs.map((leg) => (
@@ -407,7 +430,7 @@ export default async function Page() {
                                 <p className="mt-1 font-bold text-zinc-950">{leg.horse}</p>
                                 <p className="mt-1 text-zinc-600">{leg.race}</p>
                               </div>
-                              {legStatusBadge(leg.won)}
+                              {legStatusBadge(leg)}
                             </div>
 
                             <form action={updateFortuneFiveLegResultAction} className="mt-3 flex flex-wrap gap-2">
@@ -427,6 +450,14 @@ export default async function Page() {
                                 className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800"
                               >
                                 Mark Lost
+                              </button>
+                              <button
+                                type="submit"
+                                name="result"
+                                value="scratched"
+                                className="rounded-xl bg-zinc-500 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-600"
+                              >
+                                Scratched
                               </button>
                               <button
                                 type="submit"
