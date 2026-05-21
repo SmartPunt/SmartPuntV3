@@ -6,10 +6,8 @@ import {
   createFortuneFiveAction,
   resultFortuneFiveAction,
   updateFortuneFiveLegResultAction,
-  updateFortuneFiveNotesAction,
 } from "@/lib/actions";
 import { Badge, Panel } from "@/components/ui";
-import AdminFortuneFiveLegSelector from "@/components/admin-fortune-five-leg-selector";
 
 type Meeting = {
   id: number;
@@ -60,7 +58,6 @@ type FortuneFiveLeg = {
   horse: string;
   bet_type: string;
   won: boolean | null;
-  leg_status?: string | null;
 };
 
 const PERTH_TIMEZONE = "Australia/Perth";
@@ -110,7 +107,7 @@ function getWeekStart(dateValue: string) {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
-  const date = new Date(`${value}T12:00:00+08:00`);
+  const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-AU", {
     timeZone: PERTH_TIMEZONE,
@@ -122,36 +119,42 @@ function formatDate(value?: string | null) {
 
 function statusBadge(fortune: FortuneFive) {
   if (fortune.status === "void") return <Badge tone="slate">Void</Badge>;
-  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Multi Won</Badge>;
-  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Multi Lost</Badge>;
-  return <Badge tone="amber">Live / Pending</Badge>;
+  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Won</Badge>;
+  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Lost</Badge>;
+  return <Badge tone="amber">Active</Badge>;
 }
 
-function legStatusBadge(leg: FortuneFiveLeg) {
-  const status = leg.leg_status || (leg.won === true ? "won" : leg.won === false ? "lost" : "pending");
-
-  if (status === "won") return <Badge tone="green">✓ Won</Badge>;
-  if (status === "lost") return <Badge tone="rose">✕ Lost</Badge>;
-  if (status === "scratched") return <Badge tone="slate">Scratched</Badge>;
+function legStatusBadge(won: boolean | null) {
+  if (won === true) return <Badge tone="green">✓ Won</Badge>;
+  if (won === false) return <Badge tone="rose">✕ Lost</Badge>;
   return <Badge tone="amber">Pending</Badge>;
 }
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    date?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const today = getTodayPerthDate();
+  const selectedDate = String(params?.date || today).trim() || today;
+  const weekStart = getWeekStart(selectedDate);
+
   const profile = await getCurrentProfile();
 
   if (!profile) redirect("/login");
   if (profile.role !== "admin") redirect("/");
 
   const supabase = await createClient();
-  const today = getTodayPerthDate();
-  const weekStart = getWeekStart(today);
 
   const meetings = await fetchAllRows<Meeting>({
     getPage: async (from, to) => {
       const result = await supabase
         .from("meetings")
         .select("id, meeting_name, meeting_date")
-        .gte("meeting_date", weekStart)
+        .eq("meeting_date", selectedDate)
         .order("meeting_date", { ascending: true })
         .order("meeting_name", { ascending: true })
         .range(from, to);
@@ -244,31 +247,20 @@ export default async function Page() {
   const raceMap = new Map(races.map((race) => [race.id, race]));
   const horseMap = new Map(horses.map((horse) => [horse.id, horse]));
 
-const runnerOptions = runners
-  .map((runner) => {
-    const race = raceMap.get(runner.race_id);
-    const meeting = race ? meetingMap.get(race.meeting_id) : null;
-    const horse = horseMap.get(runner.horse_id);
+  const runnerOptions = runners
+    .map((runner) => {
+      const race = raceMap.get(runner.race_id);
+      const meeting = race ? meetingMap.get(race.meeting_id) : null;
+      const horse = horseMap.get(runner.horse_id);
 
-    if (!race || !meeting || !horse) return null;
+      if (!race || !meeting || !horse) return null;
 
-    return {
-      id: runner.id,
-      raceId: race.id,
-      raceLabel: `${formatDate(meeting.meeting_date)} — ${meeting.meeting_name} R${race.race_number} ${race.race_name || "Race"}`,
-      horseLabel: `${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
-    };
-  })
-  .filter(
-    (
-      item,
-    ): item is {
-      id: number;
-      raceId: number;
-      raceLabel: string;
-      horseLabel: string;
-    } => Boolean(item),
-  );
+      return {
+        id: runner.id,
+        label: `${formatDate(meeting.meeting_date)} — ${meeting.meeting_name} R${race.race_number} ${race.race_name || "Race"} — ${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
+      };
+    })
+    .filter((item): item is { id: number; label: string } => Boolean(item));
 
   const legsByFortuneId = new Map<number, FortuneFiveLeg[]>();
   for (const leg of fortuneFiveLegs) {
@@ -297,10 +289,35 @@ const runnerOptions = runners
         </div>
 
         <Panel className="bg-white/95">
+          <form method="get" className="flex flex-wrap items-end gap-3 p-6 text-zinc-950">
+            <label className="text-sm font-medium text-zinc-700">
+              Select race date
+              <input
+                name="date"
+                type="date"
+                defaultValue={selectedDate}
+                className="mt-2 rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+              />
+            </label>
+
+            <button
+              type="submit"
+              className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+            >
+              Load Races
+            </button>
+
+            <p className="text-sm text-zinc-500">
+              Runner options below are filtered to {formatDate(selectedDate)} only.
+            </p>
+          </form>
+        </Panel>
+
+        <Panel className="bg-white/95">
           <form action={createFortuneFiveAction} className="space-y-5 p-6 text-zinc-950">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold">Create today&apos;s Fortune on 5</h2>
+                <h2 className="text-xl font-semibold">Create Fortune on 5</h2>
                 <p className="text-sm text-zinc-500">
                   Select five runners from loaded races. This stays separate from normal tips.
                 </p>
@@ -324,7 +341,7 @@ const runnerOptions = runners
                 <input
                   name="published_date"
                   type="date"
-                  defaultValue={today}
+                  defaultValue={selectedDate}
                   required
                   className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                 />
@@ -340,15 +357,36 @@ const runnerOptions = runners
               />
             </label>
 
-<div className="grid gap-4 lg:grid-cols-5">
-  {[1, 2, 3, 4, 5].map((legNumber) => (
-    <AdminFortuneFiveLegSelector
-      key={legNumber}
-      legNumber={legNumber}
-      runnerOptions={runnerOptions}
-    />
-  ))}
-</div>
+            <div className="grid gap-4 lg:grid-cols-5">
+              {[1, 2, 3, 4, 5].map((legNumber) => (
+                <div key={legNumber} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
+                    Leg {legNumber}
+                  </p>
+                  <select
+                    name={`leg_${legNumber}_race_runner_id`}
+                    required
+                    className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
+                  >
+                    <option value="">Select runner</option>
+                    {runnerOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    name={`leg_${legNumber}_bet_type`}
+                    defaultValue="Win"
+                    className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
+                  >
+                    <option value="Win">Win</option>
+                    <option value="Place">Place</option>
+                  </select>
+                </div>
+              ))}
+            </div>
 
             <button
               type="submit"
@@ -382,30 +420,12 @@ const runnerOptions = runners
                             {formatDate(fortune.published_date)}
                           </p>
                           <h3 className="mt-1 text-xl font-bold">{fortune.title}</h3>
-                          <form action={updateFortuneFiveNotesAction} className="mt-3 space-y-2">
-                            <input type="hidden" name="fortune_five_id" value={fortune.id} />
-                            <textarea
-                              name="description"
-                              defaultValue={fortune.description || ""}
-                              placeholder="Update notes as the multi unfolds, e.g. scratched runner / odds changes..."
-                              className="min-h-[72px] w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition focus:border-amber-300"
-                            />
-                            <button
-                              type="submit"
-                              className="rounded-xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900"
-                            >
-                              Update Notes
-                            </button>
-                          </form>
+                          {fortune.description ? (
+                            <p className="mt-2 text-sm text-zinc-600">{fortune.description}</p>
+                          ) : null}
                         </div>
                         {statusBadge(fortune)}
                       </div>
-
-                      {isSettled ? (
-                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
-                          Final multi result: {fortune.won === true ? "Won" : fortune.won === false ? "Lost" : "Void"}
-                        </div>
-                      ) : null}
 
                       <div className="mt-4 space-y-2">
                         {legs.map((leg) => (
@@ -421,7 +441,7 @@ const runnerOptions = runners
                                 <p className="mt-1 font-bold text-zinc-950">{leg.horse}</p>
                                 <p className="mt-1 text-zinc-600">{leg.race}</p>
                               </div>
-                              {legStatusBadge(leg)}
+                              {legStatusBadge(leg.won)}
                             </div>
 
                             <form action={updateFortuneFiveLegResultAction} className="mt-3 flex flex-wrap gap-2">
@@ -441,14 +461,6 @@ const runnerOptions = runners
                                 className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800"
                               >
                                 Mark Lost
-                              </button>
-                              <button
-                                type="submit"
-                                name="result"
-                                value="scratched"
-                                className="rounded-xl bg-zinc-500 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-600"
-                              >
-                                Scratched
                               </button>
                               <button
                                 type="submit"
