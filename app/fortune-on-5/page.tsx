@@ -46,7 +46,10 @@ async function fetchAllRows<T>({
   getPage,
 }: {
   pageSize?: number;
-  getPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>;
+  getPage: (
+    from: number,
+    to: number,
+  ) => Promise<{ data: T[] | null; error: any }>;
 }) {
   const allRows: T[] = [];
   let from = 0;
@@ -77,7 +80,7 @@ function getTodayPerthDate() {
 }
 
 function getWeekStart(dateValue: string) {
-  const date = new Date(`${dateValue}T00:00:00`);
+  const date = new Date(`${dateValue}T00:00:00+08:00`);
   const day = date.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + mondayOffset);
@@ -85,7 +88,7 @@ function getWeekStart(dateValue: string) {
 }
 
 function getWeekEnd(weekStart: string) {
-  const date = new Date(`${weekStart}T00:00:00`);
+  const date = new Date(`${weekStart}T00:00:00+08:00`);
   date.setDate(date.getDate() + 6);
   return date.toISOString().slice(0, 10);
 }
@@ -109,21 +112,135 @@ function toNumber(value: number | string | null | undefined) {
 
 function statusBadge(fortune: FortuneFive, accepted?: UserFortuneFive | null) {
   if (fortune.status === "void") return <Badge tone="slate">Void</Badge>;
-  if (accepted?.settled_at && accepted.won === true) return <Badge tone="green">Multi Won</Badge>;
-  if (accepted?.settled_at && accepted.won === false) return <Badge tone="rose">Multi Lost</Badge>;
-  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Multi Won</Badge>;
-  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Multi Lost</Badge>;
+  if (accepted?.settled_at && accepted.won === true) return <Badge tone="green">Won</Badge>;
+  if (accepted?.settled_at && accepted.won === false) return <Badge tone="rose">Lost</Badge>;
+  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Won</Badge>;
+  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Lost</Badge>;
   if (accepted) return <Badge tone="blue">Accepted</Badge>;
   return <Badge tone="amber">Available</Badge>;
 }
 
+function finalResultText(fortune: FortuneFive) {
+  if (fortune.status === "void") return "Void";
+  if (fortune.won === true) return "Won";
+  if (fortune.won === false) return "Lost";
+  return "Pending";
+}
+
 function legStatusBadge(leg: FortuneFiveLeg) {
-  const status = leg.leg_status || (leg.won === true ? "won" : leg.won === false ? "lost" : "pending");
+  const status =
+    leg.leg_status ||
+    (leg.won === true ? "won" : leg.won === false ? "lost" : "pending");
 
   if (status === "won") return <Badge tone="green">✓ Won</Badge>;
   if (status === "lost") return <Badge tone="rose">✕ Lost</Badge>;
   if (status === "scratched") return <Badge tone="slate">Scratched</Badge>;
   return <Badge tone="amber">Pending</Badge>;
+}
+
+function FortuneFiveCard({
+  fortune,
+  legs,
+  accepted,
+}: {
+  fortune: FortuneFive;
+  legs: FortuneFiveLeg[];
+  accepted: UserFortuneFive | null;
+}) {
+  const isSettled = Boolean(fortune.settled_at) || fortune.status === "void";
+
+  return (
+    <Panel className="bg-white/95">
+      <div className="space-y-5 p-6 text-zinc-950">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+              {formatDate(fortune.published_date)}
+            </p>
+            <h2 className="mt-1 text-2xl font-black">{fortune.title}</h2>
+            {fortune.description ? (
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                {fortune.description}
+              </p>
+            ) : null}
+          </div>
+          {statusBadge(fortune, accepted)}
+        </div>
+
+        {isSettled ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
+              Final multi result
+            </p>
+            <p className="mt-2 text-2xl font-black text-zinc-950">
+              {finalResultText(fortune)}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="space-y-2">
+          {legs.map((leg) => (
+            <div key={leg.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                    Leg {leg.leg_number} · {leg.bet_type}
+                  </p>
+                  <p className="mt-1 text-base font-bold">{leg.horse}</p>
+                  <p className="mt-1 text-sm text-zinc-500">{leg.race}</p>
+                </div>
+
+                {legStatusBadge(leg)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {accepted ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
+              Your accepted odds
+            </p>
+            <p className="mt-2 text-2xl font-black text-zinc-950">
+              {toNumber(accepted.odds_taken).toFixed(2)}
+            </p>
+            {accepted.settled_at ? (
+              <p className="mt-2 text-sm font-semibold text-zinc-700">
+                Return {toNumber(accepted.return_points).toFixed(2)} pts · P/L{" "}
+                {toNumber(accepted.profit_loss_points).toFixed(2)} pts
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-600">
+                Waiting for the multi to be resulted.
+              </p>
+            )}
+          </div>
+        ) : !isSettled ? (
+          <form action={acceptFortuneFiveAction} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <input type="hidden" name="fortune_five_id" value={fortune.id} />
+            <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-600">
+              Odds you got for the full multi
+              <input
+                type="number"
+                name="odds_taken"
+                min="1.01"
+                step="0.01"
+                required
+                placeholder="e.g. 18.50"
+                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-sm font-semibold outline-none transition focus:border-amber-300"
+              />
+            </label>
+            <button
+              type="submit"
+              className="mt-3 w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+            >
+              Accept Fortune on 5
+            </button>
+          </form>
+        ) : null}
+      </div>
+    </Panel>
+  );
 }
 
 export default async function Page() {
@@ -182,6 +299,14 @@ export default async function Page() {
   for (const accepted of userFortuneFives) {
     acceptedByFortuneId.set(accepted.fortune_five_id, accepted);
   }
+
+  const liveFortuneFives = fortuneFives.filter(
+    (fortune) => !fortune.settled_at && fortune.status !== "void",
+  );
+
+  const resultedFortuneFives = fortuneFives.filter(
+    (fortune) => fortune.settled_at || fortune.status === "void",
+  );
 
   const acceptedTotal = userFortuneFives.length;
   const acceptedWins = userFortuneFives.filter((item) => item.won === true).length;
@@ -254,100 +379,53 @@ export default async function Page() {
         </div>
 
         {fortuneFives.length > 0 ? (
-          <div className="grid gap-5 lg:grid-cols-2">
-            {fortuneFives.map((fortune) => {
-              const legs = legsByFortuneId.get(fortune.id) || [];
-              const accepted = acceptedByFortuneId.get(fortune.id) || null;
-              const isSettled = Boolean(fortune.settled_at) || fortune.status === "void";
+          <div className="space-y-6">
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xl font-black">Live / Active Fortune on 5</h2>
+                <Badge tone="amber">{liveFortuneFives.length} live</Badge>
+              </div>
 
-              return (
-                <Panel key={fortune.id} className="bg-white/95">
-                  <div className="space-y-5 p-6 text-zinc-950">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                          {formatDate(fortune.published_date)}
-                        </p>
-                        <h2 className="mt-1 text-2xl font-black">{fortune.title}</h2>
-                        {fortune.description ? (
-                          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
-                            {fortune.description}
-                          </div>
-                        ) : null}
-                      </div>
-                      {statusBadge(fortune, accepted)}
-                    </div>
-
-                    {isSettled ? (
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
-                        Final multi result: {fortune.status === "void" ? "Void" : fortune.won === true ? "Won" : "Lost"}
-                      </div>
-                    ) : null}
-
-                    <div className="space-y-2">
-                      {legs.map((leg) => (
-                        <div key={leg.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                                Leg {leg.leg_number} · {leg.bet_type}
-                              </p>
-                              <p className="mt-1 text-base font-bold">{leg.horse}</p>
-                              <p className="mt-1 text-sm font-medium text-zinc-600">
-                                {leg.race}
-                              </p>
-                            </div>
-                            {legStatusBadge(leg)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {accepted ? (
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
-                          Your accepted odds
-                        </p>
-                        <p className="mt-2 text-2xl font-black text-zinc-950">
-                          {toNumber(accepted.odds_taken).toFixed(2)}
-                        </p>
-                        {accepted.settled_at ? (
-                          <p className="mt-2 text-sm font-semibold text-zinc-700">
-                            Return {toNumber(accepted.return_points).toFixed(2)} pts · P/L {toNumber(accepted.profit_loss_points).toFixed(2)} pts
-                          </p>
-                        ) : (
-                          <p className="mt-2 text-sm text-zinc-600">
-                            Waiting for the multi to be resulted.
-                          </p>
-                        )}
-                      </div>
-                    ) : !isSettled ? (
-                      <form action={acceptFortuneFiveAction} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                        <input type="hidden" name="fortune_five_id" value={fortune.id} />
-                        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-600">
-                          Odds you got for the full multi
-                          <input
-                            type="number"
-                            name="odds_taken"
-                            min="1.01"
-                            step="0.01"
-                            required
-                            placeholder="e.g. 18.50"
-                            className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-sm font-semibold outline-none transition focus:border-amber-300"
-                          />
-                        </label>
-                        <button
-                          type="submit"
-                          className="mt-3 w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
-                        >
-                          Accept Fortune on 5
-                        </button>
-                      </form>
-                    ) : null}
+              {liveFortuneFives.length > 0 ? (
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {liveFortuneFives.map((fortune) => (
+                    <FortuneFiveCard
+                      key={fortune.id}
+                      fortune={fortune}
+                      legs={legsByFortuneId.get(fortune.id) || []}
+                      accepted={acceptedByFortuneId.get(fortune.id) || null}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Panel className="bg-white/95">
+                  <div className="p-6 text-center text-zinc-950">
+                    <p className="text-sm text-zinc-500">
+                      No live Fortune on 5 multis remain this week.
+                    </p>
                   </div>
                 </Panel>
-              );
-            })}
+              )}
+            </section>
+
+            {resultedFortuneFives.length > 0 ? (
+              <details className="rounded-[24px] border border-white/10 bg-white/95 p-5 text-zinc-950">
+                <summary className="cursor-pointer text-xl font-black">
+                  Resulted / Finished Multis ({resultedFortuneFives.length})
+                </summary>
+
+                <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                  {resultedFortuneFives.map((fortune) => (
+                    <FortuneFiveCard
+                      key={fortune.id}
+                      fortune={fortune}
+                      legs={legsByFortuneId.get(fortune.id) || []}
+                      accepted={acceptedByFortuneId.get(fortune.id) || null}
+                    />
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </div>
         ) : (
           <Panel className="bg-white/95">
