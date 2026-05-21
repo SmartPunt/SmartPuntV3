@@ -340,27 +340,15 @@ const runnerOptions = runners
               />
             </label>
 
-            <div className="grid gap-4 lg:grid-cols-5">
-{[1, 2, 3, 4, 5].map((legNumber) => (
-  <AdminFortuneFiveLegSelector
-    key={legNumber}
-    legNumber={legNumber}
-    runnerOptions={runnerOptions}
-  />
-))}
-                  </select>
-
-                  <select
-                    name={`leg_${legNumber}_bet_type`}
-                    defaultValue="Win"
-                    className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
-                  >
-                    <option value="Win">Win</option>
-                    <option value="Place">Place</option>
-                  </select>
-                </div>
-              ))}
-            </div>
+<div className="grid gap-4 lg:grid-cols-5">
+  {[1, 2, 3, 4, 5].map((legNumber) => (
+    <AdminFortuneFiveLegSelector
+      key={legNumber}
+      legNumber={legNumber}
+      runnerOptions={runnerOptions}
+    />
+  ))}
+</div>
 
             <button
               type="submit"
