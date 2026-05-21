@@ -469,6 +469,14 @@ export default async function Page({
                                 Mark Lost
                               </button>
                               <button
+  type="submit"
+  name="result"
+  value="scratched"
+  className="rounded-xl bg-zinc-500 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-600"
+>
+  Scratched
+</button>
+                              <button
                                 type="submit"
                                 name="result"
                                 value="pending"
