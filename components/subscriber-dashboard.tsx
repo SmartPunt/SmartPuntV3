@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
 import {
   addUserBetAction,
   markTipActiveAction,
@@ -203,6 +204,8 @@ initialActiveUserBetCount: number;
   const [customRunnerId, setCustomRunnerId] = useState("");
   const [customBetMessage, setCustomBetMessage] = useState("");
   const [customBetError, setCustomBetError] = useState("");
+  const router = useRouter();
+const [, startTransition] = useTransition();
 
   const allTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
 
@@ -329,9 +332,15 @@ const activeCalculatorTips = useMemo(
     return initialPublishedRunners.filter((runner) => runner.race_id === raceId);
   }
 
-  async function addUserBetFormAction(formData: FormData) {
-    await addUserBetAction(formData);
+async function addUserBetFormAction(formData: FormData) {
+  const result = await addUserBetAction(formData);
+
+  if (result?.success) {
+    startTransition(() => {
+      router.refresh();
+    });
   }
+}
 
   async function addCustomUserBetFormAction(formData: FormData) {
     setCustomBetMessage("");
