@@ -6,6 +6,7 @@ import {
   createFortuneFiveAction,
   resultFortuneFiveAction,
   updateFortuneFiveLegResultAction,
+  updateFortuneFiveNotesAction,
 } from "@/lib/actions";
 import { Badge, Panel } from "@/components/ui";
 import AdminFortuneFiveLegSelector from "@/components/admin-fortune-five-leg-selector";
