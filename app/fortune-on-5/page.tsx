@@ -25,6 +25,7 @@ type FortuneFiveLeg = {
   horse: string;
   bet_type: string;
   won: boolean | null;
+  leg_status?: string | null;
 };
 
 type UserFortuneFive = {
@@ -91,7 +92,7 @@ function getWeekEnd(weekStart: string) {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
-  const date = new Date(`${value}T00:00:00`);
+  const date = new Date(`${value}T12:00:00+08:00`);
   if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-AU", {
     timeZone: PERTH_TIMEZONE,
@@ -108,17 +109,20 @@ function toNumber(value: number | string | null | undefined) {
 
 function statusBadge(fortune: FortuneFive, accepted?: UserFortuneFive | null) {
   if (fortune.status === "void") return <Badge tone="slate">Void</Badge>;
-  if (accepted?.settled_at && accepted.won === true) return <Badge tone="green">Won</Badge>;
-  if (accepted?.settled_at && accepted.won === false) return <Badge tone="rose">Lost</Badge>;
-  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Won</Badge>;
-  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Lost</Badge>;
+  if (accepted?.settled_at && accepted.won === true) return <Badge tone="green">Multi Won</Badge>;
+  if (accepted?.settled_at && accepted.won === false) return <Badge tone="rose">Multi Lost</Badge>;
+  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Multi Won</Badge>;
+  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Multi Lost</Badge>;
   if (accepted) return <Badge tone="blue">Accepted</Badge>;
   return <Badge tone="amber">Available</Badge>;
 }
 
-function legStatusBadge(won: boolean | null) {
-  if (won === true) return <Badge tone="green">✓ Won</Badge>;
-  if (won === false) return <Badge tone="rose">✕ Lost</Badge>;
+function legStatusBadge(leg: FortuneFiveLeg) {
+  const status = leg.leg_status || (leg.won === true ? "won" : leg.won === false ? "lost" : "pending");
+
+  if (status === "won") return <Badge tone="green">✓ Won</Badge>;
+  if (status === "lost") return <Badge tone="rose">✕ Lost</Badge>;
+  if (status === "scratched") return <Badge tone="slate">Scratched</Badge>;
   return <Badge tone="amber">Pending</Badge>;
 }
 
@@ -266,13 +270,19 @@ export default async function Page() {
                         </p>
                         <h2 className="mt-1 text-2xl font-black">{fortune.title}</h2>
                         {fortune.description ? (
-                          <p className="mt-2 text-sm leading-6 text-zinc-600">
+                          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
                             {fortune.description}
-                          </p>
+                          </div>
                         ) : null}
                       </div>
                       {statusBadge(fortune, accepted)}
                     </div>
+
+                    {isSettled ? (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+                        Final multi result: {fortune.status === "void" ? "Void" : fortune.won === true ? "Won" : "Lost"}
+                      </div>
+                    ) : null}
 
                     <div className="space-y-2">
                       {legs.map((leg) => (
@@ -287,7 +297,7 @@ export default async function Page() {
                                 {leg.race}
                               </p>
                             </div>
-                            {legStatusBadge(leg.won)}
+                            {legStatusBadge(leg)}
                           </div>
                         </div>
                       ))}
