@@ -16,28 +16,27 @@ export default function AdminFortuneFiveLegSelector({
   legNumber: number;
   runnerOptions: RunnerOption[];
 }) {
-  const races = useMemo(() => {
-    const map = new Map<number, string>();
+  const raceOptions = useMemo(() => {
+    const raceMap = new Map<number, string>();
 
     for (const option of runnerOptions) {
-      if (!map.has(option.raceId)) {
-        map.set(option.raceId, option.raceLabel);
+      if (!raceMap.has(option.raceId)) {
+        raceMap.set(option.raceId, option.raceLabel);
       }
     }
 
-    return Array.from(map.entries()).map(([id, label]) => ({
+    return Array.from(raceMap.entries()).map(([id, label]) => ({
       id,
       label,
     }));
   }, [runnerOptions]);
 
   const [selectedRaceId, setSelectedRaceId] = useState<number | null>(null);
+  const [selectedRunnerId, setSelectedRunnerId] = useState("");
 
   const filteredRunners = useMemo(() => {
     if (!selectedRaceId) return [];
-    return runnerOptions.filter(
-      (option) => option.raceId === selectedRaceId,
-    );
+    return runnerOptions.filter((option) => option.raceId === selectedRaceId);
   }, [runnerOptions, selectedRaceId]);
 
   return (
@@ -47,14 +46,15 @@ export default function AdminFortuneFiveLegSelector({
       </p>
 
       <select
-        onChange={(event) =>
-          setSelectedRaceId(Number(event.target.value) || null)
-        }
+        value={selectedRaceId ?? ""}
+        onChange={(event) => {
+          setSelectedRaceId(Number(event.target.value) || null);
+          setSelectedRunnerId("");
+        }}
         className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
       >
         <option value="">Select race</option>
-
-        {races.map((race) => (
+        {raceOptions.map((race) => (
           <option key={race.id} value={race.id}>
             {race.label}
           </option>
@@ -63,12 +63,13 @@ export default function AdminFortuneFiveLegSelector({
 
       <select
         name={`leg_${legNumber}_race_runner_id`}
+        value={selectedRunnerId}
+        onChange={(event) => setSelectedRunnerId(event.target.value)}
         required
         disabled={!selectedRaceId}
-        className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300"
+        className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400"
       >
         <option value="">Select horse</option>
-
         {filteredRunners.map((runner) => (
           <option key={runner.id} value={runner.id}>
             {runner.horseLabel}
