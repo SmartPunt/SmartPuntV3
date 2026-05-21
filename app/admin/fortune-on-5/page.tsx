@@ -8,8 +8,8 @@ import {
   updateFortuneFiveLegResultAction,
   updateFortuneFiveNotesAction,
 } from "@/lib/actions";
-import { Badge, Panel } from "@/components/ui";
 import AdminFortuneFiveLegSelector from "@/components/admin-fortune-five-leg-selector";
+import { Badge, Panel } from "@/components/ui";
 
 type Meeting = {
   id: number;
@@ -60,6 +60,18 @@ type FortuneFiveLeg = {
   horse: string;
   bet_type: string;
   won: boolean | null;
+  leg_status?: string | null;
+};
+
+type RunnerOption = {
+  id: number;
+  raceId: number;
+  raceLabel: string;
+  horseLabel: string;
+};
+
+type SearchParams = {
+  date?: string;
 };
 
 const PERTH_TIMEZONE = "Australia/Perth";
@@ -69,7 +81,10 @@ async function fetchAllRows<T>({
   getPage,
 }: {
   pageSize?: number;
-  getPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>;
+  getPage: (
+    from: number,
+    to: number,
+  ) => Promise<{ data: T[] | null; error: any }>;
 }) {
   const allRows: T[] = [];
   let from = 0;
@@ -78,12 +93,17 @@ async function fetchAllRows<T>({
     const to = from + pageSize - 1;
     const { data, error } = await getPage(from, to);
 
-    if (error) throw new Error(error.message || "Failed to fetch rows.");
+    if (error) {
+      throw new Error(error.message || "Failed to fetch rows.");
+    }
 
     const rows = data || [];
     allRows.push(...rows);
 
-    if (rows.length < pageSize) break;
+    if (rows.length < pageSize) {
+      break;
+    }
+
     from += pageSize;
   }
 
@@ -99,18 +119,29 @@ function getTodayPerthDate() {
   }).format(new Date());
 }
 
+function isValidDate(value?: string | null) {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+}
+
 function getWeekStart(dateValue: string) {
-  const date = new Date(`${dateValue}T00:00:00`);
+  const date = new Date(`${dateValue}T00:00:00+08:00`);
   const day = date.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + mondayOffset);
   return date.toISOString().slice(0, 10);
 }
 
+function getWeekEnd(dateValue: string) {
+  const date = new Date(`${getWeekStart(dateValue)}T00:00:00+08:00`);
+  date.setDate(date.getDate() + 6);
+  return date.toISOString().slice(0, 10);
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
-  const date = new Date(`${value}T00:00:00`);
+  const date = new Date(`${value}T12:00:00+08:00`);
   if (Number.isNaN(date.getTime())) return "—";
+
   return new Intl.DateTimeFormat("en-AU", {
     timeZone: PERTH_TIMEZONE,
     weekday: "short",
@@ -121,33 +152,206 @@ function formatDate(value?: string | null) {
 
 function statusBadge(fortune: FortuneFive) {
   if (fortune.status === "void") return <Badge tone="slate">Void</Badge>;
-  if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Won</Badge>;
-  if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Lost</Badge>;
-  return <Badge tone="amber">Active</Badge>;
+  if (fortune.settled_at && fortune.won === true) {
+    return <Badge tone="green">Multi Won</Badge>;
+  }
+  if (fortune.settled_at && fortune.won === false) {
+    return <Badge tone="rose">Multi Lost</Badge>;
+  }
+  return <Badge tone="amber">Live / Pending</Badge>;
 }
 
-function legStatusBadge(won: boolean | null) {
-  if (won === true) return <Badge tone="green">✓ Won</Badge>;
-  if (won === false) return <Badge tone="rose">✕ Lost</Badge>;
+function legStatusBadge(leg: FortuneFiveLeg) {
+  const status =
+    leg.leg_status ||
+    (leg.won === true ? "won" : leg.won === false ? "lost" : "pending");
+
+  if (status === "won") return <Badge tone="green">✓ Won</Badge>;
+  if (status === "lost") return <Badge tone="rose">✕ Lost</Badge>;
+  if (status === "scratched") return <Badge tone="slate">Scratched</Badge>;
   return <Badge tone="amber">Pending</Badge>;
+}
+
+function FortuneFiveCard({
+  fortune,
+  legs,
+  collapsed = false,
+}: {
+  fortune: FortuneFive;
+  legs: FortuneFiveLeg[];
+  collapsed?: boolean;
+}) {
+  const isSettled = Boolean(fortune.settled_at) || fortune.status === "void";
+
+  const card = (
+    <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+            {formatDate(fortune.published_date)}
+          </p>
+          <h3 className="mt-1 text-xl font-bold">{fortune.title}</h3>
+
+          <form action={updateFortuneFiveNotesAction} className="mt-3 space-y-2">
+            <input type="hidden" name="fortune_five_id" value={fortune.id} />
+            <textarea
+              name="description"
+              defaultValue={fortune.description || ""}
+              placeholder="Update notes as the multi unfolds, e.g. scratched runner / odds changes..."
+              className="min-h-[72px] w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition focus:border-amber-300"
+            />
+            <button
+              type="submit"
+              className="rounded-xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900"
+            >
+              Update Notes
+            </button>
+          </form>
+        </div>
+
+        {statusBadge(fortune)}
+      </div>
+
+      {isSettled ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
+          Final multi result:{" "}
+          {fortune.status === "void"
+            ? "Void"
+            : fortune.won === true
+              ? "Won"
+              : fortune.won === false
+                ? "Lost"
+                : "Pending"}
+        </div>
+      ) : null}
+
+      <div className="mt-4 space-y-2">
+        {legs.map((leg) => (
+          <div
+            key={leg.id}
+            className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-sm"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+                  Leg {leg.leg_number} · {leg.bet_type}
+                </p>
+                <p className="mt-1 font-bold text-zinc-950">{leg.horse}</p>
+                <p className="mt-1 text-zinc-600">{leg.race}</p>
+              </div>
+              {legStatusBadge(leg)}
+            </div>
+
+            {!isSettled ? (
+              <form
+                action={updateFortuneFiveLegResultAction}
+                className="mt-3 flex flex-wrap gap-2"
+              >
+                <input type="hidden" name="leg_id" value={leg.id} />
+                <button
+                  type="submit"
+                  name="result"
+                  value="won"
+                  className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+                >
+                  Tick Won
+                </button>
+                <button
+                  type="submit"
+                  name="result"
+                  value="lost"
+                  className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800"
+                >
+                  Mark Lost
+                </button>
+                <button
+                  type="submit"
+                  name="result"
+                  value="scratched"
+                  className="rounded-xl bg-zinc-500 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-600"
+                >
+                  Scratched
+                </button>
+                <button
+                  type="submit"
+                  name="result"
+                  value="pending"
+                  className="rounded-xl bg-zinc-700 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+                >
+                  Reset Pending
+                </button>
+              </form>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      {!isSettled ? (
+        <form action={resultFortuneFiveAction} className="mt-4 flex flex-wrap gap-2">
+          <input type="hidden" name="fortune_five_id" value={fortune.id} />
+          <button
+            name="result"
+            value="won"
+            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+          >
+            Result Won
+          </button>
+          <button
+            name="result"
+            value="lost"
+            className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800"
+          >
+            Result Lost
+          </button>
+          <button
+            name="result"
+            value="void"
+            className="rounded-xl bg-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+          >
+            Void
+          </button>
+        </form>
+      ) : null}
+    </div>
+  );
+
+  if (!collapsed) {
+    return card;
+  }
+
+  return (
+    <details className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-4">
+      <summary className="cursor-pointer text-sm font-bold text-zinc-900">
+        {formatDate(fortune.published_date)} — {fortune.title} ·{" "}
+        {fortune.status === "void"
+          ? "Void"
+          : fortune.won === true
+            ? "Won"
+            : fortune.won === false
+              ? "Lost"
+              : "Pending"}
+      </summary>
+
+      <div className="mt-4">{card}</div>
+    </details>
+  );
 }
 
 export default async function Page({
   searchParams,
 }: {
-  searchParams?: Promise<{
-    date?: string;
-  }>;
+  searchParams?: Promise<SearchParams>;
 }) {
-  const params = await searchParams;
-  const today = getTodayPerthDate();
-  const selectedDate = String(params?.date || today).trim() || today;
-  const weekStart = getWeekStart(selectedDate);
-
   const profile = await getCurrentProfile();
 
   if (!profile) redirect("/login");
   if (profile.role !== "admin") redirect("/");
+
+  const params = await searchParams;
+  const today = getTodayPerthDate();
+  const selectedDate = isValidDate(params?.date) ? String(params?.date) : today;
+  const weekStart = getWeekStart(selectedDate);
+  const weekEnd = getWeekEnd(selectedDate);
 
   const supabase = await createClient();
 
@@ -157,9 +361,9 @@ export default async function Page({
         .from("meetings")
         .select("id, meeting_name, meeting_date")
         .eq("meeting_date", selectedDate)
-        .order("meeting_date", { ascending: true })
         .order("meeting_name", { ascending: true })
         .range(from, to);
+
       return { data: result.data ?? [], error: result.error };
     },
   });
@@ -179,6 +383,7 @@ export default async function Page({
               .order("meeting_id", { ascending: true })
               .order("race_number", { ascending: true })
               .range(from, to);
+
             return { data: result.data ?? [], error: result.error };
           },
         });
@@ -198,6 +403,7 @@ export default async function Page({
               .order("race_id", { ascending: true })
               .order("barrier", { ascending: true, nullsFirst: false })
               .range(from, to);
+
             return { data: result.data ?? [], error: result.error };
           },
         });
@@ -217,6 +423,7 @@ export default async function Page({
               .in("id", horseIds)
               .order("horse_name", { ascending: true })
               .range(from, to);
+
             return { data: result.data ?? [], error: result.error };
           },
         });
@@ -228,8 +435,10 @@ export default async function Page({
           .from("fortune_fives")
           .select("*")
           .gte("published_date", weekStart)
+          .lte("published_date", weekEnd)
           .order("published_date", { ascending: false })
           .range(from, to);
+
         return { data: result.data ?? [], error: result.error };
       },
     }),
@@ -240,6 +449,7 @@ export default async function Page({
           .select("*")
           .order("leg_number", { ascending: true })
           .range(from, to);
+
         return { data: result.data ?? [], error: result.error };
       },
     }),
@@ -249,7 +459,7 @@ export default async function Page({
   const raceMap = new Map(races.map((race) => [race.id, race]));
   const horseMap = new Map(horses.map((horse) => [horse.id, horse]));
 
-  const runnerOptions = runners
+  const runnerOptions: RunnerOption[] = runners
     .map((runner) => {
       const race = raceMap.get(runner.race_id);
       const meeting = race ? meetingMap.get(race.meeting_id) : null;
@@ -264,23 +474,23 @@ export default async function Page({
         horseLabel: `${horse.horse_name}${runner.barrier ? ` — Barrier ${runner.barrier}` : ""}`,
       };
     })
-    .filter(
-      (
-        item,
-      ): item is {
-        id: number;
-        raceId: number;
-        raceLabel: string;
-        horseLabel: string;
-      } => Boolean(item),
-    );
+    .filter((item): item is RunnerOption => Boolean(item));
 
   const legsByFortuneId = new Map<number, FortuneFiveLeg[]>();
+
   for (const leg of fortuneFiveLegs) {
     const existing = legsByFortuneId.get(leg.fortune_five_id) || [];
     existing.push(leg);
     legsByFortuneId.set(leg.fortune_five_id, existing);
   }
+
+  const liveFortuneFives = fortuneFives.filter(
+    (fortune) => !fortune.settled_at && fortune.status !== "void",
+  );
+
+  const resultedFortuneFives = fortuneFives.filter(
+    (fortune) => fortune.settled_at || fortune.status === "void",
+  );
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] p-4 text-white lg:p-8">
@@ -302,28 +512,35 @@ export default async function Page({
         </div>
 
         <Panel className="bg-white/95">
-          <form method="get" className="flex flex-wrap items-end gap-3 p-6 text-zinc-950">
-            <label className="text-sm font-medium text-zinc-700">
-              Select race date
-              <input
-                name="date"
-                type="date"
-                defaultValue={selectedDate}
-                className="mt-2 rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-              />
-            </label>
+          <div className="space-y-4 p-6 text-zinc-950">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">Race date filter</h2>
+                <p className="text-sm text-zinc-500">
+                  Pick the race date first. The multi builder will only show runners from that date.
+                </p>
+              </div>
 
-            <button
-              type="submit"
-              className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
-            >
-              Load Races
-            </button>
+              <form className="flex flex-wrap items-end gap-3">
+                <label className="text-sm font-medium text-zinc-700">
+                  Race date
+                  <input
+                    name="date"
+                    type="date"
+                    defaultValue={selectedDate}
+                    className="mt-2 rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                  />
+                </label>
 
-            <p className="text-sm text-zinc-500">
-              Runner options below are filtered to {formatDate(selectedDate)} only.
-            </p>
-          </form>
+                <button
+                  type="submit"
+                  className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                >
+                  Load Date
+                </button>
+              </form>
+            </div>
+          </div>
         </Panel>
 
         <Panel className="bg-white/95">
@@ -332,7 +549,7 @@ export default async function Page({
               <div>
                 <h2 className="text-xl font-semibold">Create Fortune on 5</h2>
                 <p className="text-sm text-zinc-500">
-                  Select five runners from loaded races. This stays separate from normal tips.
+                  Select five runners from the loaded race date. This stays separate from normal tips.
                 </p>
               </div>
               <Badge tone="amber">5-leg multi</Badge>
@@ -370,19 +587,26 @@ export default async function Page({
               />
             </label>
 
-            <div className="grid gap-4 lg:grid-cols-5">
-              {[1, 2, 3, 4, 5].map((legNumber) => (
-                <AdminFortuneFiveLegSelector
-                  key={legNumber}
-                  legNumber={legNumber}
-                  runnerOptions={runnerOptions}
-                />
-              ))}
-            </div>
+            {runnerOptions.length > 0 ? (
+              <div className="grid gap-4 lg:grid-cols-5">
+                {[1, 2, 3, 4, 5].map((legNumber) => (
+                  <AdminFortuneFiveLegSelector
+                    key={legNumber}
+                    legNumber={legNumber}
+                    runnerOptions={runnerOptions}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
+                No published runners are available for {formatDate(selectedDate)}.
+              </div>
+            )}
 
             <button
               type="submit"
-              className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+              disabled={runnerOptions.length === 0}
+              className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Publish Fortune on 5
             </button>
@@ -399,125 +623,50 @@ export default async function Page({
             </div>
 
             {fortuneFives.length > 0 ? (
-              <div className="grid gap-4 lg:grid-cols-2">
-                {fortuneFives.map((fortune) => {
-                  const legs = legsByFortuneId.get(fortune.id) || [];
-                  const isSettled = Boolean(fortune.settled_at) || fortune.status === "void";
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-lg font-bold text-zinc-900">
+                      Live / Active Multis
+                    </h3>
+                    <Badge tone="amber">{liveFortuneFives.length} live</Badge>
+                  </div>
 
-                  return (
-                    <div key={fortune.id} className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            {formatDate(fortune.published_date)}
-                          </p>
-                          <h3 className="mt-1 text-xl font-bold">{fortune.title}</h3>
-<form action={updateFortuneFiveNotesAction} className="mt-3 space-y-2">
-  <input type="hidden" name="fortune_five_id" value={fortune.id} />
-
-  <textarea
-    name="description"
-    defaultValue={fortune.description || ""}
-    placeholder="Update notes as the multi unfolds..."
-    className="min-h-[72px] w-full rounded-xl border border-zinc-300 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 outline-none transition focus:border-amber-300"
-  />
-
-  <button
-    type="submit"
-    className="rounded-xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900"
-  >
-    Update Notes
-  </button>
-</form>
-                        </div>
-                        {statusBadge(fortune)}
-                      </div>
-
-                      <div className="mt-4 space-y-2">
-                        {legs.map((leg) => (
-                          <div
-                            key={leg.id}
-                            className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3 text-sm"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                                  Leg {leg.leg_number} · {leg.bet_type}
-                                </p>
-                                <p className="mt-1 font-bold text-zinc-950">{leg.horse}</p>
-                                <p className="mt-1 text-zinc-600">{leg.race}</p>
-                              </div>
-                              {legStatusBadge(leg.won)}
-                            </div>
-
-                            <form action={updateFortuneFiveLegResultAction} className="mt-3 flex flex-wrap gap-2">
-                              <input type="hidden" name="leg_id" value={leg.id} />
-                              <button
-                                type="submit"
-                                name="result"
-                                value="won"
-                                className="rounded-xl bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
-                              >
-                                Tick Won
-                              </button>
-                              <button
-                                type="submit"
-                                name="result"
-                                value="lost"
-                                className="rounded-xl bg-rose-700 px-3 py-2 text-xs font-semibold text-white hover:bg-rose-800"
-                              >
-                                Mark Lost
-                              </button>
-                              <button
-  type="submit"
-  name="result"
-  value="scratched"
-  className="rounded-xl bg-zinc-500 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-600"
->
-  Scratched
-</button>
-                              <button
-                                type="submit"
-                                name="result"
-                                value="pending"
-                                className="rounded-xl bg-zinc-700 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
-                              >
-                                Reset Pending
-                              </button>
-                            </form>
-                          </div>
-                        ))}
-                      </div>
-
-                      {!isSettled ? (
-                        <form action={resultFortuneFiveAction} className="mt-4 flex flex-wrap gap-2">
-                          <input type="hidden" name="fortune_five_id" value={fortune.id} />
-                          <button
-                            name="result"
-                            value="won"
-                            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-                          >
-                            Result Won
-                          </button>
-                          <button
-                            name="result"
-                            value="lost"
-                            className="rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800"
-                          >
-                            Result Lost
-                          </button>
-                          <button
-                            name="result"
-                            value="void"
-                            className="rounded-xl bg-zinc-700 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
-                          >
-                            Void
-                          </button>
-                        </form>
-                      ) : null}
+                  {liveFortuneFives.length > 0 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      {liveFortuneFives.map((fortune) => (
+                        <FortuneFiveCard
+                          key={fortune.id}
+                          fortune={fortune}
+                          legs={legsByFortuneId.get(fortune.id) || []}
+                        />
+                      ))}
                     </div>
-                  );
-                })}
+                  ) : (
+                    <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center text-sm text-zinc-500">
+                      No live Fortune on 5 multis remain for this week.
+                    </div>
+                  )}
+                </div>
+
+                {resultedFortuneFives.length > 0 ? (
+                  <details className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-5">
+                    <summary className="cursor-pointer text-lg font-bold text-zinc-900">
+                      Resulted / Finished Multis ({resultedFortuneFives.length})
+                    </summary>
+
+                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                      {resultedFortuneFives.map((fortune) => (
+                        <FortuneFiveCard
+                          key={fortune.id}
+                          fortune={fortune}
+                          legs={legsByFortuneId.get(fortune.id) || []}
+                          collapsed
+                        />
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
               </div>
             ) : (
               <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center text-sm text-zinc-500">
