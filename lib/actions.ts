@@ -3525,58 +3525,59 @@ for (const raceRow of raceConditionRows || []) {
     String(meetingData?.track_condition || ""),
   );
 }
-  for (const update of updates) {
+ await Promise.all(
+  updates.map(async (update) => {
     if (
       update.finishing_position === null ||
       update.finishing_position === undefined ||
       update.finishing_position <= 0
     ) {
-      continue;
+      return;
     }
 
     const matchingRunner = runnersById.get(update.id);
     const horseId = Number(matchingRunner?.horse_id);
 
-    if (!horseId) continue;
+    if (!horseId) return;
 
     let horseRow = horseRowsById.get(horseId) || null;
 
-    // create missing horse row safely
     if (!horseRow) {
       const horseName =
         String(matchingRunner?.horse_name || "").trim() || "Unknown horse";
 
-      const { data: createdHorseRow, error: createHorseError } = await supabase
-        .from("horses")
-.insert({
-  id: horseId,
-  horse_name: horseName,
-  normalised_name: normaliseHorseName(horseName),
+      const { data: createdHorseRow, error: createHorseError } =
+        await supabase
+          .from("horses")
+          .insert({
+            id: horseId,
+            horse_name: horseName,
+            normalised_name: normaliseHorseName(horseName),
 
-  form_last_6: null,
-  track_form_last_6: null,
-  distance_form_last_6: null,
+            form_last_6: null,
+            track_form_last_6: null,
+            distance_form_last_6: null,
 
-  good_track_record: null,
-  soft_track_record: null,
-  heavy_track_record: null,
-  synthetic_track_record: null,
-})
-.select(`
-  id,
-  horse_name,
-  form_last_6,
-  track_form_last_6,
-  distance_form_last_6,
-  good_track_record,
-  soft_track_record,
-  heavy_track_record,
-  synthetic_track_record
-`)
-        .single();
+            good_track_record: null,
+            soft_track_record: null,
+            heavy_track_record: null,
+            synthetic_track_record: null,
+          })
+          .select(`
+            id,
+            horse_name,
+            form_last_6,
+            track_form_last_6,
+            distance_form_last_6,
+            good_track_record,
+            soft_track_record,
+            heavy_track_record,
+            synthetic_track_record
+          `)
+          .single();
 
       if (createHorseError) {
-        return { success: false, error: createHorseError.message };
+        throw new Error(createHorseError.message);
       }
 
       horseRow = createdHorseRow;
@@ -3595,65 +3596,65 @@ for (const raceRow of raceConditionRows || []) {
       horseRow?.distance_form_last_6 ||
       String(matchingRunner?.distance_form_last_6 || "");
 
-const trackCondition = String(
-  raceConditionByRaceId.get(Number(matchingRunner?.race_id)) || "",
-).toLowerCase();
+    const trackCondition = String(
+      raceConditionByRaceId.get(Number(matchingRunner?.race_id)) || "",
+    ).toLowerCase();
 
-const { error: horseUpdateError } = await supabase
-  .from("horses")
-  .update({
-    form_last_6: updateFormStringWithResult(
-      existingHorseForm || null,
-      Number(update.finishing_position),
-    ),
-
-    track_form_last_6: updateStatRecordWithResult(
-      existingTrackForm || null,
-      Number(update.finishing_position),
-    ),
-
-    distance_form_last_6: updateStatRecordWithResult(
-      existingDistanceForm || null,
-      Number(update.finishing_position),
-    ),
-
-    good_track_record: trackCondition.startsWith("good")
-      ? updateStatRecordWithResult(
-          horseRow?.good_track_record || null,
+    const { error: horseUpdateError } = await supabase
+      .from("horses")
+      .update({
+        form_last_6: updateFormStringWithResult(
+          existingHorseForm || null,
           Number(update.finishing_position),
-        )
-      : horseRow?.good_track_record || null,
+        ),
 
-    soft_track_record: trackCondition.startsWith("soft")
-      ? updateStatRecordWithResult(
-          horseRow?.soft_track_record || null,
+        track_form_last_6: updateStatRecordWithResult(
+          existingTrackForm || null,
           Number(update.finishing_position),
-        )
-      : horseRow?.soft_track_record || null,
+        ),
 
-    heavy_track_record: trackCondition.startsWith("heavy")
-      ? updateStatRecordWithResult(
-          horseRow?.heavy_track_record || null,
+        distance_form_last_6: updateStatRecordWithResult(
+          existingDistanceForm || null,
           Number(update.finishing_position),
-        )
-      : horseRow?.heavy_track_record || null,
+        ),
 
-    synthetic_track_record: trackCondition.startsWith("synthetic")
-      ? updateStatRecordWithResult(
-          horseRow?.synthetic_track_record || null,
-          Number(update.finishing_position),
-        )
-      : horseRow?.synthetic_track_record || null,
+        good_track_record: trackCondition.startsWith("good")
+          ? updateStatRecordWithResult(
+              horseRow?.good_track_record || null,
+              Number(update.finishing_position),
+            )
+          : horseRow?.good_track_record || null,
 
-    updated_at: now,
-  })
-  .eq("id", horseId);
+        soft_track_record: trackCondition.startsWith("soft")
+          ? updateStatRecordWithResult(
+              horseRow?.soft_track_record || null,
+              Number(update.finishing_position),
+            )
+          : horseRow?.soft_track_record || null,
 
-if (horseUpdateError) {
-  return { success: false, error: horseUpdateError.message };
-}
-  }
-}
+        heavy_track_record: trackCondition.startsWith("heavy")
+          ? updateStatRecordWithResult(
+              horseRow?.heavy_track_record || null,
+              Number(update.finishing_position),
+            )
+          : horseRow?.heavy_track_record || null,
+
+        synthetic_track_record: trackCondition.startsWith("synthetic")
+          ? updateStatRecordWithResult(
+              horseRow?.synthetic_track_record || null,
+              Number(update.finishing_position),
+            )
+          : horseRow?.synthetic_track_record || null,
+
+        updated_at: now,
+      })
+      .eq("id", horseId);
+
+    if (horseUpdateError) {
+      throw new Error(horseUpdateError.message);
+    }
+  }),
+);
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
