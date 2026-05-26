@@ -291,7 +291,7 @@ function scoreImportedRecentForm(form?: string | null) {
     } else if (pos <= 8) {
       points += 2 * recencyWeight;
     } else {
-      points -= 4 * recencyWeight;
+      points -= 7 * recencyWeight;
     }
   });
 
@@ -374,7 +374,7 @@ function scoreRecentForm(historyRuns: HistoryRun[]) {
     else if (pos === 3) points += 10 * recencyWeight;
     else if (pos <= 5) points += 6 * recencyWeight;
     else if (pos <= 8) points += 2 * recencyWeight;
-    else points -= 4 * recencyWeight;
+    else points -= 7 * recencyWeight;
   });
 
   const avg = points / recent.length;
@@ -523,10 +523,10 @@ function scoreBarrier(
   }
 
 if (distance && distance <= 1200) {
-  if (barrier <= 4) return 82;
-  if (barrier <= 8) return 60;
-  if (barrier <= 12) return 44;
-  return 34;
+  if (barrier <= 4) return 76;
+  if (barrier <= 8) return 62;
+  if (barrier <= 12) return 50;
+  return 42;
 }
 
 if (distance && distance <= 1400) {
