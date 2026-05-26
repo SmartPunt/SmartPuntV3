@@ -3655,7 +3655,7 @@ for (const raceRow of raceConditionRows || []) {
     }
   }),
 );
-
+}
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
