@@ -1089,7 +1089,7 @@ for (const runner of settledRunners || []) {
     console.error("Calculator tip settlement sync failed:", tipUpdateError);
   }
 }
-
+}
     revalidatePath("/admin/calculator-report");
   } catch (error) {
     console.error("Load calculator report results failed:", error);
