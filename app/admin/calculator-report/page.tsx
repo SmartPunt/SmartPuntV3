@@ -1,3 +1,4 @@
+import { loadCalculatorReportResultsAction } from "@/lib/actions";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
@@ -733,7 +734,7 @@ export default async function CalculatorReportPage({
             </div>
 
             <form
-              className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto]"
+className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]"
               action="/admin/calculator-report"
             >
               <div>
@@ -778,6 +779,19 @@ export default async function CalculatorReportPage({
                   Export CSV
                 </a>
               </div>
+              <div className="flex items-end">
+  <form action={loadCalculatorReportResultsAction}>
+    <input type="hidden" name="from" value={dateFrom || ""} />
+    <input type="hidden" name="to" value={dateTo || ""} />
+
+    <button
+      type="submit"
+      className="w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-400"
+    >
+      Load Calculator Results
+    </button>
+  </form>
+</div>
             </form>
 
             <div className="mt-4 flex flex-wrap gap-2">
