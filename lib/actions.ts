@@ -999,7 +999,72 @@ function getRaceGapForRunner(runnerId: number) {
     body: JSON.stringify(payload),
   });
 }
+export async function loadCalculatorReportResultsAction(
+  formData: FormData,
+): Promise<void> {
+  try {
+    await requireRacingAdmin();
 
+    const supabase = await createClient();
+
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Australia/Perth",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    const dateFrom = String(formData.get("from") ?? "").trim() || today;
+    const dateTo = String(formData.get("to") ?? "").trim() || today;
+
+    const { data: closedRaces, error: raceError } = await supabase
+      .from("races")
+      .select("id, status, meetings(meeting_date)")
+      .eq("status", "closed");
+
+    if (raceError) {
+      throw new Error(raceError.message);
+    }
+
+    const racesToCheck = (closedRaces || []).filter((race: any) => {
+      const meetingDate = race?.meetings?.meeting_date;
+
+      if (!meetingDate) return false;
+
+      return meetingDate >= dateFrom && meetingDate <= dateTo;
+    });
+
+    for (const race of racesToCheck) {
+      const raceId = Number((race as any).id);
+
+      if (!raceId) continue;
+
+      const { data: existingPredictions, error: predictionError } =
+        await supabase
+          .from("calculator_predictions")
+          .select("id")
+          .eq("race_id", raceId)
+          .eq("scoring_version", SMARTPUNT_SCORING_VERSION)
+          .limit(1);
+
+      if (predictionError) {
+        throw new Error(predictionError.message);
+      }
+
+      if (existingPredictions && existingPredictions.length > 0) {
+        continue;
+      }
+
+      await saveCalculatorPredictionsForRace(raceId, {
+        excludeScratched: true,
+      });
+    }
+
+    revalidatePath("/admin/calculator-report");
+  } catch (error) {
+    console.error("Load calculator report results failed:", error);
+  }
+}
 async function updateCalculatorPredictionResultsForRace(
   raceId: number,
   updates: Array<{
