@@ -3403,9 +3403,8 @@ await Promise.all(
   );
 }
 try {
-  for (const update of updates) {
-await Promise.all(
-  updates.map(async (update) => {
+  await Promise.all(
+    updates.map(async (update) => {
     const finishingPosition = update.finishing_position;
 
     const won = finishingPosition === 1;
