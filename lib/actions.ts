@@ -1278,21 +1278,21 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
     });
   }
 
-  for (const update of updates) {
-    const { error } = await supabase
-      .from("suggested_tips")
-      .update({
-        finishing_position: update.finishing_position,
-        successful: update.successful,
-        settled_at: update.settled_at,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", update.id);
+for (const update of updates) {
+  const { error } = await supabase
+    .from("suggested_tips")
+    .update({
+      finishing_position: update.finishing_position,
+      successful: update.successful,
+      settled_at: update.settled_at,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", update.id);
 
-    if (error) {
-      throw new Error(error.message);
-    }
+  if (error) {
+    throw new Error(error.message);
   }
+}
 }
 
 export async function toggleSubscriberEmailAlertsAction(
