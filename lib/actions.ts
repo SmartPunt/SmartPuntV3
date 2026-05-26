@@ -1456,44 +1456,6 @@ export async function createMeetingAction(
       return { success: false, error: "Meeting name and date are required." };
     }
 
-    const { data: existingMeetings, error: existingError } = await supabase
-      .from("meetings")
-      .select("id, meeting_name, meeting_date, track_condition")
-      .eq("meeting_date", meetingDate)
-      .ilike("meeting_name", meetingName)
-      .limit(1);
-
-    if (existingError) {
-      return { success: false, error: existingError.message };
-    }
-
-    const existingMeeting = existingMeetings?.[0] || null;
-
-    if (existingMeeting) {
-      if (trackCondition) {
-        const { error: updateError } = await supabase
-          .from("meetings")
-          .update({
-            track_condition: trackCondition,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existingMeeting.id);
-
-        if (updateError) {
-          return { success: false, error: updateError.message };
-        }
-      }
-
-      revalidatePath("/admin/race-builder");
-      revalidatePath("/current-races");
-      revalidatePath("/race-archive");
-
-      return {
-        success: true,
-        error: null,
-      };
-    }
-
     const { error } = await supabase.from("meetings").insert({
       meeting_name: meetingName,
       meeting_date: meetingDate,
@@ -1503,13 +1465,6 @@ export async function createMeetingAction(
     });
 
     if (error) {
-      if (error.code === "23505") {
-        return {
-          success: true,
-          error: null,
-        };
-      }
-
       return { success: false, error: error.message };
     }
 
@@ -1525,6 +1480,7 @@ export async function createMeetingAction(
     };
   }
 }
+
 export async function deleteMeetingAction(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -1598,51 +1554,12 @@ export async function createRaceAction(
 
     const distanceValue = distanceRaw ? Number(distanceRaw) : null;
     const raceName = raceNameRaw || `Race ${raceNumber}`;
-    const safeDistance =
-      distanceValue !== null && Number.isNaN(distanceValue) ? null : distanceValue;
-
-    const { data: existingRaces, error: existingError } = await supabase
-      .from("races")
-      .select("id, race_number, race_name, distance_m, status")
-      .eq("meeting_id", meetingId)
-      .eq("race_number", raceNumber)
-      .limit(1);
-
-    if (existingError) {
-      return { success: false, error: existingError.message };
-    }
-
-    const existingRace = existingRaces?.[0] || null;
-
-    if (existingRace) {
-      const { error: updateError } = await supabase
-        .from("races")
-        .update({
-          race_name: raceName,
-          distance_m: safeDistance,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existingRace.id);
-
-      if (updateError) {
-        return { success: false, error: updateError.message };
-      }
-
-      revalidatePath("/admin/race-builder");
-      revalidatePath("/current-races");
-      revalidatePath("/race-archive");
-
-      return {
-        success: true,
-        error: null,
-      };
-    }
 
     const { error } = await supabase.from("races").insert({
       meeting_id: meetingId,
       race_number: raceNumber,
       race_name: raceName,
-      distance_m: safeDistance,
+      distance_m: Number.isNaN(distanceValue as number) ? null : distanceValue,
       status: "draft",
       published_at: null,
       created_by: profile.id,
@@ -1652,11 +1569,10 @@ export async function createRaceAction(
     if (error) {
       if (error.code === "23505") {
         return {
-          success: true,
-          error: null,
+          success: false,
+          error: "That race number already exists for this meeting.",
         };
       }
-
       return { success: false, error: error.message };
     }
 
@@ -1671,6 +1587,7 @@ export async function createRaceAction(
     };
   }
 }
+
 export async function toggleRacePublishAction(
   formData: FormData,
 ): Promise<ActionResult> {
