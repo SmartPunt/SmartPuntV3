@@ -1058,6 +1058,35 @@ export async function loadCalculatorReportResultsAction(
       await saveCalculatorPredictionsForRace(raceId, {
         excludeScratched: true,
       });
+      const { data: settledRunners, error: settledRunnerError } = await supabase
+  .from("race_runners")
+  .select(`
+    id,
+    finishing_position,
+    won,
+    placed,
+    settled_at
+  `)
+  .eq("race_id", raceId);
+
+if (settledRunnerError) {
+  throw new Error(settledRunnerError.message);
+}
+
+await Promise.all(
+  (settledRunners || []).map((runner: any) =>
+    serviceRolePatch(
+      `smartpunt_calculator_tips?race_id=eq.${raceId}&race_runner_id=eq.${runner.id}`,
+      {
+        finishing_position: runner.finishing_position,
+        won: runner.won,
+        placed: runner.placed,
+        settled_at: runner.settled_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ),
+  ),
+);
     }
 
     revalidatePath("/admin/calculator-report");
