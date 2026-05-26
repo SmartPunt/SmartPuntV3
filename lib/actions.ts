@@ -1051,13 +1051,11 @@ export async function loadCalculatorReportResultsAction(
         throw new Error(predictionError.message);
       }
 
-      if (existingPredictions && existingPredictions.length > 0) {
-        continue;
-      }
-
-      await saveCalculatorPredictionsForRace(raceId, {
-        excludeScratched: true,
-      });
+if (!existingPredictions || existingPredictions.length === 0) {
+  await saveCalculatorPredictionsForRace(raceId, {
+    excludeScratched: true,
+  });
+}
       const { data: settledRunners, error: settledRunnerError } = await supabase
   .from("race_runners")
   .select(`
