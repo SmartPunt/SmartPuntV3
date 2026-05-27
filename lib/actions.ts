@@ -1020,7 +1020,7 @@ export async function loadCalculatorReportResultsAction(
     const { data: closedRaces, error: raceError } = await supabase
       .from("races")
       .select("id, status, meetings(meeting_date)")
-      .eq("status", "closed");
+.not("status", "eq", "draft");
 
     if (raceError) {
       throw new Error(raceError.message);
