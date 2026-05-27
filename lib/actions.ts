@@ -1070,7 +1070,13 @@ if (!existingPredictions || existingPredictions.length === 0) {
 if (settledRunnerError) {
   throw new Error(settledRunnerError.message);
 }
+const hasResults = (settledRunners || []).some(
+  (runner: any) => runner.finishing_position !== null,
+);
 
+if (!hasResults) {
+  continue;
+}
 for (const runner of settledRunners || []) {
   const { error: tipUpdateError } = await supabase
     .from("smartpunt_calculator_tips")
