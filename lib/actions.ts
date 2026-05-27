@@ -1078,6 +1078,9 @@ if (!hasResults) {
   continue;
 }
 for (const runner of settledRunners || []) {
+
+  console.log("SYNCING RUNNER", raceId, runner.id);
+
   const { error: tipUpdateError } = await supabase
     .from("smartpunt_calculator_tips")
     .update({
