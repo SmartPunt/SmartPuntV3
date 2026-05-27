@@ -38,6 +38,13 @@ type Prediction = {
   horse?: { horse_name: string } | null;
 };
 
+type SmartPuntGeneratedTip = Prediction & {
+  smartPuntSuggestedBet: string;
+  smartPuntRaceConfidence: number;
+  smartPuntConfidenceTier: string;
+  smartPuntVolatility: string;
+};
+
 type RaceRow = {
   id: number;
   race_number: number;
@@ -66,28 +73,6 @@ type HorseRow = {
 type RaceRunnerRow = {
   id: number;
   horse_id: number | null;
-};
-
-type SmartPuntCalculatorTip = {
-  id: number;
-  race_id: number;
-  race_runner_id: number;
-  horse_id: number | null;
-  race: string | null;
-  horse: string | null;
-  bet_type: string | null;
-  score: number | string | null;
-  win_percent: number | null;
-  place_percent: number | null;
-  race_gap: number | null;
-  race_confidence_percent: number | null;
-  race_confidence_tier: string | null;
-  finishing_position: number | null;
-  won: boolean | null;
-  placed: boolean | null;
-  settled_at: string | null;
-  published_at: string | null;
-  race_row?: RaceWithMeeting | null;
 };
 
 function headers() {
@@ -324,7 +309,9 @@ function getRaceConfidenceForRows(rows: Prediction[]) {
   );
 }
 
-function getSmartPuntCalculatorTip(rows: Prediction[]) {
+function getSmartPuntCalculatorTip(
+  rows: Prediction[],
+): SmartPuntGeneratedTip | null {
   if (!rows.length) return null;
 
   const topRated = rows.find((row) => row.rank === 1) || rows[0] || null;
@@ -356,61 +343,6 @@ function filterByDate(rows: Prediction[], from: string, to: string) {
     if (from && meetingDate < from) return false;
     if (to && meetingDate > to) return false;
     return true;
-  });
-}
-
-function filterSmartPuntTipsByDate(
-  rows: SmartPuntCalculatorTip[],
-  from: string,
-  to: string,
-) {
-  return rows.filter((row) => {
-    const tipDate = isoDate(row.published_at);
-
-    if (!tipDate) return true;
-    if (from && tipDate < from) return false;
-    if (to && tipDate > to) return false;
-
-    return true;
-  });
-}
-
-async function fetchSmartPuntCalculatorTips() {
-  const tips = await serviceSelectAllRows<SmartPuntCalculatorTip>(
-    "smartpunt_calculator_tips?select=*&settled_at=not.is.null&order=settled_at.desc",
-  );
-
-  const raceIds = Array.from(
-    new Set(tips.map((row) => row.race_id).filter(Boolean)),
-  );
-
-  const races = await serviceSelectByIdChunks<RaceRow>({
-    table: "races",
-    select: "id,race_number,race_name,distance_m,meeting_id,status",
-    ids: raceIds,
-  });
-
-  const meetingIds = Array.from(
-    new Set(races.map((row) => row.meeting_id).filter(Boolean)),
-  );
-
-  const meetings = await serviceSelectByIdChunks<MeetingRow>({
-    table: "meetings",
-    select: "id,meeting_name,meeting_date,track_condition",
-    ids: meetingIds,
-  });
-
-  const raceMap = new Map(races.map((row) => [Number(row.id), row]));
-  const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
-
-  return tips.map((tip) => {
-    const race = raceMap.get(Number(tip.race_id)) || null;
-    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
-
-    return {
-      ...tip,
-      race_row: race ? { ...race, meeting } : null,
-    };
   });
 }
 
@@ -542,21 +474,11 @@ export default async function CalculatorReportPage({
   const dateTo = first(resolvedSearchParams.to);
 
   let predictions: Prediction[] = [];
-  let smartPuntCalculatorTips: SmartPuntCalculatorTip[] = [];
   let errorMessage = "";
 
   try {
-    const [allPredictions, allSmartPuntCalculatorTips] = await Promise.all([
-      fetchPredictions(),
-      fetchSmartPuntCalculatorTips(),
-    ]);
-
+    const allPredictions = await fetchPredictions();
     predictions = filterByDate(allPredictions, dateFrom, dateTo);
-    smartPuntCalculatorTips = filterSmartPuntTipsByDate(
-      allSmartPuntCalculatorTips,
-      dateFrom,
-      dateTo,
-    );
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -592,33 +514,48 @@ export default async function CalculatorReportPage({
     )
     .filter((row): row is Prediction => Boolean(row));
 
+  const calculatorGeneratedTips = raceGroups
+    .map((race) => getSmartPuntCalculatorTip(race.rows))
+    .filter((row): row is SmartPuntGeneratedTip => Boolean(row));
+
+  const calculatorNoBetRaces = Math.max(
+    totalRaces - calculatorGeneratedTips.length,
+    0,
+  );
+
   const topRatedWins = topRatedRows.filter(
     (row) => row.finishing_position === 1,
   ).length;
   const topRatedPlaces = topRatedRows.filter(
     (row) => row.finishing_position !== null && row.finishing_position <= 3,
   ).length;
-  const smartPuntWinTips = smartPuntCalculatorTips.filter((row) =>
-    String(row.bet_type || "").toLowerCase().includes("win"),
-  );
-  const smartPuntPlaceTips = smartPuntCalculatorTips.filter((row) =>
-    String(row.bet_type || "").toLowerCase().includes("place"),
-  );
-const smartPuntTipWins = smartPuntWinTips.filter(
-  (row) => row.won === true,
-).length;
 
-const smartPuntTipPlaces = smartPuntPlaceTips.filter(
-  (row) => row.placed === true,
-).length;
-  const smartPuntTipAvgConfidence = smartPuntCalculatorTips.length
+  const calculatorWinTips = calculatorGeneratedTips.filter((row) =>
+    String(row.smartPuntSuggestedBet || "").toLowerCase().includes("win"),
+  );
+  const calculatorPlaceTips = calculatorGeneratedTips.filter((row) =>
+    String(row.smartPuntSuggestedBet || "").toLowerCase().includes("place"),
+  );
+
+  const calculatorTipWins = calculatorWinTips.filter(
+    (row) => row.won === true || row.finishing_position === 1,
+  ).length;
+
+  const calculatorTipPlaces = calculatorPlaceTips.filter(
+    (row) =>
+      row.placed === true ||
+      (row.finishing_position !== null && row.finishing_position <= 3),
+  ).length;
+
+  const calculatorTipAvgConfidence = calculatorGeneratedTips.length
     ? Math.round(
-        smartPuntCalculatorTips.reduce(
-          (sum, row) => sum + Number(row.race_confidence_percent || 0),
+        calculatorGeneratedTips.reduce(
+          (sum, row) => sum + Number(row.smartPuntRaceConfidence || 0),
           0,
-        ) / smartPuntCalculatorTips.length,
+        ) / calculatorGeneratedTips.length,
       )
     : 0;
+
   const topThreeHitRaces = raceGroups.filter((race) =>
     race.rows.some((row) => row.rank <= 3 && row.finishing_position === 1),
   ).length;
@@ -747,42 +684,45 @@ const smartPuntTipPlaces = smartPuntPlaceTips.filter(
               </div>
             </div>
 
-            <form
-className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]"
-              action="/admin/calculator-report"
-            >
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                  Date from
-                </label>
-                <input
-                  type="date"
-                  name="from"
-                  defaultValue={dateFrom}
-                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
-                />
-              </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]">
+              <form
+                id="calculator-report-filter-form"
+                className="contents"
+                action="/admin/calculator-report"
+              >
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Date from
+                  </label>
+                  <input
+                    type="date"
+                    name="from"
+                    defaultValue={dateFrom}
+                    className="mt-2 w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
+                  />
+                </div>
 
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                  Date to
-                </label>
-                <input
-                  type="date"
-                  name="to"
-                  defaultValue={dateTo}
-                  className="mt-2 w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
-                />
-              </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                    Date to
+                  </label>
+                  <input
+                    type="date"
+                    name="to"
+                    defaultValue={dateTo}
+                    className="mt-2 w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
+                  />
+                </div>
 
-              <div className="flex items-end">
-                <button
-                  type="submit"
-                  className="w-full rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
-                >
-                  Apply Filter
-                </button>
-              </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    className="w-full rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+                  >
+                    Apply Filter
+                  </button>
+                </div>
+              </form>
 
               <div className="flex items-end">
                 <a
@@ -793,20 +733,22 @@ className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]"
                   Export CSV
                 </a>
               </div>
-              <div className="flex items-end">
-  <form action={loadCalculatorReportResultsAction}>
-    <input type="hidden" name="from" value={dateFrom || ""} />
-    <input type="hidden" name="to" value={dateTo || ""} />
 
-    <button
-      type="submit"
-      className="w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-400"
-    >
-      Load Calculator Results
-    </button>
-  </form>
-</div>
-            </form>
+              <form
+                action={loadCalculatorReportResultsAction}
+                className="flex items-end"
+              >
+                <input type="hidden" name="from" value={dateFrom || ""} />
+                <input type="hidden" name="to" value={dateTo || ""} />
+
+                <button
+                  type="submit"
+                  className="w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-400"
+                >
+                  Load Calculator Results
+                </button>
+              </form>
+            </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {dateFrom || dateTo ? (
@@ -853,43 +795,44 @@ className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]"
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-white">
-                SmartPunt calculator tips only
+                SmartPunt calculator opportunities
               </h2>
               <p className="mt-1 text-sm text-zinc-300">
-                Measures the published SmartPunt Calculator tips after those
-                races have been resulted and settled.
+                Measures every calculator-generated opportunity from final
+                settled prediction snapshots, whether or not it was published to
+                subscribers.
               </p>
             </div>
-            <Badge tone="amber">Final settled snapshots</Badge>
+            <Badge tone="amber">Report-only calculator reads</Badge>
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard
               label="Tip win strike"
-              value={`${percent(smartPuntTipWins, smartPuntWinTips.length)}%`}
-              hint={`${smartPuntTipWins}/${smartPuntWinTips.length} SmartPunt calculator win tips won.`}
+              value={`${percent(calculatorTipWins, calculatorWinTips.length)}%`}
+              hint={`${calculatorTipWins}/${calculatorWinTips.length} calculator win opportunities won.`}
               tone="green"
             />
             <StatCard
               label="Tip place strike"
-              value={`${percent(smartPuntTipPlaces, smartPuntPlaceTips.length)}%`}
-              hint={`${smartPuntTipPlaces}/${smartPuntPlaceTips.length} SmartPunt calculator place tips placed.`}
+              value={`${percent(calculatorTipPlaces, calculatorPlaceTips.length)}%`}
+              hint={`${calculatorTipPlaces}/${calculatorPlaceTips.length} calculator place opportunities placed.`}
               tone="blue"
             />
             <StatCard
               label="Tip volume"
-              value={smartPuntCalculatorTips.length}
-              hint={`${smartPuntCalculatorTips.length} published calculator tips have settled in this date range.`}
+              value={calculatorGeneratedTips.length}
+              hint={`${calculatorGeneratedTips.length} calculator opportunities generated. ${calculatorNoBetRaces} races were No Bet.`}
               tone="amber"
             />
             <StatCard
               label="Avg race confidence"
               value={
-                smartPuntCalculatorTips.length
-                  ? `${smartPuntTipAvgConfidence}%`
+                calculatorGeneratedTips.length
+                  ? `${calculatorTipAvgConfidence}%`
                   : "—"
               }
-              hint="Average race-confidence score across SmartPunt calculator tips only."
+              hint="Average race-confidence score across calculator-generated opportunities."
               tone="slate"
             />
           </div>
@@ -1002,8 +945,8 @@ className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]"
                               Winner:{" "}
                               {raceWinner ? getHorseName(raceWinner) : "—"}
                               {smartPuntTip
-                                ? ` · SmartPunt tip: ${getHorseName(smartPuntTip)}`
-                                : " · SmartPunt tip: No Bet"}
+                                ? ` · Calculator opportunity: ${getHorseName(smartPuntTip)}`
+                                : " · Calculator opportunity: No Bet"}
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
@@ -1069,7 +1012,7 @@ className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]"
 
                           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-                              SmartPunt calculator tip
+                              SmartPunt calculator opportunity
                             </p>
                             <p className="mt-2 font-bold text-zinc-950">
                               {smartPuntTip
@@ -1079,7 +1022,7 @@ className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]"
                             <p className="mt-1 text-sm text-zinc-600">
                               {smartPuntTip
                                 ? `${smartPuntTip.smartPuntSuggestedBet} · Confidence ${smartPuntTip.smartPuntRaceConfidence}% · ${smartPuntTip.smartPuntConfidenceTier}`
-                                : "Confidence layer did not find enough edge for a SmartPunt calculator tip."}
+                                : "Confidence layer did not find enough edge for a SmartPunt calculator opportunity."}
                             </p>
                           </div>
 
