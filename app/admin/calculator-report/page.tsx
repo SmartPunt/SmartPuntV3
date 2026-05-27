@@ -352,7 +352,10 @@ function filterSmartPuntTipsByDate(
   to: string,
 ) {
   return rows.filter((row) => {
-    const meetingDate = isoDate(row.race_row?.meeting?.meeting_date);
+    const meetingDate =
+      isoDate(row.race_row?.meeting?.meeting_date) ||
+      isoDate(row.settled_at) ||
+      isoDate(row.published_at);
 
     if (!meetingDate) return true;
     if (from && meetingDate < from) return false;
