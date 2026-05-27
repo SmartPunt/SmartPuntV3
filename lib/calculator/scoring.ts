@@ -486,23 +486,64 @@ function scoreConditionSuitability(
   if (!currentCondition) return 50;
 
   const target = getConditionBucket(currentCondition);
+
   const matchingRuns = historyRuns.filter(
     (run) => getConditionBucket(run.meeting?.track_condition) === target,
   );
 
-  if (!matchingRuns.length) return 50;
+  // UNKNOWN = slight caution instead of neutral
+  if (!matchingRuns.length) {
+    return target === "Heavy" ? 44 : 48;
+  }
 
   const places = matchingRuns.filter((run) => {
     const pos = run.finishing_position;
-    return pos !== null && pos !== undefined && pos <= 3;
+
+    return (
+      pos !== null &&
+      pos !== undefined &&
+      pos <= 3
+    );
   }).length;
 
-  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
+  const wins = matchingRuns.filter(
+    (run) => run.finishing_position === 1,
+  ).length;
+
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
-  const rawScore = Math.round(40 + placeRate * 34 + winRate * 18);
-  return evidenceCap(rawScore, matchingRuns.length);
+  // MUCH wider spread for wet-track suitability
+  let rawScore = Math.round(
+    28 +
+      placeRate * 42 +
+      winRate * 34,
+  );
+
+  // STRONG wet-track bonuses
+  if (target === "Heavy") {
+    if (matchingRuns.length >= 4 && winRate >= 0.35) {
+      rawScore += 10;
+    } else if (matchingRuns.length >= 3 && placeRate >= 0.66) {
+      rawScore += 6;
+    }
+  }
+
+  // PENALISE repeated failures
+  if (matchingRuns.length >= 3 && placeRate <= 0.2) {
+    rawScore -= 10;
+  }
+
+  // lighter evidence dampening for conditions
+  if (matchingRuns.length === 1) {
+    return clamp(rawScore, 30, 68);
+  }
+
+  if (matchingRuns.length === 2) {
+    return clamp(rawScore, 28, 78);
+  }
+
+  return clamp(rawScore, 20, 95);
 }
 
 function scoreBarrier(
