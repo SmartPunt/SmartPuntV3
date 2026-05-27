@@ -1,4 +1,3 @@
-import { loadCalculatorReportResultsAction } from "@/lib/actions";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
@@ -732,23 +731,6 @@ export default async function CalculatorReportPage({
                 >
                   Export CSV
                 </a>
-              </div>
-
-              <form
-                action={loadCalculatorReportResultsAction}
-                className="flex items-end"
-              >
-                <input type="hidden" name="from" value={dateFrom || ""} />
-                <input type="hidden" name="to" value={dateTo || ""} />
-
-                <button
-                  type="submit"
-                  className="w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-semibold text-black transition hover:bg-amber-400"
-                >
-                  Load Calculator Results
-                </button>
-              </form>
-            </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {dateFrom || dateTo ? (
