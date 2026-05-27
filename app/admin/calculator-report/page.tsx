@@ -364,7 +364,7 @@ function filterSmartPuntTipsByDate(
 
 async function fetchSmartPuntCalculatorTips() {
   const tips = await serviceSelectAllRows<SmartPuntCalculatorTip>(
-    "smartpunt_calculator_tips?select=*&settled_at=not.is.null&finishing_position=not.is.null&order=settled_at.desc",
+    "smartpunt_calculator_tips?select=*&settled_at=not.is.null&order=settled_at.desc",
   );
 
   const raceIds = Array.from(
