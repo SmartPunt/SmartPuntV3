@@ -731,6 +731,7 @@ export default async function CalculatorReportPage({
                 >
                   Export CSV
                 </a>
+              </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {dateFrom || dateTo ? (
