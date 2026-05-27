@@ -1017,28 +1017,25 @@ export async function loadCalculatorReportResultsAction(
     const dateFrom = String(formData.get("from") ?? "").trim() || today;
     const dateTo = String(formData.get("to") ?? "").trim() || today;
 
-    const { data: closedRaces, error: raceError } = await supabase
-      .from("races")
-      .select("id, status, meetings(meeting_date)")
-.not("status", "eq", "draft");
+    const { data: calculatorTips, error: tipsError } = await supabase
+      .from("smartpunt_calculator_tips")
+      .select("*")
+      .gte("published_at", `${dateFrom}T00:00:00`)
+      .lte("published_at", `${dateTo}T23:59:59`);
 
-    if (raceError) {
-      throw new Error(raceError.message);
+    if (tipsError) {
+      throw new Error(tipsError.message);
     }
 
-    const racesToCheck = (closedRaces || []).filter((race: any) => {
-      const meetingDate = race?.meetings?.meeting_date;
+    const raceIds = Array.from(
+      new Set(
+        (calculatorTips || [])
+          .map((tip: any) => Number(tip.race_id))
+          .filter(Boolean),
+      ),
+    );
 
-      if (!meetingDate) return false;
-
-      return meetingDate >= dateFrom && meetingDate <= dateTo;
-    });
-
-    for (const race of racesToCheck) {
-      const raceId = Number((race as any).id);
-
-      if (!raceId) continue;
-
+    for (const raceId of raceIds) {
       const { data: existingPredictions, error: predictionError } =
         await supabase
           .from("calculator_predictions")
@@ -1051,54 +1048,58 @@ export async function loadCalculatorReportResultsAction(
         throw new Error(predictionError.message);
       }
 
-if (!existingPredictions || existingPredictions.length === 0) {
-  await saveCalculatorPredictionsForRace(raceId, {
-    excludeScratched: true,
-  });
-}
-      const { data: settledRunners, error: settledRunnerError } = await supabase
-  .from("race_runners")
-  .select(`
-    id,
-    finishing_position,
-    won,
-    placed,
-    settled_at
-  `)
-  .eq("race_id", raceId);
+      if (!existingPredictions || existingPredictions.length === 0) {
+        await saveCalculatorPredictionsForRace(raceId, {
+          excludeScratched: true,
+        });
+      }
+    }
 
-if (settledRunnerError) {
-  throw new Error(settledRunnerError.message);
-}
-const hasResults = (settledRunners || []).some(
-  (runner: any) => runner.finishing_position !== null,
-);
+    if (raceIds.length > 0) {
+      const { data: settledRunners, error: settledRunnerError } =
+        await supabase
+          .from("race_runners")
+          .select("id, race_id, finishing_position, won, placed, settled_at")
+          .in("race_id", raceIds);
 
-if (!hasResults) {
-  continue;
-}
-for (const runner of settledRunners || []) {
+      if (settledRunnerError) {
+        throw new Error(settledRunnerError.message);
+      }
 
-  console.log("SYNCING RUNNER", raceId, runner.id);
+      const runnerResultById = new Map<number, any>();
 
-  const { error: tipUpdateError } = await supabase
-    .from("smartpunt_calculator_tips")
-    .update({
-      finishing_position: runner.finishing_position,
-      won: runner.won,
-      placed: runner.placed,
-      settled_at: runner.settled_at || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      status: "settled",
-    })
-    .eq("race_id", raceId)
-    .eq("race_runner_id", runner.id);
+      for (const runner of settledRunners || []) {
+        if (
+          runner.finishing_position !== null &&
+          runner.finishing_position !== undefined
+        ) {
+          runnerResultById.set(Number(runner.id), runner);
+        }
+      }
 
-  if (tipUpdateError) {
-    console.error("Calculator tip settlement sync failed:", tipUpdateError);
-  }
-}
-}
+      for (const tip of calculatorTips || []) {
+        const runner = runnerResultById.get(Number((tip as any).race_runner_id));
+
+        if (!runner) continue;
+
+        const { error: updateError } = await supabase
+          .from("smartpunt_calculator_tips")
+          .update({
+            finishing_position: runner.finishing_position,
+            won: runner.won,
+            placed: runner.placed,
+            settled_at: runner.settled_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            status: "settled",
+          })
+          .eq("id", (tip as any).id);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+      }
+    }
+
     revalidatePath("/admin/calculator-report");
   } catch (error) {
     console.error("Load calculator report results failed:", error);
