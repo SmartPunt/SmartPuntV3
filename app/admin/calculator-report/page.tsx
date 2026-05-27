@@ -684,6 +684,7 @@ export default async function CalculatorReportPage({
             </div>
 
             <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]">
+            <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto]">
               <form
                 id="calculator-report-filter-form"
                 className="contents"
@@ -732,7 +733,7 @@ export default async function CalculatorReportPage({
                   Export CSV
                 </a>
               </div>
-
+            </div>
             <div className="mt-4 flex flex-wrap gap-2">
               {dateFrom || dateTo ? (
                 <Badge tone="blue">
