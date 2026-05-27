@@ -645,7 +645,7 @@ export default async function CalculatorReportPage({
           </div>
         </div>
 
-        <Panel className="mt-6 bg-white/95">
+          <Panel className="mt-6 bg-white/95">
           <div className="p-6 text-zinc-950">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -683,7 +683,6 @@ export default async function CalculatorReportPage({
               </div>
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto_auto]">
             <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_auto_auto]">
               <form
                 id="calculator-report-filter-form"
@@ -734,6 +733,7 @@ export default async function CalculatorReportPage({
                 </a>
               </div>
             </div>
+
             <div className="mt-4 flex flex-wrap gap-2">
               {dateFrom || dateTo ? (
                 <Badge tone="blue">
