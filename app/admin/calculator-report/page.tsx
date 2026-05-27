@@ -222,12 +222,17 @@ function isoDate(value?: string | null) {
 
   if (Number.isNaN(date.getTime())) return "";
 
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Australia/Perth",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  const perthDate = new Date(
+    date.toLocaleString("en-US", {
+      timeZone: "Australia/Perth",
+    }),
+  );
+
+  const year = perthDate.getFullYear();
+  const month = String(perthDate.getMonth() + 1).padStart(2, "0");
+  const day = String(perthDate.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function formatDate(value?: string | null) {
