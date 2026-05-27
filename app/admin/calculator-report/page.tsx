@@ -594,12 +594,13 @@ export default async function CalculatorReportPage({
   const smartPuntPlaceTips = smartPuntCalculatorTips.filter((row) =>
     String(row.bet_type || "").toLowerCase().includes("place"),
   );
-  const smartPuntTipWins = smartPuntWinTips.filter(
-    (row) => row.finishing_position === 1,
-  ).length;
-  const smartPuntTipPlaces = smartPuntPlaceTips.filter(
-    (row) => row.finishing_position !== null && row.finishing_position <= 3,
-  ).length;
+const smartPuntTipWins = smartPuntWinTips.filter(
+  (row) => row.won === true,
+).length;
+
+const smartPuntTipPlaces = smartPuntPlaceTips.filter(
+  (row) => row.placed === true,
+).length;
   const smartPuntTipAvgConfidence = smartPuntCalculatorTips.length
     ? Math.round(
         smartPuntCalculatorTips.reduce(
