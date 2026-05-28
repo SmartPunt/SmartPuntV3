@@ -155,13 +155,7 @@ function formatHorseMeta(horse: Horse | null) {
 }
 
 function normaliseName(value: string) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[‘’`´]/g, "'")
-    .replace(/['"]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function formatFormString(positions: Array<number | null | undefined>) {
@@ -886,9 +880,37 @@ useEffect(() => {
         return;
       }
 
+      if (result.meeting) {
+        setMeetings((prev) => {
+          const existingIndex = prev.findIndex(
+            (meeting) => Number(meeting.id) === Number(result.meeting.id),
+          );
+
+          const nextMeetings =
+            existingIndex >= 0
+              ? prev.map((meeting) =>
+                  Number(meeting.id) === Number(result.meeting.id)
+                    ? result.meeting
+                    : meeting,
+                )
+              : [result.meeting, ...prev];
+
+          return [...nextMeetings].sort((a, b) => {
+            const dateCompare = String(b.meeting_date || "").localeCompare(
+              String(a.meeting_date || ""),
+            );
+
+            if (dateCompare !== 0) return dateCompare;
+
+            return String(a.meeting_name || "").localeCompare(
+              String(b.meeting_name || ""),
+            );
+          });
+        });
+      }
+
       clearMeetingForm();
       setSuccess("Meeting added to Race Builder.");
-      router.refresh();
     });
   }
 
@@ -941,9 +963,33 @@ useEffect(() => {
         return;
       }
 
+      if (result.race) {
+        setRaces((prev) => {
+          const existingIndex = prev.findIndex(
+            (race) => Number(race.id) === Number(result.race.id),
+          );
+
+          const nextRaces =
+            existingIndex >= 0
+              ? prev.map((race) =>
+                  Number(race.id) === Number(result.race.id)
+                    ? result.race
+                    : race,
+                )
+              : [...prev, result.race];
+
+          return [...nextRaces].sort((a, b) => {
+            if (Number(b.meeting_id) !== Number(a.meeting_id)) {
+              return Number(b.meeting_id) - Number(a.meeting_id);
+            }
+
+            return Number(a.race_number || 0) - Number(b.race_number || 0);
+          });
+        });
+      }
+
       clearRaceForm();
       setSuccess("Race added to the selected meeting.");
-      router.refresh();
     });
   }
 
