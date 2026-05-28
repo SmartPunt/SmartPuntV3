@@ -8,6 +8,7 @@ import {
   deleteSuggestedTipAction,
   deleteWatchItemAction,
   signOutAction,
+  toggleSubscriberEmailAlertsAction,
   upsertLongTermBet,
   upsertSuggestedTip,
   upsertWatchItem,
@@ -619,22 +620,98 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
   </form>
 </Panel>
 
-              <Panel className="bg-white/95">
-                <div className="p-6 text-zinc-950">
-                  <h3 className="text-xl font-semibold">Live Tip Notes</h3>
-                  <div className="mt-4 space-y-3 text-sm text-zinc-600">
-                    <p>Live Tips now work off published race fields, not free text.</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Badge tone="blue">Published race</Badge>
-                      <Badge tone="green">Exact runner link</Badge>
-                      <Badge tone="amber">Perfect settlement</Badge>
+              <div className="space-y-6">
+                <Panel className="bg-white/95">
+                  <div className="p-6 text-zinc-950">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-semibold">Subscriber Email Alerts</h3>
+                        <p className="text-sm text-zinc-500">
+                          Turn subscriber email alerts on or off for each active subscriber.
+                        </p>
+                      </div>
+                      <Badge tone="amber">Alerts</Badge>
                     </div>
-                    <p className="pt-2">
-                      Get On Early and watchlist items stay flexible. Live Tips are now structured.
-                    </p>
+
+                    <div className="mt-5 space-y-3">
+                      {initialSubscriberProfiles.length > 0 ? (
+                        initialSubscriberProfiles.map((subscriber: any) => {
+                          const alertsEnabled = subscriber.email_alerts_enabled !== false;
+
+                          return (
+                            <div
+                              key={subscriber.id}
+                              className="rounded-[24px] border border-amber-200/30 bg-white p-4 shadow-sm"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="font-semibold text-zinc-950">
+                                    {subscriber.full_name || subscriber.email || "Subscriber"}
+                                  </p>
+                                  <p className="mt-1 text-sm text-zinc-500">
+                                    {subscriber.email || "No email on profile"}
+                                  </p>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <Badge tone={alertsEnabled ? "green" : "rose"}>
+                                    {alertsEnabled ? "Alerts On" : "Alerts Off"}
+                                  </Badge>
+
+                                  <form action={toggleSubscriberEmailAlertsAction}>
+                                    <input
+                                      type="hidden"
+                                      name="profile_id"
+                                      value={subscriber.id || ""}
+                                    />
+                                    <input
+                                      type="hidden"
+                                      name="email_alerts_enabled"
+                                      value={alertsEnabled ? "false" : "true"}
+                                    />
+
+                                    <button
+                                      type="submit"
+                                      className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+                                        alertsEnabled
+                                          ? "bg-red-600 text-white hover:bg-red-500"
+                                          : "bg-emerald-600 text-white hover:bg-emerald-500"
+                                      }`}
+                                    >
+                                      {alertsEnabled ? "Turn Off" : "Turn On"}
+                                    </button>
+                                  </form>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
+                          No subscriber profiles found yet.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Panel>
+                </Panel>
+
+                <Panel className="bg-white/95">
+                  <div className="p-6 text-zinc-950">
+                    <h3 className="text-xl font-semibold">Live Tip Notes</h3>
+                    <div className="mt-4 space-y-3 text-sm text-zinc-600">
+                      <p>Live Tips now work off published race fields, not free text.</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge tone="blue">Published race</Badge>
+                        <Badge tone="green">Exact runner link</Badge>
+                        <Badge tone="amber">Perfect settlement</Badge>
+                      </div>
+                      <p className="pt-2">
+                        Get On Early and watchlist items stay flexible. Live Tips are now structured.
+                      </p>
+                    </div>
+                  </div>
+                </Panel>
+              </div>
             </div>
 
             <div>
