@@ -1532,7 +1532,29 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
 
 <form
   action={async (formData) => {
-    await publishMeetingRacesAction(formData);
+    const result = await publishMeetingRacesAction(formData);
+
+    if (!result.success) {
+      setError(result.error || "Failed to send meeting to Current Races.");
+      return;
+    }
+
+    const meetingId = Number(formData.get("meeting_id"));
+
+    setRaces((prev) =>
+      prev.map((race) =>
+        Number(race.meeting_id) === meetingId && race.status === "draft"
+          ? {
+              ...race,
+              status: "published",
+              published_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+          : race,
+      ),
+    );
+
+    setSuccess("Meeting sent to Current Races.");
   }}
 >
     <input type="hidden" name="meeting_id" value={meeting.id} />
