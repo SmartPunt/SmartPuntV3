@@ -1007,23 +1007,19 @@ const jockey = scoreJockey(
     const trainer = scoreTrainer(runner, allHistoryRuns);
 const consistency = scoreConsistency(historyRuns, runner.form_last_6);
 
-const weightedScore =
-  recentForm * 0.28 +
-  distance * 0.16 +
-  track * 0.08 +
-  condition * 0.14 +
-  barrier * 0.06 +
-  weight * 0.02 +
-  jockey * 0.10 +
-  trainer * 0.03 +
-  consistency * 0.13;
-
-// WIDER SEPARATION
 const baseScore = clamp(
   Math.round(
-    18 + (weightedScore - 50) * 1.28,
+    recentForm * 0.28 +
+      distance * 0.16 +
+      track * 0.08 +
+      condition * 0.14 +
+      barrier * 0.06 +
+      weight * 0.02 +
+      jockey * 0.10 +
+      trainer * 0.03 +
+      consistency * 0.13
   ),
-  20,
+  25,
   95,
 );
 
