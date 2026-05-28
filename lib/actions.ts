@@ -1925,10 +1925,7 @@ if (!data) {
       }
     }
 
-    revalidatePath("/");
-    revalidatePath("/admin/calculator");
-    revalidatePath("/resulted-tips");
-    revalidatePath("/my-resulted-tips");
+return;
 
 return;
   } catch (error) {
