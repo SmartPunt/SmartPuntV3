@@ -155,7 +155,13 @@ function formatHorseMeta(horse: Horse | null) {
 }
 
 function normaliseName(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[‘’`´]/g, "'")
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function formatFormString(positions: Array<number | null | undefined>) {
