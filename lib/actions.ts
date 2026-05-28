@@ -1925,6 +1925,8 @@ if (!data) {
       }
     }
 
+revalidatePath("/admin/calculator");
+
 return;
 
 return;
