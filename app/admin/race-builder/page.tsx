@@ -99,10 +99,11 @@ export default async function Page() {
       fetchAllRows({
         getPage: async (from, to) => {
           const result = await supabase
-            .from("race_runners")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .range(from, to);
+.from("race_runners")
+.select("*")
+.is("settled_at", null)
+.order("created_at", { ascending: false })
+.range(from, to);
 
           return {
             data: result.data ?? [],
