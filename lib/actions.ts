@@ -2166,11 +2166,7 @@ export async function createMeetingAction(
       meeting = insertedMeeting;
     }
 
-    revalidatePath("/admin/race-builder");
-    revalidatePath("/current-races");
-    revalidatePath("/race-archive");
-
-    return { success: true, error: null, meeting };
+return { success: true, error: null, meeting };
   } catch (error) {
     return {
       success: false,
@@ -2409,11 +2405,7 @@ export async function createRaceAction(
       race = insertedRace;
     }
 
-    revalidatePath("/admin/race-builder");
-    revalidatePath("/current-races");
-    revalidatePath("/race-archive");
-
-    return { success: true, error: null, race };
+return { success: true, error: null, race };
   } catch (error) {
     return {
       success: false,
