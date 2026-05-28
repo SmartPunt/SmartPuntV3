@@ -42,6 +42,8 @@ function buildUpdatedForm(existing: string | null, finishingPosition: number | n
 type ActionResult = {
   success: boolean;
   error: string | null;
+  meeting?: any;
+  race?: any;
 };
 
 async function fetchAllRows<T>({
@@ -242,13 +244,7 @@ function zonedDateTimeToUtcIso(
 }
 
 function normaliseHorseName(value: string) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[‘’`´]/g, "'")
-    .replace(/['"]/g, "")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 function normaliseImportedForm(value: string) {
   return String(value || "")
@@ -2131,41 +2127,50 @@ export async function createMeetingAction(
       return { success: false, error: "Meeting name and date are required." };
     }
 
-const { data: existingMeetings, error: existingError } = await supabase
-  .from("meetings")
-  .select("id")
-  .eq("meeting_date", meetingDate)
-  .ilike("meeting_name", meetingName)
-  .limit(1);
+    const { data: existingMeetings, error: existingError } = await supabase
+      .from("meetings")
+      .select("*")
+      .eq("meeting_date", meetingDate)
+      .ilike("meeting_name", meetingName)
+      .limit(1);
 
-if (existingError) {
-  return {
-    success: false,
-    error: existingError.message,
-  };
-}
+    if (existingError) {
+      return {
+        success: false,
+        error: existingError.message,
+      };
+    }
 
-if (!existingMeetings || existingMeetings.length === 0) {
-  const { error } = await supabase.from("meetings").insert({
-    meeting_name: meetingName,
-    meeting_date: meetingDate,
-    track_condition: trackCondition || null,
-    created_by: profile.id,
-    updated_at: new Date().toISOString(),
-  });
+    let meeting = existingMeetings?.[0] || null;
 
-  if (error) {
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-}
+    if (!meeting) {
+      const { data: insertedMeeting, error } = await supabase
+        .from("meetings")
+        .insert({
+          meeting_name: meetingName,
+          meeting_date: meetingDate,
+          track_condition: trackCondition || null,
+          created_by: profile.id,
+          updated_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        return {
+          success: false,
+          error: error.message,
+        };
+      }
+
+      meeting = insertedMeeting;
+    }
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
-    return { success: true, error: null };
+
+    return { success: true, error: null, meeting };
   } catch (error) {
     return {
       success: false,
@@ -2360,46 +2365,55 @@ export async function createRaceAction(
     const distanceValue = distanceRaw ? Number(distanceRaw) : null;
     const raceName = raceNameRaw || `Race ${raceNumber}`;
 
- const { data: existingRaces, error: existingError } = await supabase
-  .from("races")
-  .select("id")
-  .eq("meeting_id", meetingId)
-  .eq("race_number", raceNumber)
-  .limit(1);
+    const { data: existingRaces, error: existingError } = await supabase
+      .from("races")
+      .select("*")
+      .eq("meeting_id", meetingId)
+      .eq("race_number", raceNumber)
+      .limit(1);
 
-if (existingError) {
-  return {
-    success: false,
-    error: existingError.message,
-  };
-}
+    if (existingError) {
+      return {
+        success: false,
+        error: existingError.message,
+      };
+    }
 
-if (!existingRaces || existingRaces.length === 0) {
-  const { error } = await supabase.from("races").insert({
-    meeting_id: meetingId,
-    race_number: raceNumber,
-    race_name: raceName,
-    distance_m: Number.isNaN(distanceValue as number)
-      ? null
-      : distanceValue,
-    status: "draft",
-    published_at: null,
-    created_by: profile.id,
-    updated_at: new Date().toISOString(),
-  });
+    let race = existingRaces?.[0] || null;
 
-  if (error) {
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-}
+    if (!race) {
+      const { data: insertedRace, error } = await supabase
+        .from("races")
+        .insert({
+          meeting_id: meetingId,
+          race_number: raceNumber,
+          race_name: raceName,
+          distance_m: Number.isNaN(distanceValue as number)
+            ? null
+            : distanceValue,
+          status: "draft",
+          published_at: null,
+          created_by: profile.id,
+          updated_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+
+      if (error) {
+        return {
+          success: false,
+          error: error.message,
+        };
+      }
+
+      race = insertedRace;
+    }
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
-    return { success: true, error: null };
+
+    return { success: true, error: null, race };
   } catch (error) {
     return {
       success: false,
