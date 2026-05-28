@@ -242,7 +242,13 @@ function zonedDateTimeToUtcIso(
 }
 
 function normaliseHorseName(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[‘’`´]/g, "'")
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 function normaliseImportedForm(value: string) {
   return String(value || "")
