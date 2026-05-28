@@ -600,21 +600,32 @@ function scoreWeight(
   fieldEffectiveWeights: Array<number | null>,
 ) {
   const effectiveWeight = getEffectiveWeight(runner);
+
   const validWeights = fieldEffectiveWeights.filter(
-    (weight): weight is number => weight !== null && !Number.isNaN(weight),
+    (weight): weight is number =>
+      weight !== null && !Number.isNaN(weight),
   );
 
-  if (effectiveWeight === null || !validWeights.length) return 50;
+  if (effectiveWeight === null || !validWeights.length) {
+    return 52;
+  }
 
   const min = Math.min(...validWeights);
   const max = Math.max(...validWeights);
 
   if (min === max) return 55;
 
-  const position = (max - effectiveWeight) / (max - min);
-  return clamp(Math.round(40 + position * 35), 35, 80);
-}
+  // MUCH softer scaling
+  const position =
+    (max - effectiveWeight) / (max - min);
 
+  // compressed influence
+  return clamp(
+    Math.round(46 + position * 18),
+    42,
+    68,
+  );
+}
 function scoreJockey(
   runner: Runner,
   horseHistoryRuns: HistoryRun[],
@@ -996,19 +1007,25 @@ const jockey = scoreJockey(
     const trainer = scoreTrainer(runner, allHistoryRuns);
 const consistency = scoreConsistency(historyRuns, runner.form_last_6);
 
-    const baseScore = clamp(
-      Math.round(
-recentForm * 0.25 +
-  distance * 0.14 +
-  track * 0.09 +
-  condition * 0.11 +
-  barrier * 0.10 +
-  weight * 0.03 +
-  jockey * 0.11 +
-  trainer * 0.04 +
-  consistency * 0.10
-      ),
-    );
+const weightedScore =
+  recentForm * 0.28 +
+  distance * 0.16 +
+  track * 0.08 +
+  condition * 0.14 +
+  barrier * 0.06 +
+  weight * 0.02 +
+  jockey * 0.10 +
+  trainer * 0.03 +
+  consistency * 0.13;
+
+// WIDER SEPARATION
+const baseScore = clamp(
+  Math.round(
+    18 + (weightedScore - 50) * 1.28,
+  ),
+  20,
+  95,
+);
 
 const standoutBonus =
   recentForm >= 80 &&
