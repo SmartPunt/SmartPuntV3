@@ -2524,13 +2524,6 @@ export async function publishMeetingRacesAction(
       raceIds.map((raceId) => saveCalculatorPredictionsForRace(raceId)),
     );
 
-    revalidatePath("/admin/race-builder");
-    revalidatePath("/current-races");
-    revalidatePath("/race-archive");
-    revalidatePath("/");
-    revalidatePath("/admin/calculator");
-    revalidatePath("/admin/calculator-report");
-
     return { success: true, error: null };
   } catch (error) {
     return {
