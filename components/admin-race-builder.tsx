@@ -549,7 +549,8 @@ const [meetingName, setMeetingName] = useState("");
   const [selectedMeetingIdForRace, setSelectedMeetingIdForRace] = useState("");
   const [raceNumber, setRaceNumber] = useState("");
   const [raceName, setRaceName] = useState("");
-  const [raceDistance, setRaceDistance] = useState("");
+const [raceDistance, setRaceDistance] = useState("");
+const [racePlaceTerms, setRacePlaceTerms] = useState("top_3");
 
   const [selectedMeetingIdForRunner, setSelectedMeetingIdForRunner] = useState("");
   const [selectedRaceIdForRunner, setSelectedRaceIdForRunner] = useState("");
@@ -784,7 +785,8 @@ useEffect(() => {
     setSelectedMeetingIdForRace("");
     setRaceNumber("");
     setRaceName("");
-    setRaceDistance("");
+setRaceDistance("");
+setRacePlaceTerms("top_3");
   }
 
   function clearRunnerForm() {
@@ -954,7 +956,8 @@ useEffect(() => {
       formData.set("meeting_id", selectedMeetingIdForRace);
       formData.set("race_number", raceNumber);
       formData.set("race_name", raceName);
-      formData.set("distance_m", raceDistance);
+formData.set("distance_m", raceDistance);
+formData.set("place_terms", racePlaceTerms);
 
       const result = await createRaceAction(formData);
 
@@ -1641,6 +1644,18 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                   />
                 </Field>
               </div>
+              <div className="grid gap-4 md:grid-cols-1">
+  <Field
+    label="Place terms"
+    hint="Use Pay 1 for win-only races, Pay 1 & 2 for two-place races, or standard Pay 1, 2 & 3."
+  >
+    <Select value={racePlaceTerms} onChange={setRacePlaceTerms}>
+      <option value="top_3">Pay 1, 2 & 3</option>
+      <option value="top_2">Pay 1 & 2</option>
+      <option value="win_only">Pay 1 Only</option>
+    </Select>
+  </Field>
+</div>
 
               <div className="flex flex-wrap gap-3">
                 <button
