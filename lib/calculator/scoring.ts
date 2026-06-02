@@ -1197,36 +1197,44 @@ export function calculateRaceConfidence(
               : "Place"
             : "No Bet";
 
-  const drivers: string[] = [];
+const positives: string[] = [];
+const risks: string[] = [];
 
-  if (sorted.length <= 7) drivers.push("a small field");
-  if (sorted.length >= 14) drivers.push("a large field");
-  else if (sorted.length >= 11) drivers.push("a bigger field");
+if (sorted.length <= 7) positives.push("a small field");
+else if (sorted.length >= 14) risks.push("a large field");
+else if (sorted.length >= 11) risks.push("a bigger field");
 
-  if (trackCondition.startsWith("heavy")) drivers.push("heavy conditions");
-  else if (trackCondition.startsWith("soft")) drivers.push("soft conditions");
-  else if (trackCondition.startsWith("good")) drivers.push("good conditions");
+if (trackCondition.startsWith("heavy")) risks.push("heavy conditions");
+else if (trackCondition.startsWith("soft")) risks.push("soft conditions");
+else if (trackCondition.startsWith("good")) positives.push("good conditions");
 
-  if (placeTerms === "win_only") drivers.push("win-only place terms");
-  else if (placeTerms === "top_2") drivers.push("reduced Pay 1 & 2 terms");
-  else drivers.push("standard Pay 1, 2 & 3 terms");
+if (placeTerms === "win_only") risks.push("win-only place terms");
+else if (placeTerms === "top_2") risks.push("reduced Pay 1 & 2 terms");
+else positives.push("standard Pay 1, 2 & 3 terms");
 
-  if (gap >= 8) drivers.push("a clear ratings gap");
-  else if (gap >= 4) drivers.push("some ratings separation");
-  else drivers.push("a narrow ratings gap");
+if (gap >= 8) positives.push("a clear ratings gap");
+else if (gap >= 4) positives.push("some ratings separation");
+else risks.push("a narrow ratings gap");
 
-  if (sorted.length >= 4 && topFourCompression <= 3) {
-    drivers.push("a tightly compressed top four");
-  } else if (sorted.length >= 4 && topFourCompression <= 5) {
-    drivers.push("a fairly compressed top four");
-  }
+if (sorted.length >= 4 && topFourCompression <= 3) {
+  risks.push("a tightly compressed top four");
+} else if (sorted.length >= 4 && topFourCompression <= 5) {
+  risks.push("a fairly compressed top four");
+}
 
-  const summary =
-    tier === "Elite" || tier === "High"
-      ? `Strong betting setup with ${drivers.join(", ")}.`
-      : tier === "Medium"
-        ? `Reasonable betting setup, but watch ${drivers.join(", ")}.`
-        : `Risky betting race due to ${drivers.join(", ")}.`;
+const riskText = risks.slice(0, 3).join(", ");
+const positiveText = positives.slice(0, 3).join(", ");
+
+const summary =
+  tier === "Elite" || tier === "High"
+    ? `Strong betting setup with ${positiveText || "a favourable race profile"}.`
+    : tier === "Medium"
+      ? risks.length
+        ? `Reasonable betting setup, although ${riskText} add some risk.`
+        : `Reasonable betting setup with ${positiveText || "a balanced race profile"}.`
+      : risks.length
+        ? `Risky betting race due to ${riskText}.`
+        : `Risky betting race with limited clear edge from the main confidence drivers.`;
 
   return {
     tier,
