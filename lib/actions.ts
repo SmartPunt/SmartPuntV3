@@ -2351,7 +2351,12 @@ export async function createRaceAction(
     const meetingId = Number(formData.get("meeting_id"));
     const raceNumber = Number(formData.get("race_number"));
     const raceNameRaw = String(formData.get("race_name") ?? "").trim();
-    const distanceRaw = String(formData.get("distance_m") ?? "").trim();
+const distanceRaw = String(formData.get("distance_m") ?? "").trim();
+const placeTermsRaw = String(formData.get("place_terms") ?? "top_3").trim();
+
+const placeTerms = ["win_only", "top_2", "top_3"].includes(placeTermsRaw)
+  ? placeTermsRaw
+  : "top_3";
 
     if (!meetingId || !raceNumber) {
       return { success: false, error: "Meeting and race number are required." };
@@ -2383,10 +2388,11 @@ export async function createRaceAction(
           meeting_id: meetingId,
           race_number: raceNumber,
           race_name: raceName,
-          distance_m: Number.isNaN(distanceValue as number)
-            ? null
-            : distanceValue,
-          status: "draft",
+distance_m: Number.isNaN(distanceValue as number)
+  ? null
+  : distanceValue,
+place_terms: placeTerms,
+status: "draft",
           published_at: null,
           created_by: profile.id,
           updated_at: new Date().toISOString(),
