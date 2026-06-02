@@ -47,7 +47,8 @@ type Race = {
   published_at: string | null;
   created_by: string | null;
   created_at: string;
-  updated_at: string;
+updated_at: string;
+place_terms?: "win_only" | "top_2" | "top_3" | null;
 };
 
 type Runner = {
@@ -1044,6 +1045,15 @@ function handleScratchMissingResults(raceId: number) {
           placeholder="Distance"
           className="w-[120px] rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-950"
         />
+        <select
+  name="place_terms"
+  defaultValue={race.place_terms || "top_3"}
+  className="w-[150px] rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-950"
+>
+  <option value="top_3">Pay 1, 2 & 3</option>
+  <option value="top_2">Pay 1 & 2</option>
+  <option value="win_only">Pay 1 Only</option>
+</select>
 
         <button
           type="button"
@@ -1088,9 +1098,14 @@ function handleScratchMissingResults(raceId: number) {
           </Badge>
         </div>
 
-        <p className="mt-1 text-sm text-zinc-500">
-          {race.distance_m || "—"}m
-        </p>
+<p className="mt-1 text-sm text-zinc-500">
+  {race.distance_m || "—"}m ·{" "}
+  {race.place_terms === "win_only"
+    ? "Pay 1 Only"
+    : race.place_terms === "top_2"
+      ? "Pay 1 & 2"
+      : "Pay 1, 2 & 3"}
+</p>
       </>
     )}
   </div>
