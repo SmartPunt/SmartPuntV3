@@ -585,16 +585,16 @@ if (raceConfidenceForRace.tier === "Low") return null;
                   ) : null}
 
 {raceConfidence ? (
-  <div className="rounded-[28px] border border-amber-200/70 bg-white p-5 shadow-sm">
-    <div className="flex flex-wrap items-center justify-between gap-4">
+  <div className="rounded-[28px] border border-amber-200/70 bg-white p-6 shadow-sm">
+    <div className="flex flex-wrap items-start justify-between gap-5">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-500">
+        <p className="text-xs font-black uppercase tracking-[0.26em] text-zinc-500">
           Race Confidence
         </p>
 
-        <div className="mt-3 flex items-end gap-3">
-          <span
-            className={`text-5xl font-black leading-none ${
+        <div className="mt-3">
+          <p
+            className={`text-6xl font-black leading-none ${
               raceConfidence.tier === "Elite" || raceConfidence.tier === "High"
                 ? "text-emerald-700"
                 : raceConfidence.tier === "Medium"
@@ -603,121 +603,95 @@ if (raceConfidenceForRace.tier === "Low") return null;
             }`}
           >
             {raceConfidence.confidencePercent}%
-          </span>
+          </p>
 
-          <span
-            className={`mb-1 rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.14em] ${
+          <p
+            className={`mt-2 text-sm font-black uppercase tracking-[0.22em] ${
               raceConfidence.tier === "Elite" || raceConfidence.tier === "High"
-                ? "bg-emerald-100 text-emerald-800"
+                ? "text-emerald-800"
                 : raceConfidence.tier === "Medium"
-                  ? "bg-amber-100 text-amber-800"
-                  : "bg-rose-100 text-rose-800"
+                  ? "text-amber-800"
+                  : "text-rose-800"
             }`}
           >
             {raceConfidence.tier} Confidence
-          </span>
+          </p>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <span className="rounded-2xl bg-sky-950 px-4 py-3 text-sm font-black text-white shadow-sm">
+        <span className="rounded-2xl bg-sky-950 px-4 py-3 text-sm font-black text-white">
           Gap +{raceConfidence.gap}
         </span>
 
-        <span className="rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-black text-amber-200 shadow-sm">
+        <span className="rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-black text-amber-200">
           {raceConfidence.volatility}
         </span>
 
-        <span className="rounded-2xl bg-emerald-800 px-4 py-3 text-sm font-black text-white shadow-sm">
+        <span className="rounded-2xl bg-emerald-800 px-4 py-3 text-sm font-black text-white">
           Suggested: {raceConfidence.suggestedBet}
         </span>
       </div>
     </div>
 
-    <div className="mt-5 rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-5">
-      <p className="text-lg font-black leading-8 text-zinc-950">
+    <div className="mt-6 border-t border-amber-200/70 pt-5">
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">
+        Why this race scores {raceConfidence.confidencePercent}%
+      </p>
+
+      <p className="mt-3 text-xl font-black leading-8 text-zinc-950">
         {raceConfidence.summary}
       </p>
     </div>
 
-    <div className="mt-5 grid gap-3 md:grid-cols-3">
-      <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-        <p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-800">
-          Field size
-        </p>
-        <p className="mt-1 text-sm font-bold text-zinc-900">
-          {scoredRunners.length <= 7
-            ? `Small field (${scoredRunners.length})`
-            : scoredRunners.length >= 14
-              ? `Large field (${scoredRunners.length})`
-              : scoredRunners.length >= 11
-                ? `Bigger field (${scoredRunners.length})`
-                : `Standard field (${scoredRunners.length})`}
-        </p>
-      </div>
-
-      <div
-        className={`rounded-2xl border px-4 py-3 ${
-          String(topWinChance?.track_condition || "").toLowerCase().startsWith("heavy")
-            ? "border-rose-200 bg-rose-50"
-            : String(topWinChance?.track_condition || "").toLowerCase().startsWith("soft")
-              ? "border-amber-200 bg-amber-50"
-              : "border-emerald-200 bg-emerald-50"
-        }`}
-      >
-        <p
-          className={`text-[11px] font-black uppercase tracking-[0.16em] ${
-            String(topWinChance?.track_condition || "").toLowerCase().startsWith("heavy")
-              ? "text-rose-800"
-              : String(topWinChance?.track_condition || "").toLowerCase().startsWith("soft")
-                ? "text-amber-800"
-                : "text-emerald-800"
-          }`}
-        >
-          Track
-        </p>
-        <p className="mt-1 text-sm font-bold text-zinc-900">
-          {topWinChance?.track_condition || "No condition set"}
-        </p>
-      </div>
-
-      <div
-        className={`rounded-2xl border px-4 py-3 ${
-          activeRace?.place_terms === "win_only"
-            ? "border-rose-200 bg-rose-50"
-            : activeRace?.place_terms === "top_2"
-              ? "border-amber-200 bg-amber-50"
-              : "border-emerald-200 bg-emerald-50"
-        }`}
-      >
-        <p
-          className={`text-[11px] font-black uppercase tracking-[0.16em] ${
-            activeRace?.place_terms === "win_only"
-              ? "text-rose-800"
-              : activeRace?.place_terms === "top_2"
-                ? "text-amber-800"
-                : "text-emerald-800"
-          }`}
-        >
-          Place terms
-        </p>
-        <p className="mt-1 text-sm font-bold text-zinc-900">
-          {activeRace?.place_terms === "win_only"
-            ? "Pay 1 Only"
-            : activeRace?.place_terms === "top_2"
-              ? "Pay 1 & 2"
-              : "Pay 1, 2 & 3"}
-        </p>
-      </div>
-    </div>
-
-    <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
-      <p className="text-sm font-medium leading-6 text-zinc-700">
-        Race Confidence measures whether this is a race worth betting into,
-        separate from the raw horse score. Low-confidence races are excluded
-        from strongest bet suggestions.
+    <div className="mt-6 border-t border-zinc-200 pt-5">
+      <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-500">
+        Key drivers
       </p>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl bg-zinc-50 px-4 py-4">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
+            Field size
+          </p>
+          <p className="mt-2 text-base font-black text-zinc-950">
+            {scoredRunners.length <= 7
+              ? `Small field (${scoredRunners.length})`
+              : scoredRunners.length >= 14
+                ? `Large field (${scoredRunners.length})`
+                : scoredRunners.length >= 11
+                  ? `Bigger field (${scoredRunners.length})`
+                  : `Standard field (${scoredRunners.length})`}
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-zinc-50 px-4 py-4">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
+            Track
+          </p>
+          <p className="mt-2 text-base font-black text-zinc-950">
+            {topWinChance?.track_condition || "No condition set"}
+          </p>
+        </div>
+
+        <div className="rounded-2xl bg-zinc-50 px-4 py-4">
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
+            Place terms
+          </p>
+          <p className="mt-2 text-base font-black text-zinc-950">
+            {activeRace?.place_terms === "win_only"
+              ? "Pay 1 Only"
+              : activeRace?.place_terms === "top_2"
+                ? "Pay 1 & 2"
+                : "Pay 1, 2 & 3"}
+          </p>
+        </div>
+      </div>
     </div>
+
+    <p className="mt-5 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-medium leading-6 text-zinc-700">
+      Race Confidence measures the quality of the betting race, not just the quality of the top-rated horse.
+    </p>
   </div>
 ) : null}
 
