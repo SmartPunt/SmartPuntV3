@@ -6,6 +6,7 @@ export type Race = {
   race_number: number;
   race_name: string;
   distance_m: number | null;
+  place_terms?: "win_only" | "top_2" | "top_3" | null;
   status: "draft" | "published" | "closed";
   published_at: string | null;
   created_by: string | null;
@@ -1097,7 +1098,13 @@ export type RaceConfidence = {
   suggestedBet: string;
 };
 
-export function calculateRaceConfidence(scores: { score: number; placePercent?: number }[]): RaceConfidence {
+export function calculateRaceConfidence(
+  scores: { score: number; placePercent?: number }[],
+  context?: {
+    trackCondition?: string | null;
+    placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
+  },
+): RaceConfidence {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
 
   const top = sorted[0];
@@ -1107,19 +1114,41 @@ export function calculateRaceConfidence(scores: { score: number; placePercent?: 
   const gap = top && second ? Math.round(top.score - second.score) : 0;
   const topScore = top ? Number(top.score) : 0;
   const topPlacePercent = top?.placePercent ?? 0;
-  const topFourCompression = top && fourth ? Math.round(top.score - fourth.score) : gap;
+  const topFourCompression =
+    top && fourth ? Math.round(top.score - fourth.score) : gap;
+
+  const trackCondition = String(context?.trackCondition || "").toLowerCase();
+  const placeTerms = String(context?.placeTerms || "top_3");
 
   const baseConfidence = 35;
   const topScoreBoost = clamp(Math.round((topScore - 55) * 1.15), 0, 24);
   const gapBoost = clamp(gap * 4, 0, 24);
   const placeBoost = clamp(Math.round((topPlacePercent - 28) * 0.45), 0, 10);
+
   const compressionPenalty =
     sorted.length >= 4 && topFourCompression <= 3
       ? 16
       : sorted.length >= 4 && topFourCompression <= 5
-      ? 8
+        ? 8
+        : 0;
+
+  const fieldSizeAdjustment =
+    sorted.length <= 7
+      ? 5
+      : sorted.length >= 14
+        ? -8
+        : sorted.length >= 11
+          ? -4
+          : 0;
+
+  const conditionPenalty = trackCondition.startsWith("heavy")
+    ? 10
+    : trackCondition.startsWith("soft")
+      ? 4
       : 0;
-  const fieldSizePenalty = sorted.length >= 12 ? 4 : sorted.length >= 10 ? 2 : 0;
+
+  const placeTermsPenalty =
+    placeTerms === "win_only" ? 10 : placeTerms === "top_2" ? 5 : 0;
 
   const confidencePercent = clamp(
     Math.round(
@@ -1127,8 +1156,10 @@ export function calculateRaceConfidence(scores: { score: number; placePercent?: 
         topScoreBoost +
         gapBoost +
         placeBoost -
-        compressionPenalty -
-        fieldSizePenalty,
+        compressionPenalty +
+        fieldSizeAdjustment -
+        conditionPenalty -
+        placeTermsPenalty,
     ),
     0,
     100,
@@ -1138,26 +1169,32 @@ export function calculateRaceConfidence(scores: { score: number; placePercent?: 
     confidencePercent >= 85
       ? "Elite"
       : confidencePercent >= 70
-      ? "High"
-      : confidencePercent >= 55
-      ? "Medium"
-      : "Low";
+        ? "High"
+        : confidencePercent >= 55
+          ? "Medium"
+          : "Low";
 
   const volatility =
     gap >= 8 && topFourCompression >= 10
       ? "Clear Standout"
       : gap >= 4 && topFourCompression >= 6
-      ? "Competitive"
-      : "Open Race";
+        ? "Competitive"
+        : "Open Race";
 
   const suggestedBet =
-    tier === "Elite"
-      ? "Best Bet"
-      : tier === "High"
-      ? "Win"
-      : tier === "Medium"
-      ? "Place"
-      : "No Bet";
+    placeTerms === "win_only"
+      ? tier === "Elite" || tier === "High"
+        ? "Win"
+        : "No Bet"
+      : tier === "Elite"
+        ? "Best Bet"
+        : tier === "High"
+          ? "Win"
+          : tier === "Medium"
+            ? placeTerms === "top_2"
+              ? "No Bet"
+              : "Place"
+            : "No Bet";
 
   return {
     tier,
