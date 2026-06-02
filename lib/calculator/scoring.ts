@@ -1214,7 +1214,7 @@ else positives.push("standard Pay 1, 2 & 3 terms");
 
 if (gap >= 8) positives.push("a clear ratings gap");
 else if (gap >= 4) positives.push("some ratings separation");
-else risks.push("the competition is too tight");
+else risks.push("a tightly matched field");
 
 if (sorted.length >= 4 && topFourCompression <= 3) {
   risks.push("a tightly compressed top four");
