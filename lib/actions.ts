@@ -889,7 +889,14 @@ const scoredRunners = calculateRaceScores({
   }
 
 const now = new Date().toISOString();
-const raceConfidence = calculateRaceConfidence(scoredRunners);
+const raceConfidence = calculateRaceConfidence(scoredRunners, {
+  trackCondition: activeRace
+    ? meetings.find(
+        (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
+      )?.track_condition || null
+    : null,
+  placeTerms: (activeRace as any)?.place_terms || "top_3",
+});
 
 const topWin = scoredRunners[0] || null;
 const topPlace =
@@ -927,17 +934,33 @@ const placeGap = topPlace && secondForPlace
     ? Math.round(topPlace.score)
     : 0;
 
+const placeTerms = String((activeRace as any)?.place_terms || "top_3");
+
+const placeBettingAllowed = placeTerms !== "win_only";
+
+const minPlaceScore = placeTerms === "top_2" ? 65 : 62;
+const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
+const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
+
+const minStrongPlaceScore = placeTerms === "top_2" ? 68 : 66;
+const minStrongPlacePercent = placeTerms === "top_2" ? 38 : 34;
+const minStrongPlaceGap = placeTerms === "top_2" ? 4 : 3;
+
 const qualifiesAsPlace =
+  placeBettingAllowed &&
+  raceConfidence.tier !== "Low" &&
   topPlace !== null &&
-  topPlace.score >= 62 &&
-  topPlace.placePercent >= 30 &&
-  placeGap >= 2;
+  topPlace.score >= minPlaceScore &&
+  topPlace.placePercent >= minPlacePercent &&
+  placeGap >= minPlaceGap;
 
 const qualifiesAsStrongPlace =
+  placeBettingAllowed &&
+  raceConfidence.tier !== "Low" &&
   topPlace !== null &&
-  topPlace.score >= 66 &&
-  topPlace.placePercent >= 34 &&
-  placeGap >= 3;
+  topPlace.score >= minStrongPlaceScore &&
+  topPlace.placePercent >= minStrongPlacePercent &&
+  placeGap >= minStrongPlaceGap;
 
 function getSmartPuntTipType(runnerId: number) {
   if (topWin && runnerId === topWin.id && qualifiesAsStrongWin) return "Best Bet";
