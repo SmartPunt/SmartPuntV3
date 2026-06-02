@@ -127,10 +127,16 @@ export default function AdminCalculator({
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
 
-  const raceConfidence = useMemo(
-    () => (scoredRunners.length ? calculateRaceConfidence(scoredRunners) : null),
-    [scoredRunners],
-  );
+const raceConfidence = useMemo(
+  () =>
+    scoredRunners.length
+      ? calculateRaceConfidence(scoredRunners, {
+          trackCondition: topWinChance?.track_condition || null,
+          placeTerms: activeRace?.place_terms || "top_3",
+        })
+      : null,
+  [activeRace?.place_terms, scoredRunners, topWinChance?.track_condition],
+);
 
   const strongestBets = useMemo(() => {
     const perthNow = new Date(
@@ -199,13 +205,32 @@ export default function AdminCalculator({
         const qualifiesAsWin =
           selected.score >= 68 && gap >= 4 && selected.winPercent >= 8;
 
-        const qualifiesAsPlace =
-          selected.score >= 62 && selected.placePercent >= 30 && gap >= 2;
+const placeTerms = String((race as any).place_terms || "top_3");
+const placeBettingAllowed = placeTerms !== "win_only";
+
+const minPlaceScore = placeTerms === "top_2" ? 65 : 62;
+const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
+const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
+
+const qualifiesAsPlace =
+  placeBettingAllowed &&
+  selected.score >= minPlaceScore &&
+  selected.placePercent >= minPlacePercent &&
+  gap >= minPlaceGap;
 
         if (strongestBetMode === "win" && !qualifiesAsWin) return null;
         if (strongestBetMode === "place" && !qualifiesAsPlace) return null;
 
-        const raceConfidenceForRace = calculateRaceConfidence(scored);
+const meetingForRace = meetings.find(
+  (item) => Number(item.id) === Number(race.meeting_id),
+);
+
+const raceConfidenceForRace = calculateRaceConfidence(scored, {
+  trackCondition: meetingForRace?.track_condition || null,
+  placeTerms: (race as any).place_terms || "top_3",
+});
+
+if (raceConfidenceForRace.tier === "Low") return null;
 
         const existingPublishedTip = calculatorTips.find(
           (tip) => Number(tip.race_runner_id) === Number(selected.id),
@@ -483,15 +508,71 @@ export default function AdminCalculator({
                       </p>
 
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <Badge tone="amber">{raceConfidence.tier} Confidence</Badge>
+<Badge
+  tone={
+    raceConfidence.tier === "Elite" || raceConfidence.tier === "High"
+      ? "green"
+      : raceConfidence.tier === "Medium"
+        ? "amber"
+        : "rose"
+  }
+>
+  {raceConfidence.tier} Confidence {raceConfidence.confidencePercent}%
+</Badge>
                         <Badge tone="blue">Gap +{raceConfidence.gap}</Badge>
                         <Badge tone="slate">{raceConfidence.volatility}</Badge>
                         <Badge tone="green">Suggested: {raceConfidence.suggestedBet}</Badge>
                       </div>
 
-                      <p className="mt-3 text-sm leading-6 text-zinc-700">
-                        Visual guide only. This does not change the current race verdict, strongest bets, auto-tip logic, or scoring output yet.
-                      </p>
+<div className="mt-3 space-y-2 text-sm leading-6 text-zinc-700">
+  <p>
+    Race Confidence measures whether this is a race worth betting into, separate from the raw horse score.
+  </p>
+
+  <p>
+    Low-confidence races are now excluded from strongest bet suggestions.
+  </p>
+
+  <div className="mt-3 flex flex-wrap gap-2">
+    <Badge tone={scoredRunners.length <= 7 ? "green" : scoredRunners.length >= 11 ? "rose" : "blue"}>
+      {scoredRunners.length <= 7
+        ? "Small field bonus"
+        : scoredRunners.length >= 14
+          ? "Large field risk"
+          : scoredRunners.length >= 11
+            ? "Field size caution"
+            : "Standard field size"}
+    </Badge>
+
+    <Badge
+      tone={
+        String(topWinChance?.track_condition || "").toLowerCase().startsWith("heavy")
+          ? "rose"
+          : String(topWinChance?.track_condition || "").toLowerCase().startsWith("soft")
+            ? "amber"
+            : "green"
+      }
+    >
+      {topWinChance?.track_condition || "No condition set"}
+    </Badge>
+
+    <Badge
+      tone={
+        activeRace?.place_terms === "win_only"
+          ? "rose"
+          : activeRace?.place_terms === "top_2"
+            ? "amber"
+            : "green"
+      }
+    >
+      {activeRace?.place_terms === "win_only"
+        ? "Pay 1 Only"
+        : activeRace?.place_terms === "top_2"
+          ? "Pay 1 & 2"
+          : "Pay 1, 2 & 3"}
+    </Badge>
+  </div>
+</div>
                     </div>
                   ) : null}
 
