@@ -137,7 +137,82 @@ const raceConfidence = useMemo(
       : null,
   [activeRace?.place_terms, scoredRunners, topWinChance?.track_condition],
 );
+const raceConfidenceBoard = useMemo(() => {
+  const perthNow = new Date(
+    new Date().toLocaleString("en-US", {
+      timeZone: "Australia/Perth",
+    }),
+  );
 
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(perthNow);
+
+  const tomorrowDate = new Date(perthNow);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+  const tomorrow = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(tomorrowDate);
+
+  return publishedRaces
+    .filter((race) => {
+      const meeting = meetings.find((item) => item.id === race.meeting_id);
+
+      if (!meeting?.meeting_date) return false;
+
+      if (raceDayFilter === "today") return meeting.meeting_date === today;
+      if (raceDayFilter === "tomorrow") return meeting.meeting_date === tomorrow;
+
+      return meeting.meeting_date >= today;
+    })
+    .map((race) => {
+      const meeting = meetings.find((item) => item.id === race.meeting_id);
+
+      const scored = calculateRaceScores({
+        activeRace: race,
+        races,
+        runners,
+        horses,
+        meetings,
+        jockeyProfiles,
+      });
+
+      const confidence = scored.length
+        ? calculateRaceConfidence(scored, {
+            trackCondition: meeting?.track_condition || null,
+            placeTerms: race.place_terms || "top_3",
+          })
+        : null;
+
+      return {
+        race,
+        meeting,
+        fieldSize: scored.length,
+        confidence,
+      };
+    })
+    .filter((item) => item.confidence)
+    .sort(
+      (a, b) =>
+        Number(b.confidence?.confidencePercent || 0) -
+        Number(a.confidence?.confidencePercent || 0),
+    );
+}, [
+  horses,
+  jockeyProfiles,
+  meetings,
+  publishedRaces,
+  raceDayFilter,
+  races,
+  runners,
+]);
   const strongestBets = useMemo(() => {
     const perthNow = new Date(
       new Date().toLocaleString("en-US", {
@@ -679,7 +754,86 @@ if (raceConfidenceForRace.tier === "Low") return null;
             </div>
           </Panel>
         </div>
+<Panel className="mt-6 bg-white/95">
+  <div className="p-6 text-zinc-950">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 className="text-xl font-semibold">Race confidence board</h2>
+        <p className="text-sm text-zinc-500">
+          Quick race-day guide showing which races look safest or riskiest to bet into.
+        </p>
+      </div>
 
+      <Badge tone="blue">{raceConfidenceBoard.length} races</Badge>
+    </div>
+
+    <div className="mt-5 overflow-x-auto rounded-2xl border border-zinc-200">
+      <table className="min-w-full divide-y divide-zinc-200 text-sm">
+        <thead className="bg-zinc-50">
+          <tr>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Race</th>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Field</th>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Terms</th>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Track</th>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Confidence</th>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Suggested</th>
+          </tr>
+        </thead>
+
+        <tbody className="divide-y divide-zinc-100 bg-white">
+          {raceConfidenceBoard.map((item) => (
+            <tr key={item.race.id}>
+              <td className="px-4 py-3 font-semibold text-zinc-950">
+                {item.meeting?.meeting_name || "Meeting"} · R{item.race.race_number}{" "}
+                {item.race.race_name}
+              </td>
+
+              <td className="px-4 py-3 text-zinc-700">{item.fieldSize} runners</td>
+
+              <td className="px-4 py-3 text-zinc-700">
+                {item.race.place_terms === "win_only"
+                  ? "Pay 1 Only"
+                  : item.race.place_terms === "top_2"
+                    ? "Pay 1 & 2"
+                    : "Pay 1, 2 & 3"}
+              </td>
+
+              <td className="px-4 py-3 text-zinc-700">
+                {item.meeting?.track_condition || "—"}
+              </td>
+
+              <td className="px-4 py-3">
+                <Badge
+                  tone={
+                    item.confidence?.tier === "Elite" || item.confidence?.tier === "High"
+                      ? "green"
+                      : item.confidence?.tier === "Medium"
+                        ? "amber"
+                        : "rose"
+                  }
+                >
+                  {item.confidence?.confidencePercent}% {item.confidence?.tier}
+                </Badge>
+              </td>
+
+              <td className="px-4 py-3">
+                <Badge tone={item.confidence?.suggestedBet === "No Bet" ? "rose" : "green"}>
+                  {item.confidence?.suggestedBet}
+                </Badge>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    {raceConfidenceBoard.length === 0 ? (
+      <p className="mt-4 text-sm text-zinc-500">
+        No races match this day filter yet.
+      </p>
+    ) : null}
+  </div>
+</Panel>
         <Panel className="mt-6 bg-white/95">
           <div className="p-6 text-zinc-950">
             <div className="flex items-center justify-between gap-3">
