@@ -2295,8 +2295,13 @@ export async function updateRaceDetailsAction(
     const raceId = Number(formData.get("race_id"));
     const raceNumber = Number(formData.get("race_number"));
     const raceName = String(formData.get("race_name") || "").trim();
-    const distanceRaw = String(formData.get("distance_m") || "").trim();
-    const distanceM = distanceRaw ? Number(distanceRaw) : null;
+const distanceRaw = String(formData.get("distance_m") || "").trim();
+const distanceM = distanceRaw ? Number(distanceRaw) : null;
+const placeTermsRaw = String(formData.get("place_terms") || "top_3").trim();
+
+const placeTerms = ["win_only", "top_2", "top_3"].includes(placeTermsRaw)
+  ? placeTermsRaw
+  : "top_3";
 
     if (!raceId) {
       return { success: false, error: "Race is required." };
@@ -2315,9 +2320,10 @@ export async function updateRaceDetailsAction(
       .update({
         race_number: raceNumber,
         race_name: raceName,
-        distance_m:
-          distanceM !== null && Number.isFinite(distanceM) ? distanceM : null,
-        updated_at: new Date().toISOString(),
+distance_m:
+  distanceM !== null && Number.isFinite(distanceM) ? distanceM : null,
+place_terms: placeTerms,
+updated_at: new Date().toISOString(),
       })
       .eq("id", raceId);
 
