@@ -1014,7 +1014,7 @@ const baseScore = clamp(
       track * 0.08 +
       condition * 0.14 +
       barrier * 0.06 +
-      weight * 0.02 +
+      weight * 0.00 +
       jockey * 0.10 +
       trainer * 0.03 +
       consistency * 0.13
