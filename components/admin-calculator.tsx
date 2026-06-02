@@ -606,6 +606,9 @@ if (raceConfidenceForRace.tier === "Low") return null;
                         <Badge tone="slate">{raceConfidence.volatility}</Badge>
                         <Badge tone="green">Suggested: {raceConfidence.suggestedBet}</Badge>
                       </div>
+                      <p className="mt-3 text-sm font-medium leading-6 text-zinc-700">
+  {raceConfidence.summary}
+</p>
 
 <div className="mt-3 space-y-2 text-sm leading-6 text-zinc-700">
   <p>
