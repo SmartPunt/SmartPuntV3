@@ -824,7 +824,45 @@ if (raceConfidenceForRace.tier === "Low") return null;
 </p>
       </div>
 
-      <Badge tone="blue">{raceConfidenceBoard.length} races</Badge>
+<div className="flex flex-wrap items-center gap-2">
+  <button
+    type="button"
+    onClick={() => setRaceDayFilter("today")}
+    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+      raceDayFilter === "today"
+        ? "bg-black text-amber-300"
+        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+    }`}
+  >
+    Today
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setRaceDayFilter("tomorrow")}
+    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+      raceDayFilter === "tomorrow"
+        ? "bg-black text-amber-300"
+        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+    }`}
+  >
+    Tomorrow
+  </button>
+
+  <button
+    type="button"
+    onClick={() => setRaceDayFilter("upcoming")}
+    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+      raceDayFilter === "upcoming"
+        ? "bg-black text-amber-300"
+        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+    }`}
+  >
+    All Upcoming
+  </button>
+
+  <Badge tone="blue">{raceConfidenceBoard.length} races</Badge>
+</div>
     </div>
 
     <div className="mt-5 overflow-x-auto rounded-2xl border border-zinc-200">
