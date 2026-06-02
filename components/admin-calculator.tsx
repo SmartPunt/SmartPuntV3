@@ -124,6 +124,14 @@ export default function AdminCalculator({
   const topPlaceChances = [...scoredRunners]
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
+  const activePlaceTerms = activeRace?.place_terms || "top_3";
+const placeBettingDisabled = activePlaceTerms === "win_only";
+
+function placeTermsLabel(value?: string | null) {
+  if (value === "win_only") return "Pay 1 Only";
+  if (value === "top_2") return "Pay 1 & 2";
+  return "Pay 1, 2 & 3";
+}
 
   const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
 
@@ -665,18 +673,31 @@ if (raceConfidenceForRace.tier === "Low") return null;
                       </p>
                     </div>
 
-                    <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
-                        Strongest place profiles
-                      </p>
-                      <div className="mt-2 space-y-1 text-sm text-zinc-700">
-                        {topPlaceChances.map((runner) => (
-                          <p key={runner.id}>
-                            {runner.horse_name} — {runner.placePercent}%
-                          </p>
-                        ))}
-                      </div>
-                    </div>
+                   <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
+  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
+    Strongest place profiles
+  </p>
+
+  {placeBettingDisabled ? (
+    <p className="mt-2 text-sm font-semibold text-rose-700">
+      Place betting disabled — {placeTermsLabel(activePlaceTerms)}.
+    </p>
+  ) : (
+    <div className="mt-2 space-y-1 text-sm text-zinc-700">
+      {topPlaceChances.map((runner) => (
+        <p key={runner.id}>
+          {runner.horse_name} — {runner.placePercent}%
+        </p>
+      ))}
+    </div>
+  )}
+
+  {activePlaceTerms === "top_2" ? (
+    <p className="mt-2 text-xs text-amber-700">
+      Pay 1 & 2 race — place bets need a stronger profile.
+    </p>
+  ) : null}
+</div>
                   </div>
 
                   {selectedHorseScore ? (
@@ -762,6 +783,9 @@ if (raceConfidenceForRace.tier === "Low") return null;
         <p className="text-sm text-zinc-500">
           Quick race-day guide showing which races look safest or riskiest to bet into.
         </p>
+        <p className="mt-1 text-xs text-zinc-500">
+  Click a race row to load it into the Calculator Lab.
+</p>
       </div>
 
       <Badge tone="blue">{raceConfidenceBoard.length} races</Badge>
@@ -782,7 +806,11 @@ if (raceConfidenceForRace.tier === "Low") return null;
 
         <tbody className="divide-y divide-zinc-100 bg-white">
           {raceConfidenceBoard.map((item) => (
-            <tr key={item.race.id}>
+<tr
+  key={item.race.id}
+  onClick={() => setSelectedRaceId(String(item.race.id))}
+  className="cursor-pointer transition hover:bg-amber-50"
+>
               <td className="px-4 py-3 font-semibold text-zinc-950">
                 {item.meeting?.meeting_name || "Meeting"} · R{item.race.race_number}{" "}
                 {item.race.race_name}
@@ -858,7 +886,7 @@ if (raceConfidenceForRace.tier === "Low") return null;
                   </p>
 
                   <p className="text-xs text-zinc-500">
-                    Win requires score 68+, gap 4+, win chance 8%+. Place requires score 62+, place chance 30%+, gap 2+.
+Win requires score 68+, gap 4+, win chance 8%+. Place is blocked on Pay 1 races and stricter on Pay 1 & 2 races.
                   </p>
                 </div>
               </div>
