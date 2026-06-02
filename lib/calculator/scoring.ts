@@ -1222,8 +1222,18 @@ if (sorted.length >= 4 && topFourCompression <= 3) {
   risks.push("a fairly compressed top four");
 }
 
-const riskText = risks.slice(0, 3).join(", ");
-const positiveText = positives.slice(0, 3).join(", ");
+function formatDriverList(items: string[]) {
+  const list = items.slice(0, 3);
+
+  if (list.length === 0) return "";
+  if (list.length === 1) return list[0];
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+
+  return `${list[0]}, ${list[1]} and ${list[2]}`;
+}
+
+const riskText = formatDriverList(risks);
+const positiveText = formatDriverList(positives);
 
 const summary =
   tier === "Elite" || tier === "High"
