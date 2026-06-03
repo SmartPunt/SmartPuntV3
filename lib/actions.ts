@@ -1736,25 +1736,21 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
 
     if (error) throw new Error(error.message);
 
-    if (isNew && sendNotification && data) {
-      try {
-        await sendSuggestedTipNotifications({
-          race: data.race || payload.race,
-          horse: data.horse || payload.horse,
-          type: data.type || payload.type,
-          confidence: data.confidence || payload.confidence,
-          note: data.note || payload.note,
-          commentary: data.commentary || payload.commentary,
-        });
-      } catch (notificationError) {
-        console.error(notificationError);
-      }
-    }
+if (isNew && sendNotification && data) {
+  sendSuggestedTipNotifications({
+    race: data.race || payload.race,
+    horse: data.horse || payload.horse,
+    type: data.type || payload.type,
+    confidence: data.confidence || payload.confidence,
+    note: data.note || payload.note,
+    commentary: data.commentary || payload.commentary,
+  }).catch((notificationError) => {
+    console.error("Suggested tip notification failed:", notificationError);
+  });
+}
   }
 
-  revalidatePath("/");
-  revalidatePath("/resulted-tips");
-  revalidatePath("/my-resulted-tips");
+revalidatePath("/");
 }
 export async function addUserBetAction(
   formData: FormData,
