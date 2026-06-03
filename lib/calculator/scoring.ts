@@ -1274,3 +1274,158 @@ const summary =
     summary,
   };
 }
+export type CalculatorTipCandidate = {
+  id?: number | string;
+  runner_id?: number | string;
+  score: number | string;
+  winPercent?: number | string;
+  win_percent?: number | string;
+  placePercent?: number | string;
+  place_percent?: number | string;
+};
+
+export type QualifiedCalculatorTip<T extends CalculatorTipCandidate> = {
+  runner: T;
+  type: "Win" | "Place";
+  gap: number;
+  raceConfidence: RaceConfidence;
+  qualifiesAsStrongWin: boolean;
+  qualifiesAsStrongPlace: boolean;
+};
+
+function getCandidateId(row: CalculatorTipCandidate) {
+  return Number(row.id ?? row.runner_id ?? 0);
+}
+
+function getCandidateScore(row: CalculatorTipCandidate) {
+  return Number(row.score || 0);
+}
+
+function getCandidateWinPercent(row: CalculatorTipCandidate) {
+  return Number(row.winPercent ?? row.win_percent ?? 0);
+}
+
+function getCandidatePlacePercent(row: CalculatorTipCandidate) {
+  return Number(row.placePercent ?? row.place_percent ?? 0);
+}
+
+export function getQualifiedCalculatorTip<T extends CalculatorTipCandidate>(
+  rows: T[],
+  context?: {
+    trackCondition?: string | null;
+    placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
+  },
+): QualifiedCalculatorTip<T> | null {
+  if (!rows.length) return null;
+
+  const scoredRows = [...rows].sort(
+    (a, b) => getCandidateScore(b) - getCandidateScore(a),
+  );
+
+  const raceConfidence = calculateRaceConfidence(
+    scoredRows.map((row) => ({
+      score: getCandidateScore(row),
+      placePercent: getCandidatePlacePercent(row),
+    })),
+    context,
+  );
+
+  if (raceConfidence.tier === "Low") return null;
+
+  const topWin = scoredRows[0] || null;
+  const topPlace =
+    [...scoredRows].sort(
+      (a, b) => getCandidatePlacePercent(b) - getCandidatePlacePercent(a),
+    )[0] || null;
+
+  if (!topWin || !topPlace) return null;
+
+  const secondWin =
+    scoredRows.find((row) => getCandidateId(row) !== getCandidateId(topWin)) ||
+    null;
+
+  const secondPlace =
+    scoredRows.find((row) => getCandidateId(row) !== getCandidateId(topPlace)) ||
+    null;
+
+  const winGap = secondWin
+    ? roundScore(getCandidateScore(topWin) - getCandidateScore(secondWin))
+    : roundScore(getCandidateScore(topWin));
+
+  const placeGap = secondPlace
+    ? roundScore(getCandidateScore(topPlace) - getCandidateScore(secondPlace))
+    : roundScore(getCandidateScore(topPlace));
+
+  const placeTerms = String(context?.placeTerms || "top_3");
+  const placeBettingAllowed = placeTerms !== "win_only";
+
+  const minWinScore =
+    raceConfidence.tier === "Elite"
+      ? 66
+      : raceConfidence.tier === "High"
+        ? 68
+        : raceConfidence.tier === "Medium"
+          ? 70
+          : 999;
+
+  const basePlaceScore =
+    raceConfidence.tier === "Elite"
+      ? 60
+      : raceConfidence.tier === "High"
+        ? 62
+        : raceConfidence.tier === "Medium"
+          ? 64
+          : 999;
+
+  const minPlaceScore =
+    placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
+
+  const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
+  const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
+
+  const qualifiesAsWin =
+    getCandidateScore(topWin) >= minWinScore &&
+    winGap >= 4 &&
+    getCandidateWinPercent(topWin) >= 8;
+
+  const qualifiesAsPlace =
+    placeBettingAllowed &&
+    getCandidateScore(topPlace) >= minPlaceScore &&
+    getCandidatePlacePercent(topPlace) >= minPlacePercent &&
+    placeGap >= minPlaceGap;
+
+  const qualifiesAsStrongWin =
+    getCandidateScore(topWin) >= 72 &&
+    winGap >= 6 &&
+    getCandidateWinPercent(topWin) >= 10;
+
+  const qualifiesAsStrongPlace =
+    placeBettingAllowed &&
+    getCandidateScore(topPlace) >= 66 &&
+    getCandidatePlacePercent(topPlace) >= 34 &&
+    placeGap >= 3;
+
+  if (qualifiesAsWin) {
+    return {
+      runner: topWin,
+      type: "Win",
+      gap: winGap,
+      raceConfidence,
+      qualifiesAsStrongWin,
+      qualifiesAsStrongPlace: false,
+    };
+  }
+
+  if (qualifiesAsPlace) {
+    return {
+      runner: topPlace,
+      type: "Place",
+      gap: placeGap,
+      raceConfidence,
+      qualifiesAsStrongWin: false,
+      qualifiesAsStrongPlace,
+    };
+  }
+
+  return null;
+}
