@@ -13,8 +13,9 @@ import {
   formatFormLine,
   getFactorStatus,
   getRaceVerdict,
-  getSelectedHorseSummary,
-  roundScore,
+getSelectedHorseSummary,
+getQualifiedCalculatorTip,
+roundScore,
   type Horse,
   type JockeyProfile,
   type Meeting,
@@ -199,79 +200,12 @@ const raceConfidenceBoard = useMemo(() => {
           })
         : null;
 
-const topWin = scored[0] || null;
-const topPlace =
-  [...scored].sort((a, b) => b.placePercent - a.placePercent)[0] || null;
+const qualifiedTip = getQualifiedCalculatorTip(scored, {
+  trackCondition: meeting?.track_condition || null,
+  placeTerms: race.place_terms || "top_3",
+});
 
-const winSecond = topWin
-  ? scored.find((runner) => runner.id !== topWin.id) || null
-  : null;
-
-const placeSecond = topPlace
-  ? scored.find((runner) => runner.id !== topPlace.id) || null
-  : null;
-
-const winGap =
-  topWin && winSecond
-    ? roundScore(topWin.score - winSecond.score)
-    : topWin
-      ? roundScore(topWin.score)
-      : 0;
-
-const placeGap =
-  topPlace && placeSecond
-    ? roundScore(topPlace.score - placeSecond.score)
-    : topPlace
-      ? roundScore(topPlace.score)
-      : 0;
-
-const placeTerms = String(race.place_terms || "top_3");
-const placeBettingAllowed = placeTerms !== "win_only";
-
-const minWinScore =
-  confidence?.tier === "Elite"
-    ? 66
-    : confidence?.tier === "High"
-      ? 68
-      : confidence?.tier === "Medium"
-        ? 70
-        : 999;
-
-const basePlaceScore =
-  confidence?.tier === "Elite"
-    ? 60
-    : confidence?.tier === "High"
-      ? 62
-      : confidence?.tier === "Medium"
-        ? 64
-        : 999;
-
-const minPlaceScore =
-  placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
-
-const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
-const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
-
-const qualifiesAsWin =
-  confidence?.tier !== "Low" &&
-  topWin !== null &&
-  topWin.score >= minWinScore &&
-  winGap >= 4 &&
-  topWin.winPercent >= 8;
-
-const qualifiesAsPlace =
-  confidence?.tier !== "Low" &&
-  placeBettingAllowed &&
-  topPlace !== null &&
-  topPlace.score >= minPlaceScore &&
-  topPlace.placePercent >= minPlacePercent &&
-  placeGap >= minPlaceGap;
-
-const calculatorTip = qualifiesAsWin
-  ? "Win"
-  : qualifiesAsPlace
-    ? "Place"
-    : "No Bet";
+const calculatorTip = qualifiedTip?.type || "No Bet";
 
 return {
   race,
@@ -348,69 +282,19 @@ return {
 
         if (!scored.length) return null;
 
-        const topWin = scored[0];
-        const topPlace = [...scored].sort(
-          (a, b) => b.placePercent - a.placePercent,
-        )[0];
-
-const selected = strongestBetMode === "win" ? topWin : topPlace;
-const second = scored.find((runner) => runner.id !== selected.id);
-
-const gap = second
-  ? roundScore(selected.score - second.score)
-  : roundScore(selected.score);
-
-const meetingForRace = meetings.find(
-  (item) => Number(item.id) === Number(race.meeting_id),
-);
-
-const raceConfidenceForRace = calculateRaceConfidence(scored, {
-  trackCondition: meetingForRace?.track_condition || null,
+const qualifiedTip = getQualifiedCalculatorTip(scored, {
+  trackCondition: meetings.find((item) => Number(item.id) === Number(race.meeting_id))?.track_condition || null,
   placeTerms: (race as any).place_terms || "top_3",
 });
 
-if (raceConfidenceForRace.tier === "Low") return null;
+if (!qualifiedTip) return null;
 
-const minWinScore =
-  raceConfidenceForRace.tier === "Elite"
-    ? 66
-    : raceConfidenceForRace.tier === "High"
-      ? 68
-      : raceConfidenceForRace.tier === "Medium"
-        ? 70
-        : 999;
+if (strongestBetMode === "win" && qualifiedTip.type !== "Win") return null;
+if (strongestBetMode === "place" && qualifiedTip.type !== "Place") return null;
 
-const qualifiesAsWin =
-  selected.score >= minWinScore &&
-  gap >= 4 &&
-  selected.winPercent >= 8;
-
-const placeTerms = String((race as any).place_terms || "top_3");
-const placeBettingAllowed = placeTerms !== "win_only";
-
-const basePlaceScore =
-  raceConfidenceForRace.tier === "Elite"
-    ? 60
-    : raceConfidenceForRace.tier === "High"
-      ? 62
-      : raceConfidenceForRace.tier === "Medium"
-        ? 64
-        : 999;
-
-const minPlaceScore =
-  placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
-
-const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
-const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
-
-const qualifiesAsPlace =
-  placeBettingAllowed &&
-  selected.score >= minPlaceScore &&
-  selected.placePercent >= minPlacePercent &&
-  gap >= minPlaceGap;
-
-if (strongestBetMode === "win" && !qualifiesAsWin) return null;
-if (strongestBetMode === "place" && !qualifiesAsPlace) return null;
+const selected = qualifiedTip.runner;
+const gap = qualifiedTip.gap;
+const raceConfidenceForRace = qualifiedTip.raceConfidence;
         const existingPublishedTip = calculatorTips.find(
           (tip) => Number(tip.race_runner_id) === Number(selected.id),
         );
