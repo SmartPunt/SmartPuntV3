@@ -284,15 +284,6 @@ const raceConfidenceBoard = useMemo(() => {
         const gap = second
           ? roundScore(selected.score - second.score)
           : roundScore(selected.score);
-
-const minWinScore =
-  raceConfidenceForRace.tier === "Elite"
-    ? 66
-    : raceConfidenceForRace.tier === "High"
-      ? 68
-      : raceConfidenceForRace.tier === "Medium"
-        ? 70
-        : 999;
 const meetingForRace = meetings.find(
   (item) => Number(item.id) === Number(race.meeting_id),
 );
@@ -303,6 +294,15 @@ const raceConfidenceForRace = calculateRaceConfidence(scored, {
 });
 
 if (raceConfidenceForRace.tier === "Low") return null;
+const minWinScore =
+  raceConfidenceForRace.tier === "Elite"
+    ? 66
+    : raceConfidenceForRace.tier === "High"
+      ? 68
+      : raceConfidenceForRace.tier === "Medium"
+        ? 70
+        : 999;
+
         
 const qualifiesAsWin =
   raceConfidenceForRace.tier !== "Low" &&
