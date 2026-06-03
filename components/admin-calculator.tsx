@@ -278,12 +278,13 @@ const raceConfidenceBoard = useMemo(() => {
           (a, b) => b.placePercent - a.placePercent,
         )[0];
 
-        const selected = strongestBetMode === "win" ? topWin : topPlace;
-        const second = scored.find((runner) => runner.id !== selected.id);
+const selected = strongestBetMode === "win" ? topWin : topPlace;
+const second = scored.find((runner) => runner.id !== selected.id);
 
-        const gap = second
-          ? roundScore(selected.score - second.score)
-          : roundScore(selected.score);
+const gap = second
+  ? roundScore(selected.score - second.score)
+  : roundScore(selected.score);
+
 const meetingForRace = meetings.find(
   (item) => Number(item.id) === Number(race.meeting_id),
 );
@@ -294,6 +295,7 @@ const raceConfidenceForRace = calculateRaceConfidence(scored, {
 });
 
 if (raceConfidenceForRace.tier === "Low") return null;
+
 const minWinScore =
   raceConfidenceForRace.tier === "Elite"
     ? 66
@@ -303,7 +305,6 @@ const minWinScore =
         ? 70
         : 999;
 
-        
 const qualifiesAsWin =
   raceConfidenceForRace.tier !== "Low" &&
   selected.score >= minWinScore &&
@@ -322,21 +323,21 @@ const basePlaceScore =
         ? 64
         : 999;
 
-const minPlaceScore = placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
+const minPlaceScore =
+  placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
+
 const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
 const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
 
 const qualifiesAsPlace =
   placeBettingAllowed &&
+  raceConfidenceForRace.tier !== "Low" &&
   selected.score >= minPlaceScore &&
   selected.placePercent >= minPlacePercent &&
   gap >= minPlaceGap;
 
-        if (strongestBetMode === "win" && !qualifiesAsWin) return null;
-        if (strongestBetMode === "place" && !qualifiesAsPlace) return null;
-
-
-
+if (strongestBetMode === "win" && !qualifiesAsWin) return null;
+if (strongestBetMode === "place" && !qualifiesAsPlace) return null;
         const existingPublishedTip = calculatorTips.find(
           (tip) => Number(tip.race_runner_id) === Number(selected.id),
         );
