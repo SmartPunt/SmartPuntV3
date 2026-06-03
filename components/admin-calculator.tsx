@@ -285,13 +285,44 @@ const raceConfidenceBoard = useMemo(() => {
           ? roundScore(selected.score - second.score)
           : roundScore(selected.score);
 
-        const qualifiesAsWin =
-          selected.score >= 68 && gap >= 4 && selected.winPercent >= 8;
+const minWinScore =
+  raceConfidenceForRace.tier === "Elite"
+    ? 66
+    : raceConfidenceForRace.tier === "High"
+      ? 68
+      : raceConfidenceForRace.tier === "Medium"
+        ? 70
+        : 999;
+const meetingForRace = meetings.find(
+  (item) => Number(item.id) === Number(race.meeting_id),
+);
+
+const raceConfidenceForRace = calculateRaceConfidence(scored, {
+  trackCondition: meetingForRace?.track_condition || null,
+  placeTerms: (race as any).place_terms || "top_3",
+});
+
+if (raceConfidenceForRace.tier === "Low") return null;
+        
+const qualifiesAsWin =
+  raceConfidenceForRace.tier !== "Low" &&
+  selected.score >= minWinScore &&
+  gap >= 4 &&
+  selected.winPercent >= 8;
 
 const placeTerms = String((race as any).place_terms || "top_3");
 const placeBettingAllowed = placeTerms !== "win_only";
 
-const minPlaceScore = placeTerms === "top_2" ? 65 : 62;
+const basePlaceScore =
+  raceConfidenceForRace.tier === "Elite"
+    ? 60
+    : raceConfidenceForRace.tier === "High"
+      ? 62
+      : raceConfidenceForRace.tier === "Medium"
+        ? 64
+        : 999;
+
+const minPlaceScore = placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
 const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
 const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
 
@@ -304,16 +335,7 @@ const qualifiesAsPlace =
         if (strongestBetMode === "win" && !qualifiesAsWin) return null;
         if (strongestBetMode === "place" && !qualifiesAsPlace) return null;
 
-const meetingForRace = meetings.find(
-  (item) => Number(item.id) === Number(race.meeting_id),
-);
 
-const raceConfidenceForRace = calculateRaceConfidence(scored, {
-  trackCondition: meetingForRace?.track_condition || null,
-  placeTerms: (race as any).place_terms || "top_3",
-});
-
-if (raceConfidenceForRace.tier === "Low") return null;
 
         const existingPublishedTip = calculatorTips.find(
           (tip) => Number(tip.race_runner_id) === Number(selected.id),
