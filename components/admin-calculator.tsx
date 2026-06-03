@@ -306,7 +306,6 @@ const minWinScore =
         : 999;
 
 const qualifiesAsWin =
-  raceConfidenceForRace.tier !== "Low" &&
   selected.score >= minWinScore &&
   gap >= 4 &&
   selected.winPercent >= 8;
@@ -331,7 +330,6 @@ const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
 
 const qualifiesAsPlace =
   placeBettingAllowed &&
-  raceConfidenceForRace.tier !== "Low" &&
   selected.score >= minPlaceScore &&
   selected.placePercent >= minPlacePercent &&
   gap >= minPlaceGap;
