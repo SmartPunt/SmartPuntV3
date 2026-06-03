@@ -199,12 +199,87 @@ const raceConfidenceBoard = useMemo(() => {
           })
         : null;
 
-      return {
-        race,
-        meeting,
-        fieldSize: scored.length,
-        confidence,
-      };
+const topWin = scored[0] || null;
+const topPlace =
+  [...scored].sort((a, b) => b.placePercent - a.placePercent)[0] || null;
+
+const winSecond = topWin
+  ? scored.find((runner) => runner.id !== topWin.id) || null
+  : null;
+
+const placeSecond = topPlace
+  ? scored.find((runner) => runner.id !== topPlace.id) || null
+  : null;
+
+const winGap =
+  topWin && winSecond
+    ? roundScore(topWin.score - winSecond.score)
+    : topWin
+      ? roundScore(topWin.score)
+      : 0;
+
+const placeGap =
+  topPlace && placeSecond
+    ? roundScore(topPlace.score - placeSecond.score)
+    : topPlace
+      ? roundScore(topPlace.score)
+      : 0;
+
+const placeTerms = String(race.place_terms || "top_3");
+const placeBettingAllowed = placeTerms !== "win_only";
+
+const minWinScore =
+  confidence?.tier === "Elite"
+    ? 66
+    : confidence?.tier === "High"
+      ? 68
+      : confidence?.tier === "Medium"
+        ? 70
+        : 999;
+
+const basePlaceScore =
+  confidence?.tier === "Elite"
+    ? 60
+    : confidence?.tier === "High"
+      ? 62
+      : confidence?.tier === "Medium"
+        ? 64
+        : 999;
+
+const minPlaceScore =
+  placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
+
+const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
+const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
+
+const qualifiesAsWin =
+  confidence?.tier !== "Low" &&
+  topWin !== null &&
+  topWin.score >= minWinScore &&
+  winGap >= 4 &&
+  topWin.winPercent >= 8;
+
+const qualifiesAsPlace =
+  confidence?.tier !== "Low" &&
+  placeBettingAllowed &&
+  topPlace !== null &&
+  topPlace.score >= minPlaceScore &&
+  topPlace.placePercent >= minPlacePercent &&
+  placeGap >= minPlaceGap;
+
+const calculatorTip = qualifiesAsWin
+  ? "Win"
+  : qualifiesAsPlace
+    ? "Place"
+    : "No Bet";
+
+return {
+  race,
+  meeting,
+  fieldSize: scored.length,
+  confidence,
+  calculatorTip,
+};
     })
     .filter((item) => item.confidence)
     .sort(
@@ -895,7 +970,7 @@ if (strongestBetMode === "place" && !qualifiesAsPlace) return null;
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Terms</th>
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Track</th>
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Confidence</th>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Suggested</th>
+<th className="px-4 py-3 text-left font-semibold text-zinc-600">Calculator Tip</th>
           </tr>
         </thead>
 
@@ -939,11 +1014,11 @@ if (strongestBetMode === "place" && !qualifiesAsPlace) return null;
                 </Badge>
               </td>
 
-              <td className="px-4 py-3">
-                <Badge tone={item.confidence?.suggestedBet === "No Bet" ? "rose" : "green"}>
-                  {item.confidence?.suggestedBet}
-                </Badge>
-              </td>
+<td className="px-4 py-3">
+  <Badge tone={item.calculatorTip === "No Bet" ? "rose" : "green"}>
+    {item.calculatorTip}
+  </Badge>
+</td>
             </tr>
           ))}
         </tbody>
