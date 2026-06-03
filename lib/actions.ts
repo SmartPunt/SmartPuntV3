@@ -912,9 +912,19 @@ const winGap = topWin && secondForWin
     ? Math.round(topWin.score)
     : 0;
 
+const minWinScore =
+  raceConfidence.tier === "Elite"
+    ? 66
+    : raceConfidence.tier === "High"
+      ? 68
+      : raceConfidence.tier === "Medium"
+        ? 70
+        : 999;
+
 const qualifiesAsWin =
+  raceConfidence.tier !== "Low" &&
   topWin !== null &&
-  topWin.score >= 68 &&
+  topWin.score >= minWinScore &&
   winGap >= 4 &&
   topWin.winPercent >= 8;
 
@@ -938,7 +948,16 @@ const placeTerms = String((activeRace as any)?.place_terms || "top_3");
 
 const placeBettingAllowed = placeTerms !== "win_only";
 
-const minPlaceScore = placeTerms === "top_2" ? 65 : 62;
+const basePlaceScore =
+  raceConfidence.tier === "Elite"
+    ? 60
+    : raceConfidence.tier === "High"
+      ? 62
+      : raceConfidence.tier === "Medium"
+        ? 64
+        : 999;
+
+const minPlaceScore = placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
 const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
 const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
 
