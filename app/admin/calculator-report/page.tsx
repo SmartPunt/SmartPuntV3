@@ -52,6 +52,7 @@ type RaceRow = {
   distance_m: number | null;
   meeting_id: number;
   status: string;
+  place_terms?: string | null;
 };
 
 type MeetingRow = {
@@ -317,10 +318,10 @@ function getSmartPuntCalculatorTip(
   const race = rows[0]?.race;
   const meeting = race?.meeting;
 
-  const qualifiedTip = getQualifiedCalculatorTip(rows, {
-    trackCondition: meeting?.track_condition || null,
-    placeTerms: "top_3",
-  });
+const qualifiedTip = getQualifiedCalculatorTip(rows, {
+  trackCondition: meeting?.track_condition || null,
+  placeTerms: race?.place_terms || "top_3",
+});
 
   if (!qualifiedTip) return null;
 
@@ -389,11 +390,11 @@ async function fetchPredictions() {
   );
 
   const [races, horses] = await Promise.all([
-    serviceSelectByIdChunks<RaceRow>({
-      table: "races",
-      select: "id,race_number,race_name,distance_m,meeting_id,status",
-      ids: raceIds,
-    }),
+serviceSelectByIdChunks<RaceRow>({
+  table: "races",
+  select: "id,race_number,race_name,distance_m,meeting_id,status,place_terms",
+  ids: raceIds,
+}),
     serviceSelectByIdChunks<HorseRow>({
       table: "horses",
       select: "id,horse_name",
