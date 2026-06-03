@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import {
   SMARTPUNT_SCORING_VERSION,
   calculateRaceConfidence,
+  getQualifiedCalculatorTip,
 } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 
@@ -313,21 +314,27 @@ function getSmartPuntCalculatorTip(
 ): SmartPuntGeneratedTip | null {
   if (!rows.length) return null;
 
-  const topRated = rows.find((row) => row.rank === 1) || rows[0] || null;
-  if (!topRated) return null;
+  const race = rows[0]?.race;
+  const meeting = race?.meeting;
 
-  const raceConfidence = getRaceConfidenceForRows(rows);
+  const qualifiedTip = getQualifiedCalculatorTip(rows, {
+    trackCondition: meeting?.track_condition || null,
+    placeTerms: "top_3",
+  });
 
-  if (raceConfidence.suggestedBet === "No Bet") {
-    return null;
-  }
+  if (!qualifiedTip) return null;
+
+  const selected = qualifiedTip.runner;
 
   return {
-    ...topRated,
-    smartPuntSuggestedBet: raceConfidence.suggestedBet,
-    smartPuntRaceConfidence: raceConfidence.confidencePercent,
-    smartPuntConfidenceTier: raceConfidence.tier,
-    smartPuntVolatility: raceConfidence.volatility,
+    ...(selected as Prediction),
+    smartPuntSuggestedBet: qualifiedTip.type,
+    smartPuntRaceConfidence:
+      qualifiedTip.raceConfidence.confidencePercent,
+    smartPuntConfidenceTier:
+      qualifiedTip.raceConfidence.tier,
+    smartPuntVolatility:
+      qualifiedTip.raceConfidence.volatility,
   };
 }
 
