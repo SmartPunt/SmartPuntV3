@@ -546,7 +546,22 @@ function scoreConditionSuitability(
 
   return clamp(rawScore, 20, 95);
 }
+function getEffectiveBarrier(runner: Runner, fieldWithScratchings: Runner[]) {
+  if (runner.barrier === null || runner.barrier === undefined) return null;
 
+  const originalBarrier = Number(runner.barrier);
+
+  if (!Number.isFinite(originalBarrier)) return null;
+
+  const scratchingsInside = fieldWithScratchings.filter((item) => {
+    if (item.scratched !== true) return false;
+    if (item.barrier === null || item.barrier === undefined) return false;
+
+    return Number(item.barrier) < originalBarrier;
+  }).length;
+
+  return Math.max(1, originalBarrier - scratchingsInside);
+}
 function scoreBarrier(
   barrier: number | null | undefined,
   distance: number | null | undefined,
@@ -932,10 +947,12 @@ jockeyProfiles: JockeyProfile[];
   (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
 ) || null;
 
-const field = runners.filter(
-  (runner) =>
-    Number(runner.race_id) === Number(activeRace.id) &&
-    runner.scratched !== true,
+const fieldWithScratchings = runners.filter(
+  (runner) => Number(runner.race_id) === Number(activeRace.id),
+);
+
+const field = fieldWithScratchings.filter(
+  (runner) => runner.scratched !== true,
 );
 
 const fieldEffectiveWeights = field.map((runner) => getEffectiveWeight(runner));
@@ -993,11 +1010,13 @@ const condition =
   Number.isFinite(Number(scoreOverrides.condition))
     ? clamp(Number(scoreOverrides.condition))
     : scoreConditionSuitability(historyRuns, raceMeeting?.track_condition);
-    const barrier = scoreBarrier(
-      runner.barrier,
-      activeRace.distance_m,
-      raceMeeting?.meeting_name,
-    );
+const effectiveBarrier = getEffectiveBarrier(runner, fieldWithScratchings);
+
+const barrier = scoreBarrier(
+  effectiveBarrier,
+  activeRace.distance_m,
+  raceMeeting?.meeting_name,
+);
     const weight = scoreWeight(runner, fieldEffectiveWeights);
 const jockey = scoreJockey(
   runner,
