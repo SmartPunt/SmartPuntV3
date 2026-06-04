@@ -1942,26 +1942,27 @@ if (!data) {
   throw new Error("Calculator tip was not created.");
 }
 
-    if (sendNotification && data) {
-      try {
-        await sendSmartPuntCalculatorTipNotifications({
-          race: data.race || payload.race,
-          horse: data.horse || payload.horse,
-          betType: data.bet_type || payload.bet_type,
-          score: Number(data.score || payload.score),
-          winPercent: Number(data.win_percent || payload.win_percent),
-          placePercent: Number(data.place_percent || payload.place_percent),
-          raceConfidencePercent: Number(
-            data.race_confidence_percent || payload.race_confidence_percent,
-          ),
-          raceConfidenceTier:
-            data.race_confidence_tier || payload.race_confidence_tier,
-          raceGap: Number(data.race_gap || payload.race_gap),
-        });
-      } catch (notificationError) {
-        console.error(notificationError);
-      }
-    }
+if (sendNotification && data) {
+  sendSmartPuntCalculatorTipNotifications({
+    race: data.race || payload.race,
+    horse: data.horse || payload.horse,
+    betType: data.bet_type || payload.bet_type,
+    score: Number(data.score || payload.score),
+    winPercent: Number(data.win_percent || payload.win_percent),
+    placePercent: Number(data.place_percent || payload.place_percent),
+    raceConfidencePercent: Number(
+      data.race_confidence_percent || payload.race_confidence_percent,
+    ),
+    raceConfidenceTier:
+      data.race_confidence_tier || payload.race_confidence_tier,
+    raceGap: Number(data.race_gap || payload.race_gap),
+  }).catch((notificationError) => {
+    console.error(
+      "Calculator notification failed:",
+      notificationError,
+    );
+  });
+}
 
 revalidatePath("/admin/calculator");
 
