@@ -387,9 +387,9 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
 
     const horse_name = stripHorseSuffixes(line);
     const windowLines = lines.slice(i + 1, i + 20);
-    const is_scratched = windowLines.some((entry) =>
-      /^scr$|^scratched$/i.test(entry),
-    );
+const is_scratched = windowLines.some((entry) =>
+  /^scr$|^scratched\b/i.test(entry.trim()),
+);
 
     let barrier = "";
     let weight_kg = "";
