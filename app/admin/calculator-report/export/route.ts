@@ -176,11 +176,9 @@ function filterByDate(rows: Prediction[], from: string, to: string) {
 }
 
 async function fetchPredictions() {
-  const predictions = await serviceSelectAllRows<Prediction>(
-    `calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&scoring_version=eq.${encodeURIComponent(
-      SMARTPUNT_SCORING_VERSION,
-    )}&order=settled_at.desc`,
-  );
+const predictions = await serviceSelectAllRows<Prediction>(
+  `calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&order=settled_at.desc`,
+);
 
   const raceIds = predictions.map((row) => Number(row.race_id)).filter(Boolean);
   const runnerIds = predictions.map((row) => Number(row.runner_id)).filter(Boolean);
