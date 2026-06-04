@@ -180,6 +180,7 @@ type ImportedRunner = {
   distance_form_last_6: string;
   is_apprentice: boolean;
   apprentice_claim_kg: string;
+  is_scratched: boolean;
 };
 
 function cleanImportedValue(value: string) {
@@ -386,6 +387,9 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
 
     const horse_name = stripHorseSuffixes(line);
     const windowLines = lines.slice(i + 1, i + 20);
+    const is_scratched = windowLines.some((entry) =>
+      /^scr$|^scratched$/i.test(entry),
+    );
 
     let barrier = "";
     let weight_kg = "";
@@ -504,6 +508,7 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
         distance_form_last_6,
         is_apprentice,
         apprentice_claim_kg,
+        is_scratched,
       });
     }
 
