@@ -2497,16 +2497,7 @@ export async function toggleRacePublishAction(
       return { success: false, error: error.message };
     }
 
-    if (nextStatus === "published") {
-      try {
-        await saveCalculatorPredictionsForRace(raceId);
-      } catch (predictionError) {
-        console.error(
-          "Calculator prediction snapshot failed:",
-          predictionError,
-        );
-      }
-    }
+
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
