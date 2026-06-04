@@ -234,9 +234,20 @@ const predictions = await serviceSelectAllRows<Prediction>(
     };
   });
 }
+function groupByRace(rows: Prediction[]) {
+  const map = new Map<number, Prediction[]>();
 
+  rows.forEach((row) => {
+    const existing = map.get(row.race_id) || [];
+    existing.push(row);
+    map.set(row.race_id, existing);
+  });
+
+  return map;
+}
 function buildCsv(rows: Prediction[]) {
   const headers = [
+    const raceMap = groupByRace(rows);
     "meeting_date",
     "meeting_name",
     "track_condition",
@@ -262,12 +273,26 @@ function buildCsv(rows: Prediction[]) {
     "barrier_score",
     "weight_score",
     "jockey_score",
-    "trainer_score",
-    "predicted_at",
+"trainer_score",
+
+"winner_rank",
+"winner_in_top_3",
+"winner_in_top_5",
+"winner_in_top_10",
+
+"predicted_at",
     "settled_at",
   ];
 
-  const body = rows.map((row) => [
+const body = rows.map((row) => {
+  const raceRows = raceMap.get(row.race_id) || [];
+
+  const winnerRow =
+    raceRows.find((runner) => runner.finishing_position === 1) || null;
+
+  const winnerRank = winnerRow?.rank ?? "";
+
+  return [
     row.race?.meeting?.meeting_date || "",
     row.race?.meeting?.meeting_name || "",
     row.race?.meeting?.track_condition || "",
@@ -293,10 +318,17 @@ function buildCsv(rows: Prediction[]) {
     row.barrier_score,
     row.weight_score,
     row.jockey_score,
-    row.trainer_score,
-    row.predicted_at,
+row.trainer_score,
+
+winnerRank,
+winnerRank !== "" && winnerRank <= 3 ? "YES" : "NO",
+winnerRank !== "" && winnerRank <= 5 ? "YES" : "NO",
+winnerRank !== "" && winnerRank <= 10 ? "YES" : "NO",
+
+row.predicted_at,
     row.settled_at || "",
-  ]);
+];
+});
 
   return [headers, ...body].map((row) => row.map(csvCell).join(",")).join("\n");
 }
