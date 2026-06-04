@@ -3156,7 +3156,47 @@ export async function createRaceRunnersBulkAction(
     };
   }
 }
+export async function removeAllRaceRunnersAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
 
+    const raceId = Number(formData.get("race_id"));
+
+    if (!raceId) {
+      return { success: false, error: "Race is required." };
+    }
+
+    const runners = (await serviceRoleSelect(
+      `race_runners?race_id=eq.${raceId}&select=id`,
+    )) as Array<{ id: number }> | null;
+
+    const runnerIds = (runners || [])
+      .map((runner) => Number(runner.id))
+      .filter(Boolean);
+
+    await clearSuggestedTipLinksForRunnerIds(runnerIds);
+
+    await serviceRoleDelete(`race_runners?race_id=eq.${raceId}`);
+
+    revalidatePath("/admin/race-builder");
+    revalidatePath("/current-races");
+
+    return {
+      success: true,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to remove race runners.",
+    };
+  }
+}
 
 export async function deleteRaceRunnerAction(
   formData: FormData,
