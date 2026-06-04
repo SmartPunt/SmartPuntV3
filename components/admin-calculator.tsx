@@ -146,6 +146,20 @@ const raceConfidence = useMemo(
       : null,
   [activeRace?.place_terms, scoredRunners, topWinChance?.track_condition],
 );
+
+const qualifiedTip = useMemo(
+  () =>
+    getQualifiedCalculatorTip(scoredRunners, {
+      trackCondition: topWinChance?.track_condition || null,
+      placeTerms: activeRace?.place_terms || "top_3",
+    }),
+  [
+    activeRace?.place_terms,
+    scoredRunners,
+    topWinChance?.track_condition,
+  ],
+);
+
 const raceConfidenceBoard = useMemo(() => {
   const perthNow = new Date(
     new Date().toLocaleString("en-US", {
@@ -608,9 +622,9 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
           {raceConfidence.volatility}
         </span>
 
-        <span className="rounded-2xl bg-emerald-800 px-4 py-3 text-sm font-black text-white">
-          Suggested: {raceConfidence.suggestedBet}
-        </span>
+<span className="rounded-2xl bg-emerald-800 px-4 py-3 text-sm font-black text-white">
+  Suggested: {qualifiedTip?.type || "No Bet"}
+</span>
       </div>
     </div>
 
