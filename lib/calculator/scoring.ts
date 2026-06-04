@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v4";
+export const SMARTPUNT_SCORING_VERSION = "v5";
 
 export type Race = {
   id: number;
@@ -1029,14 +1029,14 @@ const consistency = scoreConsistency(historyRuns, runner.form_last_6);
 
 const baseScore = clamp(
   Math.round(
-    recentForm * 0.28 +
-      distance * 0.16 +
-      track * 0.08 +
-      condition * 0.14 +
-      barrier * 0.06 +
+    recentForm * 0.24 +
+      distance * 0.20 +
+      track * 0.12 +
+      condition * 0.16 +
+      barrier * 0.05 +
       weight * 0.00 +
-      jockey * 0.10 +
-      trainer * 0.03 +
+      jockey * 0.08 +
+      trainer * 0.02 +
       consistency * 0.13
   ),
   25,
