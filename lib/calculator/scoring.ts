@@ -1368,14 +1368,14 @@ export function getQualifiedCalculatorTip<T extends CalculatorTipCandidate>(
           ? 70
           : 999;
 
-  const basePlaceScore =
-    raceConfidence.tier === "Elite"
-      ? 60
-      : raceConfidence.tier === "High"
+const basePlaceScore =
+  raceConfidence.tier === "Elite"
+    ? 60
+    : raceConfidence.tier === "High"
+      ? 62
+      : raceConfidence.tier === "Medium"
         ? 62
-        : raceConfidence.tier === "Medium"
-          ? 64
-          : 999;
+        : 999;
 
   const minPlaceScore =
     placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
