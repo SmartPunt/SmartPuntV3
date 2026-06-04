@@ -12,7 +12,6 @@ import {
   calculateRaceScores,
   formatFormLine,
   getFactorStatus,
-  getRaceVerdict,
 getSelectedHorseSummary,
 getQualifiedCalculatorTip,
 roundScore,
@@ -134,7 +133,6 @@ function placeTermsLabel(value?: string | null) {
   return "Pay 1, 2 & 3";
 }
 
-  const raceVerdict = useMemo(() => getRaceVerdict(scoredRunners), [scoredRunners]);
 
 const raceConfidence = useMemo(
   () =>
@@ -556,27 +554,6 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                       <Badge tone="green">Published</Badge>
                     </div>
                   </div>
-
-                  {raceVerdict ? (
-                    <div className="rounded-[24px] border border-amber-300/40 bg-amber-50 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
-                        SmartPunt race verdict
-                      </p>
-
-                      <h3 className="mt-2 text-2xl font-bold text-zinc-950">
-                        Best Bet: {raceVerdict.type}
-                      </h3>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Badge tone="green">{raceVerdict.confidence}</Badge>
-                        {topWinChance ? (
-                          <Badge tone="blue">Top Rated: {topWinChance.horse_name}</Badge>
-                        ) : null}
-                      </div>
-
-                      <p className="mt-3 text-sm text-zinc-700">{raceVerdict.reason}</p>
-                    </div>
-                  ) : null}
 
 {raceConfidence ? (
   <div className="rounded-[28px] border border-amber-200/70 bg-white p-6 shadow-sm">
