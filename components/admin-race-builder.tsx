@@ -12,6 +12,7 @@ import {
   deleteMeetingAction,
   deleteRaceAction,
   deleteRaceRunnerAction,
+  removeAllRaceRunnersAction,
   toggleRacePublishAction,
   publishMeetingRacesAction,
   signOutAction,
@@ -1114,7 +1115,34 @@ formData.set("place_terms", racePlaceTerms);
       router.refresh();
     });
   }
+  function handleDeleteAllRunners(raceId: number) {
+    if (
+      !window.confirm(
+        "Remove ALL runners from this race? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
 
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("race_id", String(raceId));
+
+      const result = await removeAllRaceRunnersAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to remove runners.");
+        return;
+      }
+
+      setRunners((prev) =>
+        prev.filter((runner) => runner.race_id !== raceId),
+      );
+
+      setSuccess("All runners removed from race.");
+      router.refresh();
+    });
+  }
   function runnersForRace(raceId: number) {
     return runners.filter((runner) => runner.race_id === raceId);
   }
@@ -2072,17 +2100,29 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                             </p>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge tone="amber">{raceRunners.length} runners</Badge>
-                            <button
-                              type="button"
-                              onClick={() => handleTogglePublish(race.id, race.status)}
-                              disabled={isPending}
-                              className="rounded-2xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
-                            >
-                              Send to Current Races
-                            </button>
-                          </div>
+<div className="flex flex-wrap items-center gap-2">
+  <Badge tone="amber">{raceRunners.length} runners</Badge>
+
+  {raceRunners.length > 0 && (
+    <button
+      type="button"
+      onClick={() => handleDeleteAllRunners(race.id)}
+      disabled={isPending}
+      className="rounded-2xl bg-red-700 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
+    >
+      Remove All Runners
+    </button>
+  )}
+
+  <button
+    type="button"
+    onClick={() => handleTogglePublish(race.id, race.status)}
+    disabled={isPending}
+    className="rounded-2xl bg-black px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+  >
+    Send to Current Races
+  </button>
+</div>
                         </div>
 
                         <div className="mt-4 space-y-3">
