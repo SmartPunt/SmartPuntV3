@@ -2920,6 +2920,7 @@ export async function createRaceRunnersBulkAction(
       form_last_6?: string;
       track_form_last_6?: string;
       distance_form_last_6?: string;
+      is_scratched?: boolean;
     }> = [];
 
     try {
@@ -3113,7 +3114,7 @@ export async function createRaceRunnersBulkAction(
           : null,
         track_form_last_6: runner.track_form_last_6 || null,
         distance_form_last_6: runner.distance_form_last_6 || null,
-        scratched: false,
+        scratched: runner.is_scratched === true,
         created_by: profile.id,
         updated_at: now,
       };
