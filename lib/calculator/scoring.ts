@@ -1029,15 +1029,15 @@ const consistency = scoreConsistency(historyRuns, runner.form_last_6);
 
 const baseScore = clamp(
   Math.round(
-    recentForm * 0.24 +
-      distance * 0.20 +
-      track * 0.12 +
-      condition * 0.16 +
-      barrier * 0.05 +
-      weight * 0.00 +
-      jockey * 0.08 +
-      trainer * 0.02 +
-      consistency * 0.13
+recentForm * 0.25 +
+distance * 0.21 +
+track * 0.11 +
+condition * 0.18 +
+barrier * 0.05 +
+weight * 0.00 +
+jockey * 0.07 +
+trainer * 0.02 +
+consistency * 0.11
   ),
   25,
   95,
