@@ -1964,17 +1964,13 @@ if (sendNotification && data) {
   });
 }
 
-revalidatePath("/admin/calculator");
-
-return;
-
 return;
   } catch (error) {
-throw new Error(
-  error instanceof Error
-    ? error.message
-    : "Failed to publish calculator tip.",
-);
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Failed to publish calculator tip.",
+    );
   }
 }
 export async function deleteSuggestedTipAction(
