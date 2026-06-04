@@ -246,8 +246,9 @@ function groupByRace(rows: Prediction[]) {
   return map;
 }
 function buildCsv(rows: Prediction[]) {
+  const raceMap = groupByRace(rows);
+
   const headers = [
-    const raceMap = groupByRace(rows);
     "meeting_date",
     "meeting_name",
     "track_condition",
