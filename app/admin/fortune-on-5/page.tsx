@@ -487,7 +487,16 @@ export default async function Page({
   const liveFortuneFives = fortuneFives.filter(
     (fortune) => !fortune.settled_at && fortune.status !== "void",
   );
-
+console.log("fortuneFives", fortuneFives.length);
+console.log("liveFortuneFives", liveFortuneFives.length);
+console.log(
+  fortuneFives.map((f) => ({
+    id: f.id,
+    published_date: f.published_date,
+    status: f.status,
+    settled_at: f.settled_at,
+  })),
+);
   const resultedFortuneFives = fortuneFives.filter(
     (fortune) => fortune.settled_at || fortune.status === "void",
   );
