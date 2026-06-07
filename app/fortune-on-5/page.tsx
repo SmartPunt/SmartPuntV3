@@ -80,17 +80,36 @@ function getTodayPerthDate() {
 }
 
 function getWeekStart(dateValue: string) {
-  const date = new Date(`${dateValue}T00:00:00+08:00`);
-  const day = date.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const [year, month, day] = dateValue.split("-").map(Number);
+
+  const date = new Date(year, month - 1, day);
+  const dayOfWeek = date.getDay();
+
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
   date.setDate(date.getDate() + mondayOffset);
-  return date.toISOString().slice(0, 10);
+
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-function getWeekEnd(weekStart: string) {
-  const date = new Date(`${weekStart}T00:00:00+08:00`);
+function getWeekEnd(dateValue: string) {
+  const [year, month, day] = getWeekStart(dateValue)
+    .split("-")
+    .map(Number);
+
+  const date = new Date(year, month - 1, day);
+
   date.setDate(date.getDate() + 6);
-  return date.toISOString().slice(0, 10);
+
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function formatDate(value?: string | null) {
