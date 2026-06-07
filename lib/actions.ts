@@ -4115,6 +4115,8 @@ export async function createFortuneFiveAction(
   revalidatePath("/");
   revalidatePath("/admin/fortune-on-5");
   revalidatePath("/fortune-on-5");
+
+  redirect("/admin/fortune-on-5");
 }
 
 export async function acceptFortuneFiveAction(
