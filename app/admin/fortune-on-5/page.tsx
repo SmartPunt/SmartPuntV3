@@ -352,7 +352,10 @@ export default async function Page({
   const selectedDate = isValidDate(params?.date) ? String(params?.date) : today;
   const weekStart = getWeekStart(selectedDate);
   const weekEnd = getWeekEnd(selectedDate);
-
+console.log("today", today);
+console.log("selectedDate", selectedDate);
+console.log("weekStart", weekStart);
+console.log("weekEnd", weekEnd);
   const supabase = await createClient();
 
   const meetings = await fetchAllRows<Meeting>({
