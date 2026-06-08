@@ -290,7 +290,7 @@ function getBestCondition(horse: Horse) {
     { label: "Heavy", record: parseImportedRecord(horse.heavy_track_record) },
     { label: "Synthetic", record: parseImportedRecord(horse.synthetic_track_record) },
   ]
-    .filter((row) => row.record && row.record.runs > 0)
+.filter((row) => row.record && row.record.runs >= 2)
     .map((row) => {
       const rates = getStrikeRate(row.record);
       return {
