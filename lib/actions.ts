@@ -3448,9 +3448,9 @@ export async function settleRaceRunnersAction(
 
     const { data: raceRunners, error: runnersError } = await supabase
       .from("race_runners")
-      .select(
-        "id, horse_id, scratched, form_last_6, track_form_last_6, distance_form_last_6",
-      )
+.select(
+  "id, race_id, horse_id, scratched, form_last_6, track_form_last_6, distance_form_last_6",
+)
       .eq("race_id", raceId);
 
     if (runnersError) {
