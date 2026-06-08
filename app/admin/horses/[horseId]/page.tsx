@@ -552,9 +552,14 @@ export default async function Page({
   const meetingList: Meeting[] = meetings || [];
 
   const enrichedRuns: EnrichedRunner[] = runners.map((runner) => {
-    const race = raceList.find((item) => item.id === runner.race_id) || null;
+    const race =
+      raceList.find((item) => Number(item.id) === Number(runner.race_id)) ||
+      null;
+
     const meeting = race
-      ? meetingList.find((item) => item.id === race.meeting_id) || null
+      ? meetingList.find(
+          (item) => Number(item.id) === Number(race.meeting_id),
+        ) || null
       : null;
 
     return {
