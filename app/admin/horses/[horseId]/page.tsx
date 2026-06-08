@@ -257,7 +257,21 @@ function getRecordLabel(record?: string | null) {
 
   return `${parsed.runs} runs • ${parsed.wins} wins • ${parsed.places} places`;
 }
+function formatPercent(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
 
+function getRecordAssessment(label: string, record?: ReturnType<typeof parseImportedRecord> | null) {
+  if (!record || record.runs <= 0) return `No ${label.toLowerCase()} edge`;
+
+  const rates = getStrikeRate(record);
+
+  if (record.runs >= 5 && rates.placeRate >= 0.55) return `${label} Advantage`;
+  if (record.runs >= 3 && rates.placeRate >= 0.45) return `${label} Positive`;
+  if (record.runs >= 5 && rates.placeRate <= 0.25) return `${label} Query`;
+
+  return `${label} Neutral`;
+}
 function getBestCondition(horse: Horse) {
   const rows = [
     { label: "Good", record: parseImportedRecord(horse.good_track_record) },
@@ -333,26 +347,26 @@ function buildSmartPuntProfile({
   const distanceRates = getStrikeRate(distanceRecord);
 
   if (trackRecord && trackRecord.runs >= 5 && trackRates.placeRate >= 0.55) {
-    tags.push("Track Specialist");
+tags.push("Track Advantage");
     strengths.push(
       `Strong track profile: ${horse.track_form_last_6} (${getRecordLabel(
         horse.track_form_last_6,
       )}).`,
     );
   } else if (trackRecord && trackRecord.runs >= 3 && trackRates.placeRate >= 0.45) {
-    tags.push("Track Proven");
+tags.push("Track Positive");
     strengths.push(`Reliable track record: ${horse.track_form_last_6}.`);
   }
 
   if (distanceRecord && distanceRecord.runs >= 6 && distanceRates.placeRate >= 0.45) {
-    tags.push("Distance Proven");
+tags.push("Distance Advantage");
     strengths.push(
       `Proven at the trip: ${horse.distance_form_last_6} (${getRecordLabel(
         horse.distance_form_last_6,
       )}).`,
     );
   } else if (distanceRecord && distanceRecord.runs >= 3 && distanceRates.placeRate >= 0.4) {
-    tags.push("Distance Suitable");
+ tags.push("Distance Positive");
     strengths.push(`Has some useful distance evidence: ${horse.distance_form_last_6}.`);
   }
 
@@ -415,7 +429,7 @@ function buildSmartPuntProfile({
   const summary =
     primaryTag === "Profile Building"
       ? `${horse.horse_name} is still building a stronger SmartPunt profile. The available data is useful, but there is not yet a clear standout pattern across track, distance, and conditions.`
-      : `${horse.horse_name} profiles as a ${primaryTag.toLowerCase()}. The key SmartPunt indicators point to ${strengths
+      : `${horse.horse_name} has a ${primaryTag.toLowerCase()} in the current SmartPunt profile. The key indicators point to ${strengths
           .slice(0, 2)
           .map((item) => item.replace(/\.$/, "").toLowerCase())
           .join(" and ")}.`;
@@ -882,22 +896,56 @@ export default async function Page({
           </Panel>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-3">
-          <StatCard
-            title="Distance record"
-            rows={distanceStats}
-            emptyLabel="No resulted distance history yet."
-          />
-          <StatCard
-            title="Track record"
-            rows={trackStats}
-            emptyLabel="No resulted track history yet."
-          />
-          <StatCard
-            title="Condition record"
-            rows={conditionStats}
-            emptyLabel="No resulted condition history yet."
-          />
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          {conditionRecordRows.map((row) => (
+            <Panel key={row.label} className="bg-white/95">
+              <div className="p-4 text-zinc-950">
+                <p className="text-sm text-zinc-500">{row.label} Record</p>
+                <p className="mt-3 text-lg font-semibold">
+                  {row.runs}:{row.wins},{Math.max(0, row.places - row.wins)},0
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {row.runs} runs • {row.wins} wins • {row.places} places
+                </p>
+              </div>
+            </Panel>
+          ))}
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <Panel className="bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">
+                Distance Intelligence
+              </p>
+              <h3 className="mt-2 text-2xl font-black text-zinc-950">
+                {getRecordAssessment("Distance", parseImportedRecord(importedDistanceSource))}
+              </h3>
+              <p className="mt-4 text-sm font-semibold text-zinc-700">
+                Record: {formatRecord(importedDistanceSource)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                {getRecordLabel(importedDistanceSource)}
+              </p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">
+                Track Intelligence
+              </p>
+              <h3 className="mt-2 text-2xl font-black text-zinc-950">
+                {getRecordAssessment("Track", parseImportedRecord(importedTrackSource))}
+              </h3>
+              <p className="mt-4 text-sm font-semibold text-zinc-700">
+                Record: {formatRecord(importedTrackSource)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">
+                {getRecordLabel(importedTrackSource)}
+              </p>
+            </div>
+          </Panel>
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
