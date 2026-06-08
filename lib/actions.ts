@@ -2766,6 +2766,29 @@ export async function createRaceRunnerAction(
     }
 
     let horseId = selectedHorseIdRaw ? Number(selectedHorseIdRaw) : 0;
+    let horseMasterFormLast6: string | null = null;
+    let horseMasterTrackFormLast6: string | null = null;
+    let horseMasterDistanceFormLast6: string | null = null;
+
+    if (horseId) {
+      const { data: selectedHorse, error: selectedHorseError } = await supabase
+        .from("horses")
+        .select("id, form_last_6, track_form_last_6, distance_form_last_6")
+        .eq("id", horseId)
+        .maybeSingle();
+
+      if (selectedHorseError) {
+        return { success: false, error: selectedHorseError.message };
+      }
+
+      if (!selectedHorse?.id) {
+        return { success: false, error: "Selected horse could not be found." };
+      }
+
+      horseMasterFormLast6 = selectedHorse.form_last_6 || null;
+      horseMasterTrackFormLast6 = selectedHorse.track_form_last_6 || null;
+      horseMasterDistanceFormLast6 = selectedHorse.distance_form_last_6 || null;
+    }
 
     if (!horseId) {
       const normalisedName = normaliseHorseName(horseNameRaw);
@@ -2776,7 +2799,7 @@ export async function createRaceRunnerAction(
 
       const { data: existingHorse, error: existingHorseError } = await supabase
         .from("horses")
-        .select("id, horse_name")
+        .select("id, horse_name, form_last_6, track_form_last_6, distance_form_last_6")
         .eq("normalised_name", normalisedName)
         .maybeSingle();
 
@@ -2786,27 +2809,37 @@ export async function createRaceRunnerAction(
 
       if (existingHorse?.id) {
         horseId = existingHorse.id;
+        horseMasterFormLast6 = existingHorse.form_last_6 || null;
+        horseMasterTrackFormLast6 = existingHorse.track_form_last_6 || null;
+        horseMasterDistanceFormLast6 =
+          existingHorse.distance_form_last_6 || null;
       } else {
+        const seededFormLast6 = formLast6
+          ? normaliseImportedForm(formLast6)
+          : null;
+        const seededTrackFormLast6 = trackFormLast6 || null;
+        const seededDistanceFormLast6 = distanceFormLast6 || null;
+
         const { data: insertedHorse, error: insertHorseError } = await supabase
           .from("horses")
           .insert({
             horse_name: horseNameRaw.replace(/\s+/g, " ").trim(),
             normalised_name: normalisedName,
 
-            form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
-            track_form_last_6: trackFormLast6 || null,
-            distance_form_last_6: distanceFormLast6 || null,
+            form_last_6: seededFormLast6,
+            track_form_last_6: seededTrackFormLast6,
+            distance_form_last_6: seededDistanceFormLast6,
 
             updated_at: new Date().toISOString(),
           })
-          .select("id")
+          .select("id, form_last_6, track_form_last_6, distance_form_last_6")
           .single();
 
         if (insertHorseError) {
           if (insertHorseError.code === "23505") {
             const { data: retryHorse, error: retryHorseError } = await supabase
               .from("horses")
-              .select("id")
+              .select("id, form_last_6, track_form_last_6, distance_form_last_6")
               .eq("normalised_name", normalisedName)
               .maybeSingle();
 
@@ -2819,11 +2852,19 @@ export async function createRaceRunnerAction(
             }
 
             horseId = retryHorse.id;
+            horseMasterFormLast6 = retryHorse.form_last_6 || null;
+            horseMasterTrackFormLast6 = retryHorse.track_form_last_6 || null;
+            horseMasterDistanceFormLast6 =
+              retryHorse.distance_form_last_6 || null;
           } else {
             return { success: false, error: insertHorseError.message };
           }
         } else {
           horseId = insertedHorse.id;
+          horseMasterFormLast6 = insertedHorse.form_last_6 || null;
+          horseMasterTrackFormLast6 = insertedHorse.track_form_last_6 || null;
+          horseMasterDistanceFormLast6 =
+            insertedHorse.distance_form_last_6 || null;
         }
       }
     }
@@ -2861,9 +2902,9 @@ export async function createRaceRunnerAction(
         apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
           ? apprenticeClaimValue
           : null,
-      form_last_6: formLast6 ? normaliseImportedForm(formLast6) : null,
-      track_form_last_6: trackFormLast6 || null,
-      distance_form_last_6: distanceFormLast6 || null,
+      form_last_6: horseMasterFormLast6,
+      track_form_last_6: horseMasterTrackFormLast6,
+      distance_form_last_6: horseMasterDistanceFormLast6,
       scratched: false,
       created_by: profile.id,
       updated_at: new Date().toISOString(),
@@ -2971,18 +3012,31 @@ export async function createRaceRunnersBulkAction(
 
     const { data: existingHorses, error: existingHorsesError } = await supabase
       .from("horses")
-      .select("id, horse_name, normalised_name")
+      .select(
+        "id, horse_name, normalised_name, form_last_6, track_form_last_6, distance_form_last_6",
+      )
       .in("normalised_name", normalisedNames);
 
     if (existingHorsesError) {
       return { success: false, error: existingHorsesError.message };
     }
 
-    const horsesByNormalisedName = new Map<string, { id: number }>();
+    const horsesByNormalisedName = new Map<
+      string,
+      {
+        id: number;
+        form_last_6: string | null;
+        track_form_last_6: string | null;
+        distance_form_last_6: string | null;
+      }
+    >();
 
     for (const horse of existingHorses || []) {
       horsesByNormalisedName.set(String((horse as any).normalised_name), {
         id: Number((horse as any).id),
+        form_last_6: (horse as any).form_last_6 || null,
+        track_form_last_6: (horse as any).track_form_last_6 || null,
+        distance_form_last_6: (horse as any).distance_form_last_6 || null,
       });
     }
 
@@ -3003,7 +3057,9 @@ export async function createRaceRunnersBulkAction(
       const { data: insertedHorses, error: insertedHorsesError } = await supabase
         .from("horses")
         .insert(missingHorseRows)
-        .select("id, normalised_name");
+        .select(
+          "id, normalised_name, form_last_6, track_form_last_6, distance_form_last_6",
+        );
 
       if (insertedHorsesError && insertedHorsesError.code !== "23505") {
         return { success: false, error: insertedHorsesError.message };
@@ -3012,7 +3068,9 @@ export async function createRaceRunnersBulkAction(
       if (insertedHorsesError?.code === "23505") {
         const { data: retryHorses, error: retryHorsesError } = await supabase
           .from("horses")
-          .select("id, normalised_name")
+          .select(
+            "id, normalised_name, form_last_6, track_form_last_6, distance_form_last_6",
+          )
           .in("normalised_name", normalisedNames);
 
         if (retryHorsesError) {
@@ -3022,12 +3080,18 @@ export async function createRaceRunnersBulkAction(
         for (const horse of retryHorses || []) {
           horsesByNormalisedName.set(String((horse as any).normalised_name), {
             id: Number((horse as any).id),
+            form_last_6: (horse as any).form_last_6 || null,
+            track_form_last_6: (horse as any).track_form_last_6 || null,
+            distance_form_last_6: (horse as any).distance_form_last_6 || null,
           });
         }
       } else {
         for (const horse of insertedHorses || []) {
           horsesByNormalisedName.set(String((horse as any).normalised_name), {
             id: Number((horse as any).id),
+            form_last_6: (horse as any).form_last_6 || null,
+            track_form_last_6: (horse as any).track_form_last_6 || null,
+            distance_form_last_6: (horse as any).distance_form_last_6 || null,
           });
         }
       }
@@ -3072,7 +3136,7 @@ export async function createRaceRunnersBulkAction(
     const now = new Date().toISOString();
 
     const runnerRows = cleanedRunners.map((runner) => {
-      const horseId = horsesByNormalisedName.get(runner.normalised_name)?.id;
+      const horse = horsesByNormalisedName.get(runner.normalised_name);
       const barrierValue = runner.barrier ? Number(runner.barrier) : null;
       const marketPriceValue = runner.market_price
         ? Number(runner.market_price)
@@ -3084,7 +3148,7 @@ export async function createRaceRunnersBulkAction(
 
       return {
         race_id: raceId,
-        horse_id: horseId,
+        horse_id: horse?.id,
         jockey_name: runner.jockey_name || null,
         trainer_name: runner.trainer_name || null,
         barrier:
@@ -3107,11 +3171,9 @@ export async function createRaceRunnersBulkAction(
           apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
             ? apprenticeClaimValue
             : null,
-        form_last_6: runner.form_last_6
-          ? normaliseImportedForm(String(runner.form_last_6))
-          : null,
-        track_form_last_6: runner.track_form_last_6 || null,
-        distance_form_last_6: runner.distance_form_last_6 || null,
+        form_last_6: horse?.form_last_6 || null,
+        track_form_last_6: horse?.track_form_last_6 || null,
+        distance_form_last_6: horse?.distance_form_last_6 || null,
         scratched: runner.is_scratched === true,
         created_by: profile.id,
         updated_at: now,
