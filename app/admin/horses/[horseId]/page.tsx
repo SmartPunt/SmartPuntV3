@@ -272,6 +272,17 @@ function getRecordAssessment(label: string, record?: ReturnType<typeof parseImpo
 
   return `${label} Neutral`;
 }
+function getProfileStatus(totalRuns: number, totalWins: number, totalPlaces: number) {
+  const winRate = totalRuns > 0 ? totalWins / totalRuns : 0;
+  const placeRate = totalRuns > 0 ? totalPlaces / totalRuns : 0;
+
+  if (totalRuns >= 12 && placeRate >= 0.45) return "Established Profile";
+  if (totalRuns >= 6 && winRate >= 0.25) return "Developing Winner";
+  if (totalRuns >= 6 && placeRate >= 0.45) return "Reliable Profile";
+  if (totalRuns >= 3) return "Developing Profile";
+
+  return "Profile Building";
+}
 function getBestCondition(horse: Horse) {
   const rows = [
     { label: "Good", record: parseImportedRecord(horse.good_track_record) },
@@ -712,7 +723,14 @@ export default async function Page({
     horse,
     recentFormLine,
   });
+  const profileStatus = getProfileStatus(
+    totalRuns,
+    totalWins,
+    totalPlaces,
+  );
 
+  const winRate = totalRuns > 0 ? totalWins / totalRuns : 0;
+  const placeRate = totalRuns > 0 ? totalPlaces / totalRuns : 0;
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
@@ -990,7 +1008,7 @@ export default async function Page({
                     Profile
                   </p>
                   <p className="mt-2 text-sm font-semibold text-zinc-900">
-                    {formatHorseMeta(horse) || "Profile still being built"}
+{formatHorseMeta(horse) || profileStatus}
                   </p>
                 </div>
 
@@ -1007,12 +1025,12 @@ export default async function Page({
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
                     Overall record
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-zinc-900">
-                    {totalRuns}:{totalWins}-{totalPlaces}
-                  </p>
-                  <p className="mt-1 text-sm text-zinc-600">
-                    Runs : Wins - Places
-                  </p>
+<p className="mt-2 text-sm font-semibold text-zinc-900">
+  {totalRuns} runs • {totalWins} wins • {totalPlaces} places
+</p>
+<p className="mt-1 text-sm text-zinc-600">
+  Win {formatPercent(winRate)} • Place {formatPercent(placeRate)}
+</p>
                 </div>
 
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
