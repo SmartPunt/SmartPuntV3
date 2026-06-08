@@ -468,14 +468,19 @@ if (!matchingRuns.length) return 48;
 function scoreTrackSuitability(
   historyRuns: HistoryRun[],
   currentTrack: string | null | undefined,
+  horse?: Horse | null,
 ) {
   if (!currentTrack) return 50;
+
+  const trackRecordScore = scoreImportedStatRecord(horse?.track_form_last_6);
 
   const matchingRuns = historyRuns.filter(
     (run) => run.meeting?.meeting_name === currentTrack,
   );
 
-  if (!matchingRuns.length) return 50;
+  if (!matchingRuns.length) {
+    return horse?.track_form_last_6 ? trackRecordScore : 50;
+  }
 
   const places = matchingRuns.filter((run) => {
     const pos = run.finishing_position;
@@ -486,10 +491,19 @@ function scoreTrackSuitability(
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
-  const rawScore = Math.round(40 + placeRate * 35 + winRate * 18);
-  return evidenceCap(rawScore, matchingRuns.length);
-}
+  const rawScore = Math.round(38 + placeRate * 38 + winRate * 24);
 
+  const historyScore =
+    matchingRuns.length === 1
+      ? clamp(rawScore, 35, 68)
+      : matchingRuns.length === 2
+        ? clamp(rawScore, 32, 78)
+        : clamp(rawScore, 25, 95);
+
+  if (!horse?.track_form_last_6) return historyScore;
+
+  return clamp(Math.round(historyScore * 0.6 + trackRecordScore * 0.4), 25, 95);
+}
 function scoreConditionSuitability(
   historyRuns: HistoryRun[],
   currentCondition: string | null | undefined,
@@ -1006,9 +1020,9 @@ const track =
     (run) =>
       run.meeting?.meeting_name === raceMeeting?.meeting_name,
   ).length >= 2
-    ? scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name)
+    ? scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name, horse)
     : Math.round(
-        (scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name) * 0.4) +
+        (scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name, horse) * 0.4) +
           (scoreImportedStatRecord(runner.track_form_last_6) * 0.6),
       );
 const condition =
