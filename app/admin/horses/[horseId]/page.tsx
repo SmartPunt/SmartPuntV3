@@ -536,19 +536,45 @@ export default async function Page({
     .eq("horse_id", horseIdNumber)
     .order("created_at", { ascending: false });
 
-  const { data: races } = await supabase
-    .from("races")
-    .select("*")
-    .order("meeting_id", { ascending: false })
-    .order("race_number", { ascending: true });
-
-  const { data: meetings } = await supabase
-    .from("meetings")
-    .select("*")
-    .order("meeting_date", { ascending: false });
-
   const runners: Runner[] = allRunners || [];
+
+  const raceIds = Array.from(
+    new Set(
+      runners
+        .map((runner) => Number(runner.race_id))
+        .filter((raceId) => Number.isFinite(raceId) && raceId > 0),
+    ),
+  );
+
+  const { data: races } =
+    raceIds.length > 0
+      ? await supabase
+          .from("races")
+          .select("*")
+          .in("id", raceIds)
+          .order("meeting_id", { ascending: false })
+          .order("race_number", { ascending: true })
+      : { data: [] };
+
   const raceList: Race[] = races || [];
+
+  const meetingIds = Array.from(
+    new Set(
+      raceList
+        .map((race) => Number(race.meeting_id))
+        .filter((meetingId) => Number.isFinite(meetingId) && meetingId > 0),
+    ),
+  );
+
+  const { data: meetings } =
+    meetingIds.length > 0
+      ? await supabase
+          .from("meetings")
+          .select("*")
+          .in("id", meetingIds)
+          .order("meeting_date", { ascending: false })
+      : { data: [] };
+
   const meetingList: Meeting[] = meetings || [];
 
   const enrichedRuns: EnrichedRunner[] = runners.map((runner) => {
