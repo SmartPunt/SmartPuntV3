@@ -44,6 +44,16 @@ export type Horse = {
   id: number;
   horse_name: string;
   normalised_name: string;
+
+  form_last_6?: string | null;
+  track_form_last_6?: string | null;
+  distance_form_last_6?: string | null;
+
+  good_track_record?: string | null;
+  soft_track_record?: string | null;
+  heavy_track_record?: string | null;
+  synthetic_track_record?: string | null;
+
   created_at: string;
   updated_at: string;
 };
