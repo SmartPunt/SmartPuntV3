@@ -493,68 +493,65 @@ function scoreTrackSuitability(
 function scoreConditionSuitability(
   historyRuns: HistoryRun[],
   currentCondition: string | null | undefined,
+  horse?: Horse | null,
 ) {
   if (!currentCondition) return 50;
 
   const target = getConditionBucket(currentCondition);
 
+  const conditionRecord =
+    target === "Good"
+      ? horse?.good_track_record
+      : target === "Soft"
+        ? horse?.soft_track_record
+        : target === "Heavy"
+          ? horse?.heavy_track_record
+          : target === "Other"
+            ? horse?.synthetic_track_record
+            : null;
+
+  const importedScore = scoreImportedStatRecord(conditionRecord);
+
   const matchingRuns = historyRuns.filter(
     (run) => getConditionBucket(run.meeting?.track_condition) === target,
   );
 
-  // UNKNOWN = slight caution instead of neutral
   if (!matchingRuns.length) {
-    return target === "Heavy" ? 44 : 48;
+    if (!conditionRecord) return target === "Heavy" ? 48 : 50;
+    return importedScore;
   }
 
-  const places = matchingRuns.filter((run) => {
-    const pos = run.finishing_position;
+  const historyScore = (() => {
+    const places = matchingRuns.filter((run) => {
+      const pos = run.finishing_position;
+      return pos !== null && pos !== undefined && pos <= 3;
+    }).length;
 
-    return (
-      pos !== null &&
-      pos !== undefined &&
-      pos <= 3
-    );
-  }).length;
+    const wins = matchingRuns.filter(
+      (run) => run.finishing_position === 1,
+    ).length;
 
-  const wins = matchingRuns.filter(
-    (run) => run.finishing_position === 1,
-  ).length;
+    const placeRate = places / matchingRuns.length;
+    const winRate = wins / matchingRuns.length;
 
-  const placeRate = places / matchingRuns.length;
-  const winRate = wins / matchingRuns.length;
+    let rawScore = Math.round(34 + placeRate * 36 + winRate * 26);
 
-  // MUCH wider spread for wet-track suitability
-  let rawScore = Math.round(
-    28 +
-      placeRate * 42 +
-      winRate * 34,
-  );
-
-  // STRONG wet-track bonuses
-  if (target === "Heavy") {
-    if (matchingRuns.length >= 4 && winRate >= 0.35) {
-      rawScore += 10;
-    } else if (matchingRuns.length >= 3 && placeRate >= 0.66) {
-      rawScore += 6;
+    if (target === "Heavy") {
+      if (matchingRuns.length >= 4 && winRate >= 0.35) rawScore += 8;
+      else if (matchingRuns.length >= 3 && placeRate >= 0.66) rawScore += 5;
     }
-  }
 
-  // PENALISE repeated failures
-  if (matchingRuns.length >= 3 && placeRate <= 0.2) {
-    rawScore -= 10;
-  }
+    if (matchingRuns.length >= 3 && placeRate <= 0.2) rawScore -= 8;
 
-  // lighter evidence dampening for conditions
-  if (matchingRuns.length === 1) {
-    return clamp(rawScore, 30, 68);
-  }
+    if (matchingRuns.length === 1) return clamp(rawScore, 35, 68);
+    if (matchingRuns.length === 2) return clamp(rawScore, 32, 78);
 
-  if (matchingRuns.length === 2) {
-    return clamp(rawScore, 28, 78);
-  }
+    return clamp(rawScore, 25, 95);
+  })();
 
-  return clamp(rawScore, 20, 95);
+  if (!conditionRecord) return historyScore;
+
+  return clamp(Math.round(historyScore * 0.65 + importedScore * 0.35), 25, 95);
 }
 function getEffectiveBarrier(runner: Runner, fieldWithScratchings: Runner[]) {
   if (runner.barrier === null || runner.barrier === undefined) return null;
