@@ -1016,7 +1016,7 @@ const condition =
   scoreOverrides?.condition !== undefined &&
   Number.isFinite(Number(scoreOverrides.condition))
     ? clamp(Number(scoreOverrides.condition))
-    : scoreConditionSuitability(historyRuns, raceMeeting?.track_condition);
+: scoreConditionSuitability(historyRuns, raceMeeting?.track_condition, horse);
 const effectiveBarrier = getEffectiveBarrier(runner, fieldWithScratchings);
 
 const barrier = scoreBarrier(
