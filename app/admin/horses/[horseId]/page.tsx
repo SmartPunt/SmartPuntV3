@@ -13,12 +13,12 @@ type Horse = {
 
   form_last_6: string | null;
   track_form_last_6: string | null;
-distance_form_last_6: string | null;
+  distance_form_last_6: string | null;
 
-good_track_record: string | null;
-soft_track_record: string | null;
-heavy_track_record: string | null;
-synthetic_track_record: string | null;
+  good_track_record: string | null;
+  soft_track_record: string | null;
+  heavy_track_record: string | null;
+  synthetic_track_record: string | null;
 
   created_at: string;
   updated_at: string;
@@ -134,6 +134,47 @@ function getDistanceBucket(distance?: number | null) {
   return "2200m+";
 }
 
+function parseImportedRecord(value?: string | null) {
+  const cleaned = String(value || "").trim();
+  const match = cleaned.match(/^(\d+):([0-9]+),([0-9]+),([0-9]+)$/);
+
+  if (!match) return null;
+
+  const runs = Number(match[1]);
+  const wins = Number(match[2]);
+  const seconds = Number(match[3]);
+  const thirds = Number(match[4]);
+
+  return {
+    runs: Number.isNaN(runs) ? 0 : runs,
+    wins: Number.isNaN(wins) ? 0 : wins,
+    seconds: Number.isNaN(seconds) ? 0 : seconds,
+    thirds: Number.isNaN(thirds) ? 0 : thirds,
+    places:
+      (Number.isNaN(wins) ? 0 : wins) +
+      (Number.isNaN(seconds) ? 0 : seconds) +
+      (Number.isNaN(thirds) ? 0 : thirds),
+  };
+}
+
+function formatRecord(value?: string | null) {
+  return value && value.trim() ? value : "—";
+}
+
+function getStrikeRate(record?: ReturnType<typeof parseImportedRecord> | null) {
+  if (!record || record.runs <= 0) {
+    return {
+      winRate: 0,
+      placeRate: 0,
+    };
+  }
+
+  return {
+    winRate: record.wins / record.runs,
+    placeRate: record.places / record.runs,
+  };
+}
+
 function buildStatRows(
   runs: EnrichedRunner[],
   getLabel: (run: EnrichedRunner) => string | null,
@@ -210,6 +251,188 @@ function getRaceStatusTone(status?: Race["status"] | null) {
   return "amber";
 }
 
+function getRecordLabel(record?: string | null) {
+  const parsed = parseImportedRecord(record);
+  if (!parsed || parsed.runs <= 0) return "No exposed record";
+
+  return `${parsed.runs} runs • ${parsed.wins} wins • ${parsed.places} places`;
+}
+
+function getBestCondition(horse: Horse) {
+  const rows = [
+    { label: "Good", record: parseImportedRecord(horse.good_track_record) },
+    { label: "Soft", record: parseImportedRecord(horse.soft_track_record) },
+    { label: "Heavy", record: parseImportedRecord(horse.heavy_track_record) },
+    { label: "Synthetic", record: parseImportedRecord(horse.synthetic_track_record) },
+  ]
+    .filter((row) => row.record && row.record.runs > 0)
+    .map((row) => {
+      const rates = getStrikeRate(row.record);
+      return {
+        label: row.label,
+        record: row.record!,
+        score: rates.placeRate * 100 + rates.winRate * 70 + row.record!.runs * 1.5,
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  return rows[0] || null;
+}
+
+function getWorstCondition(horse: Horse) {
+  const rows = [
+    { label: "Good", record: parseImportedRecord(horse.good_track_record) },
+    { label: "Soft", record: parseImportedRecord(horse.soft_track_record) },
+    { label: "Heavy", record: parseImportedRecord(horse.heavy_track_record) },
+    { label: "Synthetic", record: parseImportedRecord(horse.synthetic_track_record) },
+  ]
+    .filter((row) => row.record && row.record.runs >= 2)
+    .map((row) => {
+      const rates = getStrikeRate(row.record);
+      return {
+        label: row.label,
+        record: row.record!,
+        score: rates.placeRate * 100 + rates.winRate * 70,
+      };
+    })
+    .sort((a, b) => a.score - b.score);
+
+  return rows[0] || null;
+}
+
+function parseRecentFormForProfile(value?: string | null) {
+  return String(value || "")
+    .replace(/[^0-9xX]/g, "")
+    .split("")
+    .filter((item) => item.toLowerCase() !== "x")
+    .map((item) => {
+      const num = Number(item);
+      if (!Number.isFinite(num) || num <= 0) return 10;
+      return num;
+    });
+}
+
+function buildSmartPuntProfile({
+  horse,
+  recentFormLine,
+}: {
+  horse: Horse;
+  recentFormLine: string;
+}) {
+  const trackRecord = parseImportedRecord(horse.track_form_last_6);
+  const distanceRecord = parseImportedRecord(horse.distance_form_last_6);
+  const bestCondition = getBestCondition(horse);
+  const worstCondition = getWorstCondition(horse);
+  const recentPositions = parseRecentFormForProfile(recentFormLine);
+
+  const tags: string[] = [];
+  const strengths: string[] = [];
+  const watchOuts: string[] = [];
+
+  const trackRates = getStrikeRate(trackRecord);
+  const distanceRates = getStrikeRate(distanceRecord);
+
+  if (trackRecord && trackRecord.runs >= 5 && trackRates.placeRate >= 0.55) {
+    tags.push("Track Specialist");
+    strengths.push(
+      `Strong track profile: ${horse.track_form_last_6} (${getRecordLabel(
+        horse.track_form_last_6,
+      )}).`,
+    );
+  } else if (trackRecord && trackRecord.runs >= 3 && trackRates.placeRate >= 0.45) {
+    tags.push("Track Proven");
+    strengths.push(`Reliable track record: ${horse.track_form_last_6}.`);
+  }
+
+  if (distanceRecord && distanceRecord.runs >= 6 && distanceRates.placeRate >= 0.45) {
+    tags.push("Distance Proven");
+    strengths.push(
+      `Proven at the trip: ${horse.distance_form_last_6} (${getRecordLabel(
+        horse.distance_form_last_6,
+      )}).`,
+    );
+  } else if (distanceRecord && distanceRecord.runs >= 3 && distanceRates.placeRate >= 0.4) {
+    tags.push("Distance Suitable");
+    strengths.push(`Has some useful distance evidence: ${horse.distance_form_last_6}.`);
+  }
+
+  if (bestCondition) {
+    const bestRates = getStrikeRate(bestCondition.record);
+
+    if (bestCondition.record.runs >= 2 && bestRates.placeRate >= 0.5) {
+      const conditionTag =
+        bestCondition.label === "Heavy"
+          ? "Heavy Tracker"
+          : bestCondition.label === "Soft"
+            ? "Wet Tracker"
+            : `${bestCondition.label} Performer`;
+
+      tags.push(conditionTag);
+      strengths.push(
+        `Best exposed condition is ${bestCondition.label}: ${bestCondition.record.runs}:${bestCondition.record.wins},${bestCondition.record.seconds},${bestCondition.record.thirds}.`,
+      );
+    }
+  }
+
+  if (recentPositions.length >= 3) {
+    const topThree = recentPositions.filter((position) => position <= 3).length;
+    const poorRuns = recentPositions.filter((position) => position >= 8).length;
+
+    if (topThree >= 3) {
+      tags.push("Consistent Performer");
+      strengths.push("Recent form shows repeated top-three finishes.");
+    }
+
+    if (poorRuns >= 3) {
+      watchOuts.push("Recent form has a few plain runs, so current performance needs monitoring.");
+    }
+  }
+
+  if (trackRecord && trackRecord.runs >= 5 && trackRates.placeRate <= 0.25) {
+    watchOuts.push(`Track record is limited: ${horse.track_form_last_6}.`);
+  }
+
+  if (distanceRecord && distanceRecord.runs >= 6 && distanceRates.placeRate <= 0.25) {
+    watchOuts.push(`Distance record is a query: ${horse.distance_form_last_6}.`);
+  }
+
+  if (worstCondition) {
+    const worstRates = getStrikeRate(worstCondition.record);
+
+    if (worstCondition.record.runs >= 3 && worstRates.placeRate <= 0.25) {
+      watchOuts.push(
+        `${worstCondition.label} conditions look less suitable from exposed results.`,
+      );
+    }
+  }
+
+  if (!tags.length) {
+    tags.push("Profile Building");
+  }
+
+  const primaryTag = tags[0];
+
+  const summary =
+    primaryTag === "Profile Building"
+      ? `${horse.horse_name} is still building a stronger SmartPunt profile. The available data is useful, but there is not yet a clear standout pattern across track, distance, and conditions.`
+      : `${horse.horse_name} profiles as a ${primaryTag.toLowerCase()}. The key SmartPunt indicators point to ${strengths
+          .slice(0, 2)
+          .map((item) => item.replace(/\.$/, "").toLowerCase())
+          .join(" and ")}.`;
+
+  return {
+    primaryTag,
+    tags: Array.from(new Set(tags)).slice(0, 4),
+    summary,
+    strengths: strengths.length
+      ? Array.from(new Set(strengths)).slice(0, 4)
+      : ["No standout strength yet — profile is still developing from SmartPunt history."],
+    watchOuts: watchOuts.length
+      ? Array.from(new Set(watchOuts)).slice(0, 3)
+      : ["No major statistical watch-out from the current SmartPunt profile."],
+  };
+}
+
 function StatCard({
   title,
   rows,
@@ -268,12 +491,12 @@ export default async function Page({
     redirect("/login");
   }
 
-if (
-  profile.role !== "admin" &&
-  profile.role !== "staff_admin"
-) {
-  redirect("/");
-}
+  if (
+    profile.role !== "admin" &&
+    profile.role !== "staff_admin"
+  ) {
+    redirect("/");
+  }
 
   const horseIdNumber = Number(horseId);
 
@@ -347,122 +570,104 @@ if (
     return bRaceNo - aRaceNo;
   });
 
-const latestRunner = sortedResultedRuns[0] || enrichedRuns[0] || null;
+  const latestRunner = sortedResultedRuns[0] || enrichedRuns[0] || null;
 
-function parseImportedForm(value?: string | null) {
-  const cleaned = String(value || "").trim();
+  function parseImportedForm(value?: string | null) {
+    const cleaned = String(value || "").trim();
 
-  if (!cleaned || cleaned === "—") return [];
+    if (!cleaned || cleaned === "—") return [];
 
-  if (/^[0-9xX]+$/.test(cleaned)) {
+    if (/^[0-9xX]+$/.test(cleaned)) {
+      return cleaned
+        .split("")
+        .map((item: string) => (item.toLowerCase() === "x" ? null : Number(item)))
+        .filter((item: number | null): item is number => item !== null && !Number.isNaN(item));
+    }
+
     return cleaned
-      .split("")
-      .map((item: string) => (item.toLowerCase() === "x" ? null : Number(item)))
-      .filter((item: number | null): item is number => item !== null && !Number.isNaN(item));
+      .split(/[-•,\s]+/)
+      .map((item: string) => Number(item))
+      .filter((item: number) => !Number.isNaN(item));
   }
 
-  return cleaned
-    .split(/[-•,\s]+/)
-    .map((item: string) => Number(item))
-    .filter((item: number) => !Number.isNaN(item));
-}
+  const importedFormSource =
+    horse.form_last_6 ||
+    enrichedRuns.find((runner) => runner.form_last_6)?.form_last_6 ||
+    "";
 
-function parseImportedRecord(value?: string | null) {
-  const cleaned = String(value || "").trim();
+  const importedTrackSource =
+    horse.track_form_last_6 ||
+    enrichedRuns.find((runner) => runner.track_form_last_6)?.track_form_last_6 ||
+    "";
 
-  const match = cleaned.match(/^(\d+):([0-9]+),([0-9]+),([0-9]+)$/);
+  const importedDistanceSource =
+    horse.distance_form_last_6 ||
+    enrichedRuns.find((runner) => runner.distance_form_last_6)?.distance_form_last_6 ||
+    "";
 
-  if (!match) {
-    return null;
-  }
+  const importedFormNumbers = parseImportedForm(importedFormSource);
 
-  const runs = Number(match[1]);
-  const wins = Number(match[2]);
-  const seconds = Number(match[3]);
-  const thirds = Number(match[4]);
+  const totalRuns =
+    importedFormNumbers.length > 0 ? importedFormNumbers.length : sortedResultedRuns.length;
 
-  return {
-    runs: Number.isNaN(runs) ? 0 : runs,
-    wins: Number.isNaN(wins) ? 0 : wins,
-    places:
-      (Number.isNaN(wins) ? 0 : wins) +
-      (Number.isNaN(seconds) ? 0 : seconds) +
-      (Number.isNaN(thirds) ? 0 : thirds),
-  };
-}
+  const totalWins =
+    importedFormNumbers.length > 0
+      ? importedFormNumbers.filter((position: number) => position === 1).length
+      : sortedResultedRuns.filter((run) => run.finishing_position === 1).length;
 
-const importedFormSource =
-  horse.form_last_6 ||
-  enrichedRuns.find((runner) => runner.form_last_6)?.form_last_6 ||
-  "";
+  const totalPlaces =
+    importedFormNumbers.length > 0
+      ? importedFormNumbers.filter(
+          (position: number) => position >= 1 && position <= 3,
+        ).length
+      : sortedResultedRuns.filter(
+          (run) =>
+            run.finishing_position !== null &&
+            run.finishing_position !== undefined &&
+            run.finishing_position <= 3,
+        ).length;
 
-const importedTrackSource =
-  horse.track_form_last_6 ||
-  enrichedRuns.find((runner) => runner.track_form_last_6)?.track_form_last_6 ||
-  "";
+  const uniqueJockeys = Array.from(
+    new Set(enrichedRuns.map((runner) => runner.jockey_name).filter(Boolean)),
+  );
 
-const importedDistanceSource =
-  horse.distance_form_last_6 ||
-  enrichedRuns.find((runner) => runner.distance_form_last_6)?.distance_form_last_6 ||
-  "";
+  const uniqueTrainers = Array.from(
+    new Set(enrichedRuns.map((runner) => runner.trainer_name).filter(Boolean)),
+  );
 
-const importedFormNumbers = parseImportedForm(importedFormSource);
+  const conditionRecordRows: StatRow[] = [
+    { label: "Good", ...(parseImportedRecord(horse.good_track_record) || { runs: 0, wins: 0, places: 0 }) },
+    { label: "Soft", ...(parseImportedRecord(horse.soft_track_record) || { runs: 0, wins: 0, places: 0 }) },
+    { label: "Heavy", ...(parseImportedRecord(horse.heavy_track_record) || { runs: 0, wins: 0, places: 0 }) },
+    { label: "Synthetic", ...(parseImportedRecord(horse.synthetic_track_record) || { runs: 0, wins: 0, places: 0 }) },
+  ];
 
-const totalRuns =
-  importedFormNumbers.length > 0 ? importedFormNumbers.length : sortedResultedRuns.length;
+  const distanceStats = buildStatRows(
+    sortedResultedRuns,
+    (run) => getDistanceBucket(run.race?.distance_m),
+    true,
+  );
 
-const totalWins =
-  importedFormNumbers.length > 0
-    ? importedFormNumbers.filter((position: number) => position === 1).length
-    : sortedResultedRuns.filter((run) => run.finishing_position === 1).length;
+  const trackStats = buildStatRows(sortedResultedRuns, (run) =>
+    run.meeting?.meeting_name || null,
+  );
 
-const totalPlaces =
-  importedFormNumbers.length > 0
-    ? importedFormNumbers.filter(
-        (position: number) => position >= 1 && position <= 3,
-      ).length
-    : sortedResultedRuns.filter(
-        (run) =>
-          run.finishing_position !== null &&
-          run.finishing_position !== undefined &&
-          run.finishing_position <= 3,
-      ).length;
+  const conditionStats = conditionRecordRows.some((row) => row.runs > 0)
+    ? conditionRecordRows
+    : buildStatRows(sortedResultedRuns, (run) =>
+        getConditionBucket(run.meeting?.track_condition),
+      );
 
-const uniqueJockeys = Array.from(
-  new Set(enrichedRuns.map((runner) => runner.jockey_name).filter(Boolean)),
-);
+  const recentFormLine =
+    horse.form_last_6 ||
+    importedFormSource ||
+    (sortedResultedRuns.length > 0 ? formatFormLine(sortedResultedRuns) : "—");
 
-const uniqueTrainers = Array.from(
-  new Set(enrichedRuns.map((runner) => runner.trainer_name).filter(Boolean)),
-);
+  const smartPuntProfile = buildSmartPuntProfile({
+    horse,
+    recentFormLine,
+  });
 
-const importedDistanceRecord = parseImportedRecord(importedDistanceSource);
-const importedTrackRecord = parseImportedRecord(importedTrackSource);
-const conditionRecordRows: StatRow[] = [
-  { label: "Good", ...(parseImportedRecord(horse.good_track_record) || { runs: 0, wins: 0, places: 0 }) },
-  { label: "Soft", ...(parseImportedRecord(horse.soft_track_record) || { runs: 0, wins: 0, places: 0 }) },
-  { label: "Heavy", ...(parseImportedRecord(horse.heavy_track_record) || { runs: 0, wins: 0, places: 0 }) },
-  { label: "Synthetic", ...(parseImportedRecord(horse.synthetic_track_record) || { runs: 0, wins: 0, places: 0 }) },
-];
-const distanceStats = buildStatRows(
-  sortedResultedRuns,
-  (run) => getDistanceBucket(run.race?.distance_m),
-  true,
-);
-const trackStats = buildStatRows(sortedResultedRuns, (run) =>
-  run.meeting?.meeting_name || null,
-);
-
-const conditionStats = conditionRecordRows.some((row) => row.runs > 0)
-  ? conditionRecordRows
-  : buildStatRows(sortedResultedRuns, (run) =>
-      getConditionBucket(run.meeting?.track_condition),
-    );
-
-const recentFormLine =
-  horse.form_last_6 ||
-  importedFormSource ||
-  (sortedResultedRuns.length > 0 ? formatFormLine(sortedResultedRuns) : "—");
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
@@ -500,7 +705,7 @@ const recentFormLine =
                   {horse.horse_name}
                 </h1>
                 <p className="text-sm text-zinc-200 lg:text-base">
-Saved horse profile built from SmartPunt form history.
+                  Saved horse profile built from SmartPunt form history.
                 </p>
                 <p className="ml-auto text-xs text-zinc-300 lg:text-sm">
                   Logged in as {profile.full_name || profile.email}
@@ -527,6 +732,100 @@ Saved horse profile built from SmartPunt form history.
               </div>
             </div>
           </div>
+        </div>
+
+        <Panel className="mt-6 bg-white/95">
+          <div className="p-6 text-zinc-950">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-700">
+                  SmartPunt Profile
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-zinc-950">
+                  {smartPuntProfile.primaryTag}
+                </h2>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {smartPuntProfile.tags.map((tag) => (
+                  <Badge key={tag} tone="amber">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <p className="mt-5 max-w-4xl text-base font-semibold leading-7 text-zinc-800">
+              {smartPuntProfile.summary}
+            </p>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-800">
+                  Strengths
+                </p>
+                <div className="mt-4 space-y-3">
+                  {smartPuntProfile.strengths.map((item) => (
+                    <p key={item} className="text-sm font-semibold leading-6 text-zinc-800">
+                      ✓ {item}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-5">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-800">
+                  Watch-outs
+                </p>
+                <div className="mt-4 space-y-3">
+                  {smartPuntProfile.watchOuts.map((item) => (
+                    <p key={item} className="text-sm font-semibold leading-6 text-zinc-800">
+                      • {item}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Panel>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Last 6 Form</p>
+              <p className="mt-3 text-lg font-semibold">{recentFormLine}</p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Track Record</p>
+              <p className="mt-3 text-lg font-semibold">{formatRecord(importedTrackSource)}</p>
+              <p className="mt-1 text-xs text-zinc-500">{getRecordLabel(importedTrackSource)}</p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Distance Record</p>
+              <p className="mt-3 text-lg font-semibold">{formatRecord(importedDistanceSource)}</p>
+              <p className="mt-1 text-xs text-zinc-500">{getRecordLabel(importedDistanceSource)}</p>
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">Best Condition</p>
+              <p className="mt-3 text-lg font-semibold">
+                {getBestCondition(horse)?.label || "—"}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {getBestCondition(horse)
+                  ? `${getBestCondition(horse)?.record.runs}:${getBestCondition(horse)?.record.wins},${getBestCondition(horse)?.record.seconds},${getBestCondition(horse)?.record.thirds}`
+                  : "No exposed condition edge"}
+              </p>
+            </div>
+          </Panel>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-5">
