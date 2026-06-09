@@ -350,11 +350,12 @@ function parseRecentFormForProfile(value?: string | null) {
 function buildSmartPuntProfile({
   horse,
   recentFormLine,
+  horseTrackStats,
 }: {
   horse: Horse;
   recentFormLine: string;
+  horseTrackStats: TrackStatRow[];
 }) {
-  const trackRecord = parseImportedRecord(horse.track_form_last_6);
   const distanceRecord = parseImportedRecord(horse.distance_form_last_6);
   const bestCondition = getBestCondition(horse);
   const worstCondition = getWorstCondition(horse);
@@ -364,19 +365,35 @@ function buildSmartPuntProfile({
   const strengths: string[] = [];
   const watchOuts: string[] = [];
 
-  const trackRates = getStrikeRate(trackRecord);
   const distanceRates = getStrikeRate(distanceRecord);
 
-  if (trackRecord && trackRecord.runs >= 5 && trackRates.placeRate >= 0.55) {
-tags.push("Track Advantage");
+  const bestTrack = [...horseTrackStats]
+    .map((row) => {
+      const places = row.wins + row.seconds + row.thirds;
+      const placeRate = row.runs > 0 ? places / row.runs : 0;
+      const winRate = row.runs > 0 ? row.wins / row.runs : 0;
+
+      return {
+        ...row,
+        places,
+        placeRate,
+        winRate,
+        score: placeRate * 100 + winRate * 70 + row.runs * 1.5,
+      };
+    })
+    .filter((row) => row.runs >= 3)
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (bestTrack && bestTrack.runs >= 5 && bestTrack.placeRate >= 0.5) {
+    tags.push(`${bestTrack.track_name} Specialist`);
     strengths.push(
-      `Strong track profile: ${horse.track_form_last_6} (${getRecordLabel(
-        horse.track_form_last_6,
-      )}).`,
+      `Strong ${bestTrack.track_name} profile: ${bestTrack.runs}:${bestTrack.wins},${bestTrack.seconds},${bestTrack.thirds} (${bestTrack.runs} runs • ${bestTrack.wins} wins • ${bestTrack.places} places).`,
     );
-  } else if (trackRecord && trackRecord.runs >= 3 && trackRates.placeRate >= 0.45) {
-tags.push("Track Positive");
-    strengths.push(`Reliable track record: ${horse.track_form_last_6}.`);
+  } else if (bestTrack && bestTrack.runs >= 3 && bestTrack.placeRate >= 0.45) {
+    tags.push(`${bestTrack.track_name} Performer`);
+    strengths.push(
+      `Positive ${bestTrack.track_name} record: ${bestTrack.runs}:${bestTrack.wins},${bestTrack.seconds},${bestTrack.thirds}.`,
+    );
   }
 
   if (distanceRecord && distanceRecord.runs >= 6 && distanceRates.placeRate >= 0.45) {
@@ -423,10 +440,11 @@ tags.push("Distance Advantage");
     }
   }
 
-  if (trackRecord && trackRecord.runs >= 5 && trackRates.placeRate <= 0.25) {
-    watchOuts.push(`Track record is limited: ${horse.track_form_last_6}.`);
+  if (bestTrack && bestTrack.runs >= 5 && bestTrack.placeRate <= 0.25) {
+    watchOuts.push(
+      `${bestTrack.track_name} record is a query: ${bestTrack.runs}:${bestTrack.wins},${bestTrack.seconds},${bestTrack.thirds}.`,
+    );
   }
-
   if (distanceRecord && distanceRecord.runs >= 6 && distanceRates.placeRate <= 0.25) {
     watchOuts.push(`Distance record is a query: ${horse.distance_form_last_6}.`);
   }
@@ -566,11 +584,7 @@ export default async function Page({
 
   const runners: Runner[] = allRunners || [];
   const horseTrackStats: TrackStatRow[] = horseTrackStatsData || [];
-  console.log(
-  "HORSE TRACK STATS",
-  horseIdNumber,
-  horseTrackStatsData,
-);
+
 
   const raceIds = Array.from(
     new Set(
@@ -745,6 +759,7 @@ export default async function Page({
   const smartPuntProfile = buildSmartPuntProfile({
     horse,
     recentFormLine,
+    horseTrackStats,
   });
   const profileStatus = getProfileStatus(
     totalRuns,
