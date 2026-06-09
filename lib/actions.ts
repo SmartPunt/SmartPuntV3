@@ -4050,6 +4050,19 @@ for (const raceRow of raceConditionRows || []) {
   }),
 );
 }
+
+    const { error: closeRaceError } = await supabase
+      .from("races")
+      .update({
+        status: "closed",
+        updated_at: now,
+      })
+      .eq("id", raceId);
+
+    if (closeRaceError) {
+      return { success: false, error: closeRaceError.message };
+    }
+
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
