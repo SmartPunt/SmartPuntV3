@@ -4086,7 +4086,17 @@ function normaliseJockeyProfileName(value: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+export async function repairDonaldRaceOneCalculatorSnapshotAction() {
+  await requireRacingAdmin();
 
+  const raceId = 2554;
+
+  await saveCalculatorPredictionsForRace(raceId, {
+    excludeScratched: true,
+  });
+
+  revalidatePath("/admin/calculator-report");
+}
 export async function upsertJockeyProfileAction(formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
 
