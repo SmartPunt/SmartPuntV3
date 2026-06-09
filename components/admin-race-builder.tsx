@@ -24,6 +24,7 @@ type Horse = {
   normalised_name: string;
   sex: string | null;
   age: number | null;
+    career_prize_money?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -180,6 +181,7 @@ type ImportedRunner = {
   distance_form_last_6: string;
   is_apprentice: boolean;
   apprentice_claim_kg: string;
+    prize_money: string;
   is_scratched: boolean;
 };
 
@@ -400,6 +402,7 @@ const is_scratched = windowLines.some((entry) =>
     let form_last_6 = "";
     let track_form_last_6 = "";
     let distance_form_last_6 = "";
+        let prize_money = "";
     let is_apprentice = false;
     let apprentice_claim_kg = "";
 
@@ -453,7 +456,15 @@ const is_scratched = windowLines.some((entry) =>
           distance_form_last_6 = distanceMatch[1].trim();
         }
       }
+      if (!prize_money) {
+        const prizeMatch =
+          entry.match(/^prize[:\s-]*\$?([0-9,]+(?:\.[0-9]+)?)/i) ||
+          entry.match(/\bprize[:\s-]*\$?([0-9,]+(?:\.[0-9]+)?)/i);
 
+        if (prizeMatch) {
+          prize_money = prizeMatch[1].replace(/,/g, "");
+        }
+      }
       if (!track_form_last_6) {
         const trackMatch =
           entry.match(/^track[:\s]*([0-9]+:[0-9,]+)$/i) ||
@@ -508,6 +519,7 @@ const is_scratched = windowLines.some((entry) =>
         distance_form_last_6,
         is_apprentice,
         apprentice_claim_kg,
+                prize_money,
         is_scratched,
       });
     }
@@ -1390,6 +1402,11 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                             {runner.barrier ? <Badge tone="blue">Barrier {runner.barrier}</Badge> : null}
                             {runner.weight_kg ? <Badge tone="amber">{runner.weight_kg}kg</Badge> : null}
                             {runner.market_price ? <Badge tone="green">${runner.market_price}</Badge> : null}
+                            {runner.prize_money ? (
+  <Badge tone="violet">
+    Prize ${Number(runner.prize_money).toLocaleString()}
+  </Badge>
+) : null}
                             {runner.fixed_place_odds ? (
                               <Badge tone="blue">Place ${runner.fixed_place_odds}</Badge>
                             ) : null}
