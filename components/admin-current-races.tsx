@@ -285,6 +285,7 @@ export default function CurrentRacesPage({
   const [editingMeetingIds, setEditingMeetingIds] = useState<number[]>([]);
   const [editingRaceIds, setEditingRaceIds] = useState<number[]>([]);
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
+  const [closedRaceIds, setClosedRaceIds] = useState<number[]>([]);
 
   const [raceResultState, setRaceResultState] = useState<
     Record<number, Record<number, { finishingPosition: string; startingPrice: string }>>
@@ -298,10 +299,14 @@ export default function CurrentRacesPage({
     {},
   );
 
-  const currentRaces = useMemo(
-    () => initialRaces.filter((race) => race.status === "published"),
-    [initialRaces],
-  );
+const currentRaces = useMemo(
+  () =>
+    initialRaces.filter(
+      (race) =>
+        race.status === "published" && !closedRaceIds.includes(race.id),
+    ),
+  [initialRaces, closedRaceIds],
+);
 
   const groupedMeetings = useMemo(() => {
     return initialMeetings
@@ -533,8 +538,11 @@ function isRaceOpen(raceId: number) {
         return;
       }
 
-      setSuccess("Race settled and moved to archive.");
-      router.refresh();
+setClosedRaceIds((current) =>
+  current.includes(raceId) ? current : [...current, raceId],
+);
+setSuccess("Race settled and moved to archive.");
+router.refresh();
     });
   }
 
