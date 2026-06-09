@@ -730,15 +730,29 @@ export default async function CalculatorReportPage({
                 </div>
               </form>
 
-              <div className="flex items-end">
-                <a
-                  href={exportHref}
-                  download
-                  className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-500"
-                >
-                  Export CSV
-                </a>
-              </div>
+<div className="flex items-end">
+  <a
+    href={exportHref}
+    download
+    className="w-full rounded-2xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-500"
+  >
+    Export CSV
+  </a>
+</div>
+
+<div className="flex items-end">
+  <form
+    action={repairDonaldRaceOneCalculatorSnapshotAction}
+    className="w-full"
+  >
+    <button
+      type="submit"
+      className="w-full rounded-2xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-500"
+    >
+      Repair Donald R1
+    </button>
+  </form>
+</div>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
