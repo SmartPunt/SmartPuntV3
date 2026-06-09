@@ -960,7 +960,40 @@ export default async function Page({
             </Panel>
           ))}
         </div>
+        <Panel className="mt-6 bg-white/95">
+          <div className="p-6 text-zinc-950">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">
+                  Distance Range History
+                </p>
+                <h3 className="mt-2 text-xl font-black text-zinc-950">
+                  How this horse has performed across distance bands
+                </h3>
+              </div>
+              <Badge tone="amber">{distanceStats.length}</Badge>
+            </div>
 
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {distanceStats.map((row) => (
+                <div
+                  key={row.label}
+                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-zinc-900">{row.label}</p>
+                    <Badge tone="blue">
+                      {row.runs}:{row.wins}-{row.places}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 text-sm text-zinc-600">
+                    {row.runs} runs • {row.wins} wins • {row.places} places
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Panel>
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
