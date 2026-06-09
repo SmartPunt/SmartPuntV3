@@ -566,6 +566,11 @@ export default async function Page({
 
   const runners: Runner[] = allRunners || [];
   const horseTrackStats: TrackStatRow[] = horseTrackStatsData || [];
+  console.log(
+  "HORSE TRACK STATS",
+  horseIdNumber,
+  horseTrackStatsData,
+);
 
   const raceIds = Array.from(
     new Set(
