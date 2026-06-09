@@ -463,6 +463,7 @@ async function sendSuggestedTipNotifications({
   type,
   confidence,
   note,
+  tipAngle,
   commentary,
 }: {
   race: string;
@@ -470,6 +471,7 @@ async function sendSuggestedTipNotifications({
   type: string;
   confidence: string;
   note: string;
+  tipAngle: string;
   commentary: string;
 }) {
   const fromEmail = process.env.RESEND_FROM_EMAIL;
@@ -495,9 +497,14 @@ async function sendSuggestedTipNotifications({
         <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;">
           <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#ecfccb;color:#166534;font-size:12px;font-weight:700;">${type}</span>
           <span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:12px;font-weight:700;">${confidence} confidence</span>
-          ${
+                   ${
             note
               ? `<span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;">${note}</span>`
+              : ""
+          }
+          ${
+            tipAngle
+              ? `<span style="display:inline-block;padding:8px 12px;border-radius:999px;background:#111827;color:#fbbf24;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;">${tipAngle}</span>`
               : ""
           }
         </div>
@@ -1724,6 +1731,7 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
     type: String(formData.get("type") ?? "Win"),
     confidence: String(formData.get("confidence") ?? "High"),
     note: String(formData.get("note") ?? ""),
+    tip_angle: String(formData.get("tip_angle") ?? ""),
     commentary: String(formData.get("commentary") ?? ""),
     result_comment: String(formData.get("result_comment") ?? ""),
     race_start_at: raceStartAt,
@@ -1763,6 +1771,7 @@ if (isNew && sendNotification && data) {
     type: data.type || payload.type,
     confidence: data.confidence || payload.confidence,
     note: data.note || payload.note,
+    tipAngle: data.tip_angle || payload.tip_angle,
     commentary: data.commentary || payload.commentary,
   }).catch((notificationError) => {
     console.error("Suggested tip notification failed:", notificationError);
