@@ -256,6 +256,17 @@ function normaliseImportedForm(value: string) {
     .slice(0, 6)
     .join("");
 }
+function parseImportedPrizeMoney(value: string | null | undefined) {
+  const cleaned = String(value || "")
+    .replace(/[^0-9.]/g, "")
+    .trim();
+
+  if (!cleaned) return null;
+
+  const amount = Number(cleaned);
+
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
 
 function updateFormStringWithResult(
   existing: string | null,
@@ -2968,6 +2979,7 @@ export async function createRaceRunnersBulkAction(
       form_last_6?: string;
       track_form_last_6?: string;
       distance_form_last_6?: string;
+            prize_money?: string;
       is_scratched?: boolean;
     }> = [];
 
@@ -3022,7 +3034,7 @@ export async function createRaceRunnersBulkAction(
     const { data: existingHorses, error: existingHorsesError } = await supabase
       .from("horses")
       .select(
-        "id, horse_name, normalised_name, form_last_6, track_form_last_6, distance_form_last_6",
+"id, horse_name, normalised_name, form_last_6, track_form_last_6, distance_form_last_6, career_prize_money",
       )
       .in("normalised_name", normalisedNames);
 
@@ -3030,23 +3042,29 @@ export async function createRaceRunnersBulkAction(
       return { success: false, error: existingHorsesError.message };
     }
 
-    const horsesByNormalisedName = new Map<
-      string,
-      {
-        id: number;
-        form_last_6: string | null;
-        track_form_last_6: string | null;
-        distance_form_last_6: string | null;
-      }
-    >();
+const horsesByNormalisedName = new Map<
+  string,
+  {
+    id: number;
+    form_last_6: string | null;
+    track_form_last_6: string | null;
+    distance_form_last_6: string | null;
+    career_prize_money: number | null;
+  }
+>();
 
     for (const horse of existingHorses || []) {
-      horsesByNormalisedName.set(String((horse as any).normalised_name), {
-        id: Number((horse as any).id),
-        form_last_6: (horse as any).form_last_6 || null,
-        track_form_last_6: (horse as any).track_form_last_6 || null,
-        distance_form_last_6: (horse as any).distance_form_last_6 || null,
-      });
+horsesByNormalisedName.set(String((horse as any).normalised_name), {
+  id: Number((horse as any).id),
+  form_last_6: (horse as any).form_last_6 || null,
+  track_form_last_6: (horse as any).track_form_last_6 || null,
+  distance_form_last_6: (horse as any).distance_form_last_6 || null,
+  career_prize_money:
+    (horse as any).career_prize_money !== null &&
+    (horse as any).career_prize_money !== undefined
+      ? Number((horse as any).career_prize_money)
+      : null,
+});
     }
 
     const missingHorseRows = cleanedRunners
@@ -3059,6 +3077,7 @@ export async function createRaceRunnersBulkAction(
           : null,
         track_form_last_6: runner.track_form_last_6 || null,
         distance_form_last_6: runner.distance_form_last_6 || null,
+                career_prize_money: parseImportedPrizeMoney(runner.prize_money),
         updated_at: new Date().toISOString(),
       }));
 
@@ -3067,7 +3086,7 @@ export async function createRaceRunnersBulkAction(
         .from("horses")
         .insert(missingHorseRows)
         .select(
-          "id, normalised_name, form_last_6, track_form_last_6, distance_form_last_6",
+          "id, normalised_name, form_last_6, track_form_last_6, distance_form_last_6, career_prize_money",
         );
 
       if (insertedHorsesError && insertedHorsesError.code !== "23505") {
@@ -3078,7 +3097,7 @@ export async function createRaceRunnersBulkAction(
         const { data: retryHorses, error: retryHorsesError } = await supabase
           .from("horses")
           .select(
-            "id, normalised_name, form_last_6, track_form_last_6, distance_form_last_6",
+            "id, normalised_name, form_last_6, track_form_last_6, distance_form_last_6, career_prize_money",
           )
           .in("normalised_name", normalisedNames);
 
@@ -3092,6 +3111,11 @@ export async function createRaceRunnersBulkAction(
             form_last_6: (horse as any).form_last_6 || null,
             track_form_last_6: (horse as any).track_form_last_6 || null,
             distance_form_last_6: (horse as any).distance_form_last_6 || null,
+            career_prize_money:
+              (horse as any).career_prize_money !== null &&
+              (horse as any).career_prize_money !== undefined
+                ? Number((horse as any).career_prize_money)
+                : null,
           });
         }
       } else {
@@ -3101,11 +3125,44 @@ export async function createRaceRunnersBulkAction(
             form_last_6: (horse as any).form_last_6 || null,
             track_form_last_6: (horse as any).track_form_last_6 || null,
             distance_form_last_6: (horse as any).distance_form_last_6 || null,
+            career_prize_money:
+              (horse as any).career_prize_money !== null &&
+              (horse as any).career_prize_money !== undefined
+                ? Number((horse as any).career_prize_money)
+                : null,
           });
         }
       }
     }
+    await Promise.all(
+      cleanedRunners.map(async (runner) => {
+        const horse = horsesByNormalisedName.get(runner.normalised_name);
+        const prizeMoney = parseImportedPrizeMoney(runner.prize_money);
 
+        if (!horse?.id || prizeMoney === null) return;
+
+        if (
+          horse.career_prize_money !== null &&
+          Number(horse.career_prize_money) === Number(prizeMoney)
+        ) {
+          return;
+        }
+
+        const { error: prizeUpdateError } = await supabase
+          .from("horses")
+          .update({
+            career_prize_money: prizeMoney,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", horse.id);
+
+        if (prizeUpdateError) {
+          throw new Error(prizeUpdateError.message);
+        }
+
+        horse.career_prize_money = prizeMoney;
+      }),
+    );
     const horseIds = cleanedRunners
       .map((runner) => horsesByNormalisedName.get(runner.normalised_name)?.id)
       .filter((id): id is number => Boolean(id));
