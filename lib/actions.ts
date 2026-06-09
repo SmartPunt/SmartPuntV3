@@ -321,7 +321,67 @@ function updateStatRecordWithResult(
 
   return `${nextRuns}:${nextWins},${nextSeconds},${nextThirds}`;
 }
+function normaliseTrackStatName(value: string | null | undefined) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
+async function updateHorseTrackStat({
+  supabase,
+  horseId,
+  trackName,
+  finishingPosition,
+  now,
+}: {
+  supabase: any;
+  horseId: number;
+  trackName: string | null | undefined;
+  finishingPosition: number;
+  now: string;
+}) {
+  const cleanedTrackName = normaliseTrackStatName(trackName);
+
+  if (!horseId || !cleanedTrackName || !Number.isFinite(finishingPosition)) {
+    return;
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("horse_track_stats")
+    .select("id, runs, wins, seconds, thirds")
+    .eq("horse_id", horseId)
+    .eq("track_name", cleanedTrackName)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  const currentRuns = Number(existing?.runs || 0);
+  const currentWins = Number(existing?.wins || 0);
+  const currentSeconds = Number(existing?.seconds || 0);
+  const currentThirds = Number(existing?.thirds || 0);
+
+  const payload = {
+    horse_id: horseId,
+    track_name: cleanedTrackName,
+    runs: currentRuns + 1,
+    wins: currentWins + (finishingPosition === 1 ? 1 : 0),
+    seconds: currentSeconds + (finishingPosition === 2 ? 1 : 0),
+    thirds: currentThirds + (finishingPosition === 3 ? 1 : 0),
+    updated_at: now,
+  };
+
+  const { error: upsertError } = await supabase
+    .from("horse_track_stats")
+    .upsert(payload, {
+      onConflict: "horse_id,track_name",
+    });
+
+  if (upsertError) {
+    throw new Error(upsertError.message);
+  }
+}
 function normaliseText(value: string) {
   return String(value || "")
     .toLowerCase()
@@ -3823,7 +3883,7 @@ const { data: raceConditionRows, error: raceConditionError } =
   raceIdsForCondition.length > 0
     ? await supabase
         .from("races")
-        .select("id, meeting_id, meetings(track_condition)")
+.select("id, meeting_id, meetings(meeting_name, track_condition)")
         .in("id", raceIdsForCondition)
     : { data: [], error: null };
 
@@ -3831,17 +3891,23 @@ if (raceConditionError) {
   return { success: false, error: raceConditionError.message };
 }
 
-const raceConditionByRaceId = new Map<number, string>();
+const raceDetailsByRaceId = new Map<
+  number,
+  {
+    trackName: string;
+    trackCondition: string;
+  }
+>();
 
 for (const raceRow of raceConditionRows || []) {
   const meetingData = Array.isArray((raceRow as any).meetings)
     ? (raceRow as any).meetings[0]
     : (raceRow as any).meetings;
 
-  raceConditionByRaceId.set(
-    Number((raceRow as any).id),
-    String(meetingData?.track_condition || ""),
-  );
+  raceDetailsByRaceId.set(Number((raceRow as any).id), {
+    trackName: String(meetingData?.meeting_name || ""),
+    trackCondition: String(meetingData?.track_condition || ""),
+  });
 }
  await Promise.all(
   updates.map(async (update) => {
@@ -3914,9 +3980,12 @@ for (const raceRow of raceConditionRows || []) {
       horseRow?.distance_form_last_6 ||
       String(matchingRunner?.distance_form_last_6 || "");
 
-    const trackCondition = String(
-      raceConditionByRaceId.get(Number(matchingRunner?.race_id)) || "",
-    ).toLowerCase();
+    const raceDetails = raceDetailsByRaceId.get(
+      Number(matchingRunner?.race_id),
+    );
+
+    const trackName = String(raceDetails?.trackName || "");
+    const trackCondition = String(raceDetails?.trackCondition || "").toLowerCase();
 
     const { error: horseUpdateError } = await supabase
       .from("horses")
@@ -3971,6 +4040,13 @@ for (const raceRow of raceConditionRows || []) {
     if (horseUpdateError) {
       throw new Error(horseUpdateError.message);
     }
+        await updateHorseTrackStat({
+      supabase,
+      horseId,
+      trackName,
+      finishingPosition: Number(update.finishing_position),
+      now,
+    });
   }),
 );
 }
