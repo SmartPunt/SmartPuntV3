@@ -4602,3 +4602,17 @@ export async function updateFortuneFiveLegResultAction(
   revalidatePath("/admin/fortune-on-5");
   revalidatePath("/fortune-on-5");
 }
+export async function repairDonaldRaceOneCalculatorSnapshotAction() {
+  await requireRacingAdmin();
+
+  await saveCalculatorPredictionsForRace(2554, {
+    excludeScratched: true,
+  });
+
+  revalidatePath("/admin/calculator-report");
+
+  return {
+    success: true,
+    error: null,
+  };
+}
