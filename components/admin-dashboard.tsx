@@ -236,6 +236,7 @@ export default function AdminDashboard({
   const [tipType, setTipType] = useState("Win");
   const [tipConfidence, setTipConfidence] = useState("High");
   const [tipNote, setTipNote] = useState("Best Bet");
+  const [tipAngle, setTipAngle] = useState("");
   const [tipperNotes, setTipperNotes] = useState("");
   const [tipCommentary, setTipCommentary] = useState("");
   const [tipRaceDate, setTipRaceDate] = useState("");
@@ -315,6 +316,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
     setTipType(tip.type || "Win");
     setTipConfidence(tip.confidence || "High");
     setTipNote(tip.note || "Best Bet");
+    setTipAngle(tip.tip_angle || "");
     setTipCommentary(tip.commentary || "");
     setTipperNotes("");
     setSuggestedTag(tip.note || "");
@@ -332,6 +334,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
     setTipType("Win");
     setTipConfidence("High");
     setTipNote("Best Bet");
+    setTipAngle("");
     setTipperNotes("");
     setTipCommentary("");
     setTipRaceDate("");
@@ -892,6 +895,30 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     </Field>
                   </div>
 
+                  <Field label="SmartPunt Angle">
+                    <select
+                      name="tip_angle"
+                      value={tipAngle}
+                      onChange={(e) => setTipAngle(e.target.value)}
+                      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                    >
+                      <option value="">No angle</option>
+                      <option value="The Vibe">The Vibe</option>
+                      <option value="Favourite Vulnerable">Favourite Vulnerable</option>
+                      <option value="Track Specialist">Track Specialist</option>
+                      <option value="Wet Tracker">Wet Tracker</option>
+                      <option value="Maps Perfectly">Maps Perfectly</option>
+                      <option value="Value At Odds">Value At Odds</option>
+                      <option value="Tempo Edge">Tempo Edge</option>
+                      <option value="First-Up Play">First-Up Play</option>
+                      <option value="Forgive Run">Forgive Run</option>
+                      <option value="Stable Mail">Stable Mail</option>
+                    </select>
+                  </Field>
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                  </div>
+
                   <div className="grid gap-4 md:grid-cols-3">
                     <Field label="Race date">
                       <Input
@@ -1039,6 +1066,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     <div className="mt-4 flex flex-wrap gap-2">
                       {tipConfidence ? <Badge tone="blue">{tipConfidence} confidence</Badge> : null}
                       <Badge tone="amber">{suggestedTag || tipNote || "Best Bet"}</Badge>
+                      {tipAngle ? <Badge tone="slate">{tipAngle}</Badge> : null}
                       {tipRaceDate && tipRaceTime ? (
                         <Badge tone="slate">
                           {tipRaceDate} {tipRaceTime} ({tipRaceTimezone})
@@ -1072,7 +1100,8 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
 
                           <div className="mt-3 flex flex-wrap gap-2">
                             {tip.confidence ? <Badge tone="blue">{tip.confidence}</Badge> : null}
-                            {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
+                             {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
+                            {tip.tip_angle ? <Badge tone="slate">{tip.tip_angle}</Badge> : null}
                             {tip.race_runner_id ? <Badge tone="green">Linked</Badge> : <Badge tone="rose">Legacy</Badge>}
                           </div>
 
