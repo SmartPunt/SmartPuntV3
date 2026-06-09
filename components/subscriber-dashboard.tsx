@@ -69,6 +69,7 @@ type SuggestedTip = {
   type: string;
   confidence: string;
   note: string | null;
+  tip_angle: string | null;
   commentary: string | null;
   result_comment: string | null;
   race_start_at: string | null;
@@ -652,6 +653,7 @@ async function addUserBetFormAction(formData: FormData) {
         <div className="mt-4 flex flex-wrap gap-2">
           {tip.confidence ? <Badge tone="blue">{tip.confidence} confidence</Badge> : null}
           {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
+          {tip.tip_angle ? <Badge tone="slate">{tip.tip_angle}</Badge> : null}
           {raceDateTime ? <Badge tone="slate">{raceDateTime}</Badge> : null}
           {tip.race_runner_id ? <Badge tone="green">Linked runner</Badge> : null}
           {featured ? <Badge tone="amber">Best on board</Badge> : null}
@@ -1050,6 +1052,9 @@ async function addUserBetFormAction(formData: FormData) {
                                   <Badge tone="green">{topTip.type}</Badge>
                                   {topTip.confidence ? (
                                     <Badge tone="blue">{topTip.confidence}</Badge>
+                                  ) : null}
+                                  {topTip.tip_angle ? (
+                                    <Badge tone="slate">{topTip.tip_angle}</Badge>
                                   ) : null}
                                 </div>
                               </div>
