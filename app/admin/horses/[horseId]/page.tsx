@@ -82,6 +82,16 @@ type StatRow = {
   wins: number;
   places: number;
 };
+type TrackStatRow = {
+  id: number;
+  horse_id: number;
+  track_name: string;
+  runs: number;
+  wins: number;
+  seconds: number;
+  thirds: number;
+  updated_at: string | null;
+};
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
@@ -547,7 +557,15 @@ export default async function Page({
     .eq("horse_id", horseIdNumber)
     .order("created_at", { ascending: false });
 
+  const { data: horseTrackStatsData } = await supabase
+    .from("horse_track_stats")
+    .select("*")
+    .eq("horse_id", horseIdNumber)
+    .order("runs", { ascending: false })
+    .order("track_name", { ascending: true });
+
   const runners: Runner[] = allRunners || [];
+  const horseTrackStats: TrackStatRow[] = horseTrackStatsData || [];
 
   const raceIds = Array.from(
     new Set(
@@ -1014,18 +1032,49 @@ export default async function Page({
 
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">
-                Track Intelligence
-              </p>
-              <h3 className="mt-2 text-2xl font-black text-zinc-950">
-                {getRecordAssessment("Track", parseImportedRecord(importedTrackSource))}
-              </h3>
-              <p className="mt-4 text-sm font-semibold text-zinc-700">
-                Record: {formatRecord(importedTrackSource)}
-              </p>
-              <p className="mt-1 text-sm text-zinc-500">
-                {getRecordLabel(importedTrackSource)}
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">
+                    Track Intelligence
+                  </p>
+                  <h3 className="mt-2 text-2xl font-black text-zinc-950">
+                    Actual track history
+                  </h3>
+                </div>
+                <Badge tone="amber">{horseTrackStats.length}</Badge>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {horseTrackStats.length > 0 ? (
+                  horseTrackStats.map((row) => {
+                    const places = row.wins + row.seconds + row.thirds;
+                    const placeRate = row.runs > 0 ? places / row.runs : 0;
+
+                    return (
+                      <div
+                        key={row.id}
+                        className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-semibold text-zinc-900">
+                            {row.track_name}
+                          </p>
+                          <Badge tone={row.runs >= 5 && placeRate >= 0.5 ? "green" : "blue"}>
+                            {row.runs}:{row.wins}-{row.seconds}-{row.thirds}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-sm text-zinc-600">
+                          {row.runs} runs • {row.wins} wins • {places} places
+                        </p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+                    No actual track history saved yet.
+                  </div>
+                )}
+              </div>
             </div>
           </Panel>
         </div>
