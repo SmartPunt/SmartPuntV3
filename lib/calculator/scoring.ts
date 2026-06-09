@@ -433,8 +433,8 @@ function scoreConsistency(historyRuns: HistoryRun[], importedForm?: string | nul
   const poorRunCount = positions.filter((pos) => Number(pos) >= 8).length;
 
   const averageScore = clamp(Math.round(82 - averageFinish * 5), 25, 82);
-  const topThreeBonus = topThreeCount * 4;
-  const poorRunPenalty = poorRunCount * 5;
+  const topThreeBonus = topThreeCount * 6;
+  const poorRunPenalty = poorRunCount * 7;
 
   return clamp(averageScore + topThreeBonus - poorRunPenalty, 25, 90);
 }
@@ -531,7 +531,7 @@ function scoreConditionSuitability(
   );
 
   if (!matchingRuns.length) {
-    if (!conditionRecord) return target === "Heavy" ? 48 : 50;
+    if (!conditionRecord) return target === "Heavy" ? 44 : 48;
     return importedScore;
   }
 
@@ -1382,11 +1382,11 @@ export function getQualifiedCalculatorTip<T extends CalculatorTipCandidate>(
 
   const minWinScore =
     raceConfidence.tier === "Elite"
-      ? 66
+      ? 68
       : raceConfidence.tier === "High"
-        ? 68
+        ? 70
         : raceConfidence.tier === "Medium"
-          ? 70
+          ? 72
           : 999;
 
 const basePlaceScore =
@@ -1406,8 +1406,8 @@ const basePlaceScore =
 
   const qualifiesAsWin =
     getCandidateScore(topWin) >= minWinScore &&
-    winGap >= 4 &&
-    getCandidateWinPercent(topWin) >= 8;
+    winGap >= 5 &&
+    getCandidateWinPercent(topWin) >= 10;
 
   const qualifiesAsPlace =
     placeBettingAllowed &&
@@ -1416,9 +1416,9 @@ const basePlaceScore =
     placeGap >= minPlaceGap;
 
   const qualifiesAsStrongWin =
-    getCandidateScore(topWin) >= 72 &&
-    winGap >= 6 &&
-    getCandidateWinPercent(topWin) >= 10;
+    getCandidateScore(topWin) >= 74 &&
+    winGap >= 7 &&
+    getCandidateWinPercent(topWin) >= 12;
 
   const qualifiesAsStrongPlace =
     placeBettingAllowed &&
