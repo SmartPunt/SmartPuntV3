@@ -41,6 +41,14 @@ type SpecialistAlert = {
   strength: "proven" | "emerging";
 };
 
+type RaceEdgeLeader = {
+  horseName: string;
+  signalCount: number;
+  provenCount: number;
+  emergingCount: number;
+  signals: SpecialistAlert[];
+};
+
 type SpecialistAlertInput = {
   race: Race;
   meeting: Meeting | undefined;
@@ -220,6 +228,36 @@ function buildSetupMatchedSpecialistAlerts({
     .slice(0, 8);
 }
 
+function buildRaceEdgeLeaders(alerts: SpecialistAlert[]): RaceEdgeLeader[] {
+  const grouped = new Map<string, RaceEdgeLeader>();
+
+  alerts.forEach((alert) => {
+    const existing = grouped.get(alert.horseName);
+
+    if (existing) {
+      existing.signalCount += 1;
+      existing.provenCount += alert.strength === "proven" ? 1 : 0;
+      existing.emergingCount += alert.strength === "emerging" ? 1 : 0;
+      existing.signals.push(alert);
+      return;
+    }
+
+    grouped.set(alert.horseName, {
+      horseName: alert.horseName,
+      signalCount: 1,
+      provenCount: alert.strength === "proven" ? 1 : 0,
+      emergingCount: alert.strength === "emerging" ? 1 : 0,
+      signals: [alert],
+    });
+  });
+
+  return Array.from(grouped.values()).sort((a, b) => {
+    if (b.signalCount !== a.signalCount) return b.signalCount - a.signalCount;
+    if (b.provenCount !== a.provenCount) return b.provenCount - a.provenCount;
+    return a.horseName.localeCompare(b.horseName);
+  });
+}
+
 export default function AdminCalculator({
   races,
   runners,
@@ -373,6 +411,13 @@ const activeSpecialistAlerts = useMemo(
   ],
 );
 
+const activeRaceEdgeLeaders = useMemo(
+  () => buildRaceEdgeLeaders(activeSpecialistAlerts),
+  [activeSpecialistAlerts],
+);
+
+const activeRaceEdgeLeader = activeRaceEdgeLeaders[0] || null;
+
 const raceConfidenceBoard = useMemo(() => {
   const perthNow = new Date(
     new Date().toLocaleString("en-US", {
@@ -444,6 +489,8 @@ const specialistAlerts = buildSetupMatchedSpecialistAlerts({
   meetings,
 });
 
+const raceEdgeLeaders = buildRaceEdgeLeaders(specialistAlerts);
+
 return {
   race,
   meeting,
@@ -451,6 +498,7 @@ return {
   confidence,
   calculatorTip,
   specialistAlerts,
+  raceEdgeLeaders,
 };
     })
     .filter((item) => item.confidence)
@@ -856,6 +904,38 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
             <Badge tone="amber">{activeSpecialistAlerts.length} match{activeSpecialistAlerts.length === 1 ? "" : "es"}</Badge>
           </div>
 
+          {activeRaceEdgeLeader ? (
+            <div className="mt-4 rounded-2xl border border-amber-300 bg-white px-4 py-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-800">
+                    🎯 Race Edge Leader
+                  </p>
+                  <h4 className="mt-2 text-xl font-black text-zinc-950">
+                    {activeRaceEdgeLeader.horseName}
+                  </h4>
+                  <p className="mt-1 text-sm font-bold text-zinc-700">
+                    {activeRaceEdgeLeader.signalCount} matching edge signal{activeRaceEdgeLeader.signalCount === 1 ? "" : "s"}
+                    {activeRaceEdgeLeader.provenCount > 0 ? ` · ${activeRaceEdgeLeader.provenCount} proven` : ""}
+                    {activeRaceEdgeLeader.emergingCount > 0 ? ` · ${activeRaceEdgeLeader.emergingCount} emerging` : ""}
+                  </p>
+                </div>
+                <Badge tone="amber">Edge {activeRaceEdgeLeader.signalCount}</Badge>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activeRaceEdgeLeader.signals.slice(0, 3).map((signal) => (
+                  <span
+                    key={`${activeRaceEdgeLeader.horseName}-${signal.label}`}
+                    className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900"
+                  >
+                    {signal.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="mt-4 space-y-3">
             {activeSpecialistAlerts.slice(0, 4).map((alert) => (
               <div
@@ -1109,6 +1189,7 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Track</th>
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Confidence</th>
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Specialist</th>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Race Edge</th>
 <th className="px-4 py-3 text-left font-semibold text-zinc-600">Calculator Tip</th>
           </tr>
         </thead>
@@ -1178,6 +1259,24 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                 )}
               </td>
 
+              <td className="px-4 py-3">
+                {item.raceEdgeLeaders.length > 0 ? (
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Badge tone="blue">🎯 {item.raceEdgeLeaders[0].signalCount}</Badge>
+                      <span className="text-xs font-black text-zinc-800">
+                        {item.raceEdgeLeaders[0].horseName}
+                      </span>
+                    </div>
+                    <p className="text-[11px] leading-4 text-zinc-500">
+                      {item.raceEdgeLeaders[0].signals.slice(0, 2).map((signal) => signal.label).join(" + ")}
+                    </p>
+                  </div>
+                ) : (
+                  <span className="text-zinc-400">—</span>
+                )}
+              </td>
+
 <td className="px-4 py-3">
   <Badge tone={item.calculatorTip === "No Bet" ? "rose" : "green"}>
     {item.calculatorTip}
@@ -1205,6 +1304,9 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
             <h3 className="mt-2 text-lg font-black text-zinc-950">
               Race setup matches a proven or emerging profile
             </h3>
+            <p className="mt-1 text-sm font-bold text-zinc-700">
+              Race Edge Leader shows the runner with the strongest stack of setup-matched signals.
+            </p>
           </div>
           <Badge tone="amber">★ race table flag</Badge>
         </div>
@@ -1223,6 +1325,16 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                 <p className="text-sm font-black text-zinc-950">
                   ★ {item.meeting?.meeting_name || "Meeting"} · R{item.race.race_number} {item.race.race_name}
                 </p>
+                {item.raceEdgeLeaders[0] ? (
+                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-800">
+                      🎯 Race Edge Leader
+                    </p>
+                    <p className="mt-1 text-sm font-black text-zinc-950">
+                      {item.raceEdgeLeaders[0].horseName} · {item.raceEdgeLeaders[0].signalCount} signal{item.raceEdgeLeaders[0].signalCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                ) : null}
                 <div className="mt-3 space-y-2">
                   {item.specialistAlerts.slice(0, 3).map((alert) => (
                     <div key={`${item.race.id}-${alert.horseName}-${alert.label}`}>
