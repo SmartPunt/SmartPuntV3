@@ -494,12 +494,29 @@ function buildSmartPuntProfile({
   }
 
   if (recentPositions.length >= 3) {
-    const topThree = recentPositions.filter((position) => position <= 3).length;
-    const poorRuns = recentPositions.filter((position) => position >= 8).length;
+    const recentSix = recentPositions.slice(0, 6);
+    const recentFour = recentPositions.slice(0, 4);
+    const wins = recentSix.filter((position) => position === 1).length;
+    const topThree = recentSix.filter((position) => position <= 3).length;
+    const poorRuns = recentSix.filter((position) => position >= 8).length;
+    const recentFourAverage = recentFour.length
+      ? recentFour.reduce((total, position) => total + position, 0) / recentFour.length
+      : 10;
 
-    if (topThree >= 3) {
+    if (wins >= 3) {
+      tags.push("Winning Machine");
+      strengths.push("Recent form shows a serious winning habit with three or more wins in the exposed form line.");
+    } else if (recentFour.length >= 3 && recentFourAverage <= 3) {
+      tags.push("In Form");
+      strengths.push("Current preparation is trending strongly, with an average finish inside the top three across the latest exposed runs.");
+    }
+
+    if (topThree >= 4) {
       tags.push("Consistent Performer");
-      strengths.push("Recent form shows repeated top-three finishes.");
+      strengths.push("Recent form shows reliable top-three consistency across the exposed form line.");
+    } else if (topThree >= 3) {
+      tags.push("Reliable Profile");
+      strengths.push("Recent form has multiple top-three finishes, so the profile is building in the right direction.");
     }
 
     if (poorRuns >= 3) {
