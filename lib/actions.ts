@@ -4107,7 +4107,7 @@ for (const raceRow of raceConditionRows || []) {
         await updateHorseDistanceStat({
           supabase,
           horseId,
-distance: activeRace.distance_m,
+distance: raceDetails?.distanceM,
           finishingPosition: Number(update.finishing_position),
           now,
         });
