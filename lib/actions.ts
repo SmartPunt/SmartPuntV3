@@ -449,6 +449,67 @@ async function updateHorseDistanceStat({
     throw new Error(upsertError.message);
   }
 }
+function getConditionBucketForStats(condition: string | null | undefined) {
+  const value = String(condition || "").toLowerCase();
+
+  if (value.startsWith("good")) return "Good";
+  if (value.startsWith("soft")) return "Soft";
+  if (value.startsWith("heavy")) return "Heavy";
+  if (value.startsWith("synthetic")) return "Synthetic";
+
+  return null;
+}
+
+async function updateHorseConditionStat({
+  supabase,
+  horseId,
+  condition,
+  finishingPosition,
+  now,
+}: {
+  supabase: any;
+  horseId: number;
+  condition: string | null | undefined;
+  finishingPosition: number;
+  now: string;
+}) {
+  const conditionBucket = getConditionBucketForStats(condition);
+
+  if (!horseId || !conditionBucket || !Number.isFinite(finishingPosition)) {
+    return;
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("horse_condition_stats")
+    .select("id, runs, wins, seconds, thirds")
+    .eq("horse_id", horseId)
+    .eq("condition_bucket", conditionBucket)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  const payload = {
+    horse_id: horseId,
+    condition_bucket: conditionBucket,
+    runs: Number(existing?.runs || 0) + 1,
+    wins: Number(existing?.wins || 0) + (finishingPosition === 1 ? 1 : 0),
+    seconds: Number(existing?.seconds || 0) + (finishingPosition === 2 ? 1 : 0),
+    thirds: Number(existing?.thirds || 0) + (finishingPosition === 3 ? 1 : 0),
+    updated_at: now,
+  };
+
+  const { error: upsertError } = await supabase
+    .from("horse_condition_stats")
+    .upsert(payload, {
+      onConflict: "horse_id,condition_bucket",
+    });
+
+  if (upsertError) {
+    throw new Error(upsertError.message);
+  }
+}
 function normaliseText(value: string) {
   return String(value || "")
     .toLowerCase()
@@ -4106,13 +4167,21 @@ raceDetailsByRaceId.set(Number((raceRow as any).id), {
           now,
         });
 
-        await updateHorseDistanceStat({
-          supabase,
-          horseId,
-distance: raceDetails?.distanceM,
-          finishingPosition: Number(update.finishing_position),
-          now,
-        });
+await updateHorseDistanceStat({
+  supabase,
+  horseId,
+  distance: raceDetails?.distanceM,
+  finishingPosition: Number(update.finishing_position),
+  now,
+});
+
+await updateHorseConditionStat({
+  supabase,
+  horseId,
+  condition: trackCondition,
+  finishingPosition: Number(update.finishing_position),
+  now,
+});
       }),
     );
   }
