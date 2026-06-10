@@ -1188,8 +1188,7 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Terms</th>
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Track</th>
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Confidence</th>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Specialist</th>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Race Edge</th>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Insights</th>
 <th className="px-4 py-3 text-left font-semibold text-zinc-600">Calculator Tip</th>
           </tr>
         </thead>
@@ -1247,29 +1246,20 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
               </td>
 
               <td className="px-4 py-3">
-                {item.specialistAlerts.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    <Badge tone="amber">★ {item.specialistAlerts.length}</Badge>
-                    <span className="text-xs font-semibold text-zinc-600">
-                      {item.specialistAlerts[0]?.horseName}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-zinc-400">—</span>
-                )}
-              </td>
-
-              <td className="px-4 py-3">
-                {item.raceEdgeLeaders.length > 0 ? (
+                {item.specialistAlerts.length > 0 || item.raceEdgeLeaders.length > 0 ? (
                   <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <Badge tone="blue">🎯 {item.raceEdgeLeaders[0].signalCount}</Badge>
-                      <span className="text-xs font-black text-zinc-800">
-                        {item.raceEdgeLeaders[0].horseName}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {item.specialistAlerts.length > 0 ? (
+                        <Badge tone="amber">★ {item.specialistAlerts.length}</Badge>
+                      ) : null}
+
+                      {item.raceEdgeLeaders.length > 0 ? (
+                        <Badge tone="blue">🎯 {item.raceEdgeLeaders[0].signalCount}</Badge>
+                      ) : null}
                     </div>
-                    <p className="text-[11px] leading-4 text-zinc-500">
-                      {item.raceEdgeLeaders[0].signals.slice(0, 2).map((signal) => signal.label).join(" + ")}
+
+                    <p className="text-xs font-black leading-4 text-zinc-800">
+                      {item.raceEdgeLeaders[0]?.horseName || item.specialistAlerts[0]?.horseName}
                     </p>
                   </div>
                 ) : (
