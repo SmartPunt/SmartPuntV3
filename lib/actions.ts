@@ -4851,3 +4851,107 @@ export async function recalculateSmartPuntPowerRatingsAction() {
   };
 }
 // SmartPunt Power Rating groundwork
+export async function dryRunSmartPuntPowerRatingsAction() {
+  const supabase = await createClient();
+  const profile = await getCurrentProfile();
+
+  if (!profile || profile.role !== "admin") {
+    return {
+      success: false,
+      error: "Only admins can dry-run SmartPunt Power Ratings.",
+      total: 0,
+      rated: 0,
+      unrated: 0,
+      top: [],
+      bottom: [],
+    };
+  }
+
+  try {
+    const [horses, trackStats, distanceStats, conditionStats] =
+      await Promise.all([
+        fetchAllRows<any>({
+          getPage: (from, to) =>
+            supabase
+              .from("horses")
+              .select("id, horse_name, form_last_6")
+              .order("id", { ascending: true })
+              .range(from, to),
+        }),
+        fetchAllRows<any>({
+          getPage: (from, to) =>
+            supabase
+              .from("horse_track_stats")
+              .select("horse_id, runs, wins, seconds, thirds")
+              .range(from, to),
+        }),
+        fetchAllRows<any>({
+          getPage: (from, to) =>
+            supabase
+              .from("horse_distance_stats")
+              .select("horse_id, runs, wins, seconds, thirds")
+              .range(from, to),
+        }),
+        fetchAllRows<any>({
+          getPage: (from, to) =>
+            supabase
+              .from("horse_condition_stats")
+              .select("horse_id, runs, wins, seconds, thirds")
+              .range(from, to),
+        }),
+      ]);
+
+    const ratings = buildSmartPuntPowerRatings({
+      horses,
+      trackStats,
+      distanceStats,
+      conditionStats,
+    });
+
+    const summary = summariseSmartPuntPowerRatings(ratings);
+
+    const ratedRatings = ratings
+      .filter(
+        (rating) =>
+          rating.powerRating !== null &&
+          rating.rawScore !== null &&
+          rating.breakdown !== null,
+      )
+      .sort((a, b) => Number(b.powerRating) - Number(a.powerRating));
+
+    const formatRating = (rating: (typeof ratedRatings)[number]) => ({
+      horseId: rating.horseId,
+      horseName: rating.horseName,
+      powerRating: rating.powerRating,
+      rawScore: rating.rawScore,
+      breakdown: rating.breakdown,
+    });
+
+    return {
+      success: true,
+      error: null,
+      total: summary.total,
+      rated: summary.rated,
+      unrated: summary.unrated,
+      top: ratedRatings.slice(0, 20).map(formatRating),
+      bottom: ratedRatings.slice(-20).reverse().map(formatRating),
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "SmartPunt Power Ratings dry run failed.";
+
+    console.error("SmartPunt Power Ratings dry run failed:", error);
+
+    return {
+      success: false,
+      error: message,
+      total: 0,
+      rated: 0,
+      unrated: 0,
+      top: [],
+      bottom: [],
+    };
+  }
+}
