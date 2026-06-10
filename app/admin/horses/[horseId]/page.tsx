@@ -155,6 +155,17 @@ function getDistanceArchetypeLabel(distanceBucket?: string | null) {
   return "Distance Specialist";
 }
 
+function getEmergingDistanceArchetypeLabel(distanceBucket?: string | null) {
+  if (distanceBucket === "1000–1200m") return "Emerging Sprint Specialist";
+  if (distanceBucket === "1201–1400m") return "Emerging Short Course Specialist";
+  if (distanceBucket === "1401–1600m") return "Emerging Mile Specialist";
+  if (distanceBucket === "1601–1800m") return "Emerging Middle Distance Specialist";
+  if (distanceBucket === "1801–2200m") return "Emerging Staying Specialist";
+  if (distanceBucket === "2200m+") return "Emerging Stayer";
+
+  return "Emerging Distance Specialist";
+}
+
 function getDistancePositiveLabel(distanceBucket?: string | null) {
   if (distanceBucket === "1000–1200m") return "Sprint Positive";
   if (distanceBucket === "1201–1400m") return "Short Course Positive";
@@ -441,6 +452,11 @@ function buildSmartPuntProfile({
     tags.push(getDistanceArchetypeLabel(bestDistanceLabel));
     strengths.push(
       `Proven ${bestDistanceLabel} profile: ${bestDistance.runs} runs • ${bestDistance.wins} wins • ${bestDistance.places} places.`,
+    );
+  } else if (bestDistance && bestDistance.runs >= 3 && bestDistance.placeRate >= 0.66) {
+    tags.push(getEmergingDistanceArchetypeLabel(bestDistanceLabel));
+    strengths.push(
+      `Emerging ${bestDistanceLabel} profile: ${bestDistance.runs} runs • ${bestDistance.wins} wins • ${bestDistance.places} places. Needs more exposed runs before becoming a proven specialist.`,
     );
   } else if (bestDistance && bestDistance.runs >= 3 && bestDistance.placeRate >= 0.4) {
     tags.push(getDistancePositiveLabel(bestDistanceLabel));
