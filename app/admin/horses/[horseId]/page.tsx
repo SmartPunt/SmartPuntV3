@@ -144,6 +144,28 @@ function getDistanceBucket(distance?: number | null) {
   return "2200m+";
 }
 
+function getDistanceArchetypeLabel(distanceBucket?: string | null) {
+  if (distanceBucket === "1000–1200m") return "Sprint Specialist";
+  if (distanceBucket === "1201–1400m") return "Short Course Specialist";
+  if (distanceBucket === "1401–1600m") return "Mile Specialist";
+  if (distanceBucket === "1601–1800m") return "Middle Distance Specialist";
+  if (distanceBucket === "1801–2200m") return "Staying Specialist";
+  if (distanceBucket === "2200m+") return "Stayer";
+
+  return "Distance Specialist";
+}
+
+function getDistancePositiveLabel(distanceBucket?: string | null) {
+  if (distanceBucket === "1000–1200m") return "Sprint Positive";
+  if (distanceBucket === "1201–1400m") return "Short Course Positive";
+  if (distanceBucket === "1401–1600m") return "Mile Positive";
+  if (distanceBucket === "1601–1800m") return "Middle Distance Positive";
+  if (distanceBucket === "1801–2200m") return "Staying Positive";
+  if (distanceBucket === "2200m+") return "Staying Positive";
+
+  return "Distance Positive";
+}
+
 function parseImportedRecord(value?: string | null) {
   const cleaned = String(value || "").trim();
   const match = cleaned.match(/^(\d+):([0-9]+),([0-9]+),([0-9]+)$/);
@@ -351,10 +373,12 @@ function buildSmartPuntProfile({
   horse,
   recentFormLine,
   horseTrackStats,
+  distanceStats,
 }: {
   horse: Horse;
   recentFormLine: string;
   horseTrackStats: TrackStatRow[];
+  distanceStats: StatRow[];
 }) {
   const distanceRecord = parseImportedRecord(horse.distance_form_last_6);
   const bestCondition = getBestCondition(horse);
@@ -366,6 +390,23 @@ function buildSmartPuntProfile({
   const watchOuts: string[] = [];
 
   const distanceRates = getStrikeRate(distanceRecord);
+
+  const bestDistance = [...distanceStats]
+    .filter((row) => row.label !== "Unknown" && row.runs >= 3)
+    .map((row) => {
+      const placeRate = row.runs > 0 ? row.places / row.runs : 0;
+      const winRate = row.runs > 0 ? row.wins / row.runs : 0;
+
+      return {
+        ...row,
+        placeRate,
+        winRate,
+        score: placeRate * 100 + winRate * 70 + row.runs * 1.5,
+      };
+    })
+    .sort((a, b) => b.score - a.score)[0];
+
+  const bestDistanceLabel = bestDistance?.label || null;
 
   const bestTrack = [...horseTrackStats]
     .map((row) => {
@@ -396,16 +437,26 @@ function buildSmartPuntProfile({
     );
   }
 
-  if (distanceRecord && distanceRecord.runs >= 6 && distanceRates.placeRate >= 0.45) {
-tags.push("Distance Advantage");
+  if (bestDistance && bestDistance.runs >= 5 && bestDistance.placeRate >= 0.5) {
+    tags.push(getDistanceArchetypeLabel(bestDistanceLabel));
     strengths.push(
-      `Proven at the trip: ${horse.distance_form_last_6} (${getRecordLabel(
+      `Proven ${bestDistanceLabel} profile: ${bestDistance.runs} runs • ${bestDistance.wins} wins • ${bestDistance.places} places.`,
+    );
+  } else if (bestDistance && bestDistance.runs >= 3 && bestDistance.placeRate >= 0.4) {
+    tags.push(getDistancePositiveLabel(bestDistanceLabel));
+    strengths.push(
+      `Useful ${bestDistanceLabel} evidence: ${bestDistance.runs} runs • ${bestDistance.wins} wins • ${bestDistance.places} places.`,
+    );
+  } else if (distanceRecord && distanceRecord.runs >= 5 && distanceRates.placeRate >= 0.5) {
+    tags.push("Distance Specialist");
+    strengths.push(
+      `Proven imported distance profile: ${horse.distance_form_last_6} (${getRecordLabel(
         horse.distance_form_last_6,
       )}).`,
     );
   } else if (distanceRecord && distanceRecord.runs >= 3 && distanceRates.placeRate >= 0.4) {
- tags.push("Distance Positive");
-    strengths.push(`Has some useful distance evidence: ${horse.distance_form_last_6}.`);
+    tags.push("Distance Positive");
+    strengths.push(`Has some useful imported distance evidence: ${horse.distance_form_last_6}.`);
   }
 
   if (bestCondition) {
@@ -760,6 +811,7 @@ export default async function Page({
     horse,
     recentFormLine,
     horseTrackStats,
+    distanceStats,
   });
   const profileStatus = getProfileStatus(
     totalRuns,
