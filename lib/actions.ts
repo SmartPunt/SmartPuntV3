@@ -3952,6 +3952,7 @@ const raceDetailsByRaceId = new Map<
   {
     trackName: string;
     trackCondition: string;
+    distanceM: number | null;
   }
 >();
 
@@ -3960,10 +3961,11 @@ for (const raceRow of raceConditionRows || []) {
     ? (raceRow as any).meetings[0]
     : (raceRow as any).meetings;
 
-  raceDetailsByRaceId.set(Number((raceRow as any).id), {
-    trackName: String(meetingData?.meeting_name || ""),
-    trackCondition: String(meetingData?.track_condition || ""),
-  });
+raceDetailsByRaceId.set(Number((raceRow as any).id), {
+  trackName: String(meetingData?.meeting_name || ""),
+  trackCondition: String(meetingData?.track_condition || ""),
+  distanceM: Number((raceRow as any).distance_m || 0) || null,
+});
 }
  await Promise.all(
   updates.map(async (update) => {
