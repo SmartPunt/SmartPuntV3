@@ -4592,14 +4592,3 @@ export async function updateFortuneFiveLegResultAction(
   revalidatePath("/admin/fortune-on-5");
   revalidatePath("/fortune-on-5");
 }
-export async function repairDonaldRaceOneCalculatorSnapshotAction(): Promise<void> {
-  await requireRacingAdmin();
-
-  const raceId = 2554;
-
-  await saveCalculatorPredictionsForRace(raceId, {
-    excludeScratched: true,
-  });
-
-  revalidatePath("/admin/calculator-report");
-}
