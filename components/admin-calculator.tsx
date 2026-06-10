@@ -281,6 +281,9 @@ export default function AdminCalculator({
   const [raceDayFilter, setRaceDayFilter] = useState<
     "today" | "tomorrow" | "upcoming"
   >("today");
+  const [showTipsOnly, setShowTipsOnly] = useState(false);
+  const [showSpecialistsOnly, setShowSpecialistsOnly] = useState(false);
+  const [minimumConfidence, setMinimumConfidence] = useState("all");
 
   const publishedRaces = useMemo(
     () => races.filter((race) => race.status === "published"),
@@ -516,6 +519,23 @@ return {
   races,
   runners,
 ]);
+
+const filteredRaceConfidenceBoard = useMemo(() => {
+  const confidenceFloor = minimumConfidence === "all" ? 0 : Number(minimumConfidence);
+
+  return raceConfidenceBoard.filter((item) => {
+    const confidencePercent = Number(item.confidence?.confidencePercent || 0);
+    const hasCalculatorTip = item.calculatorTip === "Win" || item.calculatorTip === "Place";
+    const hasSpecialistMatch = item.specialistAlerts.length > 0 || item.raceEdgeLeaders.length > 0;
+
+    if (showTipsOnly && !hasCalculatorTip) return false;
+    if (showSpecialistsOnly && !hasSpecialistMatch) return false;
+    if (confidencePercent < confidenceFloor) return false;
+
+    return true;
+  });
+}, [minimumConfidence, raceConfidenceBoard, showSpecialistsOnly, showTipsOnly]);
+
   const strongestBets = useMemo(() => {
     const perthNow = new Date(
       new Date().toLocaleString("en-US", {
@@ -1175,8 +1195,68 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
     All Upcoming
   </button>
 
-  <Badge tone="blue">{raceConfidenceBoard.length} races</Badge>
+  <Badge tone="blue">{filteredRaceConfidenceBoard.length} of {raceConfidenceBoard.length} races</Badge>
 </div>
+    </div>
+
+    <div className="mt-5 rounded-2xl border border-amber-200/50 bg-amber-50/70 p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowTipsOnly((value) => !value)}
+          className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
+            showTipsOnly
+              ? "bg-black text-amber-300"
+              : "border border-amber-300/60 bg-white text-zinc-800 hover:bg-amber-100"
+          }`}
+        >
+          Tips Only
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowSpecialistsOnly((value) => !value)}
+          className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
+            showSpecialistsOnly
+              ? "bg-black text-amber-300"
+              : "border border-amber-300/60 bg-white text-zinc-800 hover:bg-amber-100"
+          }`}
+        >
+          Specialists Only
+        </button>
+
+        <label className="flex items-center gap-2 text-sm font-bold text-zinc-700">
+          Min confidence
+          <select
+            value={minimumConfidence}
+            onChange={(event) => setMinimumConfidence(event.target.value)}
+            className="rounded-2xl border border-amber-300/60 bg-white px-3 py-2 text-sm font-black text-zinc-900 outline-none transition focus:border-amber-500"
+          >
+            <option value="all">All</option>
+            <option value="60">60%+</option>
+            <option value="65">65%+</option>
+            <option value="70">70%+</option>
+            <option value="75">75%+</option>
+            <option value="80">80%+</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={() => {
+            setShowTipsOnly(false);
+            setShowSpecialistsOnly(false);
+            setMinimumConfidence("all");
+          }}
+          className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
+        >
+          Reset
+        </button>
+      </div>
+
+      <p className="mt-3 text-xs font-medium text-zinc-600">
+        Filters only change this confidence board. Calculator scoring, race confidence, and publishing logic stay unchanged.
+      </p>
     </div>
 
     <div className="mt-5 overflow-x-auto rounded-2xl border border-zinc-200">
@@ -1194,7 +1274,7 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
         </thead>
 
         <tbody className="divide-y divide-zinc-100 bg-white">
-          {raceConfidenceBoard.map((item) => (
+          {filteredRaceConfidenceBoard.map((item) => (
 <tr
   key={item.race.id}
   onClick={() => setSelectedRaceId(String(item.race.id))}
@@ -1274,6 +1354,14 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
 </td>
             </tr>
           ))}
+
+          {filteredRaceConfidenceBoard.length === 0 ? (
+            <tr>
+              <td colSpan={7} className="px-4 py-8 text-center text-sm font-semibold text-zinc-500">
+                No races match those filters. Try lowering the confidence level or turning off a toggle.
+              </td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
