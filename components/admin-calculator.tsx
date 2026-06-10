@@ -33,6 +33,193 @@ type CalculatorTip = {
   published_at: string | null;
 };
 
+
+type SpecialistAlert = {
+  horseName: string;
+  label: string;
+  detail: string;
+  strength: "proven" | "emerging";
+};
+
+type SpecialistAlertInput = {
+  race: Race;
+  meeting: Meeting | undefined;
+  scoredRunners: ReturnType<typeof calculateRaceScores>;
+  races: Race[];
+  runners: Runner[];
+  horses: Horse[];
+  meetings: Meeting[];
+};
+
+function getSpecialistDistanceBucket(distance?: number | null) {
+  if (!distance) return "Unknown";
+  if (distance <= 1200) return "1000–1200m";
+  if (distance <= 1400) return "1201–1400m";
+  if (distance <= 1600) return "1401–1600m";
+  if (distance <= 1800) return "1601–1800m";
+  if (distance <= 2200) return "1801–2200m";
+  return "2200m+";
+}
+
+function getSpecialistConditionBucket(condition?: string | null) {
+  const value = String(condition || "").toLowerCase();
+
+  if (value.startsWith("good")) return "Good";
+  if (value.startsWith("soft")) return "Soft";
+  if (value.startsWith("heavy")) return "Heavy";
+  if (value.startsWith("synthetic")) return "Synthetic";
+  return "Other";
+}
+
+function getDistanceSpecialistLabel(distanceBucket: string, emerging = false) {
+  const prefix = emerging ? "Emerging " : "";
+
+  if (distanceBucket === "1000–1200m") return `${prefix}Sprint Specialist`;
+  if (distanceBucket === "1201–1400m") return `${prefix}Short Course Specialist`;
+  if (distanceBucket === "1401–1600m") return `${prefix}Mile Specialist`;
+  if (distanceBucket === "1601–1800m") return `${prefix}Middle Distance Specialist`;
+  if (distanceBucket === "1801–2200m") return `${prefix}Staying Specialist`;
+  if (distanceBucket === "2200m+") return emerging ? "Emerging Stayer" : "Stayer";
+
+  return `${prefix}Distance Specialist`;
+}
+
+function getConditionSpecialistLabel(conditionBucket: string, emerging = false) {
+  const prefix = emerging ? "Emerging " : "";
+
+  if (conditionBucket === "Heavy") return `${prefix}Heavy Tracker`;
+  if (conditionBucket === "Soft") return `${prefix}Wet Tracker`;
+  if (conditionBucket === "Good") return `${prefix}Good Track Performer`;
+  if (conditionBucket === "Synthetic") return `${prefix}Synthetic Performer`;
+
+  return `${prefix}Condition Specialist`;
+}
+
+function getSpecialistRunStats<T extends { finishing_position?: number | null }>(runs: T[]) {
+  const wins = runs.filter((run) => run.finishing_position === 1).length;
+  const places = runs.filter((run) => {
+    const position = run.finishing_position;
+    return position !== null && position !== undefined && position <= 3;
+  }).length;
+  const placeRate = runs.length ? places / runs.length : 0;
+
+  return {
+    runs: runs.length,
+    wins,
+    places,
+    placeRate,
+  };
+}
+
+function formatSpecialistPlaceRate(value: number) {
+  return `${Math.round(value * 100)}%`;
+}
+
+function buildSetupMatchedSpecialistAlerts({
+  race,
+  meeting,
+  scoredRunners,
+  races,
+  runners,
+  horses,
+  meetings,
+}: SpecialistAlertInput) {
+  const raceDistanceBucket = getSpecialistDistanceBucket(race.distance_m);
+  const raceConditionBucket = getSpecialistConditionBucket(meeting?.track_condition || null);
+  const alerts: SpecialistAlert[] = [];
+  const seen = new Set<string>();
+
+  function addAlert(alert: SpecialistAlert) {
+    const key = `${alert.horseName}-${alert.label}`;
+    if (seen.has(key)) return;
+
+    seen.add(key);
+    alerts.push(alert);
+  }
+
+  scoredRunners.forEach((runner) => {
+    const horse = horses.find((item) => Number(item.id) === Number(runner.horse_id));
+    const horseName = horse?.horse_name || runner.horse_name;
+    const historyRuns = buildHorseHistory(runner.horse_id, runners, races, meetings, race.id);
+
+    if (raceDistanceBucket !== "Unknown") {
+      const distanceRuns = historyRuns.filter(
+        (run) => getSpecialistDistanceBucket(run.race?.distance_m) === raceDistanceBucket,
+      );
+      const stats = getSpecialistRunStats(distanceRuns);
+
+      if (stats.runs >= 5 && stats.placeRate >= 0.5) {
+        addAlert({
+          horseName,
+          label: getDistanceSpecialistLabel(raceDistanceBucket),
+          detail: `${stats.runs} runs at ${raceDistanceBucket} • ${stats.wins} wins • ${stats.places} places • ${formatSpecialistPlaceRate(stats.placeRate)} place rate`,
+          strength: "proven",
+        });
+      } else if (stats.runs >= 3 && stats.placeRate >= 0.66) {
+        addAlert({
+          horseName,
+          label: getDistanceSpecialistLabel(raceDistanceBucket, true),
+          detail: `${stats.runs} runs at ${raceDistanceBucket} • ${stats.wins} wins • ${stats.places} places • ${formatSpecialistPlaceRate(stats.placeRate)} place rate`,
+          strength: "emerging",
+        });
+      }
+    }
+
+    if (meeting?.meeting_name) {
+      const trackRuns = historyRuns.filter(
+        (run) => run.meeting?.meeting_name === meeting.meeting_name,
+      );
+      const stats = getSpecialistRunStats(trackRuns);
+
+      if (stats.runs >= 5 && stats.placeRate >= 0.5) {
+        addAlert({
+          horseName,
+          label: `${meeting.meeting_name} Specialist`,
+          detail: `${stats.runs} runs at ${meeting.meeting_name} • ${stats.wins} wins • ${stats.places} places • ${formatSpecialistPlaceRate(stats.placeRate)} place rate`,
+          strength: "proven",
+        });
+      } else if (stats.runs >= 3 && stats.placeRate >= 0.66) {
+        addAlert({
+          horseName,
+          label: `Emerging ${meeting.meeting_name} Specialist`,
+          detail: `${stats.runs} runs at ${meeting.meeting_name} • ${stats.wins} wins • ${stats.places} places • ${formatSpecialistPlaceRate(stats.placeRate)} place rate`,
+          strength: "emerging",
+        });
+      }
+    }
+
+    if (raceConditionBucket !== "Other") {
+      const conditionRuns = historyRuns.filter(
+        (run) => getSpecialistConditionBucket(run.meeting?.track_condition) === raceConditionBucket,
+      );
+      const stats = getSpecialistRunStats(conditionRuns);
+
+      if (stats.runs >= 5 && stats.placeRate >= 0.5) {
+        addAlert({
+          horseName,
+          label: getConditionSpecialistLabel(raceConditionBucket),
+          detail: `${stats.runs} runs on ${raceConditionBucket} • ${stats.wins} wins • ${stats.places} places • ${formatSpecialistPlaceRate(stats.placeRate)} place rate`,
+          strength: "proven",
+        });
+      } else if (stats.runs >= 3 && stats.placeRate >= 0.66) {
+        addAlert({
+          horseName,
+          label: getConditionSpecialistLabel(raceConditionBucket, true),
+          detail: `${stats.runs} runs on ${raceConditionBucket} • ${stats.wins} wins • ${stats.places} places • ${formatSpecialistPlaceRate(stats.placeRate)} place rate`,
+          strength: "emerging",
+        });
+      }
+    }
+  });
+
+  return alerts
+    .sort((a, b) => {
+      const strengthScore = { proven: 2, emerging: 1 };
+      return strengthScore[b.strength] - strengthScore[a.strength];
+    })
+    .slice(0, 8);
+}
+
 export default function AdminCalculator({
   races,
   runners,
@@ -219,12 +406,23 @@ const qualifiedTip = getQualifiedCalculatorTip(scored, {
 
 const calculatorTip = qualifiedTip?.type || "No Bet";
 
+const specialistAlerts = buildSetupMatchedSpecialistAlerts({
+  race,
+  meeting: meeting || undefined,
+  scoredRunners: scored,
+  races,
+  runners,
+  horses,
+  meetings,
+});
+
 return {
   race,
   meeting,
   fieldSize: scored.length,
   confidence,
   calculatorTip,
+  specialistAlerts,
 };
     })
     .filter((item) => item.confidence)
@@ -845,6 +1043,7 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Terms</th>
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Track</th>
             <th className="px-4 py-3 text-left font-semibold text-zinc-600">Confidence</th>
+            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Specialist</th>
 <th className="px-4 py-3 text-left font-semibold text-zinc-600">Calculator Tip</th>
           </tr>
         </thead>
@@ -857,8 +1056,20 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
   className="cursor-pointer transition hover:bg-amber-50"
 >
               <td className="px-4 py-3 font-semibold text-zinc-950">
-                {item.meeting?.meeting_name || "Meeting"} · R{item.race.race_number}{" "}
-                {item.race.race_name}
+                <span className="inline-flex items-center gap-2">
+                  {item.specialistAlerts.length > 0 ? (
+                    <span
+                      title="Specialist profile match in this race"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-300 text-xs font-black text-zinc-950 shadow-sm"
+                    >
+                      ★
+                    </span>
+                  ) : null}
+                  <span>
+                    {item.meeting?.meeting_name || "Meeting"} · R{item.race.race_number}{" "}
+                    {item.race.race_name}
+                  </span>
+                </span>
               </td>
 
               <td className="px-4 py-3 text-zinc-700">{item.fieldSize} runners</td>
@@ -889,6 +1100,19 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                 </Badge>
               </td>
 
+              <td className="px-4 py-3">
+                {item.specialistAlerts.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    <Badge tone="amber">★ {item.specialistAlerts.length}</Badge>
+                    <span className="text-xs font-semibold text-zinc-600">
+                      {item.specialistAlerts[0]?.horseName}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-zinc-400">—</span>
+                )}
+              </td>
+
 <td className="px-4 py-3">
   <Badge tone={item.calculatorTip === "No Bet" ? "rose" : "green"}>
     {item.calculatorTip}
@@ -905,6 +1129,54 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
         No races match this day filter yet.
       </p>
     ) : null}
+
+    {raceConfidenceBoard.some((item) => item.specialistAlerts.length > 0) ? (
+      <div className="mt-6 rounded-[24px] border border-amber-200 bg-amber-50 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-800">
+              Specialist Alerts
+            </p>
+            <h3 className="mt-2 text-lg font-black text-zinc-950">
+              Race setup matches a proven or emerging profile
+            </h3>
+          </div>
+          <Badge tone="amber">★ race table flag</Badge>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {raceConfidenceBoard
+            .filter((item) => item.specialistAlerts.length > 0)
+            .slice(0, 6)
+            .map((item) => (
+              <button
+                key={item.race.id}
+                type="button"
+                onClick={() => setSelectedRaceId(String(item.race.id))}
+                className="rounded-2xl border border-amber-200 bg-white p-4 text-left transition hover:border-amber-400 hover:bg-amber-50"
+              >
+                <p className="text-sm font-black text-zinc-950">
+                  ★ {item.meeting?.meeting_name || "Meeting"} · R{item.race.race_number} {item.race.race_name}
+                </p>
+                <div className="mt-3 space-y-2">
+                  {item.specialistAlerts.slice(0, 3).map((alert) => (
+                    <div key={`${item.race.id}-${alert.horseName}-${alert.label}`}>
+                      <p className="text-sm font-black text-zinc-900">
+                        {alert.horseName} — {alert.label}
+                      </p>
+                      <p className="text-xs leading-5 text-zinc-600">{alert.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </button>
+            ))}
+        </div>
+      </div>
+    ) : (
+      <p className="mt-5 rounded-2xl bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+        No specialist setup matches found for this race filter yet.
+      </p>
+    )}
   </div>
 </Panel>
         <Panel className="mt-6 bg-white/95">
