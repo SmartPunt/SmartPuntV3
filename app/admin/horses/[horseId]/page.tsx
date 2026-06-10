@@ -441,6 +441,11 @@ function buildSmartPuntProfile({
     strengths.push(
       `Strong ${bestTrack.track_name} profile: ${bestTrack.runs}:${bestTrack.wins},${bestTrack.seconds},${bestTrack.thirds} (${bestTrack.runs} runs • ${bestTrack.wins} wins • ${bestTrack.places} places).`,
     );
+  } else if (bestTrack && bestTrack.runs >= 3 && bestTrack.placeRate >= 0.66) {
+    tags.push(`Emerging ${bestTrack.track_name} Specialist`);
+    strengths.push(
+      `Emerging ${bestTrack.track_name} specialist profile: ${bestTrack.runs}:${bestTrack.wins},${bestTrack.seconds},${bestTrack.thirds} (${bestTrack.runs} runs • ${bestTrack.wins} wins • ${bestTrack.places} places). Needs more exposed runs before becoming a proven track specialist.`,
+    );
   } else if (bestTrack && bestTrack.runs >= 3 && bestTrack.placeRate >= 0.45) {
     tags.push(`${bestTrack.track_name} Performer`);
     strengths.push(
