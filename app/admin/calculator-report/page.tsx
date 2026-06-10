@@ -7,6 +7,7 @@ import {
   getQualifiedCalculatorTip,
 } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
+import PowerRatingDryRunPanel from "@/components/power-rating-dry-run-panel";
 
 type SearchValue = string | string[] | undefined;
 type CalculatorReportSearchParams = Record<string, SearchValue>;
@@ -754,7 +755,7 @@ export default async function CalculatorReportPage({
             </div>
           </div>
         </Panel>
-
+        <PowerRatingDryRunPanel />
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Top win strike"
