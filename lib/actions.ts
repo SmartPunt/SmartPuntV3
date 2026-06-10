@@ -382,6 +382,73 @@ async function updateHorseTrackStat({
     throw new Error(upsertError.message);
   }
 }
+function getDistanceBucket(distance: number | null | undefined) {
+  const value = Number(distance || 0);
+
+  if (value >= 1000 && value <= 1200) return "1000-1200";
+  if (value <= 1400) return "1201-1400";
+  if (value <= 1600) return "1401-1600";
+  if (value <= 1800) return "1601-1800";
+  if (value <= 2200) return "1801-2200";
+
+  return "2200+";
+}
+
+async function updateHorseDistanceStat({
+  supabase,
+  horseId,
+  distance,
+  finishingPosition,
+  now,
+}: {
+  supabase: any;
+  horseId: number;
+  distance: number | null | undefined;
+  finishingPosition: number;
+  now: string;
+}) {
+  const distanceBucket = getDistanceBucket(distance);
+
+  if (!horseId || !Number.isFinite(finishingPosition)) {
+    return;
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("horse_distance_stats")
+    .select("id, runs, wins, seconds, thirds")
+    .eq("horse_id", horseId)
+    .eq("distance_bucket", distanceBucket)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  const currentRuns = Number(existing?.runs || 0);
+  const currentWins = Number(existing?.wins || 0);
+  const currentSeconds = Number(existing?.seconds || 0);
+  const currentThirds = Number(existing?.thirds || 0);
+
+  const payload = {
+    horse_id: horseId,
+    distance_bucket: distanceBucket,
+    runs: currentRuns + 1,
+    wins: currentWins + (finishingPosition === 1 ? 1 : 0),
+    seconds: currentSeconds + (finishingPosition === 2 ? 1 : 0),
+    thirds: currentThirds + (finishingPosition === 3 ? 1 : 0),
+    updated_at: now,
+  };
+
+  const { error: upsertError } = await supabase
+    .from("horse_distance_stats")
+    .upsert(payload, {
+      onConflict: "horse_id,distance_bucket",
+    });
+
+  if (upsertError) {
+    throw new Error(upsertError.message);
+  }
+}
 function normaliseText(value: string) {
   return String(value || "")
     .toLowerCase()
@@ -4030,15 +4097,23 @@ for (const raceRow of raceConditionRows || []) {
       throw new Error(horseUpdateError.message);
     }
         await updateHorseTrackStat({
-      supabase,
-      horseId,
-      trackName,
-      finishingPosition: Number(update.finishing_position),
-      now,
-    });
-  }),
-);
-}
+          supabase,
+          horseId,
+          trackName,
+          finishingPosition: Number(update.finishing_position),
+          now,
+        });
+
+        await updateHorseDistanceStat({
+          supabase,
+          horseId,
+          distance: race.distance_m,
+          finishingPosition: Number(update.finishing_position),
+          now,
+        });
+      }),
+    );
+  }
 
     const { error: closeRaceError } = await supabase
       .from("races")
