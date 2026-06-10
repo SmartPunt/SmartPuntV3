@@ -3717,16 +3717,6 @@ export async function settleRaceRunnersAction(
       return { success: false, error: "No runner results were submitted." };
     }
 
-try {
-  await saveCalculatorPredictionsForRace(raceId, {
-    excludeScratched: true,
-  });
-} catch (predictionError) {
-  console.error(
-    "Calculator final prediction snapshot failed:",
-    predictionError,
-  );
-}
 
     const rpcResults = updates.map((update) => ({
       runner_id: update.id,
