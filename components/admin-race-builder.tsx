@@ -230,6 +230,7 @@ function isNoiseLine(line: string) {
 
   const exactNoise = new Set([
     "my bets",
+    "new",
     "bet slip",
     "tips",
     "stewards comments",
