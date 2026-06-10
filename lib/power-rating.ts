@@ -248,7 +248,7 @@ function calculateRawPowerScore({
     trackScore * 0.3 +
     distanceScore * 0.3 +
     conditionScore * 0.2 +
-    (50 + specialistBonus * 5) * 0.2;
+(50 + specialistBonus * 3) * 0.2;
 
   const rawScore = clamp(
     Math.round(currentFormScore * 0.5 + establishedScore * 0.5),
