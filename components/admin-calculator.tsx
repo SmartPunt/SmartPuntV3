@@ -345,6 +345,34 @@ const qualifiedTip = useMemo(
   ],
 );
 
+const activeMeeting = activeRace
+  ? meetings.find((item) => item.id === activeRace.meeting_id)
+  : undefined;
+
+const activeSpecialistAlerts = useMemo(
+  () =>
+    activeRace
+      ? buildSetupMatchedSpecialistAlerts({
+          race: activeRace,
+          meeting: activeMeeting,
+          scoredRunners,
+          races,
+          runners,
+          horses,
+          meetings,
+        })
+      : [],
+  [
+    activeMeeting,
+    activeRace,
+    horses,
+    meetings,
+    races,
+    runners,
+    scoredRunners,
+  ],
+);
+
 const raceConfidenceBoard = useMemo(() => {
   const perthNow = new Date(
     new Date().toLocaleString("en-US", {
@@ -812,6 +840,43 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
         {raceConfidence.summary}
       </p>
     </div>
+
+    {activeSpecialistAlerts.length > 0 ? (
+      <div className="mt-6 border-t border-amber-200/70 pt-5">
+        <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-800">
+                ⭐ Specialist Setup Match
+              </p>
+              <p className="mt-2 text-sm font-bold leading-6 text-zinc-700">
+                This race contains a runner with a specialist profile suited to today's setup.
+              </p>
+            </div>
+            <Badge tone="amber">{activeSpecialistAlerts.length} match{activeSpecialistAlerts.length === 1 ? "" : "es"}</Badge>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {activeSpecialistAlerts.slice(0, 4).map((alert) => (
+              <div
+                key={`${alert.horseName}-${alert.label}`}
+                className="rounded-2xl border border-amber-100 bg-white px-4 py-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-black text-zinc-950">
+                    {alert.horseName} — {alert.label}
+                  </p>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-amber-900">
+                    {alert.strength}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-zinc-600">{alert.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ) : null}
 
     <div className="mt-6 border-t border-zinc-200 pt-5">
       <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-500">
