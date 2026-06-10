@@ -6,7 +6,6 @@ import {
   calculateRaceConfidence,
   getQualifiedCalculatorTip,
 } from "@/lib/calculator/scoring";
-import { repairDonaldRaceOneCalculatorSnapshotAction } from "@/lib/actions";
 import { Badge, Panel } from "@/components/ui";
 
 type SearchValue = string | string[] | undefined;
@@ -740,19 +739,6 @@ export default async function CalculatorReportPage({
   </a>
 </div>
 
-<div className="flex items-end">
-  <form
-    action={repairDonaldRaceOneCalculatorSnapshotAction}
-    className="w-full"
-  >
-    <button
-      type="submit"
-      className="w-full rounded-2xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-500"
-    >
-      Repair Donald R1
-    </button>
-  </form>
-</div>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
