@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
+  buildSmartPuntPowerRatings,
+  summariseSmartPuntPowerRatings,
+} from "@/lib/power-rating";
+import {
   SMARTPUNT_SCORING_VERSION,
   calculateRaceConfidence,
   calculateRaceScores,
@@ -4727,4 +4731,122 @@ export async function updateFortuneFiveLegResultAction(
 
   revalidatePath("/admin/fortune-on-5");
   revalidatePath("/fortune-on-5");
+}
+export async function recalculateSmartPuntPowerRatingsAction() {
+  const supabase = await createClient();
+  const profile = await getCurrentProfile();
+
+  if (!profile || profile.role !== "admin") {
+    return {
+      success: false,
+      error: "Only admins can update SmartPunt Power Ratings.",
+      total: 0,
+      rated: 0,
+      unrated: 0,
+      updated: 0,
+    };
+  }
+
+  const { data: horses, error: horsesError } = await supabase
+    .from("horses")
+    .select("id, horse_name, form_last_6");
+
+  if (horsesError) {
+    return {
+      success: false,
+      error: horsesError.message,
+      total: 0,
+      rated: 0,
+      unrated: 0,
+      updated: 0,
+    };
+  }
+
+  const { data: trackStats, error: trackStatsError } = await supabase
+    .from("horse_track_stats")
+    .select("horse_id, runs, wins, seconds, thirds");
+
+  if (trackStatsError) {
+    return {
+      success: false,
+      error: trackStatsError.message,
+      total: 0,
+      rated: 0,
+      unrated: 0,
+      updated: 0,
+    };
+  }
+
+  const { data: distanceStats, error: distanceStatsError } = await supabase
+    .from("horse_distance_stats")
+    .select("horse_id, runs, wins, seconds, thirds");
+
+  if (distanceStatsError) {
+    return {
+      success: false,
+      error: distanceStatsError.message,
+      total: 0,
+      rated: 0,
+      unrated: 0,
+      updated: 0,
+    };
+  }
+
+  const { data: conditionStats, error: conditionStatsError } = await supabase
+    .from("horse_condition_stats")
+    .select("horse_id, runs, wins, seconds, thirds");
+
+  if (conditionStatsError) {
+    return {
+      success: false,
+      error: conditionStatsError.message,
+      total: 0,
+      rated: 0,
+      unrated: 0,
+      updated: 0,
+    };
+  }
+
+  const results = buildSmartPuntPowerRatings({
+    horses: horses || [],
+    trackStats: trackStats || [],
+    distanceStats: distanceStats || [],
+    conditionStats: conditionStats || [],
+  });
+
+  const summary = summariseSmartPuntPowerRatings(results);
+  const batchSize = 500;
+  let updated = 0;
+
+  for (let index = 0; index < results.length; index += batchSize) {
+    const batch = results.slice(index, index + batchSize);
+
+    await Promise.all(
+      batch.map(async (result) => {
+        const { error: updateError } = await supabase
+          .from("horses")
+          .update({
+            smartpunt_power_rating: result.powerRating,
+          })
+          .eq("id", result.horseId);
+
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        updated += 1;
+      }),
+    );
+  }
+
+  revalidatePath("/admin/calculator-report");
+
+  return {
+    success: true,
+    error: null,
+    total: summary.total,
+    rated: summary.rated,
+    unrated: summary.unrated,
+    updated,
+  };
 }
