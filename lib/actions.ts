@@ -4870,35 +4870,47 @@ export async function dryRunSmartPuntPowerRatingsAction() {
   try {
     const [horses, trackStats, distanceStats, conditionStats] =
       await Promise.all([
-        fetchAllRows<any>({
-          getPage: (from, to) =>
-            supabase
-              .from("horses")
-              .select("id, horse_name, form_last_6")
-              .order("id", { ascending: true })
-              .range(from, to),
-        }),
-        fetchAllRows<any>({
-          getPage: (from, to) =>
-            supabase
-              .from("horse_track_stats")
-              .select("horse_id, runs, wins, seconds, thirds")
-              .range(from, to),
-        }),
-        fetchAllRows<any>({
-          getPage: (from, to) =>
-            supabase
-              .from("horse_distance_stats")
-              .select("horse_id, runs, wins, seconds, thirds")
-              .range(from, to),
-        }),
-        fetchAllRows<any>({
-          getPage: (from, to) =>
-            supabase
-              .from("horse_condition_stats")
-              .select("horse_id, runs, wins, seconds, thirds")
-              .range(from, to),
-        }),
+fetchAllRows<any>({
+  getPage: async (from, to) => {
+    const result = await supabase
+      .from("horses")
+      .select("id, horse_name, form_last_6")
+      .order("id", { ascending: true })
+      .range(from, to);
+
+    return result;
+  },
+}),
+fetchAllRows<any>({
+  getPage: async (from, to) => {
+    const result = await supabase
+      .from("horse_track_stats")
+      .select("horse_id, runs, wins, seconds, thirds")
+      .range(from, to);
+
+    return result;
+  },
+}),
+fetchAllRows<any>({
+  getPage: async (from, to) => {
+    const result = await supabase
+      .from("horse_distance_stats")
+      .select("horse_id, runs, wins, seconds, thirds")
+      .range(from, to);
+
+    return result;
+  },
+}),
+fetchAllRows<any>({
+  getPage: async (from, to) => {
+    const result = await supabase
+      .from("horse_condition_stats")
+      .select("horse_id, runs, wins, seconds, thirds")
+      .range(from, to);
+
+    return result;
+  },
+}),
       ]);
 
     const ratings = buildSmartPuntPowerRatings({
