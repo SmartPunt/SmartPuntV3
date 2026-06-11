@@ -8,9 +8,8 @@ type DryRunHorse = {
   horseName: string;
   powerRating: number | null;
   rawScore: number | null;
-  breakdown: unknown;
+  breakdown: any;
 };
-
 type DryRunResult = {
   success: boolean;
   error: string | null;
@@ -150,10 +149,24 @@ function RatingList({
           >
             <span className="truncate">
               {index + 1}. {horse.horseName}
+              {horse.breakdown ? (
+  <div className="mt-1 text-[11px] text-zinc-400">
+    T:{horse.breakdown.trackScore ?? "-"} ·
+    D:{horse.breakdown.distanceScore ?? "-"} ·
+    C:{horse.breakdown.conditionScore ?? "-"} ·
+    B:{horse.breakdown.specialistBonus ?? 0}
+  </div>
+) : null}
             </span>
-            <span className="shrink-0 font-bold text-amber-300">
-              {horse.powerRating ?? "N/A"}
-            </span>
+<div className="shrink-0 text-right">
+  <div className="font-bold text-amber-300">
+    {horse.powerRating ?? "N/A"}
+  </div>
+
+  <div className="text-xs text-zinc-400">
+    Raw {horse.rawScore?.toFixed(1) ?? "-"}
+  </div>
+</div>
           </div>
         ))}
       </div>
