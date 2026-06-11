@@ -28,7 +28,10 @@ type Prediction = {
   placed: boolean | null;
   settled_at: string | null;
   race?: RaceWithMeeting | null;
-  horse?: { horse_name: string } | null;
+horse?: {
+  horse_name: string;
+  smartpunt_power_rating: number | null;
+} | null;
 };
 
 type RaceRow = {
