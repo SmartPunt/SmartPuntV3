@@ -45,6 +45,8 @@ export type Horse = {
   horse_name: string;
   normalised_name: string;
 
+  smartpunt_power_rating?: number | null;
+
   form_last_6?: string | null;
   track_form_last_6?: string | null;
   distance_form_last_6?: string | null;
@@ -96,6 +98,7 @@ export type FactorStatus = {
 
 export type ScoredRunner = Runner & {
   horse_name: string;
+  smartpunt_power_rating?: number | null;
   meeting_name: string;
   meeting_date: string;
   track_condition: string | null;
@@ -1102,6 +1105,7 @@ const score = applyOverconfidenceDampener({
     return {
       ...runner,
       horse_name: horse?.horse_name || "Unknown horse",
+      smartpunt_power_rating: horse?.smartpunt_power_rating ?? null,
       meeting_name: raceMeeting?.meeting_name || "Unknown meeting",
       meeting_date: raceMeeting?.meeting_date || "",
       track_condition: raceMeeting?.track_condition || null,
