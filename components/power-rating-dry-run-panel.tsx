@@ -80,7 +80,7 @@ const [saveResult, setSaveResult] = useState<{
 
           <button
             type="button"
-            onClick={savePowerRatings}
+onClick={() => alert("Power Rating save is temporarily disabled while we move this to a safer batch update.")}
             disabled={isPending}
             className="rounded-2xl border border-emerald-300/60 bg-emerald-500 px-5 py-3 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
