@@ -1082,7 +1082,7 @@ export default async function Page({
                 <p className="text-lg font-semibold">
                   {horse.smartpunt_power_rating ?? "N/A"}
                 </p>
-                <Badge tone="emerald">Power</Badge>
+<Badge tone="green">Power</Badge>
               </div>
             </div>
           </Panel>
