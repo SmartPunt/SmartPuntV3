@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { dryRunSmartPuntPowerRatingsAction } from "@/lib/actions";
+import {
+  dryRunSmartPuntPowerRatingsAction,
+  recalculateSmartPuntPowerRatingsAction,
+} from "@/lib/actions";
 
 type DryRunHorse = {
   horseId: number;
@@ -24,7 +27,14 @@ type DryRunResult = {
 export default function PowerRatingDryRunPanel() {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<DryRunResult | null>(null);
-
+const [saveResult, setSaveResult] = useState<{
+  success: boolean;
+  error: string | null;
+  total: number;
+  rated: number;
+  unrated: number;
+  updated: number;
+} | null>(null);
   function runDryTest() {
     startTransition(async () => {
       const response = await dryRunSmartPuntPowerRatingsAction();
@@ -47,14 +57,25 @@ export default function PowerRatingDryRunPanel() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={runDryTest}
-          disabled={isPending}
-          className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-bold text-black transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isPending ? "Running dry test..." : "Run Power Rating Dry Test"}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={runDryTest}
+            disabled={isPending}
+            className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-bold text-black transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isPending ? "Working..." : "Run Power Rating Dry Test"}
+          </button>
+
+          <button
+            type="button"
+            onClick={savePowerRatings}
+            disabled={isPending}
+            className="rounded-2xl border border-emerald-300/60 bg-emerald-500 px-5 py-3 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isPending ? "Working..." : "Save Power Ratings"}
+          </button>
+        </div>
       </div>
 
       {isPending ? (
@@ -62,7 +83,24 @@ export default function PowerRatingDryRunPanel() {
           <div className="h-2 w-1/2 animate-pulse rounded-full bg-amber-300" />
         </div>
       ) : null}
-
+      {saveResult ? (
+        <div
+          className={`mt-5 rounded-2xl border p-4 text-sm ${
+            saveResult.success
+              ? "border-emerald-300/40 bg-emerald-950/40 text-emerald-100"
+              : "border-red-400/40 bg-red-950/40 text-red-100"
+          }`}
+        >
+          {saveResult.success ? (
+            <span>
+              SmartPunt Power Ratings saved. Updated {saveResult.updated} horses.
+              Rated {saveResult.rated}. Unrated {saveResult.unrated}.
+            </span>
+          ) : (
+            <span>{saveResult.error || "Power Rating save failed."}</span>
+          )}
+        </div>
+      ) : null}
       {result ? (
         <div className="mt-5">
           {result.success ? (
@@ -130,7 +168,18 @@ export default function PowerRatingDryRunPanel() {
     </div>
   );
 }
+  function savePowerRatings() {
+    const confirmed = window.confirm(
+      "This will save SmartPunt Power Ratings to the horses table. Continue?",
+    );
 
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      const response = await recalculateSmartPuntPowerRatingsAction();
+      setSaveResult(response);
+    });
+  }
 function RatingList({
   title,
   horses,
