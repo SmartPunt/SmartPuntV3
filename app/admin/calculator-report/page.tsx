@@ -755,7 +755,7 @@ export default async function CalculatorReportPage({
             </div>
           </div>
         </Panel>
-        <PowerRatingDryRunPanel />
+
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard
             label="Top win strike"
@@ -1148,7 +1148,9 @@ export default async function CalculatorReportPage({
               )}
             </div>
           </div>
-        </Panel>
+         </Panel>
+
+        <PowerRatingDryRunPanel />
       </div>
     </div>
   );
