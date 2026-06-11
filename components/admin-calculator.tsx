@@ -1079,13 +1079,19 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                         {selectedHorseScore.horse_name}
                       </h3>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Badge tone="green">Win {selectedHorseScore.winPercent}%</Badge>
-                        <Badge tone="blue">Place {selectedHorseScore.placePercent}%</Badge>
-                        <Badge tone="amber">{selectedHorseScore.verdict}</Badge>
-                        <Badge tone="slate">Rank #{selectedHorseScore.rank}</Badge>
-                        <Badge tone="amber">Score {roundScore(selectedHorseScore.score)}</Badge>
-                      </div>
+<div className="mt-4 flex flex-wrap gap-2">
+  <Badge tone="green">Win {selectedHorseScore.winPercent}%</Badge>
+  <Badge tone="blue">Place {selectedHorseScore.placePercent}%</Badge>
+  <Badge tone="amber">{selectedHorseScore.verdict}</Badge>
+  <Badge tone="slate">Rank #{selectedHorseScore.rank}</Badge>
+  <Badge tone="amber">Score {roundScore(selectedHorseScore.score)}</Badge>
+
+  {selectedHorseScore.smartpunt_power_rating ? (
+    <Badge tone="violet">
+      Power {selectedHorseScore.smartpunt_power_rating}
+    </Badge>
+  ) : null}
+</div>
 
                       <div className="mt-5 rounded-[24px] border border-zinc-200 bg-white/70 p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
