@@ -4747,110 +4747,112 @@ export async function recalculateSmartPuntPowerRatingsAction() {
     };
   }
 
-  const { data: horses, error: horsesError } = await supabase
-    .from("horses")
-    .select("id, horse_name, form_last_6");
+  try {
+    const [horses, trackStats, distanceStats, conditionStats] =
+      await Promise.all([
+        fetchAllRows<any>({
+          getPage: async (from, to) => {
+            const result = await supabase
+              .from("horses")
+              .select("id, horse_name, form_last_6")
+              .order("id", { ascending: true })
+              .range(from, to);
 
-  if (horsesError) {
+            return result;
+          },
+        }),
+        fetchAllRows<any>({
+          getPage: async (from, to) => {
+            const result = await supabase
+              .from("horse_track_stats")
+              .select("horse_id, runs, wins, seconds, thirds")
+              .range(from, to);
+
+            return result;
+          },
+        }),
+        fetchAllRows<any>({
+          getPage: async (from, to) => {
+            const result = await supabase
+              .from("horse_distance_stats")
+              .select("horse_id, runs, wins, seconds, thirds")
+              .range(from, to);
+
+            return result;
+          },
+        }),
+        fetchAllRows<any>({
+          getPage: async (from, to) => {
+            const result = await supabase
+              .from("horse_condition_stats")
+              .select("horse_id, runs, wins, seconds, thirds")
+              .range(from, to);
+
+            return result;
+          },
+        }),
+      ]);
+
+    const results = buildSmartPuntPowerRatings({
+      horses,
+      trackStats,
+      distanceStats,
+      conditionStats,
+    });
+
+    const summary = summariseSmartPuntPowerRatings(results);
+    const batchSize = 500;
+    let updated = 0;
+
+    for (let index = 0; index < results.length; index += batchSize) {
+      const batch = results.slice(index, index + batchSize);
+
+      await Promise.all(
+        batch.map(async (result) => {
+          const { error: updateError } = await supabase
+            .from("horses")
+            .update({
+              smartpunt_power_rating: result.powerRating,
+            })
+            .eq("id", result.horseId);
+
+          if (updateError) {
+            throw new Error(updateError.message);
+          }
+
+          updated += 1;
+        }),
+      );
+    }
+
+    revalidatePath("/admin/calculator-report");
+
+    return {
+      success: true,
+      error: null,
+      total: summary.total,
+      rated: summary.rated,
+      unrated: summary.unrated,
+      updated,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "SmartPunt Power Ratings update failed.";
+
+    console.error("SmartPunt Power Ratings update failed:", error);
+
     return {
       success: false,
-      error: horsesError.message,
+      error: message,
       total: 0,
       rated: 0,
       unrated: 0,
       updated: 0,
     };
   }
-
-  const { data: trackStats, error: trackStatsError } = await supabase
-    .from("horse_track_stats")
-    .select("horse_id, runs, wins, seconds, thirds");
-
-  if (trackStatsError) {
-    return {
-      success: false,
-      error: trackStatsError.message,
-      total: 0,
-      rated: 0,
-      unrated: 0,
-      updated: 0,
-    };
-  }
-
-  const { data: distanceStats, error: distanceStatsError } = await supabase
-    .from("horse_distance_stats")
-    .select("horse_id, runs, wins, seconds, thirds");
-
-  if (distanceStatsError) {
-    return {
-      success: false,
-      error: distanceStatsError.message,
-      total: 0,
-      rated: 0,
-      unrated: 0,
-      updated: 0,
-    };
-  }
-
-  const { data: conditionStats, error: conditionStatsError } = await supabase
-    .from("horse_condition_stats")
-    .select("horse_id, runs, wins, seconds, thirds");
-
-  if (conditionStatsError) {
-    return {
-      success: false,
-      error: conditionStatsError.message,
-      total: 0,
-      rated: 0,
-      unrated: 0,
-      updated: 0,
-    };
-  }
-
-  const results = buildSmartPuntPowerRatings({
-    horses: horses || [],
-    trackStats: trackStats || [],
-    distanceStats: distanceStats || [],
-    conditionStats: conditionStats || [],
-  });
-
-  const summary = summariseSmartPuntPowerRatings(results);
-  const batchSize = 500;
-  let updated = 0;
-
-  for (let index = 0; index < results.length; index += batchSize) {
-    const batch = results.slice(index, index + batchSize);
-
-    await Promise.all(
-      batch.map(async (result) => {
-        const { error: updateError } = await supabase
-          .from("horses")
-          .update({
-            smartpunt_power_rating: result.powerRating,
-          })
-          .eq("id", result.horseId);
-
-        if (updateError) {
-          throw new Error(updateError.message);
-        }
-
-        updated += 1;
-      }),
-    );
-  }
-
-  revalidatePath("/admin/calculator-report");
-
-  return {
-    success: true,
-    error: null,
-    total: summary.total,
-    rated: summary.rated,
-    unrated: summary.unrated,
-    updated,
-  };
 }
-// SmartPunt Power Rating groundwork
 export async function dryRunSmartPuntPowerRatingsAction() {
   const supabase = await createClient();
   const profile = await getCurrentProfile();
