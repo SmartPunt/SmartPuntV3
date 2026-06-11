@@ -352,6 +352,14 @@ export default function AdminCalculator({
   const topPlaceChances = [...scoredRunners]
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
+  const powerTopThree = [...scoredRunners]
+  .filter((runner) => runner.smartpunt_power_rating !== null && runner.smartpunt_power_rating !== undefined)
+  .sort(
+    (a, b) =>
+      Number(b.smartpunt_power_rating || 0) -
+      Number(a.smartpunt_power_rating || 0),
+  )
+  .slice(0, 3);
   const activePlaceTerms = activeRace?.place_terms || "top_3";
 const placeBettingDisabled = activePlaceTerms === "win_only";
 
@@ -849,6 +857,41 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                     </div>
                   </div>
 
+                  {powerTopThree.length > 0 ? (
+                    <div className="rounded-[24px] border border-violet-200/70 bg-violet-50 p-5 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-800">
+                            🏆 SmartPunt Power Top 3
+                          </p>
+                          <p className="mt-2 text-sm font-bold text-zinc-700">
+                            Display only — does not affect calculator scores.
+                          </p>
+                        </div>
+                        <Badge tone="violet">Power Rating</Badge>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        {powerTopThree.map((runner, index) => (
+                          <div
+                            key={runner.id}
+                            className="rounded-2xl border border-violet-200 bg-white px-4 py-3"
+                          >
+                            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">
+                              Power #{index + 1}
+                            </p>
+                            <p className="mt-1 font-black text-zinc-950">
+                              {runner.horse_name}
+                            </p>
+                            <p className="mt-1 text-sm font-bold text-zinc-600">
+                              Rating {runner.smartpunt_power_rating ?? "N/A"} · Calc Rank #{runner.rank}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
 {raceConfidence ? (
   <div className="rounded-[28px] border border-amber-200/70 bg-white p-6 shadow-sm">
     <div className="flex flex-wrap items-start justify-between gap-5">
@@ -1085,7 +1128,11 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
   <Badge tone="amber">{selectedHorseScore.verdict}</Badge>
   <Badge tone="slate">Rank #{selectedHorseScore.rank}</Badge>
   <Badge tone="amber">Score {roundScore(selectedHorseScore.score)}</Badge>
-
+{selectedHorseScore.smartpunt_power_rating ? (
+  <Badge tone="violet">
+    Power {selectedHorseScore.smartpunt_power_rating}
+  </Badge>
+) : null}
   {selectedHorseScore.smartpunt_power_rating ? (
     <Badge tone="violet">
       Power {selectedHorseScore.smartpunt_power_rating}
