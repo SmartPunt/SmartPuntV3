@@ -1159,10 +1159,11 @@ export type RaceConfidence = {
 
 export function calculateRaceConfidence(
   scores: { score: number; placePercent?: number }[],
-  context?: {
-    trackCondition?: string | null;
-    placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
-  },
+context?: {
+  trackCondition?: string | null;
+  raceName?: string | null;
+  placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
+},
 ): RaceConfidence {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
 
@@ -1176,8 +1177,9 @@ export function calculateRaceConfidence(
   const topFourCompression =
     top && fourth ? Math.round(top.score - fourth.score) : gap;
 
-  const trackCondition = String(context?.trackCondition || "").toLowerCase();
-  const placeTerms = String(context?.placeTerms || "top_3");
+const trackCondition = String(context?.trackCondition || "").toLowerCase();
+const raceName = String(context?.raceName || "").toLowerCase();
+const placeTerms = String(context?.placeTerms || "top_3");
 
   const baseConfidence = 35;
   const topScoreBoost = clamp(Math.round((topScore - 55) * 1.15), 0, 24);
@@ -1208,6 +1210,8 @@ export function calculateRaceConfidence(
 
   const placeTermsPenalty =
     placeTerms === "win_only" ? 10 : placeTerms === "top_2" ? 5 : 0;
+  const maidenPenalty =
+  raceName.includes("maiden") || /\bmdn\b/i.test(raceName) ? 10 : 0;
 
   const confidencePercent = clamp(
     Math.round(
@@ -1218,7 +1222,8 @@ export function calculateRaceConfidence(
         compressionPenalty +
         fieldSizeAdjustment -
         conditionPenalty -
-        placeTermsPenalty,
+        placeTermsPenalty -
+        maidenPenalty,
     ),
     0,
     100,
@@ -1262,6 +1267,7 @@ if (sorted.length <= 7) positives.push("a small field");
 else if (sorted.length >= 14) risks.push("a large field");
 else if (sorted.length >= 11) risks.push("a bigger field");
 
+if (maidenPenalty > 0) risks.push("maiden race unpredictability");
 if (trackCondition.startsWith("heavy")) risks.push("heavy conditions");
 else if (trackCondition.startsWith("soft")) risks.push("soft conditions");
 else if (trackCondition.startsWith("good")) positives.push("good conditions");
@@ -1350,10 +1356,11 @@ function getCandidatePlacePercent(row: CalculatorTipCandidate) {
 
 export function getQualifiedCalculatorTip<T extends CalculatorTipCandidate>(
   rows: T[],
-  context?: {
-    trackCondition?: string | null;
-    placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
-  },
+context?: {
+  trackCondition?: string | null;
+  raceName?: string | null;
+  placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
+},
 ): QualifiedCalculatorTip<T> | null {
   if (!rows.length) return null;
 
