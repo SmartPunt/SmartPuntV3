@@ -450,7 +450,7 @@ function scoreDistanceSuitability(
     (run) => getDistanceBucket(run.race?.distance_m) === targetBucket,
   );
 
-if (!matchingRuns.length) return 48;
+if (!matchingRuns.length) return 50;
 
   const places = matchingRuns.filter((run) => {
     const pos = run.finishing_position;
@@ -493,12 +493,12 @@ function scoreTrackSuitability(
 
   const rawScore = Math.round(38 + placeRate * 38 + winRate * 24);
 
-  const historyScore =
-    matchingRuns.length === 1
-      ? clamp(rawScore, 35, 68)
-      : matchingRuns.length === 2
-        ? clamp(rawScore, 32, 78)
-        : clamp(rawScore, 25, 95);
+const historyScore =
+  matchingRuns.length === 1
+    ? clamp(rawScore, 48, 72)
+    : matchingRuns.length === 2
+      ? clamp(rawScore, 46, 82)
+      : clamp(rawScore, 25, 95);
 
   if (!horse?.track_form_last_6) return historyScore;
 
@@ -530,10 +530,10 @@ function scoreConditionSuitability(
     (run) => getConditionBucket(run.meeting?.track_condition) === target,
   );
 
-  if (!matchingRuns.length) {
-    if (!conditionRecord) return target === "Heavy" ? 44 : 48;
-    return importedScore;
-  }
+if (!matchingRuns.length) {
+  if (!conditionRecord) return 50;
+  return clamp(importedScore, 45, 85);
+}
 
   const historyScore = (() => {
     const places = matchingRuns.filter((run) => {
@@ -559,12 +559,12 @@ function scoreConditionSuitability(
 
 if (matchingRuns.length === 1) {
   const upperCap = target === "Soft" || target === "Heavy" ? 74 : 68;
-  return clamp(rawScore, 35, upperCap);
+return clamp(rawScore, 48, upperCap);
 }
 
 if (matchingRuns.length === 2) {
   const upperCap = target === "Soft" || target === "Heavy" ? 84 : 78;
-  return clamp(rawScore, 32, upperCap);
+return clamp(rawScore, 46, upperCap);
 }
 
     return clamp(rawScore, 25, 95);
