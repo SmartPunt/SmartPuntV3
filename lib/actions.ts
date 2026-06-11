@@ -4801,28 +4801,26 @@ export async function recalculateSmartPuntPowerRatingsAction() {
     });
 
     const summary = summariseSmartPuntPowerRatings(results);
-    const batchSize = 500;
+    const batchSize = 100;
     let updated = 0;
 
     for (let index = 0; index < results.length; index += batchSize) {
       const batch = results.slice(index, index + batchSize);
 
-      await Promise.all(
-        batch.map(async (result) => {
-          const { error: updateError } = await supabase
-            .from("horses")
-            .update({
-              smartpunt_power_rating: result.powerRating,
-            })
-            .eq("id", result.horseId);
+for (const result of batch) {
+  const { error: updateError } = await supabase
+    .from("horses")
+    .update({
+      smartpunt_power_rating: result.powerRating,
+    })
+    .eq("id", result.horseId);
 
-          if (updateError) {
-            throw new Error(updateError.message);
-          }
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
 
-          updated += 1;
-        }),
-      );
+  updated += 1;
+}
     }
 
     revalidatePath("/admin/calculator-report");
