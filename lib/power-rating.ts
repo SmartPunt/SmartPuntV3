@@ -222,7 +222,14 @@ function calculateRawPowerScore({
     hasStatEvidence(conditionRows),
   ].filter(Boolean).length;
 
-  if (intelligenceSources < MIN_INTELLIGENCE_SOURCES) {
+  const hasUsableRecentForm =
+    typeof horse.form_last_6 === "string" &&
+    horse.form_last_6.replace(/[^0-9x]/gi, "").length >= 4;
+
+  if (
+    intelligenceSources < MIN_INTELLIGENCE_SOURCES &&
+    !hasUsableRecentForm
+  ) {
     return null;
   }
 
