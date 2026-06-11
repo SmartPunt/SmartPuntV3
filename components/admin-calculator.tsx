@@ -385,6 +385,7 @@ const qualifiedTip = useMemo(
   () =>
     getQualifiedCalculatorTip(scoredRunners, {
       trackCondition: topWinChance?.track_condition || null,
+      raceName: activeRace?.race_name || "",
       placeTerms: activeRace?.place_terms || "top_3",
     }),
   [
