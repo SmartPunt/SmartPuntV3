@@ -54,6 +54,7 @@ type RaceWithMeeting = RaceRow & {
 type HorseRow = {
   id: number;
   horse_name: string;
+  smartpunt_power_rating: number | null;
 };
 
 type RaceRunnerRow = {
@@ -209,7 +210,7 @@ const predictions = await serviceSelectAllRows<Prediction>(
 
   const horses = await serviceSelectByIds<HorseRow>({
     table: "horses",
-    select: "id,horse_name",
+select: "id,horse_name,smartpunt_power_rating",
     ids: resolvedHorseIds,
   });
 
@@ -258,9 +259,11 @@ function buildCsv(rows: Prediction[]) {
     "distance_m",
     "runner_id",
     "horse_id",
-    "horse_name",
-    "scoring_version",
-    "predicted_rank",
+"horse_name",
+"smartpunt_power_rating",
+"power_rating_rank",
+"scoring_version",
+"predicted_rank",
     "finishing_position",
     "won",
     "placed",
@@ -277,6 +280,8 @@ function buildCsv(rows: Prediction[]) {
 "trainer_score",
 
 "winner_rank",
+"winner_power_rating",
+"winner_power_rating_rank",
 "winner_in_top_3",
 "winner_in_top_5",
 "winner_in_top_10",
@@ -292,7 +297,24 @@ const body = rows.map((row) => {
     raceRows.find((runner) => runner.finishing_position === 1) || null;
 
   const winnerRank = winnerRow?.rank ?? "";
+const powerRankedRows = [...raceRows].sort((a, b) => {
+  const aRating = Number(a.horse?.smartpunt_power_rating || 0);
+  const bRating = Number(b.horse?.smartpunt_power_rating || 0);
 
+  return bRating - aRating;
+});
+
+const powerRankByHorseId = new Map<number, number>();
+
+powerRankedRows.forEach((runner, index) => {
+  powerRankByHorseId.set(Number(runner.horse_id), index + 1);
+});
+
+const powerRatingRank = powerRankByHorseId.get(Number(row.horse_id)) || "";
+const winnerPowerRating = winnerRow?.horse?.smartpunt_power_rating ?? "";
+const winnerPowerRatingRank = winnerRow
+  ? powerRankByHorseId.get(Number(winnerRow.horse_id)) || ""
+  : "";
   return [
     row.race?.meeting?.meeting_date || "",
     row.race?.meeting?.meeting_name || "",
@@ -303,9 +325,11 @@ const body = rows.map((row) => {
     row.race?.distance_m || "",
     row.runner_id,
     row.horse_id,
-    row.horse?.horse_name || "",
-    row.scoring_version,
-    row.rank,
+row.horse?.horse_name || "",
+row.horse?.smartpunt_power_rating ?? "",
+powerRatingRank,
+row.scoring_version,
+row.rank,
     row.finishing_position ?? "",
     row.won ?? "",
     row.placed ?? "",
@@ -322,6 +346,8 @@ const body = rows.map((row) => {
 row.trainer_score,
 
 winnerRank,
+winnerPowerRating,
+winnerPowerRatingRank,
 winnerRank !== "" && winnerRank <= 3 ? "YES" : "NO",
 winnerRank !== "" && winnerRank <= 5 ? "YES" : "NO",
 winnerRank !== "" && winnerRank <= 10 ? "YES" : "NO",
