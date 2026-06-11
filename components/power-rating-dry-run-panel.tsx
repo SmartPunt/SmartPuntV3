@@ -17,6 +17,7 @@ type DryRunResult = {
   total: number;
   rated: number;
   unrated: number;
+  distribution?: { band: string; count: number }[];
   top: DryRunHorse[];
   bottom: DryRunHorse[];
 };
@@ -91,6 +92,29 @@ export default function PowerRatingDryRunPanel() {
                   </p>
                 </div>
               </div>
+
+              {result.distribution?.length ? (
+                <div className="mt-5 rounded-2xl bg-white/10 p-4">
+                  <h3 className="font-bold text-amber-200">
+                    Rating Distribution
+                  </h3>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                    {result.distribution.map((item) => (
+                      <div
+                        key={item.band}
+                        className="rounded-xl bg-black/30 px-3 py-2 text-sm"
+                      >
+                        <p className="text-xs uppercase tracking-[0.14em] text-zinc-400">
+                          {item.band}
+                        </p>
+                        <p className="mt-1 text-lg font-bold text-white">
+                          {item.count}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
                 <RatingList title="Top 20" horses={result.top} />
