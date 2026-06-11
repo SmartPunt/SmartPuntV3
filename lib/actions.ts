@@ -4921,7 +4921,18 @@ fetchAllRows<any>({
     });
 
     const summary = summariseSmartPuntPowerRatings(ratings);
-
+const distribution = [
+  { band: "90-99", count: ratings.filter((r) => Number(r.powerRating) >= 90).length },
+  { band: "80-89", count: ratings.filter((r) => Number(r.powerRating) >= 80 && Number(r.powerRating) <= 89).length },
+  { band: "70-79", count: ratings.filter((r) => Number(r.powerRating) >= 70 && Number(r.powerRating) <= 79).length },
+  { band: "60-69", count: ratings.filter((r) => Number(r.powerRating) >= 60 && Number(r.powerRating) <= 69).length },
+  { band: "50-59", count: ratings.filter((r) => Number(r.powerRating) >= 50 && Number(r.powerRating) <= 59).length },
+  { band: "40-49", count: ratings.filter((r) => Number(r.powerRating) >= 40 && Number(r.powerRating) <= 49).length },
+  { band: "30-39", count: ratings.filter((r) => Number(r.powerRating) >= 30 && Number(r.powerRating) <= 39).length },
+  { band: "20-29", count: ratings.filter((r) => Number(r.powerRating) >= 20 && Number(r.powerRating) <= 29).length },
+  { band: "10-19", count: ratings.filter((r) => Number(r.powerRating) >= 10 && Number(r.powerRating) <= 19).length },
+  { band: "1-9", count: ratings.filter((r) => Number(r.powerRating) >= 1 && Number(r.powerRating) <= 9).length },
+];
     const ratedRatings = ratings
       .filter(
         (rating) =>
@@ -4939,15 +4950,16 @@ fetchAllRows<any>({
       breakdown: rating.breakdown,
     });
 
-    return {
-      success: true,
-      error: null,
-      total: summary.total,
-      rated: summary.rated,
-      unrated: summary.unrated,
-      top: ratedRatings.slice(0, 20).map(formatRating),
-      bottom: ratedRatings.slice(-20).reverse().map(formatRating),
-    };
+return {
+  success: true,
+  error: null,
+  total: summary.total,
+  rated: summary.rated,
+  unrated: summary.unrated,
+  distribution,
+  top: ratedRatings.slice(0, 20).map(formatRating),
+  bottom: ratedRatings.slice(-20).reverse().map(formatRating),
+};
   } catch (error) {
     const message =
       error instanceof Error
