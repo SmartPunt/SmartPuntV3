@@ -301,24 +301,23 @@ export function buildSmartPuntPowerRatings({
     } satisfies PowerRatingResult;
   });
 
-  const eligible = scored
-    .filter((result) => result.eligible && result.rawScore !== null)
-    .sort((a, b) => Number(a.rawScore) - Number(b.rawScore));
+const eligible = scored.filter(
+  (result) => result.eligible && result.rawScore !== null,
+);
 
-  const totalEligible = eligible.length;
-  const percentileByHorseId = new Map<number, number>();
+return scored.map((result) => {
+  if (!result.eligible || result.rawScore === null) {
+    return {
+      ...result,
+      powerRating: null,
+    };
+  }
 
-  eligible.forEach((result, index) => {
-    const percentile =
-      totalEligible <= 1 ? 50 : 1 + Math.round((index / (totalEligible - 1)) * 98);
-
-    percentileByHorseId.set(result.horseId, clamp(percentile, 1, 99));
-  });
-
-  return scored.map((result) => ({
+  return {
     ...result,
-    powerRating: percentileByHorseId.get(result.horseId) || null,
-  }));
+    powerRating: clamp(Math.round(result.rawScore), 1, 99),
+  };
+});
 }
 
 export function summariseSmartPuntPowerRatings(results: PowerRatingResult[]) {
