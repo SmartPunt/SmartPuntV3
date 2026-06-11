@@ -41,7 +41,18 @@ const [saveResult, setSaveResult] = useState<{
       setResult(response as DryRunResult);
     });
   }
+  function savePowerRatings() {
+    const confirmed = window.confirm(
+      "This will save SmartPunt Power Ratings to the horses table. Continue?",
+    );
 
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      const response = await recalculateSmartPuntPowerRatingsAction();
+      setSaveResult(response);
+    });
+  }
   return (
     <div className="mt-6 rounded-[28px] border border-amber-300/30 bg-zinc-950 p-5 text-white shadow-xl">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -168,18 +179,7 @@ const [saveResult, setSaveResult] = useState<{
     </div>
   );
 }
-  function savePowerRatings() {
-    const confirmed = window.confirm(
-      "This will save SmartPunt Power Ratings to the horses table. Continue?",
-    );
 
-    if (!confirmed) return;
-
-    startTransition(async () => {
-      const response = await recalculateSmartPuntPowerRatingsAction();
-      setSaveResult(response);
-    });
-  }
 function RatingList({
   title,
   horses,
