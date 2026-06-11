@@ -18,9 +18,11 @@ type Horse = {
   good_track_record: string | null;
   soft_track_record: string | null;
   heavy_track_record: string | null;
-  synthetic_track_record: string | null;
+synthetic_track_record: string | null;
 
-  created_at: string;
+smartpunt_power_rating: number | null;
+
+created_at: string;
   updated_at: string;
 };
 
@@ -1019,7 +1021,7 @@ export default async function Page({
           </Panel>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-5">
+<div className="mt-6 grid gap-4 md:grid-cols-6">
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950">
               <p className="text-sm text-zinc-500">Horse Name</p>
@@ -1068,6 +1070,19 @@ export default async function Page({
               <div className="mt-3 flex items-center justify-between">
                 <p className="text-lg font-semibold">{latestRunner?.trainer_name || "—"}</p>
                 <Badge tone="slate">Current</Badge>
+              </div>
+            </div>
+          </Panel>
+            <Panel className="bg-white/95">
+            <div className="p-4 text-zinc-950">
+              <p className="text-sm text-zinc-500">
+                SmartPunt Power Rating
+              </p>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-lg font-semibold">
+                  {horse.smartpunt_power_rating ?? "N/A"}
+                </p>
+                <Badge tone="emerald">Power</Badge>
               </div>
             </div>
           </Panel>
