@@ -557,15 +557,29 @@ function scoreConditionSuitability(
 
     if (matchingRuns.length >= 3 && placeRate <= 0.2) rawScore -= 8;
 
-    if (matchingRuns.length === 1) return clamp(rawScore, 35, 68);
-    if (matchingRuns.length === 2) return clamp(rawScore, 32, 78);
+if (matchingRuns.length === 1) {
+  const upperCap = target === "Soft" || target === "Heavy" ? 74 : 68;
+  return clamp(rawScore, 35, upperCap);
+}
+
+if (matchingRuns.length === 2) {
+  const upperCap = target === "Soft" || target === "Heavy" ? 84 : 78;
+  return clamp(rawScore, 32, upperCap);
+}
 
     return clamp(rawScore, 25, 95);
   })();
 
   if (!conditionRecord) return historyScore;
 
-  return clamp(Math.round(historyScore * 0.65 + importedScore * 0.35), 25, 95);
+const historyWeight = target === "Soft" || target === "Heavy" ? 0.8 : 0.65;
+const importedWeight = 1 - historyWeight;
+
+return clamp(
+  Math.round(historyScore * historyWeight + importedScore * importedWeight),
+  25,
+  95,
+);
 }
 function getEffectiveBarrier(runner: Runner, fieldWithScratchings: Runner[]) {
   if (runner.barrier === null || runner.barrier === undefined) return null;
