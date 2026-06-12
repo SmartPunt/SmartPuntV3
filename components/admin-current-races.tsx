@@ -821,7 +821,12 @@ function handleScratchMissingResults(raceId: number) {
         : "View published races here, track the full field, and follow the live board."}
     </p>
   </div>
-
+<Link
+  href="/admin/power-rating-race-card"
+  className="rounded-2xl border border-amber-400/30 bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/30"
+>
+  🏆 Power Rating Race Card
+</Link>
   <div className="flex items-center gap-2">
     <Link
       href="/"
