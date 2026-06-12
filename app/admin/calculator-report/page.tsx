@@ -36,7 +36,10 @@ type Prediction = {
   placed: boolean | null;
   settled_at: string | null;
   race?: RaceWithMeeting | null;
-  horse?: { horse_name: string } | null;
+horse?: {
+  horse_name: string;
+  smartpunt_power_rating: number | null;
+} | null;
 };
 
 type SmartPuntGeneratedTip = Prediction & {
@@ -70,6 +73,7 @@ type RaceWithMeeting = RaceRow & {
 type HorseRow = {
   id: number;
   horse_name: string;
+  smartpunt_power_rating: number | null;
 };
 
 type RaceRunnerRow = {
@@ -343,7 +347,23 @@ const qualifiedTip = getQualifiedCalculatorTip(rows, {
 function winner(rows: Prediction[]) {
   return rows.find((row) => row.finishing_position === 1) || null;
 }
+function getPowerRating(row: Prediction) {
+  return Number(row.horse?.smartpunt_power_rating || 0);
+}
 
+function getPowerRank(row: Prediction, raceRows: Prediction[]) {
+  if (!row.horse?.smartpunt_power_rating) return null;
+
+  const ranked = [...raceRows]
+    .filter((runner) => runner.horse?.smartpunt_power_rating)
+    .sort((a, b) => getPowerRating(b) - getPowerRating(a));
+
+  const index = ranked.findIndex(
+    (runner) => Number(runner.horse_id) === Number(row.horse_id),
+  );
+
+  return index >= 0 ? index + 1 : null;
+}
 function filterByDate(rows: Prediction[], from: string, to: string) {
   return rows.filter((row) => {
     const meetingDate = isoDate(row.race?.meeting?.meeting_date);
@@ -396,7 +416,7 @@ serviceSelectByIdChunks<RaceRow>({
 }),
     serviceSelectByIdChunks<HorseRow>({
       table: "horses",
-      select: "id,horse_name",
+select: "id,horse_name,smartpunt_power_rating",
       ids: horseIds,
     }),
   ]);
@@ -565,6 +585,36 @@ export default async function CalculatorReportPage({
   const topThreeHitRaces = raceGroups.filter((race) =>
     race.rows.some((row) => row.rank <= 3 && row.finishing_position === 1),
   ).length;
+  const powerTopRatedRows = raceGroups
+  .map(
+    (race) =>
+      [...race.rows]
+        .filter((row) => row.horse?.smartpunt_power_rating)
+        .sort((a, b) => getPowerRating(b) - getPowerRating(a))[0] || null,
+  )
+  .filter((row): row is Prediction => Boolean(row));
+
+const powerTopWins = powerTopRatedRows.filter(
+  (row) => row.finishing_position === 1,
+).length;
+
+const powerTopPlaces = powerTopRatedRows.filter(
+  (row) => row.finishing_position !== null && row.finishing_position <= 3,
+).length;
+
+const powerTopThreeHitRaces = raceGroups.filter((race) => {
+  const raceWinner = winner(race.rows);
+  const powerRank = raceWinner ? getPowerRank(raceWinner, race.rows) : null;
+
+  return powerRank !== null && powerRank <= 3;
+}).length;
+
+const powerTopFiveHitRaces = raceGroups.filter((race) => {
+  const raceWinner = winner(race.rows);
+  const powerRank = raceWinner ? getPowerRank(raceWinner, race.rows) : null;
+
+  return powerRank !== null && powerRank <= 5;
+}).length;
   const winners = raceGroups
     .map((race) => winner(race.rows))
     .filter((row): row is Prediction => Boolean(row));
@@ -782,7 +832,47 @@ export default async function CalculatorReportPage({
             tone="slate"
           />
         </div>
+        <div className="mt-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                SmartPunt Power Rating results
+              </h2>
+              <p className="mt-1 text-sm text-zinc-300">
+                Compares current SmartPunt Power Ratings against settled race
+                results. Ratings are current, not historical snapshots.
+              </p>
+            </div>
+            <Badge tone="blue">Power Rating audit</Badge>
+          </div>
 
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Power #1 win"
+              value={`${percent(powerTopWins, powerTopRatedRows.length)}%`}
+              hint={`${powerTopWins}/${powerTopRatedRows.length} highest Power Rating runners won.`}
+              tone="green"
+            />
+            <StatCard
+              label="Power #1 place"
+              value={`${percent(powerTopPlaces, powerTopRatedRows.length)}%`}
+              hint={`${powerTopPlaces}/${powerTopRatedRows.length} highest Power Rating runners placed.`}
+              tone="blue"
+            />
+            <StatCard
+              label="Power Top 3 winner"
+              value={`${percent(powerTopThreeHitRaces, totalRaces)}%`}
+              hint={`${powerTopThreeHitRaces}/${totalRaces} winners were in the Power Rating top 3.`}
+              tone="amber"
+            />
+            <StatCard
+              label="Power Top 5 winner"
+              value={`${percent(powerTopFiveHitRaces, totalRaces)}%`}
+              hint={`${powerTopFiveHitRaces}/${totalRaces} winners were in the Power Rating top 5.`}
+              tone="slate"
+            />
+          </div>
+        </div>
         <div className="mt-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
