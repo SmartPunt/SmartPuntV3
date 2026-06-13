@@ -76,6 +76,11 @@ export default async function PowerRatingRaceCardPage() {
 
   const supabase = await createClient();
   const today = perthToday();
+  async function emailPowerRatingRaceCard() {
+  "use server";
+
+  await sendPowerRatingRaceCardEmailAction();
+}
 
   const meetings = await fetchAllRows<Meeting>({
     getPage: async (from, to) => {
@@ -228,7 +233,7 @@ export default async function PowerRatingRaceCardPage() {
             <p className="mt-2 text-xs text-zinc-400">
               Auto-generated from today&apos;s active races. Display only.
             </p>
-            <form action={sendPowerRatingRaceCardEmailAction} className="mt-4">
+<form action={emailPowerRatingRaceCard} className="mt-4">
   <button
     type="submit"
     className="rounded-2xl border border-amber-400/50 bg-amber-500/20 px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-amber-200 transition hover:bg-amber-500/30"
