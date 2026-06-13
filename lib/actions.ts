@@ -1469,6 +1469,137 @@ async function updatePowerRatingPredictionResultsForRace(
     );
   }
 }
+async function savePowerRatingPredictionsForRace(raceId: number) {
+  const [raceRows, runnerRows] = await Promise.all([
+    serviceRoleSelect(
+      `races?select=id,meeting_id,race_number,race_name,distance_m&id=eq.${raceId}`,
+    ),
+    serviceRoleSelect(
+      `race_runners?select=id,race_id,horse_id,scratched,finishing_position&race_id=eq.${raceId}`,
+    ),
+  ]);
+
+  const activeRace = Array.isArray(raceRows) ? raceRows[0] : null;
+
+  if (!activeRace) {
+    throw new Error("Race not found for Power Rating snapshot.");
+  }
+
+  const runners = Array.isArray(runnerRows)
+    ? runnerRows.filter(
+        (runner: any) =>
+          runner.scratched !== true &&
+          runner.finishing_position === null,
+      )
+    : [];
+
+  if (!runners.length) {
+    return;
+  }
+
+  const horseIds = Array.from(
+    new Set(
+      runners
+        .map((runner: any) => Number(runner.horse_id))
+        .filter(Boolean),
+    ),
+  );
+
+  const [meetingRows, horseRows] = await Promise.all([
+    serviceRoleSelect(
+      `meetings?select=id,meeting_name,meeting_date,track_condition&id=eq.${Number(
+        activeRace.meeting_id,
+      )}`,
+    ),
+    horseIds.length
+      ? serviceRoleSelect(
+          `horses?select=id,horse_name,smartpunt_power_rating&id=in.(${horseIds.join(
+            ",",
+          )})`,
+        )
+      : [],
+  ]);
+
+  const meeting = Array.isArray(meetingRows) ? meetingRows[0] : null;
+  const horseMap = new Map(
+    (Array.isArray(horseRows) ? horseRows : []).map((horse: any) => [
+      Number(horse.id),
+      horse,
+    ]),
+  );
+
+  const now = new Date().toISOString();
+
+  const ranked = runners
+    .map((runner: any) => {
+      const horse = horseMap.get(Number(runner.horse_id)) || null;
+
+      return {
+        runner,
+        horse,
+        rating:
+          horse?.smartpunt_power_rating !== null &&
+          horse?.smartpunt_power_rating !== undefined
+            ? Number(horse.smartpunt_power_rating)
+            : null,
+      };
+    })
+    .filter((item) => item.rating !== null)
+    .sort((a, b) => {
+      const powerGap = Number(b.rating || 0) - Number(a.rating || 0);
+
+      if (powerGap !== 0) return powerGap;
+
+      return String(a.horse?.horse_name || "").localeCompare(
+        String(b.horse?.horse_name || ""),
+      );
+    });
+
+  const powerRankByRunnerId = new Map<number, number>();
+
+  ranked.forEach((item, index) => {
+    powerRankByRunnerId.set(Number(item.runner.id), index + 1);
+  });
+
+  const payload = runners.map((runner: any) => {
+    const horse = horseMap.get(Number(runner.horse_id)) || null;
+
+    return {
+      race_id: Number(raceId),
+      runner_id: Number(runner.id),
+      horse_id: runner.horse_id ? Number(runner.horse_id) : null,
+      meeting_name: meeting?.meeting_name || null,
+      meeting_date: meeting?.meeting_date || null,
+      race_number: Number(activeRace.race_number),
+      race_name: activeRace.race_name || null,
+      distance_m: activeRace.distance_m || null,
+      track_condition: meeting?.track_condition || null,
+      horse_name: horse?.horse_name || null,
+      power_rating:
+        horse?.smartpunt_power_rating !== null &&
+        horse?.smartpunt_power_rating !== undefined
+          ? Number(horse.smartpunt_power_rating)
+          : null,
+      power_rank: powerRankByRunnerId.get(Number(runner.id)) || null,
+      finishing_position: null,
+      won: false,
+      placed: false,
+      snapshot_at: now,
+      settled_at: null,
+      updated_at: now,
+    };
+  });
+
+  await serviceRoleDelete(`power_rating_predictions?race_id=eq.${raceId}`);
+
+  await serviceRoleFetch("power_rating_predictions", {
+    method: "POST",
+    headers: {
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(payload),
+  });
+}
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
   const supabase = await createClient();
 
@@ -3936,7 +4067,11 @@ export async function settleRaceRunnersAction(
       finishing_position: update.finishing_position,
       starting_price: update.starting_price,
     }));
-
+try {
+  await savePowerRatingPredictionsForRace(raceId);
+} catch (powerSnapshotError) {
+  console.error("Power Rating prediction snapshot failed:", powerSnapshotError);
+}
     const { error: rpcError } = await supabase.rpc("settle_race_fast", {
       p_race_id: raceId,
       p_results: rpcResults,
