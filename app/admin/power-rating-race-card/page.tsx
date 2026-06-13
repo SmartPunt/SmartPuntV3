@@ -76,10 +76,14 @@ export default async function PowerRatingRaceCardPage() {
 
   const supabase = await createClient();
   const today = perthToday();
-  async function emailPowerRatingRaceCard() {
+async function emailPowerRatingRaceCard() {
   "use server";
 
-  await sendPowerRatingRaceCardEmailAction();
+  const result = await sendPowerRatingRaceCardEmailAction();
+
+  if (!result.success) {
+    throw new Error(result.error || "Power Rating Race Card email failed.");
+  }
 }
 
   const meetings = await fetchAllRows<Meeting>({
