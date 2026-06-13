@@ -966,7 +966,356 @@ async function sendPublishedRaceNotification({
 
   await sendBatchEmails(emails);
 }
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
+function perthTodayDateString() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function prettyPerthToday() {
+  return new Intl.DateTimeFormat("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Australia/Perth",
+  }).format(new Date());
+}
+
+export async function sendPowerRatingRaceCardEmailAction() {
+  try {
+    await requireRacingAdmin();
+
+    const fromEmail = process.env.RESEND_FROM_EMAIL;
+
+    if (!fromEmail) {
+      return {
+        success: false,
+        error: "Missing RESEND_FROM_EMAIL.",
+      };
+    }
+
+    const recipients = await getActiveSubscriberEmails();
+
+    if (!recipients.length) {
+      return {
+        success: false,
+        error: "No active subscribers with email alerts enabled.",
+      };
+    }
+
+    const supabase = await createClient();
+    const today = perthTodayDateString();
+    const prettyDate = prettyPerthToday();
+
+    const meetings = await fetchAllRows<any>({
+      getPage: async (from, to) => {
+        const result = await supabase
+          .from("meetings")
+          .select("id, meeting_name, meeting_date, track_condition")
+          .eq("meeting_date", today)
+          .order("meeting_name", { ascending: true })
+          .range(from, to);
+
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
+      },
+    });
+
+    const meetingIds = meetings.map((meeting) => Number(meeting.id));
+
+    const races = meetingIds.length
+      ? await fetchAllRows<any>({
+          getPage: async (from, to) => {
+            const result = await supabase
+              .from("races")
+              .select("id, meeting_id, race_number, race_name, distance_m, status")
+              .in("meeting_id", meetingIds)
+              .neq("status", "closed")
+              .order("meeting_id", { ascending: true })
+              .order("race_number", { ascending: true })
+              .range(from, to);
+
+            return {
+              data: result.data ?? [],
+              error: result.error,
+            };
+          },
+        })
+      : [];
+
+    const raceIds = races.map((race) => Number(race.id));
+
+    const runners = raceIds.length
+      ? await fetchAllRows<any>({
+          getPage: async (from, to) => {
+            const result = await supabase
+              .from("race_runners")
+              .select("id, race_id, horse_id, scratched, finishing_position")
+              .in("race_id", raceIds)
+              .eq("scratched", false)
+              .is("finishing_position", null)
+              .range(from, to);
+
+            return {
+              data: result.data ?? [],
+              error: result.error,
+            };
+          },
+        })
+      : [];
+
+    const horseIds = Array.from(
+      new Set(runners.map((runner) => Number(runner.horse_id)).filter(Boolean)),
+    );
+
+    const horses = horseIds.length
+      ? await fetchAllRows<any>({
+          getPage: async (from, to) => {
+            const result = await supabase
+              .from("horses")
+              .select("id, horse_name, smartpunt_power_rating")
+              .in("id", horseIds)
+              .range(from, to);
+
+            return {
+              data: result.data ?? [],
+              error: result.error,
+            };
+          },
+        })
+      : [];
+
+    const meetingMap = new Map(
+      meetings.map((meeting) => [Number(meeting.id), meeting]),
+    );
+
+    const horseMap = new Map(
+      horses.map((horse) => [Number(horse.id), horse]),
+    );
+
+    const selections = races
+      .map((race) => {
+        const raceRunners = runners.filter(
+          (runner) => Number(runner.race_id) === Number(race.id),
+        );
+
+        const topRunner = raceRunners
+          .map((runner) => {
+            const horse = runner.horse_id
+              ? horseMap.get(Number(runner.horse_id))
+              : null;
+
+            return {
+              runner,
+              horse,
+            };
+          })
+          .filter(
+            (item) =>
+              item.horse?.smartpunt_power_rating !== null &&
+              item.horse?.smartpunt_power_rating !== undefined,
+          )
+          .sort(
+            (a, b) =>
+              Number(b.horse?.smartpunt_power_rating || 0) -
+              Number(a.horse?.smartpunt_power_rating || 0),
+          )[0];
+
+        if (!topRunner?.horse) return null;
+
+        const meeting = meetingMap.get(Number(race.meeting_id));
+
+        return {
+          meetingName: meeting?.meeting_name || "Unknown meeting",
+          trackCondition: meeting?.track_condition || "",
+          raceNumber: Number(race.race_number),
+          raceName: race.race_name || "",
+          distance: race.distance_m || null,
+          horseName: topRunner.horse.horse_name || "",
+          rating: topRunner.horse.smartpunt_power_rating ?? null,
+        };
+      })
+      .filter(Boolean) as Array<{
+        meetingName: string;
+        trackCondition: string;
+        raceNumber: number;
+        raceName: string;
+        distance: number | null;
+        horseName: string;
+        rating: number | null;
+      }>;
+
+    if (!selections.length) {
+      return {
+        success: false,
+        error: "No Power Rating selections found for today's active races.",
+      };
+    }
+
+    const grouped = new Map<string, typeof selections>();
+
+    selections.forEach((selection) => {
+      const existing = grouped.get(selection.meetingName) || [];
+      existing.push(selection);
+      grouped.set(selection.meetingName, existing);
+    });
+
+    const meetingBlocks = Array.from(grouped.entries())
+      .map(([meetingName, meetingSelections]) => {
+        const rows = meetingSelections
+          .sort((a, b) => a.raceNumber - b.raceNumber)
+          .map(
+            (selection) => `
+              <tr>
+                <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.18);color:#fbbf24;font-weight:900;">R${selection.raceNumber}</td>
+                <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.18);color:#ffffff;font-weight:700;">${escapeHtml(selection.horseName)}</td>
+                <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.18);color:#fbbf24;font-weight:900;text-align:right;">${selection.rating ?? "N/A"}</td>
+              </tr>
+            `,
+          )
+          .join("");
+
+        return `
+          <div style="margin-top:16px;border:1px solid rgba(251,191,36,0.35);border-radius:18px;overflow:hidden;background:#020617;">
+            <div style="padding:14px 16px;border-bottom:1px solid rgba(251,191,36,0.25);">
+              <div style="font-size:16px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.12em;">
+                ${escapeHtml(meetingName)}
+              </div>
+              <div style="margin-top:4px;font-size:12px;color:#a1a1aa;">
+                ${escapeHtml(meetingSelections[0]?.trackCondition || "")}
+              </div>
+            </div>
+
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th align="left" style="padding:8px;color:#fef3c7;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;">Race</th>
+                  <th align="left" style="padding:8px;color:#fef3c7;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;">Selection</th>
+                  <th align="right" style="padding:8px;color:#fef3c7;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;">Rating</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `;
+      })
+      .join("");
+
+    const topRated = [...selections]
+      .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
+      .slice(0, 8);
+
+    const topRatedRows = topRated
+      .map(
+        (selection, index) => `
+          <tr>
+            <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.16);color:#fbbf24;font-weight:900;">${index + 1}</td>
+            <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.16);color:#ffffff;font-weight:700;">${escapeHtml(selection.horseName)}</td>
+            <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.16);color:#d4d4d8;">${escapeHtml(selection.meetingName)} R${selection.raceNumber}</td>
+            <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.16);color:#fbbf24;font-weight:900;text-align:right;">${selection.rating ?? "N/A"}</td>
+          </tr>
+        `,
+      )
+      .join("");
+
+    const appUrl = getBaseAppUrl();
+    const raceCardUrl = appUrl ? `${appUrl}/current-races` : "";
+
+    const subject = `SmartPunt Power Rating Race Card - ${prettyDate}`;
+
+    const html = (email: string) =>
+      buildEmailShell({
+        headerHtml: `
+          <div style="padding: 22px 20px 18px; background: radial-gradient(circle at top left, rgba(251,191,36,0.26), transparent 34%), linear-gradient(135deg, #020617, #111827 48%, #18181b); color: white; border-bottom: 1px solid rgba(251,191,36,0.35);">
+            <div style="font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase; color: #fbbf24; font-weight: 900;">
+              SmartPunt Power Rating
+            </div>
+            <h1 style="margin: 12px 0 0; font-size: 30px; line-height: 1.15; color: #ffffff;">
+              ${escapeHtml(prettyDate)} Race Card
+            </h1>
+            <p style="margin: 10px 0 0; font-size: 14px; color: #d4d4d8;">
+              Power #1 selections for today&apos;s active races.
+            </p>
+          </div>
+        `,
+        bodyHtml: `
+          <div style="border-radius: 18px; overflow: hidden; border: 1px solid rgba(251,191,36,0.35); background: #020617; padding: 18px;">
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#fde68a;">
+              These selections are generated from the SmartPunt Power Rating engine. They are display-only and separate from Head Tipper selections.
+            </p>
+
+            ${meetingBlocks}
+
+            <div style="margin-top:18px;border:1px solid rgba(251,191,36,0.35);border-radius:18px;overflow:hidden;background:#09090b;">
+              <div style="padding:14px 16px;border-bottom:1px solid rgba(251,191,36,0.25);font-size:16px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.12em;">
+                Top Rated Selections
+              </div>
+
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                <tbody>${topRatedRows}</tbody>
+              </table>
+            </div>
+
+            ${
+              raceCardUrl
+                ? `
+                  <div style="margin-top: 22px;">
+                    <a href="${raceCardUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#fbbf24;color:#111827;text-decoration:none;font-weight:900;">
+                      View Current Races
+                    </a>
+                  </div>
+                `
+                : ""
+            }
+          </div>
+
+          <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
+            Sent to ${escapeHtml(email)} because you’re an active SmartPunt subscriber with email alerts enabled.
+          </p>
+        `,
+      });
+
+    const emails = recipients.map((email) => ({
+      from: fromEmail,
+      to: [email],
+      subject,
+      html: html(email),
+    }));
+
+    await sendBatchEmails(emails);
+
+    revalidatePath("/admin/power-rating-race-card");
+
+    return {
+      success: true,
+      error: null,
+      sent: recipients.length,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to send Power Rating Race Card email.",
+    };
+  }
+}
 async function clearSuggestedTipLinksForRaceIds(raceIds: number[]) {
   if (!raceIds.length) return;
 
