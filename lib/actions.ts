@@ -1209,6 +1209,53 @@ function getRaceGapForRunner(runnerId: number) {
   if (topPlace && runnerId === topPlace.id) return placeGap;
   return raceConfidence.gap;
 }
+    const meetingForSnapshot =
+    meetings.find(
+      (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
+    ) || null;
+
+  const powerRankedRunners = [...scoredRunners]
+    .filter(
+      (runner) =>
+        runner.smartpunt_power_rating !== null &&
+        runner.smartpunt_power_rating !== undefined,
+    )
+    .sort((a, b) => {
+      const powerGap =
+        Number(b.smartpunt_power_rating || 0) -
+        Number(a.smartpunt_power_rating || 0);
+
+      if (powerGap !== 0) return powerGap;
+
+      return Number(b.score || 0) - Number(a.score || 0);
+    });
+
+  const powerRankByRunnerId = new Map<number, number>();
+
+  powerRankedRunners.forEach((runner, index) => {
+    powerRankByRunnerId.set(Number(runner.id), index + 1);
+  });
+
+  const powerRatingPayload = scoredRunners.map((runner) => ({
+    race_id: Number(runner.race_id),
+    runner_id: Number(runner.id),
+    horse_id: Number(runner.horse_id),
+    meeting_name: meetingForSnapshot?.meeting_name || null,
+    meeting_date: meetingForSnapshot?.meeting_date || null,
+    race_number: Number(activeRace.race_number),
+    race_name: activeRace.race_name || null,
+    distance_m: activeRace.distance_m || null,
+    track_condition: meetingForSnapshot?.track_condition || null,
+    horse_name: runner.horse_name || null,
+    power_rating: runner.smartpunt_power_rating ?? null,
+    power_rank: powerRankByRunnerId.get(Number(runner.id)) || null,
+    finishing_position: null,
+    won: false,
+    placed: false,
+    snapshot_at: now,
+    settled_at: null,
+    updated_at: now,
+  }));
   const payload = scoredRunners.map((runner) => ({
     race_id: Number(runner.race_id),
     runner_id: Number(runner.id),
@@ -1252,6 +1299,16 @@ function getRaceGapForRunner(runnerId: number) {
       Prefer: "return=minimal",
     },
     body: JSON.stringify(payload),
+  });
+
+  await serviceRoleDelete(`power_rating_predictions?race_id=eq.${raceId}`);
+
+  await serviceRoleFetch("power_rating_predictions", {
+    method: "POST",
+    headers: {
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(powerRatingPayload),
   });
 }
 export async function loadCalculatorReportResultsAction(
@@ -1387,7 +1444,31 @@ async function updateCalculatorPredictionResultsForRace(
     );
   }
 }
+async function updatePowerRatingPredictionResultsForRace(
+  raceId: number,
+  updates: Array<{
+    id: number;
+    finishing_position: number | null;
+    won: boolean | null;
+    placed: boolean | null;
+    settled_at: string | null;
+  }>,
+) {
+  const settledAt = new Date().toISOString();
 
+  for (const update of updates) {
+    await serviceRolePatch(
+      `power_rating_predictions?race_id=eq.${raceId}&runner_id=eq.${update.id}`,
+      {
+        finishing_position: update.finishing_position,
+        won: update.won,
+        placed: update.placed,
+        settled_at: update.settled_at || settledAt,
+        updated_at: new Date().toISOString(),
+      },
+    );
+  }
+}
 async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
   const supabase = await createClient();
 
