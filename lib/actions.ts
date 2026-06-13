@@ -1175,121 +1175,120 @@ export async function sendPowerRatingRaceCardEmailAction() {
       grouped.set(selection.meetingName, existing);
     });
 
-    const meetingBlocks = Array.from(grouped.entries())
-      .map(([meetingName, meetingSelections]) => {
-        const rows = meetingSelections
-          .sort((a, b) => a.raceNumber - b.raceNumber)
-          .map(
-            (selection) => `
-              <tr>
-                <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.18);color:#fbbf24;font-weight:900;">R${selection.raceNumber}</td>
-                <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.18);color:#ffffff;font-weight:700;">${escapeHtml(selection.horseName)}</td>
-                <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.18);color:#fbbf24;font-weight:900;text-align:right;">${selection.rating ?? "N/A"}</td>
-              </tr>
-            `,
-          )
-          .join("");
-
-        return `
-          <div style="margin-top:16px;border:1px solid rgba(251,191,36,0.35);border-radius:18px;overflow:hidden;background:#020617;">
-            <div style="padding:14px 16px;border-bottom:1px solid rgba(251,191,36,0.25);">
-              <div style="font-size:16px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.12em;">
-                ${escapeHtml(meetingName)}
-              </div>
-              <div style="margin-top:4px;font-size:12px;color:#a1a1aa;">
-                ${escapeHtml(meetingSelections[0]?.trackCondition || "")}
-              </div>
-            </div>
-
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
-              <thead>
-                <tr>
-                  <th align="left" style="padding:8px;color:#fef3c7;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;">Race</th>
-                  <th align="left" style="padding:8px;color:#fef3c7;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;">Selection</th>
-                  <th align="right" style="padding:8px;color:#fef3c7;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;">Rating</th>
-                </tr>
-              </thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-        `;
-      })
-      .join("");
-
-    const topRated = [...selections]
-      .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
-      .slice(0, 8);
-
-    const topRatedRows = topRated
+const meetingBlocks = Array.from(grouped.entries())
+  .map(([meetingName, meetingSelections]) => {
+    const rows = meetingSelections
+      .sort((a, b) => a.raceNumber - b.raceNumber)
       .map(
-        (selection, index) => `
+        (selection) => `
           <tr>
-            <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.16);color:#fbbf24;font-weight:900;">${index + 1}</td>
-            <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.16);color:#ffffff;font-weight:700;">${escapeHtml(selection.horseName)}</td>
-            <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.16);color:#d4d4d8;">${escapeHtml(selection.meetingName)} R${selection.raceNumber}</td>
-            <td style="padding:8px;border-bottom:1px solid rgba(251,191,36,0.16);color:#fbbf24;font-weight:900;text-align:right;">${selection.rating ?? "N/A"}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#b45309;font-weight:900;">R${selection.raceNumber}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#111827;font-weight:800;">${escapeHtml(selection.horseName)}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${escapeHtml(selection.raceName)}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#b45309;font-weight:900;text-align:right;">${selection.rating ?? "N/A"}</td>
           </tr>
         `,
       )
       .join("");
 
-    const appUrl = getBaseAppUrl();
-    const raceCardUrl = appUrl ? `${appUrl}/current-races` : "";
-
-    const subject = `SmartPunt Power Rating Race Card - ${prettyDate}`;
-
-    const html = (email: string) =>
-      buildEmailShell({
-        headerHtml: `
-          <div style="padding: 22px 20px 18px; background: radial-gradient(circle at top left, rgba(251,191,36,0.26), transparent 34%), linear-gradient(135deg, #020617, #111827 48%, #18181b); color: white; border-bottom: 1px solid rgba(251,191,36,0.35);">
-            <div style="font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase; color: #fbbf24; font-weight: 900;">
-              SmartPunt Power Rating
-            </div>
-            <h1 style="margin: 12px 0 0; font-size: 30px; line-height: 1.15; color: #ffffff;">
-              ${escapeHtml(prettyDate)} Race Card
-            </h1>
-            <p style="margin: 10px 0 0; font-size: 14px; color: #d4d4d8;">
-              Power #1 selections for today&apos;s active races.
-            </p>
+    return `
+      <div style="margin-top:18px;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#ffffff;">
+        <div style="padding:14px 16px;background:#020617;">
+          <div style="font-size:17px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.08em;">
+            ${escapeHtml(meetingName)}
           </div>
-        `,
-        bodyHtml: `
-          <div style="border-radius: 18px; overflow: hidden; border: 1px solid rgba(251,191,36,0.35); background: #020617; padding: 18px;">
-            <p style="margin:0;font-size:13px;line-height:1.6;color:#fde68a;">
-              These selections are generated from the SmartPunt Power Rating engine. They are display-only and separate from Head Tipper selections.
-            </p>
-
-            ${meetingBlocks}
-
-            <div style="margin-top:18px;border:1px solid rgba(251,191,36,0.35);border-radius:18px;overflow:hidden;background:#09090b;">
-              <div style="padding:14px 16px;border-bottom:1px solid rgba(251,191,36,0.25);font-size:16px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.12em;">
-                Top Rated Selections
-              </div>
-
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
-                <tbody>${topRatedRows}</tbody>
-              </table>
-            </div>
-
-            ${
-              raceCardUrl
-                ? `
-                  <div style="margin-top: 22px;">
-                    <a href="${raceCardUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#fbbf24;color:#111827;text-decoration:none;font-weight:900;">
-                      View Current Races
-                    </a>
-                  </div>
-                `
-                : ""
-            }
+          <div style="margin-top:4px;font-size:12px;color:#d1d5db;">
+            ${escapeHtml(meetingSelections[0]?.trackCondition || "")}
           </div>
+        </div>
 
-          <p style="margin-top: 24px; font-size: 12px; color: #9ca3af;">
-            Sent to ${escapeHtml(email)} because you’re an active SmartPunt subscriber with email alerts enabled.
-          </p>
-        `,
-      });
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#ffffff;">
+          <thead>
+            <tr style="background:#f9fafb;">
+              <th align="left" style="padding:9px 8px;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Race</th>
+              <th align="left" style="padding:9px 8px;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Selection</th>
+              <th align="left" style="padding:9px 8px;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Race Name</th>
+              <th align="right" style="padding:9px 8px;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Rating</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  })
+  .join("");
 
+const topRated = [...selections]
+  .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
+  .slice(0, 8);
+
+const topRatedRows = topRated
+  .map(
+    (selection, index) => `
+      <tr>
+        <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#b45309;font-weight:900;">${index + 1}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#111827;font-weight:800;">${escapeHtml(selection.horseName)}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${escapeHtml(selection.meetingName)} R${selection.raceNumber}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#b45309;font-weight:900;text-align:right;">${selection.rating ?? "N/A"}</td>
+      </tr>
+    `,
+  )
+  .join("");
+
+const appUrl = getBaseAppUrl();
+const raceCardUrl = appUrl ? `${appUrl}/current-races` : "";
+
+const subject = `SmartPunt Power Rating Race Card - ${prettyDate}`;
+
+const html = (email: string) =>
+  buildEmailShell({
+    headerHtml: `
+      <div style="padding:24px 22px;background:#020617;color:#ffffff;border-bottom:4px solid #fbbf24;">
+        <div style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:#fbbf24;font-weight:900;">
+          SmartPunt Power Rating
+        </div>
+        <h1 style="margin:12px 0 0;font-size:28px;line-height:1.15;color:#ffffff;">
+          ${escapeHtml(prettyDate)} Race Card
+        </h1>
+        <p style="margin:10px 0 0;font-size:14px;color:#d1d5db;">
+          Power #1 selections for today&apos;s active races.
+        </p>
+      </div>
+    `,
+    bodyHtml: `
+      <div style="padding:14px 16px;border-radius:14px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:13px;line-height:1.6;font-weight:700;">
+        These selections are generated from the SmartPunt Power Rating engine. They are display-only and separate from Head Tipper selections.
+      </div>
+
+      ${meetingBlocks}
+
+      <div style="margin-top:22px;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#ffffff;">
+        <div style="padding:14px 16px;background:#020617;color:#fbbf24;font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">
+          Top Rated Selections
+        </div>
+
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#ffffff;">
+          <tbody>${topRatedRows}</tbody>
+        </table>
+      </div>
+
+      ${
+        raceCardUrl
+          ? `
+            <div style="margin-top:22px;">
+              <a href="${raceCardUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#fbbf24;color:#111827;text-decoration:none;font-weight:900;">
+                View Current Races
+              </a>
+            </div>
+          `
+          : ""
+      }
+
+      <p style="margin-top:24px;font-size:12px;color:#6b7280;">
+        Sent to ${escapeHtml(email)} because you’re an active SmartPunt subscriber with email alerts enabled.
+      </p>
+    `,
+  });
     const emails = recipients.map((email) => ({
       from: fromEmail,
       to: [email],
