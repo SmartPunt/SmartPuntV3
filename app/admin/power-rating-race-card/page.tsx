@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { sendPowerRatingRaceCardEmailAction } from "@/lib/actions";
 
 type Meeting = {
   id: number;
@@ -227,6 +228,14 @@ export default async function PowerRatingRaceCardPage() {
             <p className="mt-2 text-xs text-zinc-400">
               Auto-generated from today&apos;s active races. Display only.
             </p>
+            <form action={sendPowerRatingRaceCardEmailAction} className="mt-4">
+  <button
+    type="submit"
+    className="rounded-2xl border border-amber-400/50 bg-amber-500/20 px-5 py-3 text-sm font-black uppercase tracking-[0.16em] text-amber-200 transition hover:bg-amber-500/30"
+  >
+    Email Race Card to Subscribers
+  </button>
+</form>
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
