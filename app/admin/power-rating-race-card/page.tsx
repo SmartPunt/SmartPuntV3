@@ -216,7 +216,13 @@ export default async function PowerRatingRaceCardPage() {
               SmartPunt Power Rating Selections
             </h1>
             <p className="mt-2 text-sm font-bold uppercase tracking-[0.22em] text-zinc-200">
-              Saturday Race Card — Power #1 in Every Race
+{new Intl.DateTimeFormat("en-AU", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Australia/Perth",
+}).format(new Date())} Race Card — Power #1 in Every Race
             </p>
             <p className="mt-2 text-xs text-zinc-400">
               Auto-generated from today&apos;s active races. Display only.
