@@ -851,7 +851,28 @@ setRacePlaceTerms("top_3");
     setImportText("");
     setParsedImportRunners([]);
   }
+  function updatePreviewRunner(
+    index: number,
+    field: keyof ImportedRunner,
+    value: string | boolean,
+  ) {
+    setParsedImportRunners((current) =>
+      current.map((runner, runnerIndex) =>
+        runnerIndex === index
+          ? {
+              ...runner,
+              [field]: value,
+            }
+          : runner,
+      ),
+    );
+  }
 
+  function deletePreviewRunner(index: number) {
+    setParsedImportRunners((current) =>
+      current.filter((_, runnerIndex) => runnerIndex !== index),
+    );
+  }
   async function handleImportParsedRunners() {
     if (!selectedRaceIdForRunner) {
       setError("Select a draft race first before importing runners.");
@@ -1375,54 +1396,180 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                     <Badge tone="green">{parsedImportRunners.length} runners</Badge>
                   </div>
 
-                  <div className="mt-4 space-y-3">
-                    {parsedImportRunners.map((runner, index) => (
-                      <div
-                        key={`${runner.horse_name}-${index}`}
-                        className="rounded-2xl border border-emerald-200 bg-white p-4"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-zinc-950">
-                              {index + 1}. {runner.horse_name}
-                            </p>
-                            <p className="mt-1 text-sm text-zinc-500">
-                              Jockey: {runner.jockey_name || "—"}
-                              {runner.is_apprentice
-                                ? ` (Apprentice${
-                                    runner.apprentice_claim_kg
-                                      ? `, -${runner.apprentice_claim_kg}kg`
-                                      : ""
-                                  })`
-                                : ""}
-                              {" · "}Trainer: {runner.trainer_name || "—"}
-                            </p>
-                          </div>
+<div className="mt-4 space-y-3">
+  {parsedImportRunners.map((runner, index) => (
+    <div
+      key={`${runner.horse_name}-${index}`}
+      className="rounded-2xl border border-emerald-200 bg-white p-4"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold text-zinc-950">
+            {index + 1}. Preview runner
+          </p>
+          <p className="mt-1 text-sm text-zinc-500">
+            Edit the imported runner before saving it into the race.
+          </p>
+        </div>
 
-                          <div className="flex flex-wrap items-center gap-2">
-                            {runner.barrier ? <Badge tone="blue">Barrier {runner.barrier}</Badge> : null}
-                            {runner.weight_kg ? <Badge tone="amber">{runner.weight_kg}kg</Badge> : null}
-                            {runner.market_price ? <Badge tone="green">${runner.market_price}</Badge> : null}
-                            {runner.prize_money ? (
-  <Badge tone="violet">
-    Prize ${Number(runner.prize_money).toLocaleString()}
-  </Badge>
-) : null}
-                            {runner.fixed_place_odds ? (
-                              <Badge tone="blue">Place ${runner.fixed_place_odds}</Badge>
-                            ) : null}
-                            {runner.form_last_6 ? <Badge tone="slate">Form {runner.form_last_6}</Badge> : null}
-                            {runner.track_form_last_6 ? (
-                              <Badge tone="amber">Track {runner.track_form_last_6}</Badge>
-                            ) : null}
-                            {runner.distance_form_last_6 ? (
-                              <Badge tone="green">Distance {runner.distance_form_last_6}</Badge>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+        <button
+          type="button"
+          onClick={() => deletePreviewRunner(index)}
+          disabled={isPending || importingRunners}
+          className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+        >
+          Delete
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <Field label="Horse name">
+          <TextInput
+            value={runner.horse_name}
+            onChange={(value) =>
+              updatePreviewRunner(index, "horse_name", value)
+            }
+            placeholder="Horse name"
+          />
+        </Field>
+
+        <Field label="Barrier">
+          <TextInput
+            value={runner.barrier}
+            onChange={(value) =>
+              updatePreviewRunner(index, "barrier", value)
+            }
+            placeholder="Barrier"
+          />
+        </Field>
+
+        <Field label="Weight (kg)">
+          <TextInput
+            value={runner.weight_kg}
+            onChange={(value) =>
+              updatePreviewRunner(index, "weight_kg", value)
+            }
+            placeholder="56.5"
+          />
+        </Field>
+
+        <Field label="Market price">
+          <TextInput
+            value={runner.market_price}
+            onChange={(value) =>
+              updatePreviewRunner(index, "market_price", value)
+            }
+            placeholder="3.80"
+          />
+        </Field>
+
+        <Field label="Fixed place odds">
+          <TextInput
+            value={runner.fixed_place_odds}
+            onChange={(value) =>
+              updatePreviewRunner(index, "fixed_place_odds", value)
+            }
+            placeholder="1.80"
+          />
+        </Field>
+
+        <Field label="Jockey">
+          <TextInput
+            value={runner.jockey_name}
+            onChange={(value) =>
+              updatePreviewRunner(index, "jockey_name", value)
+            }
+            placeholder="Jockey"
+          />
+        </Field>
+
+        <Field label="Trainer">
+          <TextInput
+            value={runner.trainer_name}
+            onChange={(value) =>
+              updatePreviewRunner(index, "trainer_name", value)
+            }
+            placeholder="Trainer"
+          />
+        </Field>
+
+        <Field label="Prize money">
+          <TextInput
+            value={runner.prize_money}
+            onChange={(value) =>
+              updatePreviewRunner(index, "prize_money", value)
+            }
+            placeholder="25000"
+          />
+        </Field>
+
+        <Field label="Recent form">
+          <TextInput
+            value={runner.form_last_6}
+            onChange={(value) =>
+              updatePreviewRunner(index, "form_last_6", value)
+            }
+            placeholder="123x45"
+          />
+        </Field>
+
+        <Field label="Track form">
+          <TextInput
+            value={runner.track_form_last_6}
+            onChange={(value) =>
+              updatePreviewRunner(index, "track_form_last_6", value)
+            }
+            placeholder="3:1,0,1"
+          />
+        </Field>
+
+        <Field label="Distance form">
+          <TextInput
+            value={runner.distance_form_last_6}
+            onChange={(value) =>
+              updatePreviewRunner(index, "distance_form_last_6", value)
+            }
+            placeholder="4:1,1,0"
+          />
+        </Field>
+
+        <Field label="Apprentice claim">
+          <TextInput
+            value={runner.apprentice_claim_kg}
+            onChange={(value) =>
+              updatePreviewRunner(index, "apprentice_claim_kg", value)
+            }
+            placeholder="2"
+          />
+        </Field>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-semibold text-zinc-700">
+          <input
+            type="checkbox"
+            checked={runner.is_apprentice}
+            onChange={(event) =>
+              updatePreviewRunner(index, "is_apprentice", event.target.checked)
+            }
+          />
+          Apprentice
+        </label>
+
+        <label className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-semibold text-zinc-700">
+          <input
+            type="checkbox"
+            checked={runner.is_scratched}
+            onChange={(event) =>
+              updatePreviewRunner(index, "is_scratched", event.target.checked)
+            }
+          />
+          Scratched
+        </label>
+      </div>
+    </div>
+  ))}
+</div>
                 </div>
               ) : null}
             </div>
