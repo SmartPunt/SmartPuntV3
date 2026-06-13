@@ -2754,22 +2754,11 @@ export async function deleteSuggestedTipAction(
   const id = Number(formData.get("id"));
   const supabase = await createClient();
 
-  const { data: tip, error: tipError } = await supabase
-    .from("suggested_tips")
-    .select(`
-      id,
-      race_start_at,
-      races:races (
-        id,
-        race_number,
-        races_meeting:meetings (
-          meeting_name,
-          meeting_date
-        )
-      )
-    `)
-    .eq("id", id)
-    .single();
+const { data: tip, error: tipError } = await supabase
+  .from("suggested_tips")
+  .select("id, race_start_at, settled_at")
+  .eq("id", id)
+  .single();
 
   if (tipError) {
     throw new Error(tipError.message);
@@ -2796,9 +2785,12 @@ export async function deleteSuggestedTipAction(
     throw new Error(error.message);
   }
 
-  revalidatePath("/");
+revalidatePath("/");
+
+if (tip?.settled_at) {
   revalidatePath("/resulted-tips");
   revalidatePath("/my-resulted-tips");
+}
 }
 
 export async function upsertWatchItem(formData: FormData): Promise<void> {
