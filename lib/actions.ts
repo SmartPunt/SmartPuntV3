@@ -3976,6 +3976,8 @@ await Promise.all(
     ),
   ),
 );
+      await updateCalculatorPredictionResultsForRace(raceId, updates);
+await updatePowerRatingPredictionResultsForRace(raceId, updates);
 } catch (calculatorTipSettleError) {
   console.error(
     "SmartPunt calculator tip settlement update failed:",
