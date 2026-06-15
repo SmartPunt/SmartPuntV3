@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v5";
+export const SMARTPUNT_SCORING_VERSION = "v6";
 
 export type Race = {
   id: number;
@@ -121,6 +121,8 @@ export type ScoredRunner = Runner & {
     jockey: number;
     trainer: number;
     consistency: number;
+    powerRating: number;
+    powerAdjustment: number;
   };
 };
 
@@ -810,7 +812,40 @@ function scoreTrainer(runner: Runner, allHistoryRuns: HistoryRun[]) {
   if (trainerRuns.length === 2) return clamp(rawScore, 35, 74);
   return clamp(rawScore, 35, 82);
 }
+function scorePowerRatingInfluence({
+  powerRating,
+  powerRank,
+}: {
+  powerRating: number | null | undefined;
+  powerRank: number | null;
+}) {
+  const rating = Number(powerRating || 0);
 
+  if (!rating || !powerRank) return 0;
+
+  let adjustment =
+    rating >= 90
+      ? 5
+      : rating >= 85
+        ? 4
+        : rating >= 80
+          ? 3
+          : rating >= 75
+            ? 2
+            : rating >= 70
+              ? 1
+              : rating < 50
+                ? -2
+                : rating < 55
+                  ? -1
+                  : 0;
+
+  if (powerRank === 1 && rating >= 70) adjustment += 1;
+  else if (powerRank <= 3 && rating >= 75) adjustment += 0.5;
+  else if (powerRank >= 8 && rating < 60) adjustment -= 0.5;
+
+  return clamp(Math.round(adjustment), -2, 6);
+}
 function applyOverconfidenceDampener({
   baseScore,
   recentForm,
@@ -1001,7 +1036,37 @@ const allHistoryRuns = buildAllHistoryRuns(
   meetings,
   activeRace.id,
 );
+const powerRankedField = field
+  .map((runner) => {
+    const horse = horses.find(
+      (item) => Number(item.id) === Number(runner.horse_id),
+    );
 
+    return {
+      runnerId: Number(runner.id),
+      powerRating: horse?.smartpunt_power_rating ?? null,
+      horseName: horse?.horse_name || "",
+    };
+  })
+  .filter(
+    (item) =>
+      item.powerRating !== null &&
+      item.powerRating !== undefined &&
+      Number.isFinite(Number(item.powerRating)),
+  )
+  .sort((a, b) => {
+    const powerGap = Number(b.powerRating || 0) - Number(a.powerRating || 0);
+
+    if (powerGap !== 0) return powerGap;
+
+    return a.horseName.localeCompare(b.horseName);
+  });
+
+const powerRankByRunnerId = new Map<number, number>();
+
+powerRankedField.forEach((item, index) => {
+  powerRankByRunnerId.set(item.runnerId, index + 1);
+});
   const baseScored = field.map((runner) => {
     const horse = horses.find((item) => Number(item.id) === Number(runner.horse_id));
     const historyRuns = buildHorseHistory(
@@ -1094,8 +1159,13 @@ const standoutBonus =
 ? 6
       : 0;
 
+const powerAdjustment = scorePowerRatingInfluence({
+  powerRating: horse?.smartpunt_power_rating,
+  powerRank: powerRankByRunnerId.get(Number(runner.id)) || null,
+});
+
 const score = applyOverconfidenceDampener({
-  baseScore: clamp(baseScore + standoutBonus),
+  baseScore: clamp(baseScore + standoutBonus + powerAdjustment),
   recentForm,
   distance,
   track,
@@ -1128,6 +1198,8 @@ const score = applyOverconfidenceDampener({
         jockey,
         trainer,
         consistency,
+        powerRating: Number(horse?.smartpunt_power_rating || 0),
+        powerAdjustment,
       },
     };
   });
