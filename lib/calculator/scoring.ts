@@ -1275,9 +1275,9 @@ const placeTerms = String(context?.placeTerms || "top_3");
           : 0;
 
   const conditionPenalty = trackCondition.startsWith("heavy")
-    ? 10
+    ? 14
     : trackCondition.startsWith("soft")
-      ? 4
+      ? 5
       : 0;
 
   const placeTermsPenalty =
@@ -1476,15 +1476,21 @@ context?: {
 
   const placeTerms = String(context?.placeTerms || "top_3");
   const placeBettingAllowed = placeTerms !== "win_only";
+  const trackCondition = String(context?.trackCondition || "").toLowerCase();
+  const isHeavyTrack = trackCondition.startsWith("heavy");
 
-  const minWinScore =
+  const baseMinWinScore =
     raceConfidence.tier === "Elite"
-      ? 68
+      ? 70
       : raceConfidence.tier === "High"
-        ? 70
+        ? 72
         : raceConfidence.tier === "Medium"
-          ? 72
+          ? 75
           : 999;
+
+  const minWinScore = isHeavyTrack
+    ? baseMinWinScore + 2
+    : baseMinWinScore;
 
 const basePlaceScore =
   raceConfidence.tier === "Elite"
@@ -1496,15 +1502,22 @@ const basePlaceScore =
         : 999;
 
   const minPlaceScore =
-    placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
+    placeTerms === "top_2"
+      ? basePlaceScore + 3
+      : isHeavyTrack
+        ? basePlaceScore + 1
+        : basePlaceScore;
 
-  const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
-  const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
+  const minPlacePercent = placeTerms === "top_2" ? 35 : isHeavyTrack ? 32 : 30;
+  const minPlaceGap = placeTerms === "top_2" ? 3 : isHeavyTrack ? 3 : 2;
+
+  const minWinGap = isHeavyTrack ? 7 : 6;
+  const minWinPercent = isHeavyTrack ? 12 : 11;
 
   const qualifiesAsWin =
     getCandidateScore(topWin) >= minWinScore &&
-    winGap >= 5 &&
-    getCandidateWinPercent(topWin) >= 10;
+    winGap >= minWinGap &&
+    getCandidateWinPercent(topWin) >= minWinPercent;
 
   const qualifiesAsPlace =
     placeBettingAllowed &&
