@@ -94,7 +94,22 @@ type ParsedResultRow = {
   horse_name: string;
   finishing_position: number;
 };
+type ParsedScratchingRow = {
+  meeting_name: string;
+  race_number: number;
+  horse_name: string;
+};
 
+type ScratchingMatchRow = ParsedScratchingRow & {
+  race_id: number;
+  runner_id: number;
+  matched_horse_name: string;
+  already_scratched: boolean;
+};
+
+type ScratchingUnmatchedRow = ParsedScratchingRow & {
+  reason: string;
+};
 function formatHorseMeta(horse: Horse | null) {
   if (!horse) return "";
   const parts: string[] = [];
@@ -160,6 +175,7 @@ function normaliseHorseName(value: string) {
     .toLowerCase()
     .replace(/\s+\(em[0-9]+\)\s*$/i, "")
     .replace(/\s+\(([a-z]{2,3})\)\s*$/i, "")
+    .replace(/['’`]/g, "")
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -261,7 +277,91 @@ function parseResultImportText(raw: string): ParsedResultRow[] {
     return true;
   });
 }
+function parseScratchingsImportText(raw: string): ParsedScratchingRow[] {
+  const lines = String(raw || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
+  const rows: ParsedScratchingRow[] = [];
+  let currentMeeting = "";
+  let currentRaceNumber: number | null = null;
+
+  function isStateLine(line: string) {
+    return /^\(([A-Z]{2,3}|NZL|US|CA)\)$/i.test(line);
+  }
+
+  function isNoiseLine(line: string) {
+    const lower = line.toLowerCase();
+
+    return (
+      lower === "final" ||
+      lower === "today" ||
+      lower === "tomorrow" ||
+      lower === "scratchings" ||
+      lower === "dual acceptors" ||
+      lower === "jockey changes" ||
+      lower.includes("racenet") ||
+      lower.includes("unlock") ||
+      lower.includes("login") ||
+      lower.includes("copyright") ||
+      lower.includes("gambling") ||
+      lower.includes("bookmaker") ||
+      lower.includes("newsletter")
+    );
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const nextLine = lines[index + 1] || "";
+
+    if (isStateLine(nextLine)) {
+      currentMeeting = line;
+      currentRaceNumber = null;
+      continue;
+    }
+
+    const raceMatch = line.match(/^R(\d+)$/i);
+
+    if (raceMatch) {
+      currentRaceNumber = Number(raceMatch[1]);
+      continue;
+    }
+
+    const horseMatch = line.match(/^(\d+)\.\s*(.+)$/);
+
+    if (!horseMatch || !currentMeeting || !currentRaceNumber) {
+      continue;
+    }
+
+    const horseName = horseMatch[2]
+      .replace(/\s+\(EM[0-9]+\)\s*$/i, "")
+      .trim();
+
+    if (!horseName || isNoiseLine(horseName)) {
+      continue;
+    }
+
+    rows.push({
+      meeting_name: currentMeeting,
+      race_number: currentRaceNumber,
+      horse_name: horseName,
+    });
+  }
+
+  const seen = new Set<string>();
+
+  return rows.filter((row) => {
+    const key = `${normaliseHorseName(row.meeting_name)}|${row.race_number}|${normaliseHorseName(
+      row.horse_name,
+    )}`;
+
+    if (!normaliseHorseName(row.horse_name) || seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+}
 export default function CurrentRacesPage({
   currentUser,
   initialMeetings,
@@ -298,7 +398,9 @@ export default function CurrentRacesPage({
   const [parsedResultsByRace, setParsedResultsByRace] = useState<Record<number, ParsedResultRow[]>>(
     {},
   );
-
+const [scratchingsImportText, setScratchingsImportText] = useState("");
+const [parsedScratchings, setParsedScratchings] = useState<ParsedScratchingRow[]>([]);
+const [scratchingsPreviewOpen, setScratchingsPreviewOpen] = useState(false);
 const currentRaces = useMemo(
   () =>
     initialRaces.filter(
@@ -577,7 +679,134 @@ router.refresh();
   function getActiveRunnerCount(raceId: number) {
     return runnersForRace(raceId).filter((runner) => !runner.scratched).length;
   }
+function buildScratchingsPreview(rows: ParsedScratchingRow[]) {
+  const matched: ScratchingMatchRow[] = [];
+  const unmatched: ScratchingUnmatchedRow[] = [];
 
+  rows.forEach((row) => {
+    const meeting = groupedMeetings.find(
+      (item) =>
+        normaliseHorseName(item.meeting_name) ===
+        normaliseHorseName(row.meeting_name),
+    );
+
+    if (!meeting) {
+      unmatched.push({
+        ...row,
+        reason: "Meeting not found in Current Races.",
+      });
+      return;
+    }
+
+    const race = meeting.races.find(
+      (item) => Number(item.race_number) === Number(row.race_number),
+    );
+
+    if (!race) {
+      unmatched.push({
+        ...row,
+        reason: "Race number not found for this meeting.",
+      });
+      return;
+    }
+
+    const raceRunners = runnersForRace(race.id);
+
+    const runner =
+      raceRunners.find(
+        (item) =>
+          normaliseHorseName(findHorseName(item.horse_id)) ===
+          normaliseHorseName(row.horse_name),
+      ) || null;
+
+    if (!runner) {
+      unmatched.push({
+        ...row,
+        reason: "Horse name not matched in this race.",
+      });
+      return;
+    }
+
+    matched.push({
+      ...row,
+      race_id: race.id,
+      runner_id: runner.id,
+      matched_horse_name: findHorseName(runner.horse_id),
+      already_scratched: runner.scratched === true,
+    });
+  });
+
+  return {
+    matched,
+    unmatched,
+    toScratch: matched.filter((row) => !row.already_scratched),
+    alreadyScratched: matched.filter((row) => row.already_scratched),
+  };
+}
+
+function handleParseScratchingsImport() {
+  const parsed = parseScratchingsImportText(scratchingsImportText);
+
+  if (!parsed.length) {
+    setParsedScratchings([]);
+    setScratchingsPreviewOpen(false);
+    setError("No scratchings could be parsed from the pasted text.");
+    return;
+  }
+
+  setParsedScratchings(parsed);
+  setScratchingsPreviewOpen(true);
+
+  const preview = buildScratchingsPreview(parsed);
+
+  setSuccess(
+    `Parsed ${parsed.length} scratchings. Matched ${preview.matched.length}, unmatched ${preview.unmatched.length}.`,
+  );
+}
+
+function handleClearScratchingsImport() {
+  setScratchingsImportText("");
+  setParsedScratchings([]);
+  setScratchingsPreviewOpen(false);
+}
+
+function handleApplyScratchingsImport() {
+  const preview = buildScratchingsPreview(parsedScratchings);
+
+  if (!preview.toScratch.length) {
+    setSuccess("No new matched runners to scratch.");
+    return;
+  }
+
+  const byRace = new Map<number, number[]>();
+
+  preview.toScratch.forEach((row) => {
+    const existing = byRace.get(row.race_id) || [];
+    existing.push(row.runner_id);
+    byRace.set(row.race_id, existing);
+  });
+
+  startTransition(async () => {
+    for (const [raceId, runnerIds] of byRace.entries()) {
+      const formData = new FormData();
+      formData.set("race_id", String(raceId));
+      formData.set("runner_ids", JSON.stringify(runnerIds));
+
+      const result = await bulkScratchRaceRunnersAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to apply imported scratchings.");
+        return;
+      }
+    }
+
+    setSuccess(`Applied ${preview.toScratch.length} imported scratchings.`);
+    setParsedScratchings([]);
+    setScratchingsPreviewOpen(false);
+    setScratchingsImportText("");
+    router.refresh();
+  });
+}
   function handleParseResultsImport(raceId: number) {
     const raw = resultImportTextByRace[raceId] || "";
     const parsed = parseResultImportText(raw);
@@ -868,7 +1097,147 @@ function handleScratchMissingResults(raceId: number) {
                 {statusMessage}
               </div>
             ) : null}
+{isAdmin ? (
+  <Panel className="bg-white/95">
+    <div className="space-y-4 p-6 text-zinc-950">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold">Import Scratchings</h2>
+          <p className="text-sm text-zinc-500">
+            Paste the Racenet scratchings page. SmartPunt will match by meeting,
+            race number, and horse name before applying anything.
+          </p>
+        </div>
 
+        <Badge tone="amber">Paste + Preview</Badge>
+      </div>
+
+      <textarea
+        value={scratchingsImportText}
+        onChange={(event) => setScratchingsImportText(event.target.value)}
+        placeholder="Paste Racenet scratchings text here..."
+        className="min-h-[160px] w-full rounded-2xl border border-zinc-300 bg-white p-4 text-sm text-zinc-950 outline-none transition focus:border-amber-400"
+      />
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={handleParseScratchingsImport}
+          disabled={isPending || !scratchingsImportText.trim()}
+          className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+        >
+          Preview Scratchings
+        </button>
+
+        <button
+          type="button"
+          onClick={handleClearScratchingsImport}
+          disabled={isPending}
+          className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+        >
+          Clear
+        </button>
+      </div>
+
+      {scratchingsPreviewOpen ? (() => {
+        const preview = buildScratchingsPreview(parsedScratchings);
+
+        return (
+          <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <div className="flex flex-wrap gap-2">
+              <Badge tone="green">{preview.toScratch.length} to scratch</Badge>
+              <Badge tone="blue">{preview.alreadyScratched.length} already scratched</Badge>
+              <Badge tone={preview.unmatched.length ? "red" : "green"}>
+                {preview.unmatched.length} unmatched
+              </Badge>
+            </div>
+
+            {preview.toScratch.length > 0 ? (
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.16em] text-emerald-800">
+                  Matched scratchings
+                </p>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {preview.toScratch.map((row) => (
+                    <div
+                      key={`${row.race_id}-${row.runner_id}`}
+                      className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                    >
+                      <span className="font-bold">{row.meeting_name} R{row.race_number}</span>
+                      {" — "}
+                      {row.matched_horse_name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {preview.alreadyScratched.length > 0 ? (
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.16em] text-blue-800">
+                  Already scratched
+                </p>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {preview.alreadyScratched.map((row) => (
+                    <div
+                      key={`already-${row.race_id}-${row.runner_id}`}
+                      className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                    >
+                      <span className="font-bold">{row.meeting_name} R{row.race_number}</span>
+                      {" — "}
+                      {row.matched_horse_name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {preview.unmatched.length > 0 ? (
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.16em] text-red-800">
+                  Unmatched — check manually
+                </p>
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {preview.unmatched.map((row, index) => (
+                    <div
+                      key={`unmatched-${index}-${row.meeting_name}-${row.race_number}-${row.horse_name}`}
+                      className="rounded-xl border border-red-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                    >
+                      <span className="font-bold">{row.meeting_name} R{row.race_number}</span>
+                      {" — "}
+                      {row.horse_name}
+                      <p className="mt-1 text-xs text-red-700">{row.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-3 border-t border-amber-200 pt-4">
+              <button
+                type="button"
+                onClick={handleApplyScratchingsImport}
+                disabled={isPending || preview.toScratch.length === 0}
+                className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"
+              >
+                Apply {preview.toScratch.length} Scratchings
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setScratchingsPreviewOpen(false)}
+                disabled={isPending}
+                className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+              >
+                Hide Preview
+              </button>
+            </div>
+          </div>
+        );
+      })() : null}
+    </div>
+  </Panel>
+) : null}
             <div>
               <Panel className="bg-white/95">
                 <div className="space-y-5 p-6 text-zinc-950">
