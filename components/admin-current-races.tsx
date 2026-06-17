@@ -1104,7 +1104,7 @@ function handleScratchMissingResults(raceId: number) {
         <div>
           <h2 className="text-xl font-semibold">Import Scratchings</h2>
           <p className="text-sm text-zinc-500">
-            Paste the Racenet scratchings page. SmartPunt will match by meeting,
+            Paste the scratchings page. SmartPunt will match by meeting,
             race number, and horse name before applying anything.
           </p>
         </div>
@@ -1115,7 +1115,7 @@ function handleScratchMissingResults(raceId: number) {
       <textarea
         value={scratchingsImportText}
         onChange={(event) => setScratchingsImportText(event.target.value)}
-        placeholder="Paste Racenet scratchings text here..."
+        placeholder="Paste scratchings text here..."
         className="min-h-[160px] w-full rounded-2xl border border-zinc-300 bg-white p-4 text-sm text-zinc-950 outline-none transition focus:border-amber-400"
       />
 
