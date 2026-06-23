@@ -1253,26 +1253,43 @@ const trackCondition = String(context?.trackCondition || "").toLowerCase();
 const raceName = String(context?.raceName || "").toLowerCase();
 const placeTerms = String(context?.placeTerms || "top_3");
 
-  const baseConfidence = 35;
-  const topScoreBoost = clamp(Math.round((topScore - 55) * 1.15), 0, 24);
-  const gapBoost = clamp(gap * 4, 0, 24);
-  const placeBoost = clamp(Math.round((topPlacePercent - 28) * 0.45), 0, 10);
+const baseConfidence = 30;
 
-  const compressionPenalty =
-    sorted.length >= 4 && topFourCompression <= 3
-      ? 16
-      : sorted.length >= 4 && topFourCompression <= 5
-        ? 8
+const topScoreBoost = clamp(
+  Math.round((topScore - 58) * 0.9),
+  0,
+  18,
+);
+
+const gapBoost = clamp(
+  gap * 3,
+  0,
+  18,
+);
+
+const placeBoost = clamp(
+  Math.round((topPlacePercent - 30) * 0.35),
+  0,
+  8,
+);
+
+const compressionPenalty =
+  sorted.length >= 4 && topFourCompression <= 3
+    ? 22
+    : sorted.length >= 4 && topFourCompression <= 5
+      ? 12
+      : sorted.length >= 4 && topFourCompression <= 7
+        ? 6
         : 0;
 
-  const fieldSizeAdjustment =
-    sorted.length <= 7
-      ? 5
-      : sorted.length >= 14
-        ? -8
-        : sorted.length >= 11
-          ? -4
-          : 0;
+const fieldSizeAdjustment =
+  sorted.length <= 7
+    ? 4
+    : sorted.length >= 14
+      ? -12
+      : sorted.length >= 11
+        ? -6
+        : 0;
 
   const conditionPenalty = trackCondition.startsWith("heavy")
     ? 14
