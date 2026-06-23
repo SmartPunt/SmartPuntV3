@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { SMARTPUNT_SCORING_VERSION } from "@/lib/calculator/scoring";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,11 +26,13 @@ type Prediction = {
   won: boolean | null;
   placed: boolean | null;
   settled_at: string | null;
+  race_gap: number | string | null;
+  race_confidence_tier: string | null;
+  race_confidence_percent: number | string | null;
+  suggested_bet: string | null;
   race?: RaceWithMeeting | null;
-horse?: {
-  horse_name: string;
-  smartpunt_power_rating: number | null;
-} | null;
+  runner?: RaceRunnerRow | null;
+  horse?: HorseRow | null;
 };
 
 type RaceRow = {
@@ -58,11 +59,28 @@ type HorseRow = {
   id: number;
   horse_name: string;
   smartpunt_power_rating: number | null;
+  smartpunt_class_rating: number | null;
+  good_track_record: string | null;
+  soft_track_record: string | null;
+  heavy_track_record: string | null;
+  synthetic_track_record: string | null;
 };
 
 type RaceRunnerRow = {
   id: number;
   horse_id: number | null;
+  barrier: number | null;
+  weight_kg: number | null;
+  apprentice_claim_kg: number | null;
+  jockey_name: string | null;
+  trainer_name: string | null;
+  form_last_6: string | null;
+  track_form_last_6: string | null;
+  distance_form_last_6: string | null;
+  finishing_position: number | null;
+  starting_price: number | null;
+  won: boolean | null;
+  placed: boolean | null;
 };
 
 function getServiceConfig() {
@@ -180,9 +198,9 @@ function filterByDate(rows: Prediction[], from: string, to: string) {
 }
 
 async function fetchPredictions() {
-const predictions = await serviceSelectAllRows<Prediction>(
-  `calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&order=settled_at.desc`,
-);
+  const predictions = await serviceSelectAllRows<Prediction>(
+    "calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&order=settled_at.desc",
+  );
 
   const raceIds = predictions.map((row) => Number(row.race_id)).filter(Boolean);
   const runnerIds = predictions.map((row) => Number(row.runner_id)).filter(Boolean);
@@ -203,7 +221,8 @@ const predictions = await serviceSelectAllRows<Prediction>(
 
   const raceRunners = await serviceSelectByIds<RaceRunnerRow>({
     table: "race_runners",
-    select: "id,horse_id",
+    select:
+      "id,horse_id,barrier,weight_kg,apprentice_claim_kg,jockey_name,trainer_name,form_last_6,track_form_last_6,distance_form_last_6,finishing_position,starting_price,won,placed",
     ids: runnerIds,
   });
 
@@ -213,7 +232,8 @@ const predictions = await serviceSelectAllRows<Prediction>(
 
   const horses = await serviceSelectByIds<HorseRow>({
     table: "horses",
-select: "id,horse_name,smartpunt_power_rating",
+    select:
+      "id,horse_name,smartpunt_power_rating,smartpunt_class_rating,good_track_record,soft_track_record,heavy_track_record,synthetic_track_record",
     ids: resolvedHorseIds,
   });
 
@@ -234,10 +254,12 @@ select: "id,horse_name,smartpunt_power_rating",
     return {
       ...prediction,
       race: race ? { ...race, meeting } : null,
+      runner,
       horse,
     };
   });
 }
+
 function groupByRace(rows: Prediction[]) {
   const map = new Map<number, Prediction[]>();
 
@@ -249,6 +271,7 @@ function groupByRace(rows: Prediction[]) {
 
   return map;
 }
+
 function buildCsv(rows: Prediction[]) {
   const raceMap = groupByRace(rows);
 
@@ -260,19 +283,41 @@ function buildCsv(rows: Prediction[]) {
     "race_number",
     "race_name",
     "distance_m",
+
     "runner_id",
     "horse_id",
-"horse_name",
-"smartpunt_power_rating",
-"power_rating_rank",
-"scoring_version",
-"predicted_rank",
+    "horse_name",
+
+    "barrier",
+    "weight_kg",
+    "apprentice_claim_kg",
+    "jockey_name",
+    "trainer_name",
+    "form_last_6",
+    "track_form_last_6",
+    "distance_form_last_6",
+
+    "good_track_record",
+    "soft_track_record",
+    "heavy_track_record",
+    "synthetic_track_record",
+
+    "smartpunt_power_rating",
+    "smartpunt_class_rating",
+    "power_rating_rank",
+
+    "scoring_version",
+    "predicted_rank",
     "finishing_position",
+    "actual_finish",
+    "starting_price",
     "won",
     "placed",
+
     "total_score",
     "win_percent",
     "place_percent",
+
     "recent_form_score",
     "distance_score",
     "track_score",
@@ -280,85 +325,119 @@ function buildCsv(rows: Prediction[]) {
     "barrier_score",
     "weight_score",
     "jockey_score",
-"trainer_score",
+    "trainer_score",
 
-"winner_rank",
-"winner_power_rating",
-"winner_power_rating_rank",
-"winner_in_top_3",
-"winner_in_top_5",
-"winner_in_top_10",
+    "race_gap",
+    "race_confidence_tier",
+    "race_confidence_percent",
+    "suggested_bet",
 
-"predicted_at",
+    "winner_rank",
+    "winner_power_rating",
+    "winner_power_rating_rank",
+    "winner_in_top_3",
+    "winner_in_top_5",
+    "winner_in_top_10",
+
+    "predicted_at",
     "settled_at",
   ];
 
-const body = rows.map((row) => {
-  const raceRows = raceMap.get(row.race_id) || [];
+  const body = rows.map((row) => {
+    const raceRows = raceMap.get(row.race_id) || [];
 
-  const winnerRow =
-    raceRows.find((runner) => runner.finishing_position === 1) || null;
+    const winnerRow =
+      raceRows.find((runner) => runner.finishing_position === 1) || null;
 
-  const winnerRank = winnerRow?.rank ?? "";
-const powerRankedRows = [...raceRows].sort((a, b) => {
-  const aRating = Number(a.horse?.smartpunt_power_rating || 0);
-  const bRating = Number(b.horse?.smartpunt_power_rating || 0);
+    const winnerRank = winnerRow?.rank ?? "";
 
-  return bRating - aRating;
-});
+    const powerRankedRows = [...raceRows].sort((a, b) => {
+      const aRating = Number(a.horse?.smartpunt_power_rating || 0);
+      const bRating = Number(b.horse?.smartpunt_power_rating || 0);
 
-const powerRankByHorseId = new Map<number, number>();
+      return bRating - aRating;
+    });
 
-powerRankedRows.forEach((runner, index) => {
-  powerRankByHorseId.set(Number(runner.horse_id), index + 1);
-});
+    const powerRankByHorseId = new Map<number, number>();
 
-const powerRatingRank = powerRankByHorseId.get(Number(row.horse_id)) || "";
-const winnerPowerRating = winnerRow?.horse?.smartpunt_power_rating ?? "";
-const winnerPowerRatingRank = winnerRow
-  ? powerRankByHorseId.get(Number(winnerRow.horse_id)) || ""
-  : "";
-  return [
-    row.race?.meeting?.meeting_date || "",
-    row.race?.meeting?.meeting_name || "",
-    row.race?.meeting?.track_condition || "",
-    row.race_id,
-    row.race?.race_number || "",
-    row.race?.race_name || "",
-    row.race?.distance_m || "",
-    row.runner_id,
-    row.horse_id,
-row.horse?.horse_name || "",
-row.horse?.smartpunt_power_rating ?? "",
-powerRatingRank,
-row.scoring_version,
-row.rank,
-    row.finishing_position ?? "",
-    row.won ?? "",
-    row.placed ?? "",
-    row.score,
-    row.win_percent,
-    row.place_percent,
-    row.recent_form_score,
-    row.distance_score,
-    row.track_score,
-    row.condition_score,
-    row.barrier_score,
-    row.weight_score,
-    row.jockey_score,
-row.trainer_score,
+    powerRankedRows.forEach((runner, index) => {
+      powerRankByHorseId.set(Number(runner.horse_id), index + 1);
+    });
 
-winnerRank,
-winnerPowerRating,
-winnerPowerRatingRank,
-winnerRank !== "" && winnerRank <= 3 ? "YES" : "NO",
-winnerRank !== "" && winnerRank <= 5 ? "YES" : "NO",
-winnerRank !== "" && winnerRank <= 10 ? "YES" : "NO",
+    const powerRatingRank = powerRankByHorseId.get(Number(row.horse_id)) || "";
+    const winnerPowerRating = winnerRow?.horse?.smartpunt_power_rating ?? "";
+    const winnerPowerRatingRank = winnerRow
+      ? powerRankByHorseId.get(Number(winnerRow.horse_id)) || ""
+      : "";
 
-row.predicted_at,
-    row.settled_at || "",
-];
-});
+    return [
+      row.race?.meeting?.meeting_date || "",
+      row.race?.meeting?.meeting_name || "",
+      row.race?.meeting?.track_condition || "",
+      row.race_id,
+      row.race?.race_number || "",
+      row.race?.race_name || "",
+      row.race?.distance_m || "",
+
+      row.runner_id,
+      row.horse_id,
+      row.horse?.horse_name || "",
+
+      row.runner?.barrier ?? "",
+      row.runner?.weight_kg ?? "",
+      row.runner?.apprentice_claim_kg ?? "",
+      row.runner?.jockey_name || "",
+      row.runner?.trainer_name || "",
+      row.runner?.form_last_6 || "",
+      row.runner?.track_form_last_6 || "",
+      row.runner?.distance_form_last_6 || "",
+
+      row.horse?.good_track_record || "",
+      row.horse?.soft_track_record || "",
+      row.horse?.heavy_track_record || "",
+      row.horse?.synthetic_track_record || "",
+
+      row.horse?.smartpunt_power_rating ?? "",
+      row.horse?.smartpunt_class_rating ?? "",
+      powerRatingRank,
+
+      row.scoring_version,
+      row.rank,
+      row.finishing_position ?? "",
+      row.runner?.finishing_position ?? row.finishing_position ?? "",
+      row.runner?.starting_price ?? "",
+      row.won ?? "",
+      row.placed ?? "",
+
+      row.score,
+      row.win_percent,
+      row.place_percent,
+
+      row.recent_form_score,
+      row.distance_score,
+      row.track_score,
+      row.condition_score,
+      row.barrier_score,
+      row.weight_score,
+      row.jockey_score,
+      row.trainer_score,
+
+      row.race_gap ?? "",
+      row.race_confidence_tier ?? "",
+      row.race_confidence_percent ?? "",
+      row.suggested_bet ?? "",
+
+      winnerRank,
+      winnerPowerRating,
+      winnerPowerRatingRank,
+      winnerRank !== "" && winnerRank <= 3 ? "YES" : "NO",
+      winnerRank !== "" && winnerRank <= 5 ? "YES" : "NO",
+      winnerRank !== "" && winnerRank <= 10 ? "YES" : "NO",
+
+      row.predicted_at,
+      row.settled_at || "",
+    ];
+  });
 
   return [headers, ...body].map((row) => row.map(csvCell).join(",")).join("\n");
 }
@@ -383,7 +462,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="smartpunt-calculator-report-${suffix}.csv"`,
+        "Content-Disposition": `attachment; filename="smartpunt-calculator-forensic-${suffix}.csv"`,
         "Cache-Control": "no-store",
       },
     });
