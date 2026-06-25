@@ -135,6 +135,93 @@ export type CalculatorScoreOverrides = {
   condition?: number | null;
 };
 
+export type CalculatorScoringProfile = {
+  weights: {
+    recentForm: number;
+    distance: number;
+    track: number;
+    condition: number;
+    barrier: number;
+    weight: number;
+    jockey: number;
+    trainer: number;
+    consistency: number;
+  };
+  standout: {
+    strongRecentForm: number;
+    strongDistance: number;
+    strongTrack: number;
+    strongBarrier: number;
+    strongBonus: number;
+    safeRecentForm: number;
+    safeDistance: number;
+    safeTrack: number;
+    safeBarrier: number;
+    safeBonus: number;
+  };
+  power: {
+    multiplier: number;
+    minAdjustment: number;
+    maxAdjustment: number;
+  };
+};
+
+export type CalculatorScoringProfileInput = {
+  weights?: Partial<CalculatorScoringProfile["weights"]>;
+  standout?: Partial<CalculatorScoringProfile["standout"]>;
+  power?: Partial<CalculatorScoringProfile["power"]>;
+};
+
+export const DEFAULT_CALCULATOR_SCORING_PROFILE: CalculatorScoringProfile = {
+  weights: {
+    recentForm: 0.25,
+    distance: 0.21,
+    track: 0.11,
+    condition: 0.18,
+    barrier: 0.05,
+    weight: 0,
+    jockey: 0.07,
+    trainer: 0.02,
+    consistency: 0.11,
+  },
+  standout: {
+    strongRecentForm: 80,
+    strongDistance: 75,
+    strongTrack: 70,
+    strongBarrier: 70,
+    strongBonus: 10,
+    safeRecentForm: 72,
+    safeDistance: 70,
+    safeTrack: 65,
+    safeBarrier: 65,
+    safeBonus: 6,
+  },
+  power: {
+    multiplier: 1,
+    minAdjustment: -2,
+    maxAdjustment: 6,
+  },
+};
+
+function resolveScoringProfile(
+  profile?: CalculatorScoringProfileInput,
+): CalculatorScoringProfile {
+  return {
+    weights: {
+      ...DEFAULT_CALCULATOR_SCORING_PROFILE.weights,
+      ...(profile?.weights || {}),
+    },
+    standout: {
+      ...DEFAULT_CALCULATOR_SCORING_PROFILE.standout,
+      ...(profile?.standout || {}),
+    },
+    power: {
+      ...DEFAULT_CALCULATOR_SCORING_PROFILE.power,
+      ...(profile?.power || {}),
+    },
+  };
+}
+
 export function clamp(value: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, value));
 }
@@ -1005,6 +1092,7 @@ export function calculateRaceScores({
 meetings,
 jockeyProfiles,
   scoreOverrides,
+  scoringProfile: scoringProfileInput,
 }: {
   activeRace: Race | null | undefined;
   races: Race[];
@@ -1013,9 +1101,10 @@ jockeyProfiles,
   meetings: Meeting[];
 jockeyProfiles: JockeyProfile[];
   scoreOverrides?: CalculatorScoreOverrides;
+  scoringProfile?: CalculatorScoringProfileInput;
 }): ScoredRunner[] {
   if (!activeRace) return [];
-
+const scoringProfile = resolveScoringProfile(scoringProfileInput);
  const raceMeeting = meetings.find(
   (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
 ) || null;
@@ -1132,37 +1221,43 @@ const consistency = scoreConsistency(historyRuns, runner.form_last_6);
 
 const baseScore = clamp(
   Math.round(
-recentForm * 0.25 +
-distance * 0.21 +
-track * 0.11 +
-condition * 0.18 +
-barrier * 0.05 +
-weight * 0.00 +
-jockey * 0.07 +
-trainer * 0.02 +
-consistency * 0.11
+    recentForm * scoringProfile.weights.recentForm +
+      distance * scoringProfile.weights.distance +
+      track * scoringProfile.weights.track +
+      condition * scoringProfile.weights.condition +
+      barrier * scoringProfile.weights.barrier +
+      weight * scoringProfile.weights.weight +
+      jockey * scoringProfile.weights.jockey +
+      trainer * scoringProfile.weights.trainer +
+      consistency * scoringProfile.weights.consistency,
   ),
   25,
   95,
 );
 
 const standoutBonus =
-  recentForm >= 80 &&
-  distance >= 75 &&
-  track >= 70 &&
-  barrier >= 70
-? 10
-    : recentForm >= 72 &&
-        distance >= 70 &&
-        track >= 65 &&
-        barrier >= 65
-? 6
+  recentForm >= scoringProfile.standout.strongRecentForm &&
+  distance >= scoringProfile.standout.strongDistance &&
+  track >= scoringProfile.standout.strongTrack &&
+  barrier >= scoringProfile.standout.strongBarrier
+    ? scoringProfile.standout.strongBonus
+    : recentForm >= scoringProfile.standout.safeRecentForm &&
+        distance >= scoringProfile.standout.safeDistance &&
+        track >= scoringProfile.standout.safeTrack &&
+        barrier >= scoringProfile.standout.safeBarrier
+      ? scoringProfile.standout.safeBonus
       : 0;
 
-const powerAdjustment = scorePowerRatingInfluence({
+const rawPowerAdjustment = scorePowerRatingInfluence({
   powerRating: horse?.smartpunt_power_rating,
   powerRank: powerRankByRunnerId.get(Number(runner.id)) || null,
 });
+
+const powerAdjustment = clamp(
+  Math.round(rawPowerAdjustment * scoringProfile.power.multiplier),
+  scoringProfile.power.minAdjustment,
+  scoringProfile.power.maxAdjustment,
+);
 
 const score = applyOverconfidenceDampener({
   baseScore: clamp(baseScore + standoutBonus + powerAdjustment),
