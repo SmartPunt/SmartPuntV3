@@ -42,7 +42,8 @@ type ComponentKey =
   | "barrier"
   | "weight"
   | "jockey"
-  | "trainer";
+  | "trainer"
+  | "consistency";
 
 type WeightSet = Partial<Record<ComponentKey, number>>;
 
@@ -298,6 +299,23 @@ const MODELS: OptimiserModel[] = [
     description:
       "The actual historical SmartPunt score saved at prediction time. Includes anything baked into the live score at the time.",
     kind: "stored",
+  },
+    {
+    key: "smartpunt-v7-visible-candidate",
+    label: "SmartPunt v7 Candidate",
+    description:
+      "Research candidate using currently stored visible component scores. Form, track and distance are stronger; condition and barrier are reduced. Consistency is not included because it is not currently stored in calculator_predictions.",
+    kind: "weighted",
+    weights: {
+      recentForm: 30,
+      distance: 16,
+      track: 16,
+      condition: 10,
+      barrier: 2,
+      weight: 0,
+      jockey: 6,
+      trainer: 2,
+    },
   },
   {
     key: "v6-visible-components",
