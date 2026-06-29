@@ -1022,24 +1022,40 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                             : "⊘ No Bet";
 
                           const medalClass =
-                            index === 0
-                              ? "border-amber-300 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),transparent_42%),#09090b] shadow-lg shadow-amber-950/40"
-                              : index === 1
-                                ? "border-zinc-400/60 bg-[radial-gradient(circle_at_top_left,rgba(212,212,216,0.18),transparent_40%),#09090b]"
-                                : "border-orange-400/50 bg-[radial-gradient(circle_at_top_left,rgba(180,83,9,0.16),transparent_40%),#09090b]";
+                            index === 0 && isTip && qualifiedTip.type === "Win"
+                              ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-500/20"
+                              : index === 0 && isTip && qualifiedTip.type === "Place"
+                                ? "border-zinc-300 bg-zinc-800 shadow-lg shadow-zinc-300/20"
+                                : index === 0
+                                  ? "border-zinc-600 bg-zinc-950 shadow-lg shadow-black/30"
+                                  : index === 1
+                                    ? "border-zinc-400/60 bg-zinc-950"
+                                    : "border-orange-400/50 bg-zinc-950";
 
-                          const tipClass = isTip
-                            ? qualifiedTip.type === "Win"
-                              ? "text-emerald-300"
-                              : "text-emerald-300"
-                            : "text-zinc-400";
+                          const tipClass =
+                            isTip && qualifiedTip.type === "Win"
+                              ? "text-amber-200"
+                              : isTip && qualifiedTip.type === "Place"
+                                ? "text-zinc-100"
+                                : "text-zinc-400";
+
+                          const cornerClass =
+                            index === 0 && isTip && qualifiedTip.type === "Win"
+                              ? "from-amber-300"
+                              : index === 0 && isTip && qualifiedTip.type === "Place"
+                                ? "from-zinc-200"
+                                : index === 1
+                                  ? "from-zinc-400"
+                                  : index === 2
+                                    ? "from-orange-400"
+                                    : "from-zinc-500";
 
                           return (
                             <div
                               key={runner.id}
                               className={`relative overflow-hidden rounded-2xl border px-4 py-4 ${medalClass}`}
                             >
-                              <div className="absolute left-0 top-0 flex h-12 w-12 items-start justify-start bg-gradient-to-br from-amber-300 to-transparent pl-3 pt-2 text-xl font-black text-black">
+                              <div className={`absolute left-0 top-0 flex h-12 w-12 items-start justify-start bg-gradient-to-br ${cornerClass} to-transparent pl-3 pt-2 text-xl font-black text-black`}>
                                 {index + 1}
                               </div>
                               <p className="ml-10 text-xs font-black uppercase tracking-[0.18em] text-amber-300">
