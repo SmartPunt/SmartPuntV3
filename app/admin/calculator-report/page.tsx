@@ -374,9 +374,30 @@ function filterByDate(rows: Prediction[], from: string, to: string) {
   });
 }
 
-async function fetchPredictions() {
+async function fetchPredictions({
+  from,
+  to,
+  allHistory = false,
+}: {
+  from: string;
+  to: string;
+  allHistory?: boolean;
+}) {
+  const filters = [
+    "select=*",
+    "settled_at=not.is.null",
+    "finishing_position=not.is.null",
+  ];
+
+  if (!allHistory) {
+    if (from) filters.push(`settled_at=gte.${encodeURIComponent(from)}`);
+    if (to) filters.push(`settled_at=lte.${encodeURIComponent(`${to}T23:59:59`)}`);
+  }
+
+  filters.push("order=settled_at.desc");
+
 const predictions = await serviceSelectAllRows<Prediction>(
-  `calculator_predictions?select=*&settled_at=not.is.null&finishing_position=not.is.null&order=settled_at.desc`,
+  `calculator_predictions?${filters.join("&")}`,
 );
 
   const raceIds = Array.from(
@@ -496,15 +517,19 @@ export default async function CalculatorReportPage({
   const resolvedSearchParams: CalculatorReportSearchParams = searchParams
     ? await searchParams
     : {};
-  const dateFrom = first(resolvedSearchParams.from);
-  const dateTo = first(resolvedSearchParams.to);
+  const allHistory = first(resolvedSearchParams.range) === "all";
+  const dateFrom = allHistory ? "" : first(resolvedSearchParams.from) || pastIso(30);
+  const dateTo = allHistory ? "" : first(resolvedSearchParams.to) || todayIso();
 
   let predictions: Prediction[] = [];
   let errorMessage = "";
 
   try {
-    const allPredictions = await fetchPredictions();
-    predictions = filterByDate(allPredictions, dateFrom, dateTo);
+    predictions = await fetchPredictions({
+      from: dateFrom,
+      to: dateTo,
+      allHistory,
+    });
   } catch (error) {
     errorMessage =
       error instanceof Error
@@ -512,7 +537,9 @@ export default async function CalculatorReportPage({
         : "Unknown error loading calculator report.";
   }
 
-  const exportHref = `/admin/calculator-report/export${buildQuery({ from: dateFrom, to: dateTo })}`;
+  const exportHref = allHistory
+    ? "/admin/calculator-report/export"
+    : `/admin/calculator-report/export${buildQuery({ from: dateFrom, to: dateTo })}`;
 
   if (errorMessage) {
     return (
@@ -731,8 +758,8 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
                 >
                   Last 30 days
                 </Link>
-                <Link
-                  href="/admin/calculator-report"
+<Link
+  href="/admin/calculator-report?range=all"
                   className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                 >
                   All history
