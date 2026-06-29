@@ -3,35 +3,74 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import AdminCalculator from "@/components/admin-calculator";
 
-async function fetchAllRows<T>({
-  pageSize = 1000,
-  getPage,
-}: {
-  pageSize?: number;
-  getPage: (from: number, to: number) => Promise<{ data: T[] | null; error: any }>;
-}) {
-  const allRows: T[] = [];
-  let from = 0;
+function getPerthDate(offsetDays = 0) {
+  const perthNow = new Date(
+    new Date().toLocaleString("en-US", {
+      timeZone: "Australia/Perth",
+    }),
+  );
 
-  while (true) {
-    const to = from + pageSize - 1;
-    const { data, error } = await getPage(from, to);
+  perthNow.setDate(perthNow.getDate() + offsetDays);
 
-    if (error) {
-      throw new Error(error.message || "Failed to fetch rows.");
-    }
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(perthNow);
+}
 
-    const rows = data || [];
-    allRows.push(...rows);
+function uniqueNumbers(values: unknown[]) {
+  return Array.from(
+    new Set(values.map((value) => Number(value)).filter(Boolean)),
+  );
+}
 
-    if (rows.length < pageSize) {
-      break;
-    }
+function uniqueStrings(values: unknown[]) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    ),
+  );
+}
 
-    from += pageSize;
+function chunk<T>(items: T[], size = 200) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
   }
 
-  return allRows;
+  return chunks;
+}
+
+async function fetchRowsByIds<T>({
+  supabase,
+  table,
+  ids,
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  table: string;
+  ids: number[];
+}) {
+  const rows: T[] = [];
+
+  for (const idChunk of chunk(uniqueNumbers(ids))) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .in("id", idChunk);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    rows.push(...((data ?? []) as T[]));
+  }
+
+  return rows;
 }
 
 function getServiceRoleConfig() {
@@ -79,14 +118,38 @@ async function fetchServiceRoleRows<T>(tablePath: string) {
     const rows = (await response.json()) as T[];
     allRows.push(...rows);
 
-    if (rows.length < pageSize) {
-      break;
-    }
+    if (rows.length < pageSize) break;
 
     offset += pageSize;
   }
 
   return allRows;
+}
+
+async function fetchServiceRoleRowsByRaceIds<T>({
+  table,
+  select,
+  raceIds,
+  order,
+}: {
+  table: string;
+  select: string;
+  raceIds: number[];
+  order?: string;
+}) {
+  const rows: T[] = [];
+
+  for (const raceIdChunk of chunk(uniqueNumbers(raceIds))) {
+    const orderQuery = order ? `&order=${order}` : "";
+
+    rows.push(
+      ...(await fetchServiceRoleRows<T>(
+        `${table}?select=${select}&race_id=in.(${raceIdChunk.join(",")})${orderQuery}`,
+      )),
+    );
+  }
+
+  return rows;
 }
 
 export default async function Page() {
@@ -102,93 +165,176 @@ export default async function Page() {
 
   const supabase = await createClient();
 
-  const races = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
+  const today = getPerthDate(0);
+  const tomorrow = getPerthDate(1);
+
+  const { data: currentMeetingsData, error: meetingsError } = await supabase
+    .from("meetings")
+    .select("*")
+    .gte("meeting_date", today)
+    .order("meeting_date", { ascending: true });
+
+  if (meetingsError) {
+    throw new Error(meetingsError.message);
+  }
+
+  const currentMeetings = currentMeetingsData ?? [];
+  const currentMeetingIds = uniqueNumbers(
+    currentMeetings.map((meeting: any) => meeting.id),
+  );
+
+  let currentRaces: any[] = [];
+
+  if (currentMeetingIds.length) {
+    for (const meetingIdChunk of chunk(currentMeetingIds)) {
+      const { data, error } = await supabase
         .from("races")
         .select("*")
-        .order("meeting_id", { ascending: false })
-        .order("race_number", { ascending: true })
-        .range(from, to);
+        .eq("status", "published")
+        .in("meeting_id", meetingIdChunk)
+        .order("meeting_id", { ascending: true })
+        .order("race_number", { ascending: true });
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
-  });
+      if (error) {
+        throw new Error(error.message);
+      }
 
-  const runners = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
+      currentRaces.push(...(data ?? []));
+    }
+  }
+
+  const currentRaceIds = uniqueNumbers(currentRaces.map((race) => race.id));
+
+  let currentRunners: any[] = [];
+
+  if (currentRaceIds.length) {
+    for (const raceIdChunk of chunk(currentRaceIds)) {
+      const { data, error } = await supabase
         .from("race_runners")
         .select("*")
-        .order("created_at", { ascending: false })
-        .range(from, to);
+        .in("race_id", raceIdChunk)
+        .order("race_id", { ascending: true })
+        .order("barrier", { ascending: true });
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      currentRunners.push(...(data ?? []));
+    }
+  }
+
+  const activeHorseIds = uniqueNumbers(
+    currentRunners.map((runner) => runner.horse_id),
+  );
+
+  const horses = await fetchRowsByIds<any>({
+    supabase,
+    table: "horses",
+    ids: activeHorseIds,
   });
 
-  const horses = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
-        .from("horses")
+  let historicalRunners: any[] = [];
+
+  if (activeHorseIds.length) {
+    for (const horseIdChunk of chunk(activeHorseIds)) {
+      const { data, error } = await supabase
+        .from("race_runners")
         .select("*")
-        .order("horse_name", { ascending: true })
-        .range(from, to);
+        .in("horse_id", horseIdChunk)
+        .not("finishing_position", "is", null);
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      historicalRunners.push(...(data ?? []));
+    }
+  }
+
+  const runnerMap = new Map<number, any>();
+
+  [...historicalRunners, ...currentRunners].forEach((runner) => {
+    runnerMap.set(Number(runner.id), runner);
   });
 
-  const meetings = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
-        .from("meetings")
-        .select("*")
-        .order("meeting_date", { ascending: false })
-        .range(from, to);
+  const runners = Array.from(runnerMap.values());
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
+  const requiredRaceIds = uniqueNumbers([
+    ...currentRaceIds,
+    ...historicalRunners.map((runner) => runner.race_id),
+  ]);
+
+  const historicalAndCurrentRaces = await fetchRowsByIds<any>({
+    supabase,
+    table: "races",
+    ids: requiredRaceIds,
   });
 
-  const jockeyProfiles = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
+  const raceMap = new Map<number, any>();
+
+  [...historicalAndCurrentRaces, ...currentRaces].forEach((race) => {
+    raceMap.set(Number(race.id), race);
+  });
+
+  const races = Array.from(raceMap.values());
+
+  const requiredMeetingIds = uniqueNumbers([
+    ...currentMeetingIds,
+    ...races.map((race) => race.meeting_id),
+  ]);
+
+  const historicalAndCurrentMeetings = await fetchRowsByIds<any>({
+    supabase,
+    table: "meetings",
+    ids: requiredMeetingIds,
+  });
+
+  const meetingMap = new Map<number, any>();
+
+  [...historicalAndCurrentMeetings, ...currentMeetings].forEach((meeting) => {
+    meetingMap.set(Number(meeting.id), meeting);
+  });
+
+  const meetings = Array.from(meetingMap.values());
+
+  const activeJockeyNames = uniqueStrings(
+    currentRunners.map((runner) => runner.jockey_name),
+  );
+
+  let jockeyProfiles: any[] = [];
+
+  if (activeJockeyNames.length) {
+    for (const nameChunk of chunk(activeJockeyNames)) {
+      const { data, error } = await supabase
         .from("jockey_profiles")
         .select("*")
-        .order("jockey_name", { ascending: true })
-        .range(from, to);
+        .in("jockey_name", nameChunk);
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
-  });
+      if (error) {
+        throw new Error(error.message);
+      }
 
-const calculatorTips = await fetchServiceRoleRows<{
-  id: number;
-  race_id: number | null;
-  race_runner_id: number | null;
-  horse_id: number | null;
-  bet_type: string | null;
-  status: string | null;
-  published_at: string | null;
-}>(
-    "smartpunt_calculator_tips?select=*&order=published_at.desc",
-  );
+      jockeyProfiles.push(...(data ?? []));
+    }
+  }
+
+  const calculatorTips = currentRaceIds.length
+    ? await fetchServiceRoleRowsByRaceIds<{
+        id: number;
+        race_id: number | null;
+        race_runner_id: number | null;
+        horse_id: number | null;
+        bet_type: string | null;
+        status: string | null;
+        published_at: string | null;
+      }>({
+        table: "smartpunt_calculator_tips",
+        select: "*",
+        raceIds: currentRaceIds,
+        order: "published_at.desc",
+      })
+    : [];
 
   return (
     <AdminCalculator
