@@ -1346,70 +1346,139 @@ async function saveCalculatorPredictionsForRace(
 ) {
   const supabase = await createClient();
 
-  const [races, runners, horses, meetings] = await Promise.all([
-    fetchAllRows<Race>({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("races")
-          .select("*")
-          .order("meeting_id", { ascending: false })
-          .order("race_number", { ascending: true })
-          .range(from, to);
+  function chunkIds(ids: number[], size = 200) {
+    const cleanIds = Array.from(new Set(ids.map(Number).filter(Boolean)));
+    const chunks: number[][] = [];
 
-        return {
-          data: (result.data ?? []) as Race[],
-          error: result.error,
-        };
-      },
-    }),
-    fetchAllRows<Runner>({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("race_runners")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .range(from, to);
+    for (let i = 0; i < cleanIds.length; i += size) {
+      chunks.push(cleanIds.slice(i, i + size));
+    }
 
-        return {
-          data: (result.data ?? []) as Runner[],
-          error: result.error,
-        };
-      },
-    }),
-    fetchAllRows<Horse>({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("horses")
-          .select("*")
-          .order("horse_name", { ascending: true })
-          .range(from, to);
+    return chunks;
+  }
 
-        return {
-          data: (result.data ?? []) as Horse[],
-          error: result.error,
-        };
-      },
-    }),
-    fetchAllRows<Meeting>({
-      getPage: async (from, to) => {
-        const result = await supabase
-          .from("meetings")
-          .select("*")
-          .order("meeting_date", { ascending: false })
-          .range(from, to);
+  async function fetchRowsByIds<T>(table: string, ids: number[]) {
+    const rows: T[] = [];
 
-        return {
-          data: (result.data ?? []) as Meeting[],
-          error: result.error,
-        };
-      },
-    }),
-  ]);
+    for (const idChunk of chunkIds(ids)) {
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .in("id", idChunk);
 
-  const activeRace = races.find((race) => Number(race.id) === Number(raceId));
+      if (error) {
+        throw new Error(error.message);
+      }
 
-  if (!activeRace) {
-    throw new Error("Race not found for calculator prediction snapshot.");
+      rows.push(...((data ?? []) as T[]));
+    }
+
+    return rows;
+  }
+
+  const { data: activeRaceRow, error: activeRaceError } = await supabase
+    .from("races")
+    .select("*")
+    .eq("id", raceId)
+    .single();
+
+  if (activeRaceError || !activeRaceRow) {
+    throw new Error(
+      activeRaceError?.message || "Race not found for calculator prediction snapshot.",
+    );
+  }
+
+  const activeRace = activeRaceRow as Race;
+
+  const { data: fieldRows, error: fieldError } = await supabase
+    .from("race_runners")
+    .select("*")
+    .eq("race_id", raceId);
+
+  if (fieldError) {
+    throw new Error(fieldError.message);
+  }
+
+  const fieldRunners = (fieldRows ?? []) as Runner[];
+
+  const activeHorseIds = fieldRunners
+    .map((runner) => Number(runner.horse_id))
+    .filter(Boolean);
+
+  const { data: historyRows, error: historyError } = await supabase
+    .from("race_runners")
+    .select("*")
+    .not("finishing_position", "is", null);
+
+  if (historyError) {
+    throw new Error(historyError.message);
+  }
+
+  const historyRunners = ((historyRows ?? []) as Runner[]).filter(
+    (runner) => Number(runner.race_id) !== Number(raceId),
+  );
+
+  const runnerMap = new Map<number, Runner>();
+
+  [...historyRunners, ...fieldRunners].forEach((runner) => {
+    runnerMap.set(Number(runner.id), runner);
+  });
+
+  const runners = Array.from(runnerMap.values());
+
+  const raceIds = Array.from(
+    new Set([
+      Number(activeRace.id),
+      ...runners.map((runner) => Number(runner.race_id)).filter(Boolean),
+    ]),
+  );
+
+  const races = await fetchRowsByIds<Race>("races", raceIds);
+
+  const meetingIds = Array.from(
+    new Set([
+      Number(activeRace.meeting_id),
+      ...races.map((race) => Number(race.meeting_id)).filter(Boolean),
+    ]),
+  );
+
+  const meetings = await fetchRowsByIds<Meeting>("meetings", meetingIds);
+
+  const horses = await fetchRowsByIds<Horse>("horses", activeHorseIds);
+
+  const activeJockeyNames = Array.from(
+    new Set(
+      fieldRunners
+        .map((runner) => String(runner.jockey_name || "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  let jockeyProfiles: JockeyProfile[] = [];
+
+  if (activeJockeyNames.length) {
+    const jockeyRows: JockeyProfile[] = [];
+
+    for (const nameChunk of chunkIds(
+      activeJockeyNames.map((_, index) => index + 1),
+    )) {
+      const names = nameChunk
+        .map((index) => activeJockeyNames[index - 1])
+        .filter(Boolean);
+
+      const { data, error } = await supabase
+        .from("jockey_profiles")
+        .select("*")
+        .in("jockey_name", names);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      jockeyRows.push(...((data ?? []) as JockeyProfile[]));
+    }
+
+    jockeyProfiles = jockeyRows;
   }
 
   const runnersForScoring = excludeScratched
@@ -1419,148 +1488,135 @@ async function saveCalculatorPredictionsForRace(
       )
     : runners;
 
-const jockeyProfiles = await fetchAllRows({
-  getPage: async (from, to) => {
-    const result = await supabase
-      .from("jockey_profiles")
-      .select("*")
-      .order("jockey_name", { ascending: true })
-      .range(from, to);
-
-    return {
-      data: result.data ?? [],
-      error: result.error,
-    };
-  },
-});
-
-const scoredRunners = calculateRaceScores({
-  activeRace,
-  races,
-  runners: runnersForScoring,
-  horses,
-  meetings,
-  jockeyProfiles,
-});
+  const scoredRunners = calculateRaceScores({
+    activeRace,
+    races,
+    runners: runnersForScoring,
+    horses,
+    meetings,
+    jockeyProfiles,
+  });
 
   if (!scoredRunners.length) {
     return;
   }
 
-const now = new Date().toISOString();
-const raceConfidence = calculateRaceConfidence(scoredRunners, {
-  trackCondition: activeRace
-    ? meetings.find(
-        (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
-      )?.track_condition || null
-    : null,
-  placeTerms: (activeRace as any)?.place_terms || "top_3",
-});
+  const now = new Date().toISOString();
 
-const topWin = scoredRunners[0] || null;
-const topPlace =
-  [...scoredRunners].sort((a, b) => b.placePercent - a.placePercent)[0] || null;
-
-const secondForWin = topWin
-  ? scoredRunners.find((runner) => runner.id !== topWin.id) || null
-  : null;
-
-const winGap = topWin && secondForWin
-  ? Math.round(topWin.score - secondForWin.score)
-  : topWin
-    ? Math.round(topWin.score)
-    : 0;
-
-const minWinScore =
-  raceConfidence.tier === "Elite"
-    ? 66
-    : raceConfidence.tier === "High"
-      ? 68
-      : raceConfidence.tier === "Medium"
-        ? 70
-        : 999;
-
-const qualifiesAsWin =
-  raceConfidence.tier !== "Low" &&
-  topWin !== null &&
-  topWin.score >= minWinScore &&
-  winGap >= 4 &&
-  topWin.winPercent >= 8;
-
-const qualifiesAsStrongWin =
-  topWin !== null &&
-  topWin.score >= 72 &&
-  winGap >= 6 &&
-  topWin.winPercent >= 10;
-
-const secondForPlace = topPlace
-  ? scoredRunners.find((runner) => runner.id !== topPlace.id) || null
-  : null;
-
-const placeGap = topPlace && secondForPlace
-  ? Math.round(topPlace.score - secondForPlace.score)
-  : topPlace
-    ? Math.round(topPlace.score)
-    : 0;
-
-const placeTerms = String((activeRace as any)?.place_terms || "top_3");
-
-const placeBettingAllowed = placeTerms !== "win_only";
-
-const basePlaceScore =
-  raceConfidence.tier === "Elite"
-    ? 60
-    : raceConfidence.tier === "High"
-      ? 62
-      : raceConfidence.tier === "Medium"
-        ? 64
-        : 999;
-
-const minPlaceScore = placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
-const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
-const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
-
-const minStrongPlaceScore = placeTerms === "top_2" ? 68 : 66;
-const minStrongPlacePercent = placeTerms === "top_2" ? 38 : 34;
-const minStrongPlaceGap = placeTerms === "top_2" ? 4 : 3;
-
-const qualifiesAsPlace =
-  placeBettingAllowed &&
-  raceConfidence.tier !== "Low" &&
-  topPlace !== null &&
-  topPlace.score >= minPlaceScore &&
-  topPlace.placePercent >= minPlacePercent &&
-  placeGap >= minPlaceGap;
-
-const qualifiesAsStrongPlace =
-  placeBettingAllowed &&
-  raceConfidence.tier !== "Low" &&
-  topPlace !== null &&
-  topPlace.score >= minStrongPlaceScore &&
-  topPlace.placePercent >= minStrongPlacePercent &&
-  placeGap >= minStrongPlaceGap;
-
-function getSmartPuntTipType(runnerId: number) {
-  if (topWin && runnerId === topWin.id && qualifiesAsStrongWin) return "Best Bet";
-  if (topWin && runnerId === topWin.id && qualifiesAsWin) return "Win";
-  if (topPlace && runnerId === topPlace.id && qualifiesAsStrongPlace) return "Strong Place";
-  if (topPlace && runnerId === topPlace.id && qualifiesAsPlace) return "Place";
-  return "No Bet";
-}
-
-function isSmartPuntTip(runnerId: number) {
-  return getSmartPuntTipType(runnerId) !== "No Bet";
-}
-
-function getRaceGapForRunner(runnerId: number) {
-  if (topWin && runnerId === topWin.id) return winGap;
-  if (topPlace && runnerId === topPlace.id) return placeGap;
-  return raceConfidence.gap;
-}
-    const meetingForSnapshot =
+  const meetingForSnapshot =
     meetings.find(
       (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
     ) || null;
+
+  const raceConfidence = calculateRaceConfidence(scoredRunners, {
+    trackCondition: meetingForSnapshot?.track_condition || null,
+    placeTerms: (activeRace as any)?.place_terms || "top_3",
+  });
+
+  const topWin = scoredRunners[0] || null;
+  const topPlace =
+    [...scoredRunners].sort((a, b) => b.placePercent - a.placePercent)[0] || null;
+
+  const secondForWin = topWin
+    ? scoredRunners.find((runner) => runner.id !== topWin.id) || null
+    : null;
+
+  const winGap =
+    topWin && secondForWin
+      ? Math.round(topWin.score - secondForWin.score)
+      : topWin
+        ? Math.round(topWin.score)
+        : 0;
+
+  const minWinScore =
+    raceConfidence.tier === "Elite"
+      ? 66
+      : raceConfidence.tier === "High"
+        ? 68
+        : raceConfidence.tier === "Medium"
+          ? 70
+          : 999;
+
+  const qualifiesAsWin =
+    raceConfidence.tier !== "Low" &&
+    topWin !== null &&
+    topWin.score >= minWinScore &&
+    winGap >= 4 &&
+    topWin.winPercent >= 8;
+
+  const qualifiesAsStrongWin =
+    topWin !== null &&
+    topWin.score >= 72 &&
+    winGap >= 6 &&
+    topWin.winPercent >= 10;
+
+  const secondForPlace = topPlace
+    ? scoredRunners.find((runner) => runner.id !== topPlace.id) || null
+    : null;
+
+  const placeGap =
+    topPlace && secondForPlace
+      ? Math.round(topPlace.score - secondForPlace.score)
+      : topPlace
+        ? Math.round(topPlace.score)
+        : 0;
+
+  const placeTerms = String((activeRace as any)?.place_terms || "top_3");
+  const placeBettingAllowed = placeTerms !== "win_only";
+
+  const basePlaceScore =
+    raceConfidence.tier === "Elite"
+      ? 60
+      : raceConfidence.tier === "High"
+        ? 62
+        : raceConfidence.tier === "Medium"
+          ? 64
+          : 999;
+
+  const minPlaceScore =
+    placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
+  const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
+  const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
+
+  const minStrongPlaceScore = placeTerms === "top_2" ? 68 : 66;
+  const minStrongPlacePercent = placeTerms === "top_2" ? 38 : 34;
+  const minStrongPlaceGap = placeTerms === "top_2" ? 4 : 3;
+
+  const qualifiesAsPlace =
+    placeBettingAllowed &&
+    raceConfidence.tier !== "Low" &&
+    topPlace !== null &&
+    topPlace.score >= minPlaceScore &&
+    topPlace.placePercent >= minPlacePercent &&
+    placeGap >= minPlaceGap;
+
+  const qualifiesAsStrongPlace =
+    placeBettingAllowed &&
+    raceConfidence.tier !== "Low" &&
+    topPlace !== null &&
+    topPlace.score >= minStrongPlaceScore &&
+    topPlace.placePercent >= minStrongPlacePercent &&
+    placeGap >= minStrongPlaceGap;
+
+  function getSmartPuntTipType(runnerId: number) {
+    if (topWin && runnerId === topWin.id && qualifiesAsStrongWin) return "Best Bet";
+    if (topWin && runnerId === topWin.id && qualifiesAsWin) return "Win";
+    if (topPlace && runnerId === topPlace.id && qualifiesAsStrongPlace) {
+      return "Strong Place";
+    }
+    if (topPlace && runnerId === topPlace.id && qualifiesAsPlace) return "Place";
+    return "No Bet";
+  }
+
+  function isSmartPuntTip(runnerId: number) {
+    return getSmartPuntTipType(runnerId) !== "No Bet";
+  }
+
+  function getRaceGapForRunner(runnerId: number) {
+    if (topWin && runnerId === topWin.id) return winGap;
+    if (topPlace && runnerId === topPlace.id) return placeGap;
+    return raceConfidence.gap;
+  }
 
   const powerRankedRunners = [...scoredRunners]
     .filter(
@@ -1604,6 +1660,7 @@ function getRaceGapForRunner(runnerId: number) {
     settled_at: null,
     updated_at: now,
   }));
+
   const payload = scoredRunners.map((runner) => ({
     race_id: Number(runner.race_id),
     runner_id: Number(runner.id),
@@ -1621,7 +1678,7 @@ function getRaceGapForRunner(runnerId: number) {
     weight_score: Number(runner.components.weight),
     jockey_score: Number(runner.components.jockey),
     trainer_score: Number(runner.components.trainer),
-        is_smartpunt_tip: isSmartPuntTip(Number(runner.id)),
+    is_smartpunt_tip: isSmartPuntTip(Number(runner.id)),
     smartpunt_tip_type: getSmartPuntTipType(Number(runner.id)),
     race_gap: getRaceGapForRunner(Number(runner.id)),
     race_confidence_tier: raceConfidence.tier,
