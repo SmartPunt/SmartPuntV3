@@ -1138,32 +1138,34 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                     </div>
                   ) : null}
 
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <div className="rounded-[24px] border border-emerald-400/40 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.2),transparent_45%),#07110d] p-4">
+                  <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr_1fr]">
+                    <div className="rounded-[24px] border border-emerald-400/50 bg-zinc-950 p-4 shadow-lg shadow-emerald-500/10">
                       <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
                         🎯 Betting Verdict
                       </p>
-                      <p className="mt-4 text-3xl font-black text-white">{bettingVerdictLabel}</p>
+                      <p className="mt-4 text-3xl font-black text-white">
+                        {bettingVerdictLabel}
+                      </p>
                       <p className="mt-3 text-base font-semibold leading-7 text-emerald-100">
                         {bettingVerdictSummary}
                       </p>
                     </div>
 
-                    <div className="rounded-[24px] border border-amber-400/40 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_45%),#111009] p-4">
+                    <div className="rounded-[24px] border border-amber-400/50 bg-zinc-950 p-4 shadow-lg shadow-amber-500/10">
                       <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
                         ⚠️ Watchouts
                       </p>
                       <div className="mt-4 space-y-2 text-sm font-semibold text-zinc-100">
                         {watchouts.map((watchout) => (
                           <p key={watchout} className="flex gap-2">
-                            <span className="text-amber-300">✓</span>
+                            <span className="text-amber-300">⚠</span>
                             <span>{watchout}</span>
                           </p>
                         ))}
                       </div>
                     </div>
 
-                    <div className="rounded-[24px] border border-rose-400/40 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.16),transparent_45%),#13070a] p-4">
+                    <div className="rounded-[24px] border border-rose-400/50 bg-zinc-950 p-4 shadow-lg shadow-rose-500/10">
                       <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-300">
                         🔔 Alert Candidates
                       </p>
@@ -1175,12 +1177,13 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                             </p>
                           ))
                         ) : (
-                          <p>No runners currently exceed the threshold.</p>
+                          <p className="leading-6 text-zinc-200">
+                            No runners currently exceed the threshold.
+                          </p>
                         )}
                       </div>
                     </div>
                   </div>
-
                   {activeSpecialistAlerts.length > 0 ? (
                     <div className="rounded-[24px] border border-amber-400/30 bg-black/50 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
