@@ -575,12 +575,17 @@ predictions = filterByDate(
     (row) => row.finishing_position !== null && row.finishing_position <= 3,
   ).length;
 
-  const calculatorWinTips = calculatorGeneratedTips.filter((row) =>
-    String(row.smartPuntSuggestedBet || "").toLowerCase().includes("win"),
-  );
-  const calculatorPlaceTips = calculatorGeneratedTips.filter((row) =>
-    String(row.smartPuntSuggestedBet || "").toLowerCase().includes("place"),
-  );
+  const calculatorWinTips = calculatorGeneratedTips.filter((row) => {
+    const tipType = String(row.smartPuntSuggestedBet || "").toLowerCase();
+
+    return tipType === "win" || tipType === "best bet";
+  });
+
+  const calculatorPlaceTips = calculatorGeneratedTips.filter((row) => {
+    const tipType = String(row.smartPuntSuggestedBet || "").toLowerCase();
+
+    return tipType === "place" || tipType === "strong place";
+  });
 
   const calculatorTipWins = calculatorWinTips.filter(
     (row) => row.won === true || row.finishing_position === 1,
