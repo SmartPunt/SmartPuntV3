@@ -4407,11 +4407,24 @@ export async function settleRaceRunnersAction(
       finishing_position: update.finishing_position,
       starting_price: update.starting_price,
     }));
+
+try {
+  await saveCalculatorPredictionsForRace(raceId, {
+    excludeScratched: true,
+  });
+} catch (calculatorSnapshotError) {
+  console.error(
+    "Calculator prediction snapshot refresh failed before settlement:",
+    calculatorSnapshotError,
+  );
+}
+
 try {
   await savePowerRatingPredictionsForRace(raceId);
 } catch (powerSnapshotError) {
   console.error("Power Rating prediction snapshot failed:", powerSnapshotError);
 }
+
     const { error: rpcError } = await supabase.rpc("settle_race_fast", {
       p_race_id: raceId,
       p_results: rpcResults,
