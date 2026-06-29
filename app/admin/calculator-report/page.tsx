@@ -4,7 +4,6 @@ import { getCurrentProfile } from "@/lib/auth";
 import {
   SMARTPUNT_SCORING_VERSION,
   calculateRaceConfidence,
-  getQualifiedCalculatorTip,
 } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 import PowerRatingDryRunPanel from "@/components/power-rating-dry-run-panel";
@@ -35,6 +34,11 @@ type Prediction = {
   won: boolean | null;
   placed: boolean | null;
   settled_at: string | null;
+    is_smartpunt_tip?: boolean | null;
+  smartpunt_tip_type?: string | null;
+  race_confidence_percent?: number | string | null;
+  race_confidence_tier?: string | null;
+  suggested_bet?: string | null;
   race?: RaceWithMeeting | null;
 horse?: {
   horse_name: string;
@@ -318,29 +322,16 @@ function getRaceConfidenceForRows(rows: Prediction[]) {
 function getSmartPuntCalculatorTip(
   rows: Prediction[],
 ): SmartPuntGeneratedTip | null {
-  if (!rows.length) return null;
+  const storedTip = rows.find((row) => row.is_smartpunt_tip === true);
 
-  const race = rows[0]?.race;
-  const meeting = race?.meeting;
-
-const qualifiedTip = getQualifiedCalculatorTip(rows, {
-  trackCondition: meeting?.track_condition || null,
-  placeTerms: race?.place_terms || "top_3",
-});
-
-  if (!qualifiedTip) return null;
-
-  const selected = qualifiedTip.runner;
+  if (!storedTip) return null;
 
   return {
-    ...(selected as Prediction),
-    smartPuntSuggestedBet: qualifiedTip.type,
-    smartPuntRaceConfidence:
-      qualifiedTip.raceConfidence.confidencePercent,
-    smartPuntConfidenceTier:
-      qualifiedTip.raceConfidence.tier,
-    smartPuntVolatility:
-      qualifiedTip.raceConfidence.volatility,
+    ...storedTip,
+    smartPuntSuggestedBet: storedTip.smartpunt_tip_type || "Tip",
+    smartPuntRaceConfidence: Number(storedTip.race_confidence_percent || 0),
+    smartPuntConfidenceTier: storedTip.race_confidence_tier || "",
+    smartPuntVolatility: storedTip.suggested_bet || "",
   };
 }
 
