@@ -12,6 +12,7 @@ import {
   SMARTPUNT_SCORING_VERSION,
   calculateRaceConfidence,
   calculateRaceScores,
+  getQualifiedCalculatorTip,
   type Horse,
   type Meeting,
   type Race,
@@ -1020,11 +1021,96 @@ export async function sendPowerRatingRaceCardEmailAction() {
     const today = perthTodayDateString();
     const prettyDate = prettyPerthToday();
 
+    function uniqueNumbers(values: unknown[]) {
+      return Array.from(
+        new Set(values.map((value) => Number(value)).filter(Boolean)),
+      );
+    }
+
+    function uniqueStrings(values: unknown[]) {
+      return Array.from(
+        new Set(
+          values
+            .map((value) => String(value || "").trim())
+            .filter(Boolean),
+        ),
+      );
+    }
+
+    function chunk<T>(items: T[], size = 200) {
+      const chunks: T[][] = [];
+
+      for (let index = 0; index < items.length; index += size) {
+        chunks.push(items.slice(index, index + size));
+      }
+
+      return chunks;
+    }
+
+    async function fetchRowsByIds<T>(table: string, ids: number[]) {
+      const rows: T[] = [];
+
+      for (const idChunk of chunk(uniqueNumbers(ids))) {
+        const { data, error } = await supabase
+          .from(table)
+          .select("*")
+          .in("id", idChunk);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        rows.push(...((data ?? []) as T[]));
+      }
+
+      return rows;
+    }
+
+    function tipDisplay(topRunnerId: number, qualifiedTip: any) {
+      if (!qualifiedTip || Number(qualifiedTip.runner.id) !== Number(topRunnerId)) {
+        return {
+          label: "⚪ No Bet",
+          tone: "none" as const,
+          background: "#27272a",
+          border: "#71717a",
+          colour: "#e4e4e7",
+        };
+      }
+
+      if (qualifiedTip.type === "Win") {
+        return {
+          label: "🏆 Win Tip",
+          tone: "win" as const,
+          background: "#064e3b",
+          border: "#34d399",
+          colour: "#d1fae5",
+        };
+      }
+
+      if (qualifiedTip.type === "Place") {
+        return {
+          label: "🥈 Place Tip",
+          tone: "place" as const,
+          background: "#075985",
+          border: "#38bdf8",
+          colour: "#e0f2fe",
+        };
+      }
+
+      return {
+        label: "⚪ No Bet",
+        tone: "none" as const,
+        background: "#27272a",
+        border: "#71717a",
+        colour: "#e4e4e7",
+      };
+    }
+
     const meetings = await fetchAllRows<any>({
       getPage: async (from, to) => {
         const result = await supabase
           .from("meetings")
-          .select("id, meeting_name, meeting_date, track_condition")
+          .select("*")
           .eq("meeting_date", today)
           .order("meeting_name", { ascending: true })
           .range(from, to);
@@ -1038,12 +1124,12 @@ export async function sendPowerRatingRaceCardEmailAction() {
 
     const meetingIds = meetings.map((meeting) => Number(meeting.id));
 
-    const races = meetingIds.length
+    const currentRaces = meetingIds.length
       ? await fetchAllRows<any>({
           getPage: async (from, to) => {
             const result = await supabase
               .from("races")
-              .select("id, meeting_id, race_number, race_name, distance_m, status")
+              .select("*")
               .in("meeting_id", meetingIds)
               .neq("status", "closed")
               .order("meeting_id", { ascending: true })
@@ -1058,17 +1144,19 @@ export async function sendPowerRatingRaceCardEmailAction() {
         })
       : [];
 
-    const raceIds = races.map((race) => Number(race.id));
+    const currentRaceIds = uniqueNumbers(currentRaces.map((race) => race.id));
 
-    const runners = raceIds.length
+    const currentRunners = currentRaceIds.length
       ? await fetchAllRows<any>({
           getPage: async (from, to) => {
             const result = await supabase
               .from("race_runners")
-              .select("id, race_id, horse_id, scratched, finishing_position")
-              .in("race_id", raceIds)
+              .select("*")
+              .in("race_id", currentRaceIds)
               .eq("scratched", false)
               .is("finishing_position", null)
+              .order("race_id", { ascending: true })
+              .order("barrier", { ascending: true })
               .range(from, to);
 
             return {
@@ -1079,66 +1167,125 @@ export async function sendPowerRatingRaceCardEmailAction() {
         })
       : [];
 
-    const horseIds = Array.from(
-      new Set(runners.map((runner) => Number(runner.horse_id)).filter(Boolean)),
+    const activeHorseIds = uniqueNumbers(
+      currentRunners.map((runner) => runner.horse_id),
     );
 
-    const horses = horseIds.length
-      ? await fetchAllRows<any>({
-          getPage: async (from, to) => {
-            const result = await supabase
-              .from("horses")
-              .select("id, horse_name, smartpunt_power_rating")
-              .in("id", horseIds)
-              .range(from, to);
+    const horses = await fetchRowsByIds<Horse>("horses", activeHorseIds);
 
-            return {
-              data: result.data ?? [],
-              error: result.error,
-            };
-          },
-        })
-      : [];
+    let historicalRunners: Runner[] = [];
 
-    const meetingMap = new Map(
-      meetings.map((meeting) => [Number(meeting.id), meeting]),
+    if (activeHorseIds.length) {
+      for (const horseIdChunk of chunk(activeHorseIds)) {
+        const { data, error } = await supabase
+          .from("race_runners")
+          .select("*")
+          .in("horse_id", horseIdChunk)
+          .not("finishing_position", "is", null);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        historicalRunners.push(...((data ?? []) as Runner[]));
+      }
+    }
+
+    const runnerMap = new Map<number, Runner>();
+
+    [...historicalRunners, ...currentRunners].forEach((runner) => {
+      runnerMap.set(Number(runner.id), runner as Runner);
+    });
+
+    const runners = Array.from(runnerMap.values());
+
+    const requiredRaceIds = uniqueNumbers([
+      ...currentRaceIds,
+      ...historicalRunners.map((runner) => runner.race_id),
+    ]);
+
+    const historicalAndCurrentRaces = await fetchRowsByIds<Race>(
+      "races",
+      requiredRaceIds,
     );
 
-    const horseMap = new Map(
-      horses.map((horse) => [Number(horse.id), horse]),
+    const raceMap = new Map<number, Race>();
+
+    [...historicalAndCurrentRaces, ...currentRaces].forEach((race) => {
+      raceMap.set(Number(race.id), race as Race);
+    });
+
+    const races = Array.from(raceMap.values());
+
+    const requiredMeetingIds = uniqueNumbers([
+      ...meetingIds,
+      ...races.map((race) => race.meeting_id),
+    ]);
+
+    const historicalAndCurrentMeetings = await fetchRowsByIds<Meeting>(
+      "meetings",
+      requiredMeetingIds,
     );
 
-    const selections = races
+    const meetingMap = new Map<number, Meeting>();
+
+    [...historicalAndCurrentMeetings, ...meetings].forEach((meeting) => {
+      meetingMap.set(Number(meeting.id), meeting as Meeting);
+    });
+
+    const allMeetings = Array.from(meetingMap.values());
+
+    const activeJockeyNames = uniqueStrings(
+      currentRunners.map((runner) => runner.jockey_name),
+    );
+
+    let jockeyProfiles: any[] = [];
+
+    if (activeJockeyNames.length) {
+      for (const nameChunk of chunk(activeJockeyNames)) {
+        const { data, error } = await supabase
+          .from("jockey_profiles")
+          .select("*")
+          .in("jockey_name", nameChunk);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        jockeyProfiles.push(...((data ?? []) as any[]));
+      }
+    }
+
+    const selections = currentRaces
       .map((race) => {
-        const raceRunners = runners.filter(
-          (runner) => Number(runner.race_id) === Number(race.id),
-        );
+        const meeting = meetingMap.get(Number(race.meeting_id)) || null;
 
-        const topRunner = raceRunners
-          .map((runner) => {
-            const horse = runner.horse_id
-              ? horseMap.get(Number(runner.horse_id))
-              : null;
+        const scoredRunners = calculateRaceScores({
+          activeRace: race as Race,
+          races,
+          runners,
+          horses,
+          meetings: allMeetings,
+          jockeyProfiles,
+        });
 
-            return {
-              runner,
-              horse,
-            };
-          })
-          .filter(
-            (item) =>
-              item.horse?.smartpunt_power_rating !== null &&
-              item.horse?.smartpunt_power_rating !== undefined,
-          )
-          .sort(
-            (a, b) =>
-              Number(b.horse?.smartpunt_power_rating || 0) -
-              Number(a.horse?.smartpunt_power_rating || 0),
-          )[0];
+        const topRunner = scoredRunners[0] || null;
 
-        if (!topRunner?.horse) return null;
+        if (!topRunner) return null;
 
-        const meeting = meetingMap.get(Number(race.meeting_id));
+        const raceConfidence = calculateRaceConfidence(scoredRunners, {
+          trackCondition: meeting?.track_condition || null,
+          raceName: race.race_name,
+          placeTerms: (race as any).place_terms || "top_3",
+        });
+
+        const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
+          trackCondition: meeting?.track_condition || null,
+          raceName: race.race_name,
+          placeTerms: (race as any).place_terms || "top_3",
+        });
+
+        const tip = tipDisplay(Number(topRunner.id), qualifiedTip);
 
         return {
           meetingName: meeting?.meeting_name || "Unknown meeting",
@@ -1146,8 +1293,16 @@ export async function sendPowerRatingRaceCardEmailAction() {
           raceNumber: Number(race.race_number),
           raceName: race.race_name || "",
           distance: race.distance_m || null,
-          horseName: topRunner.horse.horse_name || "",
-          rating: topRunner.horse.smartpunt_power_rating ?? null,
+          horseName: topRunner.horse_name || "",
+          score: Number(topRunner.score),
+          winPercent: Number(topRunner.winPercent),
+          placePercent: Number(topRunner.placePercent),
+          confidenceTier: raceConfidence.tier,
+          confidencePercent: raceConfidence.confidencePercent,
+          tipLabel: tip.label,
+          tipBackground: tip.background,
+          tipBorder: tip.border,
+          tipColour: tip.colour,
         };
       })
       .filter(Boolean) as Array<{
@@ -1157,13 +1312,21 @@ export async function sendPowerRatingRaceCardEmailAction() {
         raceName: string;
         distance: number | null;
         horseName: string;
-        rating: number | null;
+        score: number;
+        winPercent: number;
+        placePercent: number;
+        confidenceTier: string;
+        confidencePercent: number;
+        tipLabel: string;
+        tipBackground: string;
+        tipBorder: string;
+        tipColour: string;
       }>;
 
     if (!selections.length) {
       return {
         success: false,
-        error: "No Power Rating selections found for today's active races.",
+        error: "No Calculator Race Card selections found for today's active races.",
       };
     }
 
@@ -1175,120 +1338,136 @@ export async function sendPowerRatingRaceCardEmailAction() {
       grouped.set(selection.meetingName, existing);
     });
 
-const meetingBlocks = Array.from(grouped.entries())
-  .map(([meetingName, meetingSelections]) => {
-    const rows = meetingSelections
-      .sort((a, b) => a.raceNumber - b.raceNumber)
+    const meetingBlocks = Array.from(grouped.entries())
+      .map(([meetingName, meetingSelections]) => {
+        const rows = meetingSelections
+          .sort((a, b) => a.raceNumber - b.raceNumber)
+          .map(
+            (selection) => `
+              <tr>
+                <td style="padding:12px 8px;border-bottom:1px solid #27272a;color:#fbbf24;font-weight:900;">R${selection.raceNumber}</td>
+                <td style="padding:12px 8px;border-bottom:1px solid #27272a;color:#ffffff;font-weight:900;">
+                  ${escapeHtml(selection.horseName)}
+                  <div style="margin-top:3px;color:#a1a1aa;font-size:11px;font-weight:700;">
+                    ${escapeHtml(selection.confidenceTier)} · Score ${Math.round(selection.score)}
+                  </div>
+                </td>
+                <td style="padding:12px 8px;border-bottom:1px solid #27272a;text-align:right;">
+                  <span style="display:inline-block;border:1px solid ${selection.tipBorder};background:${selection.tipBackground};color:${selection.tipColour};border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;">
+                    ${escapeHtml(selection.tipLabel)}
+                  </span>
+                </td>
+              </tr>
+            `,
+          )
+          .join("");
+
+        return `
+          <div style="margin-top:18px;border:1px solid #fbbf24;border-radius:16px;overflow:hidden;background:#09090b;">
+            <div style="padding:14px 16px;background:#020617;border-bottom:1px solid #fbbf24;">
+              <div style="font-size:17px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.08em;">
+                🐎 ${escapeHtml(meetingName)}
+              </div>
+              <div style="margin-top:4px;font-size:12px;color:#d1d5db;">
+                ${escapeHtml(meetingSelections[0]?.trackCondition || "")}
+              </div>
+            </div>
+
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#09090b;">
+              <thead>
+                <tr style="background:#18181b;">
+                  <th align="left" style="padding:9px 8px;color:#fbbf24;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Race</th>
+                  <th align="left" style="padding:9px 8px;color:#fbbf24;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Selection</th>
+                  <th align="right" style="padding:9px 8px;color:#fbbf24;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Tip</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        `;
+      })
+      .join("");
+
+    const topRated = [...selections]
+      .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+      .slice(0, 8);
+
+    const topRatedRows = topRated
       .map(
-        (selection) => `
+        (selection, index) => `
           <tr>
-            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#b45309;font-weight:900;">R${selection.raceNumber}</td>
-            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#111827;font-weight:800;">${escapeHtml(selection.horseName)}</td>
-            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${escapeHtml(selection.raceName)}</td>
-            <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#b45309;font-weight:900;text-align:right;">${selection.rating ?? "N/A"}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #27272a;color:#fbbf24;font-weight:900;">${index + 1}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #27272a;color:#ffffff;font-weight:900;">
+              ${escapeHtml(selection.horseName)}
+            </td>
+            <td style="padding:10px 8px;border-bottom:1px solid #27272a;color:#d4d4d8;">
+              ${escapeHtml(selection.meetingName)} R${selection.raceNumber}
+            </td>
+            <td style="padding:10px 8px;border-bottom:1px solid #27272a;text-align:right;">
+              <span style="display:inline-block;border:1px solid ${selection.tipBorder};background:${selection.tipBackground};color:${selection.tipColour};border-radius:999px;padding:6px 9px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;">
+                ${escapeHtml(selection.tipLabel)}
+              </span>
+            </td>
           </tr>
         `,
       )
       .join("");
 
-    return `
-      <div style="margin-top:18px;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#ffffff;">
-        <div style="padding:14px 16px;background:#020617;">
-          <div style="font-size:17px;font-weight:900;color:#fbbf24;text-transform:uppercase;letter-spacing:0.08em;">
-            ${escapeHtml(meetingName)}
-          </div>
-          <div style="margin-top:4px;font-size:12px;color:#d1d5db;">
-            ${escapeHtml(meetingSelections[0]?.trackCondition || "")}
-          </div>
-        </div>
+    const appUrl = getBaseAppUrl();
+    const raceCardUrl = appUrl ? `${appUrl}/admin/power-rating-race-card` : "";
 
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#ffffff;">
-          <thead>
-            <tr style="background:#f9fafb;">
-              <th align="left" style="padding:9px 8px;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Race</th>
-              <th align="left" style="padding:9px 8px;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Selection</th>
-              <th align="left" style="padding:9px 8px;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Race Name</th>
-              <th align="right" style="padding:9px 8px;color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;">Rating</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    `;
-  })
-  .join("");
+    const subject = `SmartPunt Calculator Race Card - ${prettyDate}`;
 
-const topRated = [...selections]
-  .sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0))
-  .slice(0, 8);
-
-const topRatedRows = topRated
-  .map(
-    (selection, index) => `
-      <tr>
-        <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#b45309;font-weight:900;">${index + 1}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#111827;font-weight:800;">${escapeHtml(selection.horseName)}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#6b7280;">${escapeHtml(selection.meetingName)} R${selection.raceNumber}</td>
-        <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;color:#b45309;font-weight:900;text-align:right;">${selection.rating ?? "N/A"}</td>
-      </tr>
-    `,
-  )
-  .join("");
-
-const appUrl = getBaseAppUrl();
-const raceCardUrl = appUrl ? `${appUrl}/current-races` : "";
-
-const subject = `SmartPunt Power Rating Race Card - ${prettyDate}`;
-
-const html = (email: string) =>
-  buildEmailShell({
-    headerHtml: `
-      <div style="padding:24px 22px;background:#020617;color:#ffffff;border-bottom:4px solid #fbbf24;">
-        <div style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:#fbbf24;font-weight:900;">
-          SmartPunt Power Rating
-        </div>
-        <h1 style="margin:12px 0 0;font-size:28px;line-height:1.15;color:#ffffff;">
-          ${escapeHtml(prettyDate)} Race Card
-        </h1>
-        <p style="margin:10px 0 0;font-size:14px;color:#d1d5db;">
-          Power #1 selections for today&apos;s active races.
-        </p>
-      </div>
-    `,
-    bodyHtml: `
-      <div style="padding:14px 16px;border-radius:14px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:13px;line-height:1.6;font-weight:700;">
-        These selections are generated from the SmartPunt Power Rating engine. They are display-only and separate from Head Tipper selections.
-      </div>
-
-      ${meetingBlocks}
-
-      <div style="margin-top:22px;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;background:#ffffff;">
-        <div style="padding:14px 16px;background:#020617;color:#fbbf24;font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;">
-          Top Rated Selections
-        </div>
-
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#ffffff;">
-          <tbody>${topRatedRows}</tbody>
-        </table>
-      </div>
-
-      ${
-        raceCardUrl
-          ? `
-            <div style="margin-top:22px;">
-              <a href="${raceCardUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#fbbf24;color:#111827;text-decoration:none;font-weight:900;">
-                View Current Races
-              </a>
+    const html = (email: string) =>
+      buildEmailShell({
+        headerHtml: `
+          <div style="padding:24px 22px;background:#020617;color:#ffffff;border-bottom:4px solid #fbbf24;">
+            <div style="font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:#fbbf24;font-weight:900;">
+              SmartPunt Calculator Race Card
             </div>
-          `
-          : ""
-      }
+            <h1 style="margin:12px 0 0;font-size:28px;line-height:1.15;color:#ffffff;">
+              ${escapeHtml(prettyDate)} Race Card
+            </h1>
+            <p style="margin:10px 0 0;font-size:14px;color:#d1d5db;">
+              Calculator #1 selection in every active race, with Win / Place / No Bet status.
+            </p>
+          </div>
+        `,
+        bodyHtml: `
+          <div style="padding:14px 16px;border-radius:14px;background:#fffbeb;border:1px solid #fde68a;color:#78350f;font-size:13px;line-height:1.6;font-weight:700;">
+            These selections are generated from the SmartPunt Calculator. They are separate from Head Tipper selections and should be used with discipline.
+          </div>
 
-      <p style="margin-top:24px;font-size:12px;color:#6b7280;">
-        Sent to ${escapeHtml(email)} because you’re an active SmartPunt subscriber with email alerts enabled.
-      </p>
-    `,
-  });
+          ${meetingBlocks}
+
+          <div style="margin-top:22px;border:1px solid #fbbf24;border-radius:16px;overflow:hidden;background:#09090b;">
+            <div style="padding:14px 16px;background:#020617;color:#fbbf24;font-size:16px;font-weight:900;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #fbbf24;">
+              Top Calculator Selections
+            </div>
+
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#09090b;">
+              <tbody>${topRatedRows}</tbody>
+            </table>
+          </div>
+
+          ${
+            raceCardUrl
+              ? `
+                <div style="margin-top:22px;">
+                  <a href="${raceCardUrl}" style="display:inline-block;padding:12px 18px;border-radius:12px;background:#fbbf24;color:#111827;text-decoration:none;font-weight:900;">
+                    View Calculator Race Card
+                  </a>
+                </div>
+              `
+              : ""
+          }
+
+          <p style="margin-top:24px;font-size:12px;color:#6b7280;">
+            Sent to ${escapeHtml(email)} because you’re an active SmartPunt subscriber with email alerts enabled.
+          </p>
+        `,
+      });
+
     const emails = recipients.map((email) => ({
       from: fromEmail,
       to: [email],
@@ -1311,7 +1490,7 @@ const html = (email: string) =>
       error:
         error instanceof Error
           ? error.message
-          : "Failed to send Power Rating Race Card email.",
+          : "Failed to send Calculator Race Card email.",
     };
   }
 }
