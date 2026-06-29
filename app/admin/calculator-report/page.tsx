@@ -381,11 +381,6 @@ async function fetchPredictions({
     `scoring_version=eq.${encodeURIComponent(SMARTPUNT_SCORING_VERSION)}`,
   ];
 
-  if (!allHistory) {
-    if (from) filters.push(`settled_at=gte.${encodeURIComponent(from)}`);
-    if (to) filters.push(`settled_at=lte.${encodeURIComponent(`${to}T23:59:59`)}`);
-  }
-
   filters.push("order=settled_at.desc");
 
 const predictions = await serviceSelectAllRows<Prediction>(
