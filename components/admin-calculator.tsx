@@ -1015,61 +1015,69 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                             qualifiedTip &&
                             Number(qualifiedTip.runner.id) === Number(runner.id);
 
-                          const tipLabel = isTip
-                            ? qualifiedTip.type === "Win"
-                              ? "🏆 Win Tip"
-                              : "🥈 Place Tip"
-                            : "⊘ No Bet";
+                          const isWinTip = isTip && qualifiedTip.type === "Win";
+                          const isPlaceTip = isTip && qualifiedTip.type === "Place";
 
-                          const medalClass =
-                            index === 0 && isTip && qualifiedTip.type === "Win"
-                              ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-500/20"
-                              : index === 0 && isTip && qualifiedTip.type === "Place"
-                                ? "border-zinc-300 bg-zinc-800 shadow-lg shadow-zinc-300/20"
-                                : index === 0
-                                  ? "border-zinc-600 bg-zinc-950 shadow-lg shadow-black/30"
-                                  : index === 1
-                                    ? "border-zinc-400/60 bg-zinc-950"
-                                    : "border-orange-400/50 bg-zinc-950";
+                          const tipLabel = isWinTip
+                            ? "🏆 WIN TIP"
+                            : isPlaceTip
+                              ? "🥈 PLACE TIP"
+                              : "⊘ NO BET";
 
-                          const tipClass =
-                            isTip && qualifiedTip.type === "Win"
-                              ? "text-amber-200"
-                              : isTip && qualifiedTip.type === "Place"
-                                ? "text-zinc-100"
-                                : "text-zinc-400";
-
-                          const cornerClass =
-                            index === 0 && isTip && qualifiedTip.type === "Win"
-                              ? "from-amber-300"
-                              : index === 0 && isTip && qualifiedTip.type === "Place"
-                                ? "from-zinc-200"
+                          const medalClass = isWinTip
+                            ? "border-amber-300 bg-amber-950/80 shadow-xl shadow-amber-400/25"
+                            : isPlaceTip
+                              ? "border-zinc-200 bg-zinc-800 shadow-xl shadow-zinc-300/20"
+                              : index === 0
+                                ? "border-zinc-600 bg-zinc-950 shadow-lg shadow-black/30"
                                 : index === 1
-                                  ? "from-zinc-400"
-                                  : index === 2
-                                    ? "from-orange-400"
-                                    : "from-zinc-500";
+                                  ? "border-zinc-400/60 bg-zinc-950"
+                                  : "border-orange-400/50 bg-zinc-950";
+
+                          const cornerClass = isWinTip
+                            ? "from-amber-300"
+                            : isPlaceTip
+                              ? "from-zinc-200"
+                              : index === 1
+                                ? "from-zinc-400"
+                                : index === 2
+                                  ? "from-orange-400"
+                                  : "from-zinc-500";
+
+                          const footerClass = isWinTip
+                            ? "border-amber-200 bg-gradient-to-r from-amber-300 via-amber-200 to-amber-400 text-black shadow-lg shadow-amber-400/30"
+                            : isPlaceTip
+                              ? "border-zinc-100 bg-gradient-to-r from-zinc-100 via-zinc-300 to-zinc-500 text-black shadow-lg shadow-zinc-300/20"
+                              : "border-zinc-700 bg-zinc-900 text-zinc-400";
 
                           return (
                             <div
                               key={runner.id}
                               className={`relative overflow-hidden rounded-2xl border px-4 py-4 ${medalClass}`}
                             >
-                              <div className={`absolute left-0 top-0 flex h-12 w-12 items-start justify-start bg-gradient-to-br ${cornerClass} to-transparent pl-3 pt-2 text-xl font-black text-black`}>
+                              <div
+                                className={`absolute left-0 top-0 flex h-12 w-12 items-start justify-start bg-gradient-to-br ${cornerClass} to-transparent pl-3 pt-2 text-xl font-black text-black`}
+                              >
                                 {index + 1}
                               </div>
+
                               <p className="ml-10 text-xs font-black uppercase tracking-[0.18em] text-amber-300">
                                 Calculator #{index + 1}
                               </p>
+
                               <p className="mt-4 text-xl font-black text-white">
                                 {runner.horse_name}
                               </p>
+
                               <p className="mt-2 text-sm font-semibold text-zinc-300">
                                 Score {roundScore(runner.score)} · Win {runner.winPercent}% · Rank #{runner.rank}
                               </p>
-                              <p className={`mt-4 text-sm font-black uppercase tracking-[0.12em] ${tipClass}`}>
+
+                              <div
+                                className={`mt-4 rounded-xl border px-3 py-3 text-center text-base font-black uppercase tracking-[0.14em] ${footerClass}`}
+                              >
                                 {tipLabel}
-                              </p>
+                              </div>
                             </div>
                           );
                         })}
