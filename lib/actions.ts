@@ -1584,18 +1584,25 @@ async function saveCalculatorPredictionsForRace(
     .map((runner) => Number(runner.horse_id))
     .filter(Boolean);
 
-  const { data: historyRows, error: historyError } = await supabase
-    .from("race_runners")
-    .select("*")
-    .not("finishing_position", "is", null);
+  const historyRunners: Runner[] = [];
 
-  if (historyError) {
-    throw new Error(historyError.message);
+  for (const horseIdChunk of chunkIds(activeHorseIds)) {
+    const { data: historyRows, error: historyError } = await supabase
+      .from("race_runners")
+      .select("*")
+      .in("horse_id", horseIdChunk)
+      .not("finishing_position", "is", null);
+
+    if (historyError) {
+      throw new Error(historyError.message);
+    }
+
+    historyRunners.push(
+      ...((historyRows ?? []) as Runner[]).filter(
+        (runner) => Number(runner.race_id) !== Number(raceId),
+      ),
+    );
   }
-
-  const historyRunners = ((historyRows ?? []) as Runner[]).filter(
-    (runner) => Number(runner.race_id) !== Number(raceId),
-  );
 
   const runnerMap = new Map<number, Runner>();
 
@@ -4748,11 +4755,6 @@ try {
   );
 }
 
-try {
-  await savePowerRatingPredictionsForRace(raceId);
-} catch (powerSnapshotError) {
-  console.error("Power Rating prediction snapshot failed:", powerSnapshotError);
-}
 
     const { error: rpcError } = await supabase.rpc("settle_race_fast", {
       p_race_id: raceId,
