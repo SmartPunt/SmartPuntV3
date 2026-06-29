@@ -1699,99 +1699,18 @@ const jockeyRows: any[] = [];
     placeTerms: (activeRace as any)?.place_terms || "top_3",
   });
 
-  const topWin = scoredRunners[0] || null;
-  const topPlace =
-    [...scoredRunners].sort((a, b) => b.placePercent - a.placePercent)[0] || null;
-
-  const secondForWin = topWin
-    ? scoredRunners.find((runner) => runner.id !== topWin.id) || null
-    : null;
-
-  const winGap =
-    topWin && secondForWin
-      ? Math.round(topWin.score - secondForWin.score)
-      : topWin
-        ? Math.round(topWin.score)
-        : 0;
-
-  const minWinScore =
-    raceConfidence.tier === "Elite"
-      ? 66
-      : raceConfidence.tier === "High"
-        ? 68
-        : raceConfidence.tier === "Medium"
-          ? 70
-          : 999;
-
-  const qualifiesAsWin =
-    raceConfidence.tier !== "Low" &&
-    topWin !== null &&
-    topWin.score >= minWinScore &&
-    winGap >= 4 &&
-    topWin.winPercent >= 8;
-
-  const qualifiesAsStrongWin =
-    topWin !== null &&
-    topWin.score >= 72 &&
-    winGap >= 6 &&
-    topWin.winPercent >= 10;
-
-  const secondForPlace = topPlace
-    ? scoredRunners.find((runner) => runner.id !== topPlace.id) || null
-    : null;
-
-  const placeGap =
-    topPlace && secondForPlace
-      ? Math.round(topPlace.score - secondForPlace.score)
-      : topPlace
-        ? Math.round(topPlace.score)
-        : 0;
-
-  const placeTerms = String((activeRace as any)?.place_terms || "top_3");
-  const placeBettingAllowed = placeTerms !== "win_only";
-
-  const basePlaceScore =
-    raceConfidence.tier === "Elite"
-      ? 60
-      : raceConfidence.tier === "High"
-        ? 62
-        : raceConfidence.tier === "Medium"
-          ? 64
-          : 999;
-
-  const minPlaceScore =
-    placeTerms === "top_2" ? basePlaceScore + 3 : basePlaceScore;
-  const minPlacePercent = placeTerms === "top_2" ? 35 : 30;
-  const minPlaceGap = placeTerms === "top_2" ? 3 : 2;
-
-  const minStrongPlaceScore = placeTerms === "top_2" ? 68 : 66;
-  const minStrongPlacePercent = placeTerms === "top_2" ? 38 : 34;
-  const minStrongPlaceGap = placeTerms === "top_2" ? 4 : 3;
-
-  const qualifiesAsPlace =
-    placeBettingAllowed &&
-    raceConfidence.tier !== "Low" &&
-    topPlace !== null &&
-    topPlace.score >= minPlaceScore &&
-    topPlace.placePercent >= minPlacePercent &&
-    placeGap >= minPlaceGap;
-
-  const qualifiesAsStrongPlace =
-    placeBettingAllowed &&
-    raceConfidence.tier !== "Low" &&
-    topPlace !== null &&
-    topPlace.score >= minStrongPlaceScore &&
-    topPlace.placePercent >= minStrongPlacePercent &&
-    placeGap >= minStrongPlaceGap;
+  const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
+    trackCondition: meetingForSnapshot?.track_condition || null,
+    raceName: activeRace.race_name || "",
+    placeTerms: (activeRace as any)?.place_terms || "top_3",
+  });
 
   function getSmartPuntTipType(runnerId: number) {
-    if (topWin && runnerId === topWin.id && qualifiesAsStrongWin) return "Best Bet";
-    if (topWin && runnerId === topWin.id && qualifiesAsWin) return "Win";
-    if (topPlace && runnerId === topPlace.id && qualifiesAsStrongPlace) {
-      return "Strong Place";
+    if (!qualifiedTip || Number(qualifiedTip.runner.id) !== Number(runnerId)) {
+      return "No Bet";
     }
-    if (topPlace && runnerId === topPlace.id && qualifiesAsPlace) return "Place";
-    return "No Bet";
+
+    return qualifiedTip.type;
   }
 
   function isSmartPuntTip(runnerId: number) {
@@ -1799,11 +1718,15 @@ const jockeyRows: any[] = [];
   }
 
   function getRaceGapForRunner(runnerId: number) {
-    if (topWin && runnerId === topWin.id) return winGap;
-    if (topPlace && runnerId === topPlace.id) return placeGap;
+    if (
+      qualifiedTip &&
+      Number(qualifiedTip.runner.id) === Number(runnerId)
+    ) {
+      return Number(qualifiedTip.gap || raceConfidence.gap || 0);
+    }
+
     return raceConfidence.gap;
   }
-
   const powerRankedRunners = [...scoredRunners]
     .filter(
       (runner) =>
