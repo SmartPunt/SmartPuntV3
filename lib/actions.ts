@@ -1475,7 +1475,7 @@ const jockeyRows: any[] = [];
         throw new Error(error.message);
       }
 
-      jockeyRows.push(...((data ?? []) as JockeyProfile[]));
+      jockeyRows.push(...((data ?? []) as any[]));
     }
 
     jockeyProfiles = jockeyRows;
