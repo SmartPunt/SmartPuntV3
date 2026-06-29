@@ -1454,10 +1454,10 @@ async function saveCalculatorPredictionsForRace(
     ),
   );
 
-  let jockeyProfiles: JockeyProfile[] = [];
+  let jockeyProfiles: any[] = [];
 
   if (activeJockeyNames.length) {
-    const jockeyRows: JockeyProfile[] = [];
+const jockeyRows: any[] = [];
 
     for (const nameChunk of chunkIds(
       activeJockeyNames.map((_, index) => index + 1),
