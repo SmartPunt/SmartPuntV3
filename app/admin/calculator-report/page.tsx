@@ -378,6 +378,7 @@ async function fetchPredictions({
     "select=*",
     "settled_at=not.is.null",
     "finishing_position=not.is.null",
+    `scoring_version=eq.${encodeURIComponent(SMARTPUNT_SCORING_VERSION)}`,
   ];
 
   if (!allHistory) {
@@ -517,11 +518,15 @@ export default async function CalculatorReportPage({
   let errorMessage = "";
 
   try {
-    predictions = await fetchPredictions({
-      from: dateFrom,
-      to: dateTo,
-      allHistory,
-    });
+predictions = filterByDate(
+  await fetchPredictions({
+    from: dateFrom,
+    to: dateTo,
+    allHistory,
+  }),
+  dateFrom,
+  dateTo,
+);
   } catch (error) {
     errorMessage =
       error instanceof Error
