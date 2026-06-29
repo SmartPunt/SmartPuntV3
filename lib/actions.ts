@@ -3685,7 +3685,100 @@ export async function abandonMeetingAction(
     return;
   }
 }
+export async function abandonRaceAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
 
+    const raceId = Number(formData.get("race_id"));
+    const reason =
+      String(formData.get("abandonment_reason") ?? "Race abandoned.").trim() ||
+      "Race abandoned.";
+
+    if (!raceId) {
+      return { success: false, error: "Race is required." };
+    }
+
+    const now = new Date().toISOString();
+
+    const runners = (await serviceRoleSelect(
+      `race_runners?race_id=eq.${raceId}&select=id`,
+    )) as Array<{ id: number }> | null;
+
+    const runnerIds = (runners || [])
+      .map((runner) => Number(runner.id))
+      .filter(Boolean);
+
+    await serviceRolePatch(`races?id=eq.${raceId}`, {
+      status: "closed",
+      abandoned_at: now,
+      abandonment_reason: reason,
+      updated_at: now,
+    });
+
+    if (runnerIds.length > 0) {
+      await serviceRolePatch(`race_runners?id=${buildInFilter(runnerIds)}`, {
+        finishing_position: null,
+        starting_price: null,
+        won: false,
+        placed: false,
+        settled_at: now,
+        updated_at: now,
+      });
+    }
+
+    await serviceRolePatch(`suggested_tips?race_id=eq.${raceId}`, {
+      finishing_position: null,
+      successful: null,
+      result_comment: reason,
+      settled_at: now,
+      updated_at: now,
+    });
+
+    await serviceRolePatch(`smartpunt_calculator_tips?race_id=eq.${raceId}`, {
+      status: "voided",
+      voided: true,
+      void_reason: reason,
+      finishing_position: null,
+      won: null,
+      placed: null,
+      settled_at: now,
+      updated_at: now,
+    });
+
+    await serviceRolePatch(
+      `user_bets?race_id=eq.${raceId}&settled_at=is.null`,
+      {
+        voided: true,
+        void_reason: reason,
+        finishing_position: null,
+        won: null,
+        placed: null,
+        return_points: null,
+        profit_loss_points: 0,
+        settled_at: now,
+        updated_at: now,
+      },
+    );
+
+    revalidatePath("/");
+    revalidatePath("/current-races");
+    revalidatePath("/race-archive");
+    revalidatePath("/my-active-tips");
+    revalidatePath("/my-resulted-tips");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/admin/calculator-report");
+
+    return { success: true, error: null };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to abandon race.",
+    };
+  }
+}
 export async function deleteRaceAction(
   formData: FormData,
 ): Promise<ActionResult> {
