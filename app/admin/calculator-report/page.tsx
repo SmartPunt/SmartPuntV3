@@ -518,8 +518,9 @@ export default async function CalculatorReportPage({
     ? await searchParams
     : {};
   const allHistory = first(resolvedSearchParams.range) === "all";
-  const dateFrom = allHistory ? "" : first(resolvedSearchParams.from) || pastIso(30);
-  const dateTo = allHistory ? "" : first(resolvedSearchParams.to) || todayIso();
+  const yesterday = pastIso(1);
+  const dateFrom = allHistory ? "" : first(resolvedSearchParams.from) || yesterday;
+  const dateTo = allHistory ? "" : first(resolvedSearchParams.to) || yesterday;
 
   let predictions: Prediction[] = [];
   let errorMessage = "";
