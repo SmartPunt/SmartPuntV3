@@ -1694,10 +1694,11 @@ const jockeyRows: any[] = [];
       (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
     ) || null;
 
-  const raceConfidence = calculateRaceConfidence(scoredRunners, {
-    trackCondition: meetingForSnapshot?.track_condition || null,
-    placeTerms: (activeRace as any)?.place_terms || "top_3",
-  });
+const raceConfidence = calculateRaceConfidence(scoredRunners, {
+  trackCondition: meetingForSnapshot?.track_condition || null,
+  raceName: activeRace.race_name || "",
+  placeTerms: (activeRace as any)?.place_terms || "top_3",
+});
 
   const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
     trackCondition: meetingForSnapshot?.track_condition || null,
