@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Badge, Panel } from "@/components/ui";
 import {
   abandonMeetingAction,
+  abandonRaceAction,
   bulkScratchRaceRunnersAction,
   settleRaceRunnersAction,
   toggleRacePublishAction,
@@ -647,7 +648,33 @@ setSuccess("Race settled and moved to archive.");
 router.refresh();
     });
   }
+  function handleAbandonRace(raceId: number) {
+    const confirmed = window.confirm(
+      "Abandon this race only? This will close the race, void linked calculator tips/user bets, and leave the rest of the meeting active.",
+    );
 
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.set("race_id", String(raceId));
+      formData.set("abandonment_reason", "Race abandoned.");
+
+      const result = await abandonRaceAction(formData);
+
+      if (!result.success) {
+        setError(result.error || "Failed to abandon race.");
+        return;
+      }
+
+      setClosedRaceIds((current) =>
+        current.includes(raceId) ? current : [...current, raceId],
+      );
+
+      setSuccess("Race abandoned and moved out of Current Races.");
+      router.refresh();
+    });
+  }
   function handleMoveBackToBuilder(raceId: number) {
     startTransition(async () => {
       const formData = new FormData();
@@ -1535,6 +1562,14 @@ function handleScratchMissingResults(raceId: number) {
       className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
     >
       {isPending ? "Saving..." : "Save Results + Close Race"}
+    </button>
+        <button
+      type="button"
+      onClick={() => handleAbandonRace(race.id)}
+      disabled={isPending}
+      className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+    >
+      Abandon Race
     </button>
   </div>
 ) : null}
