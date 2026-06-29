@@ -694,6 +694,47 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
     return buildHorseHistory(selectedHorse.id, runners, races, meetings);
   }, [meetings, races, runners, selectedHorse]);
 
+
+  const fieldSizeLabel =
+    scoredRunners.length <= 7
+      ? `Small field (${scoredRunners.length})`
+      : scoredRunners.length >= 14
+        ? `Large field (${scoredRunners.length})`
+        : scoredRunners.length >= 11
+          ? `Bigger field (${scoredRunners.length})`
+          : `Standard field (${scoredRunners.length})`;
+
+  const bettingVerdictLabel = qualifiedTip
+    ? qualifiedTip.type === "Win"
+      ? "Win Bet"
+      : "Place Bet"
+    : "No Bet";
+
+  const bettingVerdictSummary = qualifiedTip
+    ? qualifiedTip.type === "Win"
+      ? "Top pick clears the calculator threshold. Still keep staking disciplined."
+      : "Top pick has the strongest profile for running in the minors. Win confidence is moderate."
+    : "No runner currently clears the SmartPunt betting threshold for this race.";
+
+  const watchouts = [
+    topWinChance?.track_condition
+      ? `${topWinChance.track_condition} track requires care`
+      : "Track condition not set",
+    Number((topWinChance as any)?.barrier || 0) >= 10
+      ? `Wide draw for top pick (${(topWinChance as any)?.barrier})`
+      : null,
+    scoredRunners.length >= 11 ? "Competitive field size" : null,
+    activePlaceTerms === "win_only"
+      ? "Win-only place terms"
+      : activePlaceTerms === "top_2"
+        ? "Pay 1 & 2 — place bets need a stronger profile"
+        : "Standard place terms",
+    raceConfidence?.tier === "Low" ? "Low confidence race" : null,
+    activeRaceEdgeLeader ? `Specialist edge: ${activeRaceEdgeLeader.horseName}` : null,
+  ]
+    .filter(Boolean)
+    .slice(0, 4) as string[];
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
@@ -881,64 +922,94 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
             </div>
           </Panel>
 
-          <Panel className="bg-white/95">
-            <div className="space-y-5 p-6 text-zinc-950">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold">Race summary</h2>
-                  <p className="text-sm text-zinc-500">
-                    The selected race is always scored as a full field.
-                  </p>
-                </div>
-                <Badge tone="amber">{scoredRunners.length} runners</Badge>
-              </div>
-
+          <Panel className="overflow-hidden border border-amber-400/40 bg-[#050505] shadow-2xl shadow-amber-950/30">
+            <div className="space-y-4 p-4 text-white sm:p-5">
               {activeRace ? (
                 <>
-                  <div className="rounded-[20px] border border-amber-200/30 bg-white px-4 py-3 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
-                          {topWinChance?.meeting_name || "Meeting"}
-                          {topWinChance?.meeting_date ? ` · ${topWinChance.meeting_date}` : ""}
+                  <div className="rounded-[24px] border border-amber-400/40 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.16),transparent_34%),linear-gradient(135deg,#050505_0%,#111827_52%,#030712_100%)] p-4 shadow-inner shadow-amber-950/20">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
+                          {topWinChance?.meeting_name || activeMeeting?.meeting_name || "Meeting"}
+                          {topWinChance?.meeting_date || activeMeeting?.meeting_date
+                            ? ` · ${topWinChance?.meeting_date || activeMeeting?.meeting_date}`
+                            : ""}
                           {activeRaceIndex >= 0
                             ? ` · Race ${activeRaceIndex + 1} of ${orderedPublishedRaces.length}`
                             : ""}
                         </p>
-                        <h3 className="mt-1 truncate text-lg font-black text-zinc-950">
-                          R{activeRace.race_number} {activeRace.race_name}
-                        </h3>
-                        <p className="mt-1 text-sm font-semibold text-zinc-600">
-                          {activeRace.distance_m || "—"}m
-                          {topWinChance?.track_condition ? ` · ${topWinChance.track_condition}` : ""}
-                          {activeRace.place_terms
-                            ? ` · ${placeTermsLabel(activeRace.place_terms)}`
-                            : ""}
-                        </p>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <div className="rounded-2xl border border-amber-400/30 bg-black/50 px-4 py-3 text-4xl font-black leading-none text-amber-300 shadow-lg shadow-amber-950/30">
+                            R{activeRace.race_number}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h2 className="truncate text-2xl font-black tracking-tight text-white">
+                              {activeRace.race_name}
+                            </h2>
+                            <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm font-semibold text-zinc-300">
+                              <span>{activeRace.distance_m || "—"}m</span>
+                              <span>•</span>
+                              <span>{topWinChance?.track_condition || "No condition set"}</span>
+                              <span>•</span>
+                              <span>{placeTermsLabel(activeRace.place_terms)}</span>
+                            </p>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge tone="green">Published</Badge>
-                        <Badge tone="amber">{scoredRunners.length} runners</Badge>
+                      <div className="flex flex-col items-stretch gap-2 sm:min-w-[220px]">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-emerald-200">
+                            Published
+                          </span>
+                          <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-amber-200">
+                            {scoredRunners.length} runners
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-[1fr_64px_1fr] overflow-hidden rounded-2xl border border-amber-400/30 bg-black/45 text-sm font-black uppercase tracking-[0.12em] text-amber-200">
+                          <button
+                            type="button"
+                            disabled={!previousRace}
+                            onClick={() => previousRace && loadRaceById(previousRace.id)}
+                            className="px-3 py-3 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-35"
+                          >
+                            ‹ Prev
+                          </button>
+                          <div className="border-x border-amber-400/20 px-3 py-3 text-center text-white">
+                            {activeRaceIndex >= 0 ? `${activeRaceIndex + 1}` : "—"}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={!nextRace}
+                            onClick={() => nextRace && loadRaceById(nextRace.id)}
+                            className="px-3 py-3 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-35"
+                          >
+                            Next ›
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {calculatorTopThree.length > 0 ? (
-                    <div className="rounded-[20px] border border-amber-200/70 bg-amber-50 p-4 shadow-sm">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="rounded-[24px] border border-amber-400/40 bg-[linear-gradient(135deg,#050505_0%,#0b1120_58%,#050505_100%)] p-4 shadow-lg shadow-black/30">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-800">
+                          <p className="text-sm font-black uppercase tracking-[0.2em] text-amber-300">
                             🏆 SmartPunt Calculator Top 3
                           </p>
-                          <p className="mt-1 text-sm font-bold text-zinc-700">
+                          <p className="mt-1 text-sm font-semibold text-zinc-300">
                             Ranked by the live calculator score for this race.
                           </p>
                         </div>
-                        <Badge tone="amber">Calculator</Badge>
+                        <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-amber-200">
+                          Calculator
+                        </span>
                       </div>
 
-                      <div className="mt-3 grid gap-3 md:grid-cols-3">
+                      <div className="mt-4 grid gap-3 lg:grid-cols-3">
                         {calculatorTopThree.map((runner, index) => {
                           const isTip =
                             qualifiedTip &&
@@ -948,27 +1019,39 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                             ? qualifiedTip.type === "Win"
                               ? "🏆 Win Tip"
                               : "🥈 Place Tip"
-                            : "⚪ No Bet";
+                            : "⊘ No Bet";
+
+                          const medalClass =
+                            index === 0
+                              ? "border-amber-300 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),transparent_42%),#09090b] shadow-lg shadow-amber-950/40"
+                              : index === 1
+                                ? "border-zinc-400/60 bg-[radial-gradient(circle_at_top_left,rgba(212,212,216,0.18),transparent_40%),#09090b]"
+                                : "border-orange-400/50 bg-[radial-gradient(circle_at_top_left,rgba(180,83,9,0.16),transparent_40%),#09090b]";
+
+                          const tipClass = isTip
+                            ? qualifiedTip.type === "Win"
+                              ? "text-emerald-300"
+                              : "text-emerald-300"
+                            : "text-zinc-400";
 
                           return (
                             <div
                               key={runner.id}
-                              className={`rounded-2xl border px-4 py-3 ${
-                                index === 0
-                                  ? "border-amber-300 bg-white"
-                                  : "border-zinc-200 bg-white/80"
-                              }`}
+                              className={`relative overflow-hidden rounded-2xl border px-4 py-4 ${medalClass}`}
                             >
-                              <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">
+                              <div className="absolute left-0 top-0 flex h-12 w-12 items-start justify-start bg-gradient-to-br from-amber-300 to-transparent pl-3 pt-2 text-xl font-black text-black">
+                                {index + 1}
+                              </div>
+                              <p className="ml-10 text-xs font-black uppercase tracking-[0.18em] text-amber-300">
                                 Calculator #{index + 1}
                               </p>
-                              <p className="mt-1 font-black text-zinc-950">
+                              <p className="mt-4 text-xl font-black text-white">
                                 {runner.horse_name}
                               </p>
-                              <p className="mt-1 text-sm font-bold text-zinc-600">
+                              <p className="mt-2 text-sm font-semibold text-zinc-300">
                                 Score {roundScore(runner.score)} · Win {runner.winPercent}% · Rank #{runner.rank}
                               </p>
-                              <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-zinc-700">
+                              <p className={`mt-4 text-sm font-black uppercase tracking-[0.12em] ${tipClass}`}>
                                 {tipLabel}
                               </p>
                             </div>
@@ -978,306 +1061,186 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                     </div>
                   ) : null}
 
-{raceConfidence ? (
-  <div className="rounded-[28px] border border-amber-200/70 bg-white p-6 shadow-sm">
-    <div className="flex flex-wrap items-start justify-between gap-5">
-      <div>
-        <p className="text-xs font-black uppercase tracking-[0.26em] text-zinc-500">
-          Race Confidence
-        </p>
-
-        <div className="mt-3">
-          <p
-            className={`text-6xl font-black leading-none ${
-              raceConfidence.tier === "Elite" || raceConfidence.tier === "High"
-                ? "text-emerald-700"
-                : raceConfidence.tier === "Medium"
-                  ? "text-amber-600"
-                  : "text-rose-700"
-            }`}
-          >
-            {raceConfidence.confidencePercent}%
-          </p>
-
-          <p
-            className={`mt-2 text-sm font-black uppercase tracking-[0.22em] ${
-              raceConfidence.tier === "Elite" || raceConfidence.tier === "High"
-                ? "text-emerald-800"
-                : raceConfidence.tier === "Medium"
-                  ? "text-amber-800"
-                  : "text-rose-800"
-            }`}
-          >
-            {raceConfidence.tier} Confidence
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <span className="rounded-2xl bg-sky-950 px-4 py-3 text-sm font-black text-white">
-          Gap +{raceConfidence.gap}
-        </span>
-
-        <span className="rounded-2xl bg-zinc-950 px-4 py-3 text-sm font-black text-amber-200">
-          {raceConfidence.volatility}
-        </span>
-
-<span className="rounded-2xl bg-emerald-800 px-4 py-3 text-sm font-black text-white">
-  Suggested: {qualifiedTip?.type || "No Bet"}
-</span>
-      </div>
-    </div>
-
-    <div className="mt-6 border-t border-amber-200/70 pt-5">
-      <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">
-        Why this race scores {raceConfidence.confidencePercent}%
-      </p>
-
-      <p className="mt-3 text-xl font-black leading-8 text-zinc-950">
-        {raceConfidence.summary}
-      </p>
-    </div>
-
-    {activeSpecialistAlerts.length > 0 ? (
-      <div className="mt-6 border-t border-amber-200/70 pt-5">
-        <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-800">
-                ⭐ Specialist Setup Match
-              </p>
-              <p className="mt-2 text-sm font-bold leading-6 text-zinc-700">
-                This race contains a runner with a specialist profile suited to today's setup.
-              </p>
-            </div>
-            <Badge tone="amber">{activeSpecialistAlerts.length} match{activeSpecialistAlerts.length === 1 ? "" : "es"}</Badge>
-          </div>
-
-          {activeRaceEdgeLeader ? (
-            <div className="mt-4 rounded-2xl border border-amber-300 bg-white px-4 py-4 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-800">
-                    🎯 Race Edge Leader
-                  </p>
-                  <h4 className="mt-2 text-xl font-black text-zinc-950">
-                    {activeRaceEdgeLeader.horseName}
-                  </h4>
-                  <p className="mt-1 text-sm font-bold text-zinc-700">
-                    {activeRaceEdgeLeader.signalCount} matching edge signal{activeRaceEdgeLeader.signalCount === 1 ? "" : "s"}
-                    {activeRaceEdgeLeader.provenCount > 0 ? ` · ${activeRaceEdgeLeader.provenCount} proven` : ""}
-                    {activeRaceEdgeLeader.emergingCount > 0 ? ` · ${activeRaceEdgeLeader.emergingCount} emerging` : ""}
-                  </p>
-                </div>
-                <Badge tone="amber">Edge {activeRaceEdgeLeader.signalCount}</Badge>
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {activeRaceEdgeLeader.signals.slice(0, 3).map((signal) => (
-                  <span
-                    key={`${activeRaceEdgeLeader.horseName}-${signal.label}`}
-                    className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-900"
-                  >
-                    {signal.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="mt-4 space-y-3">
-            {activeSpecialistAlerts.slice(0, 4).map((alert) => (
-              <div
-                key={`${alert.horseName}-${alert.label}`}
-                className="rounded-2xl border border-amber-100 bg-white px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-black text-zinc-950">
-                    {alert.horseName} — {alert.label}
-                  </p>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-amber-900">
-                    {alert.strength}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs leading-5 text-zinc-600">{alert.detail}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    ) : null}
-
-    <div className="mt-6 border-t border-zinc-200 pt-5">
-      <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-500">
-        Key drivers
-      </p>
-
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <div className="rounded-2xl bg-zinc-50 px-4 py-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
-            Field size
-          </p>
-          <p className="mt-2 text-base font-black text-zinc-950">
-            {scoredRunners.length <= 7
-              ? `Small field (${scoredRunners.length})`
-              : scoredRunners.length >= 14
-                ? `Large field (${scoredRunners.length})`
-                : scoredRunners.length >= 11
-                  ? `Bigger field (${scoredRunners.length})`
-                  : `Standard field (${scoredRunners.length})`}
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-zinc-50 px-4 py-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
-            Track
-          </p>
-          <p className="mt-2 text-base font-black text-zinc-950">
-            {topWinChance?.track_condition || "No condition set"}
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-zinc-50 px-4 py-4">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-500">
-            Place terms
-          </p>
-          <p className="mt-2 text-base font-black text-zinc-950">
-            {activeRace?.place_terms === "win_only"
-              ? "Pay 1 Only"
-              : activeRace?.place_terms === "top_2"
-                ? "Pay 1 & 2"
-                : "Pay 1, 2 & 3"}
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <p className="mt-5 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-medium leading-6 text-zinc-700">
-      Race Confidence measures the quality of the betting race, not just the quality of the top-rated horse.
-    </p>
-  </div>
-) : null}
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="rounded-[24px] border border-emerald-200/40 bg-emerald-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
-                        Most likely winner
-                      </p>
-                      <p className="mt-2 text-lg font-bold text-zinc-950">
-                        {topWinChance?.horse_name || "—"}
-                      </p>
-                      <p className="mt-1 text-sm text-zinc-700">
-                        Win chance: {topWinChance?.winPercent ?? 0}% · Score:{" "}
-                        {topWinChance ? roundScore(topWinChance.score) : 0}
-                      </p>
-                    </div>
-
-                   <div className="rounded-[24px] border border-blue-200/40 bg-blue-50 p-4">
-  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-800">
-    Strongest place profiles
-  </p>
-
-  {placeBettingDisabled ? (
-    <p className="mt-2 text-sm font-semibold text-rose-700">
-      Place betting disabled — {placeTermsLabel(activePlaceTerms)}.
-    </p>
-  ) : (
-    <div className="mt-2 space-y-1 text-sm text-zinc-700">
-      {topPlaceChances.map((runner) => (
-        <p key={runner.id}>
-          {runner.horse_name} — {runner.placePercent}%
-        </p>
-      ))}
-    </div>
-  )}
-
-  {activePlaceTerms === "top_2" ? (
-    <p className="mt-2 text-xs text-amber-700">
-      Pay 1 & 2 race — place bets need a stronger profile.
-    </p>
-  ) : null}
-</div>
-                  </div>
-
-                  {selectedHorseScore ? (
-                    <div className="rounded-[24px] border border-amber-300/40 bg-amber-50 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
-                        Selected horse result
-                      </p>
-                      <h3 className="mt-2 text-2xl font-bold text-zinc-950">
-                        {selectedHorseScore.horse_name}
-                      </h3>
-
-<div className="mt-4 flex flex-wrap gap-2">
-  <Badge tone="green">Win {selectedHorseScore.winPercent}%</Badge>
-  <Badge tone="blue">Place {selectedHorseScore.placePercent}%</Badge>
-  <Badge tone="amber">{selectedHorseScore.verdict}</Badge>
-  <Badge tone="slate">Rank #{selectedHorseScore.rank}</Badge>
-  <Badge tone="amber">Score {roundScore(selectedHorseScore.score)}</Badge>
-{selectedHorseScore.smartpunt_power_rating ? (
-  <Badge tone="violet">
-    Power {selectedHorseScore.smartpunt_power_rating}
-  </Badge>
-) : null}
-  {selectedHorseScore.smartpunt_power_rating ? (
-    <Badge tone="violet">
-      Power {selectedHorseScore.smartpunt_power_rating}
-    </Badge>
-  ) : null}
-</div>
-
-                      <div className="mt-5 rounded-[24px] border border-zinc-200 bg-white/70 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                          Why this rating
-                        </p>
-
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          {[
-                            ["Recent form", selectedHorseScore.components.recentForm],
-                            ["Distance", selectedHorseScore.components.distance],
-                            ["Track", selectedHorseScore.components.track],
-                            ["Conditions", selectedHorseScore.components.condition],
-                            ["Barrier", selectedHorseScore.components.barrier],
-                            ["Effective weight", selectedHorseScore.components.weight],
-                            ["Jockey", selectedHorseScore.components.jockey],
-                            ["Trainer", selectedHorseScore.components.trainer],
-                          ].map(([label, score]) => {
-                            const status = getFactorStatus(Number(score));
-                            return (
-                              <div key={String(label)} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
-                                <span className="text-sm font-medium text-zinc-800">{label}</span>
-                                <Badge tone={status.tone}>{status.text}</Badge>
-                              </div>
-                            );
-                          })}
+                  {raceConfidence ? (
+                    <div className="rounded-[24px] border border-amber-400/40 bg-[linear-gradient(135deg,#050505_0%,#111827_54%,#030712_100%)] p-4 shadow-lg shadow-black/30">
+                      <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr]">
+                        <div className="border-b border-amber-400/20 pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-5">
+                          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">
+                            Race Confidence
+                          </p>
+                          <div className="mt-3 flex items-end gap-4">
+                            <div>
+                              <p className="bg-gradient-to-b from-amber-200 to-amber-500 bg-clip-text text-6xl font-black leading-none text-transparent">
+                                {raceConfidence.confidencePercent}%
+                              </p>
+                              <p className="mt-2 text-sm font-black uppercase tracking-[0.2em] text-amber-300">
+                                {raceConfidence.tier} Confidence
+                              </p>
+                            </div>
+                            <div className="mb-2 h-16 w-28 rounded-t-full border-[12px] border-b-0 border-zinc-700 border-l-amber-400 border-t-amber-400" />
+                          </div>
                         </div>
 
-                        <p className="mt-4 text-sm leading-6 text-zinc-700">
-                          {getSelectedHorseSummary(selectedHorseScore)}
-                        </p>
+                        <div>
+                          <p className="text-sm font-black uppercase tracking-[0.16em] text-amber-300">
+                            Why this race scores {raceConfidence.confidencePercent}%
+                          </p>
+                          <p className="mt-3 text-lg font-bold leading-8 text-white">
+                            {raceConfidence.summary}
+                          </p>
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <span className="rounded-full border border-sky-400/40 bg-sky-500/15 px-4 py-2 text-sm font-black text-sky-100">
+                              Gap +{raceConfidence.gap}
+                            </span>
+                            <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-100">
+                              {raceConfidence.volatility}
+                            </span>
+                            <span className="rounded-full border border-emerald-400/40 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100">
+                              Suggested: {qualifiedTip?.type || "No Bet"}
+                            </span>
+                          </div>
+                        </div>
                       </div>
+
+                      <div className="mt-5 border-t border-amber-400/20 pt-4">
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+                          Key Drivers
+                        </p>
+                        <div className="mt-3 grid gap-3 md:grid-cols-3">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                              Field Size
+                            </p>
+                            <p className="mt-2 text-base font-bold text-white">{fieldSizeLabel}</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                              Track
+                            </p>
+                            <p className="mt-2 text-base font-bold text-white">
+                              {topWinChance?.track_condition || "No condition set"}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                              Place Terms
+                            </p>
+                            <p className="mt-2 text-base font-bold text-white">
+                              {placeTermsLabel(activePlaceTerms)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="mt-4 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm font-semibold leading-6 text-sky-100">
+                        ⓘ Race Confidence measures the quality of the betting race, not just the quality of the top-rated horse.
+                      </p>
                     </div>
                   ) : null}
 
-                  <div className="rounded-[24px] border border-rose-200/40 bg-rose-50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-800">
-                      Alert candidates
-                    </p>
-                    <div className="mt-2 space-y-1 text-sm text-zinc-700">
-                      {alertCandidates.length > 0 ? (
-                        alertCandidates.map((runner) => (
-                          <p key={runner.id}>
-                            {runner.horse_name} — Score {roundScore(runner.score)}
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-[24px] border border-emerald-400/40 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.2),transparent_45%),#07110d] p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-300">
+                        🎯 Betting Verdict
+                      </p>
+                      <p className="mt-4 text-3xl font-black text-white">{bettingVerdictLabel}</p>
+                      <p className="mt-3 text-base font-semibold leading-7 text-emerald-100">
+                        {bettingVerdictSummary}
+                      </p>
+                    </div>
+
+                    <div className="rounded-[24px] border border-amber-400/40 bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_45%),#111009] p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+                        ⚠️ Watchouts
+                      </p>
+                      <div className="mt-4 space-y-2 text-sm font-semibold text-zinc-100">
+                        {watchouts.map((watchout) => (
+                          <p key={watchout} className="flex gap-2">
+                            <span className="text-amber-300">✓</span>
+                            <span>{watchout}</span>
                           </p>
-                        ))
-                      ) : (
-                        <p>No runners currently exceed the threshold.</p>
-                      )}
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[24px] border border-rose-400/40 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.16),transparent_45%),#13070a] p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-300">
+                        🔔 Alert Candidates
+                      </p>
+                      <div className="mt-4 space-y-2 text-sm font-semibold text-zinc-100">
+                        {alertCandidates.length > 0 ? (
+                          alertCandidates.slice(0, 4).map((runner) => (
+                            <p key={runner.id}>
+                              {runner.horse_name} — Score {roundScore(runner.score)}
+                            </p>
+                          ))
+                        ) : (
+                          <p>No runners currently exceed the threshold.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {activeSpecialistAlerts.length > 0 ? (
+                    <div className="rounded-[24px] border border-amber-400/30 bg-black/50 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
+                            ⭐ Specialist Setup Match
+                          </p>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-zinc-300">
+                            Specialist profiles suited to today's race setup.
+                          </p>
+                        </div>
+                        <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-xs font-black text-amber-100">
+                          {activeSpecialistAlerts.length} match{activeSpecialistAlerts.length === 1 ? "" : "es"}
+                        </span>
+                      </div>
+
+                      {activeRaceEdgeLeader ? (
+                        <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3">
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+                            Race Edge Leader
+                          </p>
+                          <p className="mt-2 text-xl font-black text-white">
+                            {activeRaceEdgeLeader.horseName}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-300">
+                            {activeRaceEdgeLeader.signalCount} matching edge signal{activeRaceEdgeLeader.signalCount === 1 ? "" : "s"}
+                            {activeRaceEdgeLeader.provenCount > 0 ? ` · ${activeRaceEdgeLeader.provenCount} proven` : ""}
+                            {activeRaceEdgeLeader.emergingCount > 0 ? ` · ${activeRaceEdgeLeader.emergingCount} emerging` : ""}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {selectedHorseScore ? (
+                    <div className="rounded-[24px] border border-amber-400/30 bg-black/50 p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+                        Selected Horse Result
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-2xl font-black text-white">
+                            {selectedHorseScore.horse_name}
+                          </h3>
+                          <p className="mt-1 text-sm font-semibold text-zinc-300">
+                            {getSelectedHorseSummary(selectedHorseScore)}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge tone="green">Win {selectedHorseScore.winPercent}%</Badge>
+                          <Badge tone="blue">Place {selectedHorseScore.placePercent}%</Badge>
+                          <Badge tone="amber">Rank #{selectedHorseScore.rank}</Badge>
+                          <Badge tone="amber">Score {roundScore(selectedHorseScore.score)}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               ) : (
-                <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
+                <div className="rounded-[24px] border border-amber-400/30 bg-black/60 p-5 text-sm font-semibold text-zinc-300">
                   No published race found yet for that horse. Use a horse that is loaded into a published race, or pick a published race manually.
                 </div>
               )}
