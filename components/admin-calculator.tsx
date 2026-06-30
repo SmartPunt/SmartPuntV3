@@ -516,6 +516,7 @@ const raceConfidenceBoard = useMemo(() => {
 
 const qualifiedTip = getQualifiedCalculatorTip(scored, {
   trackCondition: meeting?.track_condition || null,
+  raceName: race.race_name || "",
   placeTerms: race.place_terms || "top_3",
 });
 
@@ -628,10 +629,11 @@ const filteredRaceConfidenceBoard = useMemo(() => {
         if (!scored.length) return null;
 
 const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: meetings.find((item) => Number(item.id) === Number(race.meeting_id))?.track_condition || null,
-  placeTerms: (race as any).place_terms || "top_3",
+  trackCondition: meeting?.track_condition || null,
+  raceName: race.race_name || "",
+  placeTerms: race.place_terms || "top_3",
 });
-
+        
 if (!qualifiedTip) return null;
 
 if (strongestBetMode === "win" && qualifiedTip.type !== "Win") return null;
