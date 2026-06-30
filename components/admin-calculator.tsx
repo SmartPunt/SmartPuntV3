@@ -514,8 +514,13 @@ const raceConfidenceBoard = useMemo(() => {
           })
         : null;
 
+const raceMeeting = meetings.find(
+  (item) => Number(item.id) === Number(race.meeting_id),
+);
+
 const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: meeting?.track_condition || null,
+  trackCondition: raceMeeting?.track_condition || null,
+  raceName: race.race_name || "",
   placeTerms: race.place_terms || "top_3",
 });
 
@@ -627,11 +632,16 @@ const filteredRaceConfidenceBoard = useMemo(() => {
 
         if (!scored.length) return null;
 
-const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: meetings.find((item) => Number(item.id) === Number(race.meeting_id))?.track_condition || null,
-  placeTerms: (race as any).place_terms || "top_3",
-});
+const raceMeeting = meetings.find(
+  (item) => Number(item.id) === Number(race.meeting_id),
+);
 
+const qualifiedTip = getQualifiedCalculatorTip(scored, {
+  trackCondition: raceMeeting?.track_condition || null,
+  raceName: race.race_name || "",
+  placeTerms: race.place_terms || "top_3",
+});
+        
 if (!qualifiedTip) return null;
 
 if (strongestBetMode === "win" && qualifiedTip.type !== "Win") return null;
@@ -710,11 +720,11 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
       : "Place Bet"
     : "No Bet";
 
-  const bettingVerdictSummary = qualifiedTip
-    ? qualifiedTip.type === "Win"
-      ? "Top pick clears the calculator threshold. Still keep staking disciplined."
-      : "Top pick has the strongest profile for running in the minors. Win confidence is moderate."
-    : "No runner currently clears the SmartPunt betting threshold for this race.";
+const bettingVerdictSummary = qualifiedTip
+  ? qualifiedTip.type === "Win"
+    ? "Top pick clears the calculator threshold. Still keep staking disciplined."
+    : "Top pick has the strongest profile for running in the minors. Win confidence is moderate."
+  : "No runner currently clears the SmartPunt betting threshold for this race.";
 
   const watchouts = [
     topWinChance?.track_condition
@@ -1155,7 +1165,78 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                           </div>
                         </div>
                       </div>
+<div className="mt-5 border-t border-amber-400/20 pt-4">
+  <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+    🎯 SmartPunt Tip Requirements
+  </p>
 
+  {(() => {
+    const isHeavy =
+      String(topWinChance?.track_condition || "").toLowerCase() === "heavy";
+
+    const minScore =
+      raceConfidence.tier === "Elite"
+        ? 72
+        : raceConfidence.tier === "High"
+          ? 73
+          : raceConfidence.tier === "Medium"
+            ? 75
+            : null;
+
+    const minGap = isHeavy ? 7 : 6;
+    const minWinChance = isHeavy ? 12 : 11;
+
+    const currentGap = Number(qualifiedTip?.gap ?? raceConfidence.gap ?? 0);
+    const currentScore = Number(topWinChance?.score ?? 0);
+    const currentWinChance = Number(topWinChance?.winPercent ?? 0);
+
+    if (raceConfidence.tier === "Low") {
+      return (
+        <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-100">
+          This race is currently rated <strong>Low Confidence</strong>, so SmartPunt
+          will not issue a Win Tip regardless of the top-rated horse. A Place Tip
+          may still qualify if it satisfies the required thresholds.
+        </p>
+      );
+    }
+
+    return (
+      <div className="mt-3 space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="font-black text-white">
+            Current {raceConfidence.tier} Confidence Requirements
+          </p>
+
+          <div className="mt-3 grid gap-2 text-sm text-zinc-200">
+            <div>Minimum Score: <strong>{minScore}+</strong></div>
+            <div>Minimum Gap: <strong>+{minGap}</strong></div>
+            <div>Minimum Win Chance: <strong>{minWinChance}%+</strong></div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="font-black text-white">
+            Current Top Selection
+          </p>
+
+          <div className="mt-3 grid gap-2 text-sm">
+            <div className={currentScore >= (minScore ?? 999) ? "text-emerald-300" : "text-rose-300"}>
+              Score: {currentScore} {currentScore >= (minScore ?? 999) ? "✓" : "✗"}
+            </div>
+
+            <div className={currentGap >= minGap ? "text-emerald-300" : "text-rose-300"}>
+              Gap: +{currentGap} {currentGap >= minGap ? "✓" : "✗"}
+            </div>
+
+            <div className={currentWinChance >= minWinChance ? "text-emerald-300" : "text-rose-300"}>
+              Win Chance: {currentWinChance}% {currentWinChance >= minWinChance ? "✓" : "✗"}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  })()}
+</div>
                       <p className="mt-4 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm font-semibold leading-6 text-sky-100">
                         ⓘ Race Confidence measures the quality of the betting race, not just the quality of the top-rated horse.
                       </p>
@@ -1586,9 +1667,12 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
                     .
                   </p>
 
-                  <p className="text-xs text-zinc-500">
-Win requires score 68+, gap 4+, win chance 8%+. Place is blocked on Pay 1 races and stricter on Pay 1 & 2 races.
-                  </p>
+<p className="text-xs text-zinc-500">
+  Win and place tip requirements are dynamic. They adjust automatically based
+  on each race's confidence, track condition, field shape and place terms.
+  Select a race below to see the exact qualification thresholds and why a horse
+  did or did not qualify as a SmartPunt tip.
+</p>
                 </div>
               </div>
 
