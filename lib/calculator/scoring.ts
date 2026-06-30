@@ -1538,81 +1538,6 @@ function getCandidatePlacePercent(row: CalculatorTipCandidate) {
   return Number(row.placePercent ?? row.place_percent ?? 0);
 }
 
-export type CalculatorTipThresholds = {
-  placeBettingAllowed: boolean;
-  isHeavyTrack: boolean;
-  minWinScore: number | null;
-  minWinGap: number;
-  minWinPercent: number;
-  minPlaceScore: number | null;
-  minPlaceGap: number;
-  minPlacePercent: number;
-};
-
-export function getCalculatorTipThresholds(
-  raceConfidence: RaceConfidence,
-  context?: {
-    trackCondition?: string | null;
-    placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
-  },
-): CalculatorTipThresholds {
-  const placeTerms = String(context?.placeTerms || "top_3");
-  const placeBettingAllowed = placeTerms !== "win_only";
-  const trackCondition = String(context?.trackCondition || "").toLowerCase();
-  const isHeavyTrack = trackCondition.startsWith("heavy");
-
-  const baseMinWinScore =
-    raceConfidence.tier === "Elite"
-      ? 70
-      : raceConfidence.tier === "High"
-        ? 72
-        : raceConfidence.tier === "Medium"
-          ? 75
-          : null;
-
-  const minWinScore =
-    baseMinWinScore === null
-      ? null
-      : isHeavyTrack
-        ? baseMinWinScore + 2
-        : baseMinWinScore;
-
-  const basePlaceScore =
-    raceConfidence.tier === "Elite"
-      ? 60
-      : raceConfidence.tier === "High"
-        ? 62
-        : raceConfidence.tier === "Medium"
-          ? 62
-          : null;
-
-  const minPlaceScore =
-    basePlaceScore === null
-      ? null
-      : placeTerms === "top_2"
-        ? basePlaceScore + 3
-        : isHeavyTrack
-          ? basePlaceScore + 1
-          : basePlaceScore;
-
-  const minPlacePercent = placeTerms === "top_2" ? 35 : isHeavyTrack ? 32 : 30;
-  const minPlaceGap = placeTerms === "top_2" ? 3 : isHeavyTrack ? 3 : 2;
-
-  const minWinGap = isHeavyTrack ? 7 : 6;
-  const minWinPercent = isHeavyTrack ? 12 : 11;
-
-  return {
-    placeBettingAllowed,
-    isHeavyTrack,
-    minWinScore,
-    minWinGap,
-    minWinPercent,
-    minPlaceScore,
-    minPlaceGap,
-    minPlacePercent,
-  };
-}
-
 export function getQualifiedCalculatorTip<T extends CalculatorTipCandidate>(
   rows: T[],
 context?: {
@@ -1661,20 +1586,56 @@ context?: {
     ? roundScore(getCandidateScore(topPlace) - getCandidateScore(secondPlace))
     : roundScore(getCandidateScore(topPlace));
 
-  const thresholds = getCalculatorTipThresholds(raceConfidence, context);
+  const placeTerms = String(context?.placeTerms || "top_3");
+  const placeBettingAllowed = placeTerms !== "win_only";
+  const trackCondition = String(context?.trackCondition || "").toLowerCase();
+  const isHeavyTrack = trackCondition.startsWith("heavy");
+
+  const baseMinWinScore =
+    raceConfidence.tier === "Elite"
+      ? 70
+      : raceConfidence.tier === "High"
+        ? 72
+        : raceConfidence.tier === "Medium"
+          ? 75
+          : 999;
+
+  const minWinScore = isHeavyTrack
+    ? baseMinWinScore + 2
+    : baseMinWinScore;
+
+const basePlaceScore =
+  raceConfidence.tier === "Elite"
+    ? 60
+    : raceConfidence.tier === "High"
+      ? 62
+      : raceConfidence.tier === "Medium"
+        ? 62
+        : 999;
+
+  const minPlaceScore =
+    placeTerms === "top_2"
+      ? basePlaceScore + 3
+      : isHeavyTrack
+        ? basePlaceScore + 1
+        : basePlaceScore;
+
+  const minPlacePercent = placeTerms === "top_2" ? 35 : isHeavyTrack ? 32 : 30;
+  const minPlaceGap = placeTerms === "top_2" ? 3 : isHeavyTrack ? 3 : 2;
+
+  const minWinGap = isHeavyTrack ? 7 : 6;
+  const minWinPercent = isHeavyTrack ? 12 : 11;
 
   const qualifiesAsWin =
-    thresholds.minWinScore !== null &&
-    getCandidateScore(topWin) >= thresholds.minWinScore &&
-    winGap >= thresholds.minWinGap &&
-    getCandidateWinPercent(topWin) >= thresholds.minWinPercent;
+    getCandidateScore(topWin) >= minWinScore &&
+    winGap >= minWinGap &&
+    getCandidateWinPercent(topWin) >= minWinPercent;
 
   const qualifiesAsPlace =
-    thresholds.placeBettingAllowed &&
-    thresholds.minPlaceScore !== null &&
-    getCandidateScore(topPlace) >= thresholds.minPlaceScore &&
-    getCandidatePlacePercent(topPlace) >= thresholds.minPlacePercent &&
-    placeGap >= thresholds.minPlaceGap;
+    placeBettingAllowed &&
+    getCandidateScore(topPlace) >= minPlaceScore &&
+    getCandidatePlacePercent(topPlace) >= minPlacePercent &&
+    placeGap >= minPlaceGap;
 
   const qualifiesAsStrongWin =
     getCandidateScore(topWin) >= 74 &&
@@ -1682,7 +1643,7 @@ context?: {
     getCandidateWinPercent(topWin) >= 12;
 
   const qualifiesAsStrongPlace =
-    thresholds.placeBettingAllowed &&
+    placeBettingAllowed &&
     getCandidateScore(topPlace) >= 66 &&
     getCandidatePlacePercent(topPlace) >= 34 &&
     placeGap >= 3;
