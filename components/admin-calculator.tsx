@@ -1597,27 +1597,10 @@ const bettingVerdictSummary = qualifiedTip
                   </p>
 
 <p className="text-xs text-zinc-500">
-  {(() => {
-    const isHeavy =
-      selectedMeeting?.track_condition?.toLowerCase() === "heavy";
-
-    const score =
-      selectedRaceConfidence?.tier === "Elite"
-        ? 72
-        : selectedRaceConfidence?.tier === "High"
-          ? 73
-          : selectedRaceConfidence?.tier === "Medium"
-            ? 75
-            : null;
-
-    if (selectedRaceConfidence?.tier === "Low") {
-      return "Low confidence races do not qualify for SmartPunt Win Tips. Place Tips may still qualify if they meet the required thresholds.";
-    }
-
-    return `Current ${selectedRaceConfidence?.tier} confidence races require Score ${score}+, Gap +${
-      isHeavy ? 7 : 6
-    } and Win Chance ${isHeavy ? 12 : 11}%+ to qualify as a Win Tip.`;
-  })()}
+  Win and place tip requirements are dynamic. They adjust automatically based
+  on each race's confidence, track condition, field shape and place terms.
+  Select a race below to see the exact qualification thresholds and why a horse
+  did or did not qualify as a SmartPunt tip.
 </p>
                 </div>
               </div>
