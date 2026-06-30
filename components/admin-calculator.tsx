@@ -720,32 +720,11 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
       : "Place Bet"
     : "No Bet";
 
-const bettingVerdictSummary = (() => {
-  if (qualifiedTip) {
-    return qualifiedTip.type === "Win"
-      ? "Top pick clears the SmartPunt Win Tip threshold. Still keep staking disciplined."
-      : "Top pick clears the SmartPunt Place Tip threshold but not the stricter Win Tip requirements.";
-  }
-
-  const isHeavy =
-    String(topWinChance?.track_condition || "").toLowerCase() === "heavy";
-
-  const minScore =
-    raceConfidence?.tier === "Elite"
-      ? 72
-      : raceConfidence?.tier === "High"
-        ? 73
-        : raceConfidence?.tier === "Medium"
-          ? 75
-          : 999;
-
-  const minGap = isHeavy ? 7 : 6;
-  const minWinPercent = isHeavy ? 12 : 11;
-
-  return `No runner currently clears the SmartPunt Win Tip threshold. This ${
-    raceConfidence?.tier || "Low"
-  } confidence race requires Score ${minScore}+, Gap +${minGap} and Win Chance ${minWinPercent}%+.`;
-})();
+const bettingVerdictSummary = qualifiedTip
+  ? qualifiedTip.type === "Win"
+    ? "Top pick clears the calculator threshold. Still keep staking disciplined."
+    : "Top pick has the strongest profile for running in the minors. Win confidence is moderate."
+  : "No runner currently clears the SmartPunt betting threshold for this race.";
 
   const watchouts = [
     topWinChance?.track_condition
@@ -1617,9 +1596,29 @@ const bettingVerdictSummary = (() => {
                     .
                   </p>
 
-                  <p className="text-xs text-zinc-500">
-Win requires score 68+, gap 4+, win chance 8%+. Place is blocked on Pay 1 races and stricter on Pay 1 & 2 races.
-                  </p>
+<p className="text-xs text-zinc-500">
+  {(() => {
+    const isHeavy =
+      selectedMeeting?.track_condition?.toLowerCase() === "heavy";
+
+    const score =
+      selectedRaceConfidence?.tier === "Elite"
+        ? 72
+        : selectedRaceConfidence?.tier === "High"
+          ? 73
+          : selectedRaceConfidence?.tier === "Medium"
+            ? 75
+            : null;
+
+    if (selectedRaceConfidence?.tier === "Low") {
+      return "Low confidence races do not qualify for SmartPunt Win Tips. Place Tips may still qualify if they meet the required thresholds.";
+    }
+
+    return `Current ${selectedRaceConfidence?.tier} confidence races require Score ${score}+, Gap +${
+      isHeavy ? 7 : 6
+    } and Win Chance ${isHeavy ? 12 : 11}%+ to qualify as a Win Tip.`;
+  })()}
+</p>
                 </div>
               </div>
 
