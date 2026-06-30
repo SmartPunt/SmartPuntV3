@@ -1521,10 +1521,7 @@ async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
 
 async function saveCalculatorPredictionsForRace(
   raceId: number,
-  {
-    excludeScratched = false,
-    previewOnly = false,
-  }: { excludeScratched?: boolean; previewOnly?: boolean } = {},
+  { excludeScratched = false }: { excludeScratched?: boolean } = {},
 ) {
   const supabase = await createClient();
 
@@ -1804,9 +1801,7 @@ const raceConfidence = calculateRaceConfidence(scoredRunners, {
     settled_at: null,
     updated_at: now,
   }));
-  if (previewOnly) {
-    return payload;
-  }
+
   await serviceRoleDelete(
     `calculator_predictions?race_id=eq.${raceId}&scoring_version=eq.${encodeURIComponent(
       SMARTPUNT_SCORING_VERSION,
@@ -1830,126 +1825,6 @@ const raceConfidence = calculateRaceConfidence(scoredRunners, {
     },
     body: JSON.stringify(powerRatingPayload),
   });
-}
-export async function previewTodaySettlementCalculatorTipsAction(): Promise<{
-  success: boolean;
-  error: string | null;
-  tips?: Array<{
-    race_id: number;
-    meeting_name: string;
-    race_number: number;
-    race_name: string;
-    horse_name: string;
-    rank: number;
-    score: number;
-    win_percent: number;
-    place_percent: number;
-    race_confidence_tier: string;
-    race_confidence_percent: number;
-    smartpunt_tip_type: string;
-    is_smartpunt_tip: boolean;
-  }>;
-}> {
-  try {
-    await requireRacingAdmin();
-
-    const supabase = await createClient();
-
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Australia/Perth",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-
-    const { data: meetings, error: meetingsError } = await supabase
-      .from("meetings")
-      .select("id, meeting_name, meeting_date")
-      .eq("meeting_date", today);
-
-    if (meetingsError) throw new Error(meetingsError.message);
-
-    const meetingIds = (meetings || []).map((meeting) => Number(meeting.id));
-
-    if (!meetingIds.length) {
-      return { success: true, error: null, tips: [] };
-    }
-
-    const { data: races, error: racesError } = await supabase
-      .from("races")
-      .select("id, meeting_id, race_number, race_name")
-      .in("meeting_id", meetingIds)
-      .eq("status", "published")
-      .order("meeting_id", { ascending: true })
-      .order("race_number", { ascending: true });
-
-    if (racesError) throw new Error(racesError.message);
-
-    const meetingMap = new Map(
-      (meetings || []).map((meeting) => [
-        Number(meeting.id),
-        String(meeting.meeting_name || "Unknown meeting"),
-      ]),
-    );
-
-    const tips: Array<{
-      race_id: number;
-      meeting_name: string;
-      race_number: number;
-      race_name: string;
-      horse_name: string;
-      rank: number;
-      score: number;
-      win_percent: number;
-      place_percent: number;
-      race_confidence_tier: string;
-      race_confidence_percent: number;
-      smartpunt_tip_type: string;
-      is_smartpunt_tip: boolean;
-    }> = [];
-
-    for (const race of races || []) {
-      const previewRows =
-        ((await saveCalculatorPredictionsForRace(Number(race.id), {
-          excludeScratched: true,
-          previewOnly: true,
-        })) as any[]) || [];
-
-      previewRows
-        .filter((row) => row.is_smartpunt_tip === true)
-        .forEach((row) => {
-          tips.push({
-            race_id: Number(row.race_id),
-            meeting_name: meetingMap.get(Number(race.meeting_id)) || "Unknown meeting",
-            race_number: Number(race.race_number),
-            race_name: String(race.race_name || ""),
-            horse_name: String(
-              previewRows.find((item) => item.runner_id === row.runner_id)?.horse_name ||
-                row.horse_name ||
-                "",
-            ),
-            rank: Number(row.rank),
-            score: Number(row.score),
-            win_percent: Number(row.win_percent),
-            place_percent: Number(row.place_percent),
-            race_confidence_tier: String(row.race_confidence_tier || ""),
-            race_confidence_percent: Number(row.race_confidence_percent || 0),
-            smartpunt_tip_type: String(row.smartpunt_tip_type || "No Bet"),
-            is_smartpunt_tip: Boolean(row.is_smartpunt_tip),
-          });
-        });
-    }
-
-    return { success: true, error: null, tips };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to preview settlement calculator tips.",
-    };
-  }
 }
 export async function loadCalculatorReportResultsAction(
   formData: FormData,
