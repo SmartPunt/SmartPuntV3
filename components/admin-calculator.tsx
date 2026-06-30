@@ -1165,7 +1165,78 @@ const bettingVerdictSummary = qualifiedTip
                           </div>
                         </div>
                       </div>
+<div className="mt-5 border-t border-amber-400/20 pt-4">
+  <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
+    🎯 SmartPunt Tip Requirements
+  </p>
 
+  {(() => {
+    const isHeavy =
+      String(topWinChance?.track_condition || "").toLowerCase() === "heavy";
+
+    const minScore =
+      raceConfidence.tier === "Elite"
+        ? 72
+        : raceConfidence.tier === "High"
+          ? 73
+          : raceConfidence.tier === "Medium"
+            ? 75
+            : null;
+
+    const minGap = isHeavy ? 7 : 6;
+    const minWinChance = isHeavy ? 12 : 11;
+
+    const currentGap = Number(qualifiedTip?.gap ?? raceConfidence.gap ?? 0);
+    const currentScore = Number(topWinChance?.score ?? 0);
+    const currentWinChance = Number(topWinChance?.winPercent ?? 0);
+
+    if (raceConfidence.tier === "Low") {
+      return (
+        <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-100">
+          This race is currently rated <strong>Low Confidence</strong>, so SmartPunt
+          will not issue a Win Tip regardless of the top-rated horse. A Place Tip
+          may still qualify if it satisfies the required thresholds.
+        </p>
+      );
+    }
+
+    return (
+      <div className="mt-3 space-y-3">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="font-black text-white">
+            Current {raceConfidence.tier} Confidence Requirements
+          </p>
+
+          <div className="mt-3 grid gap-2 text-sm text-zinc-200">
+            <div>Minimum Score: <strong>{minScore}+</strong></div>
+            <div>Minimum Gap: <strong>+{minGap}</strong></div>
+            <div>Minimum Win Chance: <strong>{minWinChance}%+</strong></div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <p className="font-black text-white">
+            Current Top Selection
+          </p>
+
+          <div className="mt-3 grid gap-2 text-sm">
+            <div className={currentScore >= (minScore ?? 999) ? "text-emerald-300" : "text-rose-300"}>
+              Score: {currentScore} {currentScore >= (minScore ?? 999) ? "✓" : "✗"}
+            </div>
+
+            <div className={currentGap >= minGap ? "text-emerald-300" : "text-rose-300"}>
+              Gap: +{currentGap} {currentGap >= minGap ? "✓" : "✗"}
+            </div>
+
+            <div className={currentWinChance >= minWinChance ? "text-emerald-300" : "text-rose-300"}>
+              Win Chance: {currentWinChance}% {currentWinChance >= minWinChance ? "✓" : "✗"}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  })()}
+</div>
                       <p className="mt-4 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm font-semibold leading-6 text-sky-100">
                         ⓘ Race Confidence measures the quality of the betting race, not just the quality of the top-rated horse.
                       </p>
