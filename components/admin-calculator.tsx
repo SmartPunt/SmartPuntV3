@@ -514,8 +514,12 @@ const raceConfidenceBoard = useMemo(() => {
           })
         : null;
 
+const raceMeeting = meetings.find(
+  (item) => Number(item.id) === Number(race.meeting_id),
+);
+
 const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: meeting?.track_condition || null,
+  trackCondition: raceMeeting?.track_condition || null,
   raceName: race.race_name || "",
   placeTerms: race.place_terms || "top_3",
 });
@@ -628,8 +632,12 @@ const filteredRaceConfidenceBoard = useMemo(() => {
 
         if (!scored.length) return null;
 
+const raceMeeting = meetings.find(
+  (item) => Number(item.id) === Number(race.meeting_id),
+);
+
 const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: meeting?.track_condition || null,
+  trackCondition: raceMeeting?.track_condition || null,
   raceName: race.race_name || "",
   placeTerms: race.place_terms || "top_3",
 });
