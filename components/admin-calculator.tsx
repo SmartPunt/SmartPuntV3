@@ -12,6 +12,7 @@ import {
   calculateRaceScores,
   formatFormLine,
   getFactorStatus,
+  getCalculatorTipThresholds,
 getSelectedHorseSummary,
 getQualifiedCalculatorTip,
 roundScore,
@@ -391,11 +392,48 @@ const raceConfidence = useMemo(
     scoredRunners.length
       ? calculateRaceConfidence(scoredRunners, {
           trackCondition: topWinChance?.track_condition || null,
+          raceName: activeRace?.race_name || "",
           placeTerms: activeRace?.place_terms || "top_3",
         })
       : null,
-  [activeRace?.place_terms, scoredRunners, topWinChance?.track_condition],
+  [
+    activeRace?.place_terms,
+    activeRace?.race_name,
+    scoredRunners,
+    topWinChance?.track_condition,
+  ],
 );
+
+const tipThresholds = useMemo(
+  () =>
+    raceConfidence
+      ? getCalculatorTipThresholds(raceConfidence, {
+          trackCondition: topWinChance?.track_condition || null,
+          placeTerms: activeRace?.place_terms || "top_3",
+        })
+      : null,
+  [activeRace?.place_terms, raceConfidence, topWinChance?.track_condition],
+);
+
+const activeTopPlaceChance = topPlaceChances[0] || null;
+
+const activeTopPlaceGap = useMemo(() => {
+  if (!activeTopPlaceChance) return 0;
+
+  const secondPlaceChance =
+    scoredRunners.find(
+      (runner) => Number(runner.id) !== Number(activeTopPlaceChance.id),
+    ) || null;
+
+  return secondPlaceChance
+    ? roundScore(
+        Number(activeTopPlaceChance.score || 0) -
+          Number(secondPlaceChance.score || 0),
+      )
+    : roundScore(Number(activeTopPlaceChance.score || 0));
+}, [activeTopPlaceChance, scoredRunners]);
+
+
 
 const qualifiedTip = useMemo(
   () =>
@@ -406,6 +444,7 @@ const qualifiedTip = useMemo(
     }),
   [
     activeRace?.place_terms,
+    activeRace?.race_name,
     scoredRunners,
     topWinChance?.track_condition,
   ],
@@ -1138,105 +1177,169 @@ const bettingVerdictSummary = qualifiedTip
 
                       <div className="mt-5 border-t border-amber-400/20 pt-4">
                         <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
-                          Key Drivers
+                          🎯 SmartPunt Tip Requirements
                         </p>
-                        <div className="mt-3 grid gap-3 md:grid-cols-3">
-                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                              Field Size
+
+                        {tipThresholds ? (
+                          raceConfidence.tier === "Low" ? (
+                            <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm font-semibold leading-6 text-amber-100">
+                              Low Confidence race: SmartPunt does not issue Win or Place Tips while race confidence is Low.
                             </p>
-                            <p className="mt-2 text-base font-bold text-white">{fieldSizeLabel}</p>
-                          </div>
-                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                              Track
-                            </p>
-                            <p className="mt-2 text-base font-bold text-white">
-                              {topWinChance?.track_condition || "No condition set"}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                              Place Terms
-                            </p>
-                            <p className="mt-2 text-base font-bold text-white">
-                              {placeTermsLabel(activePlaceTerms)}
-                            </p>
-                          </div>
-                        </div>
+                          ) : (
+                            <div className="mt-3 space-y-3">
+                              <div className="grid gap-3 lg:grid-cols-2">
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-amber-300">
+                                    Win Tip
+                                  </p>
+
+                                  <div className="mt-3 space-y-2 text-sm font-semibold">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="text-zinc-300">
+                                        Score {tipThresholds.minWinScore}+
+                                      </span>
+                                      <span
+                                        className={
+                                          Number(topWinChance?.score || 0) >=
+                                          Number(tipThresholds.minWinScore || 999)
+                                            ? "text-emerald-300"
+                                            : "text-rose-300"
+                                        }
+                                      >
+                                        Current {roundScore(Number(topWinChance?.score || 0))}{" "}
+                                        {Number(topWinChance?.score || 0) >=
+                                        Number(tipThresholds.minWinScore || 999)
+                                          ? "✓"
+                                          : "✗"}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="text-zinc-300">
+                                        Gap +{tipThresholds.minWinGap}
+                                      </span>
+                                      <span
+                                        className={
+                                          Number(raceConfidence.gap || 0) >=
+                                          tipThresholds.minWinGap
+                                            ? "text-emerald-300"
+                                            : "text-rose-300"
+                                        }
+                                      >
+                                        Current +{roundScore(Number(raceConfidence.gap || 0))}{" "}
+                                        {Number(raceConfidence.gap || 0) >=
+                                        tipThresholds.minWinGap
+                                          ? "✓"
+                                          : "✗"}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="text-zinc-300">
+                                        Win {tipThresholds.minWinPercent}%+
+                                      </span>
+                                      <span
+                                        className={
+                                          Number(topWinChance?.winPercent || 0) >=
+                                          tipThresholds.minWinPercent
+                                            ? "text-emerald-300"
+                                            : "text-rose-300"
+                                        }
+                                      >
+                                        Current {roundScore(Number(topWinChance?.winPercent || 0))}%{" "}
+                                        {Number(topWinChance?.winPercent || 0) >=
+                                        tipThresholds.minWinPercent
+                                          ? "✓"
+                                          : "✗"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-300">
+                                    Place Tip
+                                  </p>
+
+                                  {tipThresholds.placeBettingAllowed ? (
+                                    <div className="mt-3 space-y-2 text-sm font-semibold">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="text-zinc-300">
+                                          Score {tipThresholds.minPlaceScore}+
+                                        </span>
+                                        <span
+                                          className={
+                                            Number(activeTopPlaceChance?.score || 0) >=
+                                            Number(tipThresholds.minPlaceScore || 999)
+                                              ? "text-emerald-300"
+                                              : "text-rose-300"
+                                          }
+                                        >
+                                          Current {roundScore(Number(activeTopPlaceChance?.score || 0))}{" "}
+                                          {Number(activeTopPlaceChance?.score || 0) >=
+                                          Number(tipThresholds.minPlaceScore || 999)
+                                            ? "✓"
+                                            : "✗"}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="text-zinc-300">
+                                          Gap +{tipThresholds.minPlaceGap}
+                                        </span>
+                                        <span
+                                          className={
+                                            activeTopPlaceGap >= tipThresholds.minPlaceGap
+                                              ? "text-emerald-300"
+                                              : "text-rose-300"
+                                          }
+                                        >
+                                          Current +{activeTopPlaceGap}{" "}
+                                          {activeTopPlaceGap >= tipThresholds.minPlaceGap
+                                            ? "✓"
+                                            : "✗"}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center justify-between gap-3">
+                                        <span className="text-zinc-300">
+                                          Place {tipThresholds.minPlacePercent}%+
+                                        </span>
+                                        <span
+                                          className={
+                                            Number(activeTopPlaceChance?.placePercent || 0) >=
+                                            tipThresholds.minPlacePercent
+                                              ? "text-emerald-300"
+                                              : "text-rose-300"
+                                          }
+                                        >
+                                          Current {roundScore(Number(activeTopPlaceChance?.placePercent || 0))}%{" "}
+                                          {Number(activeTopPlaceChance?.placePercent || 0) >=
+                                          tipThresholds.minPlacePercent
+                                            ? "✓"
+                                            : "✗"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="mt-3 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-100">
+                                      Place betting is blocked for Pay 1 Only races.
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <p className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-semibold leading-6 text-zinc-200">
+                                {qualifiedTip
+                                  ? qualifiedTip.type === "Win"
+                                    ? "Verdict: qualifies as a SmartPunt Win Tip."
+                                    : "Verdict: qualifies as a SmartPunt Place Tip, but not a Win Tip."
+                                  : "Verdict: no runner clears the current SmartPunt tip requirements."}
+                              </p>
+                            </div>
+                          )
+                        ) : null}
                       </div>
-<div className="mt-5 border-t border-amber-400/20 pt-4">
-  <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-300">
-    🎯 SmartPunt Tip Requirements
-  </p>
-
-  {(() => {
-    const isHeavy =
-      String(topWinChance?.track_condition || "").toLowerCase() === "heavy";
-
-    const minScore =
-      raceConfidence.tier === "Elite"
-        ? 72
-        : raceConfidence.tier === "High"
-          ? 73
-          : raceConfidence.tier === "Medium"
-            ? 75
-            : null;
-
-    const minGap = isHeavy ? 7 : 6;
-    const minWinChance = isHeavy ? 12 : 11;
-
-    const currentGap = Number(qualifiedTip?.gap ?? raceConfidence.gap ?? 0);
-    const currentScore = Number(topWinChance?.score ?? 0);
-    const currentWinChance = Number(topWinChance?.winPercent ?? 0);
-
-    if (raceConfidence.tier === "Low") {
-      return (
-        <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm leading-6 text-amber-100">
-          This race is currently rated <strong>Low Confidence</strong>, so SmartPunt
-          will not issue a Win Tip regardless of the top-rated horse. A Place Tip
-          may still qualify if it satisfies the required thresholds.
-        </p>
-      );
-    }
-
-    return (
-      <div className="mt-3 space-y-3">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-          <p className="font-black text-white">
-            Current {raceConfidence.tier} Confidence Requirements
-          </p>
-
-          <div className="mt-3 grid gap-2 text-sm text-zinc-200">
-            <div>Minimum Score: <strong>{minScore}+</strong></div>
-            <div>Minimum Gap: <strong>+{minGap}</strong></div>
-            <div>Minimum Win Chance: <strong>{minWinChance}%+</strong></div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-          <p className="font-black text-white">
-            Current Top Selection
-          </p>
-
-          <div className="mt-3 grid gap-2 text-sm">
-            <div className={currentScore >= (minScore ?? 999) ? "text-emerald-300" : "text-rose-300"}>
-              Score: {currentScore} {currentScore >= (minScore ?? 999) ? "✓" : "✗"}
-            </div>
-
-            <div className={currentGap >= minGap ? "text-emerald-300" : "text-rose-300"}>
-              Gap: +{currentGap} {currentGap >= minGap ? "✓" : "✗"}
-            </div>
-
-            <div className={currentWinChance >= minWinChance ? "text-emerald-300" : "text-rose-300"}>
-              Win Chance: {currentWinChance}% {currentWinChance >= minWinChance ? "✓" : "✗"}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  })()}
-</div>
                       <p className="mt-4 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm font-semibold leading-6 text-sky-100">
                         ⓘ Race Confidence measures the quality of the betting race, not just the quality of the top-rated horse.
                       </p>
