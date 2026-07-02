@@ -28,12 +28,20 @@ type CalculatorTip = {
 
 type OfficialTip = {
   id: number;
+  meeting_id?: number | null;
   race_id?: number | null;
-  race_runner_id?: number | null;
   horse_id?: number | null;
+  race_runner_id?: number | null;
+  race?: string | null;
+  horse?: string | null;
   horse_name?: string | null;
+  type?: string | null;
   bet_type?: string | null;
   tip_type?: string | null;
+  confidence?: string | null;
+  note?: string | null;
+  tip_angle?: string | null;
+  commentary?: string | null;
   status?: string | null;
   created_at?: string | null;
   published_at?: string | null;
@@ -128,6 +136,27 @@ function formatStartTime(value?: string | null) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatOfficialTipType(tip?: OfficialTip | null) {
+  const rawValue = String(
+    tip?.type || tip?.bet_type || tip?.tip_type || "Official Tip",
+  )
+    .replace(/_/g, " ")
+    .trim();
+
+  const value = rawValue.toLowerCase();
+
+  if (value === "win") return "Win";
+  if (value === "place") return "Place";
+  if (value === "each way" || value === "eachway") return "Each Way";
+  if (value === "all up" || value === "allup") return "All Up";
+
+  return rawValue
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ") || "Official Tip";
 }
 
 function scoreStars(score?: number | null) {
@@ -501,6 +530,58 @@ export default function SubscriberCalculatorLivePicks({
     );
   }, [activeRace, calculatorTips]);
 
+  const officialRaceTipRunner = useMemo(() => {
+    if (!officialRaceTip) return null;
+
+    return (
+      scoredRunners.find((runner) => {
+        if (officialRaceTip.race_runner_id) {
+          return Number(runner.id) === Number(officialRaceTip.race_runner_id);
+        }
+
+        if (officialRaceTip.horse_id) {
+          return Number(runner.horse_id) === Number(officialRaceTip.horse_id);
+        }
+
+        const tipHorseName = String(
+          officialRaceTip.horse || officialRaceTip.horse_name || "",
+        )
+          .trim()
+          .toLowerCase();
+
+        return tipHorseName
+          ? String(runner.horse_name || "").trim().toLowerCase() === tipHorseName
+          : false;
+      }) || null
+    );
+  }, [officialRaceTip, scoredRunners]);
+
+  const officialTipSelection = officialRaceTip
+    ? officialRaceTip.horse ||
+      officialRaceTip.horse_name ||
+      officialRaceTipRunner?.horse_name ||
+      "Official selection"
+    : "";
+
+  const officialTipType = officialRaceTip
+    ? formatOfficialTipType(officialRaceTip)
+    : "";
+
+  const officialTipComment = officialRaceTip
+    ? officialRaceTip.commentary ||
+      officialRaceTip.note ||
+      officialRaceTip.tip_angle ||
+      "The Head Tipper has endorsed this race. View the full write-up in Current Tips."
+    : "";
+
+  const officialTipConfidence = officialRaceTip?.confidence || null;
+
+  const isConsensusPick = Boolean(
+    officialRaceTipRunner &&
+      qualifiedTip?.runner &&
+      Number(officialRaceTipRunner.id) === Number(qualifiedTip.runner.id),
+  );
+
   const fieldSizeLabel =
     scoredRunners.length <= 7
       ? `Small field (${scoredRunners.length})`
@@ -856,22 +937,117 @@ export default function SubscriberCalculatorLivePicks({
                   </div>
                 </div>
 
-                <div className="rounded-[20px] border border-amber-400/35 bg-black/95 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
-                    ⭐ Head Tipper Status
-                  </p>
+                <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#080808_0%,#111827_58%,#020617_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+                        ⭐ Official SmartPunt Tip
+                      </p>
+                      <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-400">
+                        Head Tipper overlay for this race.
+                      </p>
+                    </div>
+                    {isConsensusPick ? (
+                      <span className="rounded-full border border-emerald-300/40 bg-emerald-500/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
+                        Consensus Pick
+                      </span>
+                    ) : officialRaceTip ? (
+                      <span className="rounded-full border border-emerald-300/40 bg-emerald-500/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
+                        Published
+                      </span>
+                    ) : null}
+                  </div>
+
                   {officialRaceTip ? (
-                    <>
-                      <p className="mt-2 text-lg font-black text-emerald-300">
-                        🟢 Official SmartPunt Tip Published
-                      </p>
-                      <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
-                        The Head Tipper has endorsed this race. View the full write-up in Current Tips.
-                      </p>
-                    </>
+                    <div className="mt-4 space-y-4">
+                      <div className="rounded-[18px] border border-emerald-300/35 bg-emerald-500/10 p-4">
+                        <p className="text-lg font-black text-emerald-300">
+                          🟢 Published by the Head Tipper
+                        </p>
+
+                        {isConsensusPick ? (
+                          <p className="mt-2 rounded-2xl border border-emerald-300/25 bg-black/35 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-100">
+                            SmartPunt Consensus Pick — the Calculator and Head Tipper agree.
+                          </p>
+                        ) : null}
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-2xl border border-white/10 bg-black/45 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                              Selection
+                            </p>
+                            <p className="mt-2 text-xl font-black leading-tight text-white">
+                              {officialTipSelection}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-white/10 bg-black/45 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                              Bet Type
+                            </p>
+                            <p className="mt-2 text-xl font-black text-amber-300">
+                              {officialTipType}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-white/10 bg-black/45 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                              Confidence
+                            </p>
+                            <p className="mt-2 text-xl font-black text-sky-200">
+                              {officialTipConfidence || "Head Tipper"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {officialTipComment ? (
+                          <div className="mt-4 rounded-2xl border border-amber-300/20 bg-black/40 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">
+                              Head Tipper Comment
+                            </p>
+                            <p className="mt-2 text-[12px] font-semibold leading-6 text-zinc-200">
+                              {officialTipComment}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        <Link
+                          href="/current-tips"
+                          className="mt-4 inline-flex rounded-full border border-emerald-300/35 bg-emerald-500/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-100 transition hover:bg-emerald-500/25"
+                        >
+                          Read Full Analysis
+                        </Link>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[18px] border border-sky-300/25 bg-sky-500/10 p-3">
+                          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-sky-200">
+                            Calculator View
+                          </p>
+                          <p className="mt-2 text-sm font-black text-white">
+                            {qualifiedTip?.runner?.horse_name || topWinChance?.horse_name || "No calculator selection"}
+                          </p>
+                          <p className="mt-1 text-[11px] font-semibold text-zinc-300">
+                            {qualifiedTip ? `${qualifiedTip.type} Bet` : bettingVerdictLabel}
+                          </p>
+                        </div>
+
+                        <div className="rounded-[18px] border border-amber-300/25 bg-amber-500/10 p-3">
+                          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-200">
+                            Head Tipper View
+                          </p>
+                          <p className="mt-2 text-sm font-black text-white">
+                            {officialTipSelection}
+                          </p>
+                          <p className="mt-1 text-[11px] font-semibold text-zinc-300">
+                            {officialTipType}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   ) : qualifiedTip || calculatorRaceTip ? (
                     <>
-                      <p className="mt-2 text-lg font-black text-amber-300">
+                      <p className="mt-3 text-lg font-black text-amber-300">
                         🟡 Calculator Recommendation Only
                       </p>
                       <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
@@ -880,7 +1056,7 @@ export default function SubscriberCalculatorLivePicks({
                     </>
                   ) : (
                     <>
-                      <p className="mt-2 text-lg font-black text-zinc-200">
+                      <p className="mt-3 text-lg font-black text-zinc-200">
                         ⚪ Awaiting Review
                       </p>
                       <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
@@ -890,148 +1066,89 @@ export default function SubscriberCalculatorLivePicks({
                   )}
                 </div>
 
-
-                <div className="rounded-[22px] border border-amber-400/40 bg-black/95 p-3 shadow-[0_14px_32px_rgba(0,0,0,0.42)]">
+                <div className="rounded-[22px] border border-zinc-700 bg-black/95 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.4)]">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
                         📊 Full Field Breakdown
                       </p>
-                      <p className="mt-1 text-[10px] font-semibold text-zinc-400">
+                      <p className="mt-1 text-[11px] font-semibold text-zinc-400">
                         Live calculator ranking for every runner in this race.
                       </p>
                     </div>
-                    <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
+                    <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-200">
                       {scoredRunners.length} runners
                     </span>
                   </div>
 
-                  <div className="mt-3 overflow-x-auto rounded-2xl border border-amber-400/20">
-                    <table className="min-w-[900px] w-full border-collapse text-left text-[10px]">
-                      <thead className="bg-[linear-gradient(180deg,rgba(251,191,36,0.18),rgba(251,191,36,0.06))] text-[9px] uppercase tracking-[0.12em] text-amber-200">
+                  <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10">
+                    <table className="min-w-full divide-y divide-white/10 text-left text-[11px]">
+                      <thead className="bg-white/[0.06] text-[9px] uppercase tracking-[0.14em] text-zinc-400">
                         <tr>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2">#</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2">Horse</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Barrier</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Score</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Win %</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Place %</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2">Form</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Track</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Dist</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Cond</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2">Jockey</th>
-                          <th className="border-b border-r border-amber-400/15 px-3 py-2">Trainer</th>
-                          <th className="border-b border-amber-400/15 px-3 py-2 text-center">Weight</th>
+                          <th className="px-3 py-3 font-black">Rank</th>
+                          <th className="px-3 py-3 font-black">Runner</th>
+                          <th className="px-3 py-3 font-black">Score</th>
+                          <th className="px-3 py-3 font-black">Win</th>
+                          <th className="px-3 py-3 font-black">Place</th>
+                          <th className="px-3 py-3 font-black">Verdict</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-amber-400/10 text-zinc-200">
-                        {scoredRunners.map((runner, index) => {
-                          const runnerAny = runner as any;
-                          const horse = horses.find(
-                            (item) => Number(item.id) === Number(runner.horse_id),
-                          ) as any;
-                          const isQualified =
+                      <tbody className="divide-y divide-white/10 bg-black/35">
+                        {scoredRunners.map((runner) => {
+                          const isCalculatorTip =
                             qualifiedTip &&
                             Number(qualifiedTip.runner.id) === Number(runner.id);
-
-                          const formText =
-                            runnerAny.form_last_6 ||
-                            horse?.form_last_6 ||
-                            horse?.recent_form ||
-                            "—";
-
-                          const trackScore =
-                            runnerAny.trackScore ??
-                            runnerAny.track_score ??
-                            runnerAny.trackSuitability ??
-                            runnerAny.track_suitability_score ??
-                            0;
-
-                          const distanceScore =
-                            runnerAny.distanceScore ??
-                            runnerAny.distance_score ??
-                            runnerAny.distanceSuitability ??
-                            runnerAny.distance_suitability_score ??
-                            0;
-
-                          const conditionScore =
-                            runnerAny.conditionScore ??
-                            runnerAny.condition_score ??
-                            runnerAny.conditionSuitability ??
-                            runnerAny.condition_suitability_score ??
-                            0;
-
-                          const jockeyName =
-                            runnerAny.jockey_name ||
-                            runnerAny.jockey ||
-                            horse?.jockey_name ||
-                            "—";
-
-                          const trainerName =
-                            runnerAny.trainer_name ||
-                            runnerAny.trainer ||
-                            horse?.trainer_name ||
-                            "—";
-
-                          const weight =
-                            runnerAny.effective_weight_kg ??
-                            runnerAny.weight_kg ??
-                            runnerAny.weight ??
-                            "—";
+                          const isOfficialTip =
+                            officialRaceTipRunner &&
+                            Number(officialRaceTipRunner.id) === Number(runner.id);
 
                           return (
                             <tr
                               key={runner.id}
-                              className={`transition hover:bg-amber-400/10 ${
-                                isQualified ? "bg-amber-400/10 text-white" : ""
-                              }`}
+                              className={
+                                isOfficialTip
+                                  ? "bg-emerald-500/10"
+                                  : isCalculatorTip
+                                    ? "bg-amber-500/10"
+                                    : "hover:bg-white/[0.04]"
+                              }
                             >
-                              <td className="border-r border-amber-400/10 px-3 py-2 font-black text-amber-200">
-                                {index + 1}
+                              <td className="px-3 py-3 font-black text-amber-200">
+                                #{runner.rank}
                               </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2">
-                                <div className="font-black text-white">
+                              <td className="px-3 py-3">
+                                <p className="font-black text-white">
                                   {runner.horse_name}
-                                  {isQualified ? (
-                                    <span className="ml-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-emerald-200">
-                                      Tip
-                                    </span>
-                                  ) : null}
-                                </div>
+                                </p>
+                                <p className="mt-1 text-[10px] font-semibold text-zinc-500">
+                                  Barrier {runner.barrier || "—"} {isOfficialTip ? "• Official Tip" : isCalculatorTip ? "• Calculator Tip" : ""}
+                                </p>
                               </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 text-center font-bold">
-                                {runnerAny.barrier || "—"}
-                              </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 text-center font-black text-amber-200">
+                              <td className="px-3 py-3 font-black text-white">
                                 {roundScore(runner.score)}
                               </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 text-center font-bold">
+                              <td className="px-3 py-3 font-semibold text-zinc-300">
                                 {roundScore(runner.winPercent)}%
                               </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 text-center font-bold">
+                              <td className="px-3 py-3 font-semibold text-zinc-300">
                                 {roundScore(runner.placePercent)}%
                               </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 font-bold">
-                                {formText}
-                              </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 text-center text-amber-300">
-                                {scoreStars(Number(trackScore))}
-                              </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 text-center text-amber-300">
-                                {scoreStars(Number(distanceScore))}
-                              </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 text-center text-amber-300">
-                                {scoreStars(Number(conditionScore))}
-                              </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 font-semibold">
-                                {jockeyName}
-                              </td>
-                              <td className="border-r border-amber-400/10 px-3 py-2 font-semibold">
-                                {trainerName}
-                              </td>
-                              <td className="px-3 py-2 text-center font-bold">
-                                {weight}
+                              <td className="px-3 py-3">
+                                <span
+                                  className={`rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] ${
+                                    isOfficialTip
+                                      ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
+                                      : isCalculatorTip
+                                        ? "border-amber-300/40 bg-amber-500/15 text-amber-100"
+                                        : "border-white/10 bg-white/10 text-zinc-300"
+                                  }`}
+                                >
+                                  {isOfficialTip
+                                    ? "Official"
+                                    : isCalculatorTip
+                                      ? qualifiedTip?.type
+                                      : "No Bet"}
+                                </span>
                               </td>
                             </tr>
                           );
@@ -1039,10 +1156,6 @@ export default function SubscriberCalculatorLivePicks({
                       </tbody>
                     </table>
                   </div>
-
-                  <p className="mt-2 text-[10px] font-semibold leading-4 text-zinc-500">
-                    The field breakdown is live and will update with scratchings, track changes and calculator inputs.
-                  </p>
                 </div>
               </div>
             ) : (
