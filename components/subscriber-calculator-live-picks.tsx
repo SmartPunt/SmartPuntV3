@@ -1389,6 +1389,11 @@ export default function SubscriberCalculatorLivePicks({
 
                       const isWinTip = isTip && qualifiedTip.type === "Win";
                       const isPlaceTip = isTip && qualifiedTip.type === "Place";
+                      const calculatorTipType = isWinTip
+                        ? "Win"
+                        : isPlaceTip
+                          ? "Place"
+                          : "";
 
                       return (
                         <div
@@ -1424,13 +1429,43 @@ export default function SubscriberCalculatorLivePicks({
                             Score {roundScore(runner.score)} · Win{" "}
                             {runner.winPercent}% · Rank #{runner.rank}
                           </p>
-                          <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-900 px-2 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                          <div
+                            className={`mt-3 rounded-xl border px-2 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] ${
+                              isWinTip
+                                ? "border-amber-300/50 bg-amber-400/15 text-amber-100"
+                                : isPlaceTip
+                                  ? "border-sky-300/45 bg-sky-400/15 text-sky-100"
+                                  : "border-zinc-700 bg-zinc-900 text-zinc-400"
+                            }`}
+                          >
                             {isWinTip
                               ? "🏆 Win Tip"
                               : isPlaceTip
                                 ? "🥈 Place Tip"
                                 : "⊘ No Bet"}
                           </div>
+
+                          {calculatorTipType ? (
+                            <TipAcceptanceControl
+                              tipKey={`calculator-${activeRace?.id}-${runner.id}`}
+                              activeKey={acceptingTipKey}
+                              setActiveKey={setAcceptingTipKey}
+                              activeBet={activeCalculatorUserBet}
+                              isSaving={isSavingTip}
+                              formAction={addUserBetFormAction}
+                              buttonLabel={`Accept ${calculatorTipType} Tip`}
+                              hiddenFields={{
+                                source: "calculator",
+                                calculator_tip_id: calculatorRaceTip?.id || "",
+                                race_id: activeRace?.id || "",
+                                race_runner_id: runner.id,
+                                horse_id: runner.horse_id || "",
+                                horse: runner.horse_name || "",
+                                race: activeRaceLabel,
+                                bet_type: calculatorTipType,
+                              }}
+                            />
+                          ) : null}
                         </div>
                       );
                     })}
@@ -1569,48 +1604,15 @@ export default function SubscriberCalculatorLivePicks({
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
                       ⭐ Head Tipper Status
                     </p>
-                    {qualifiedTip || calculatorRaceTip ? (
-                      <>
-                        <p className="mt-3 text-lg font-black text-amber-300">
-                          🟡 Calculator Recommendation Only
-                        </p>
-                        <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
-                          The calculator currently recommends this race, but no
-                          official SmartPunt Tip has been published.
-                        </p>
-                        {qualifiedTip ? (
-                          <TipAcceptanceControl
-                            tipKey={`calculator-${activeRace?.id}-${qualifiedTip.runner.id}`}
-                            activeKey={acceptingTipKey}
-                            setActiveKey={setAcceptingTipKey}
-                            activeBet={activeCalculatorUserBet}
-                            isSaving={isSavingTip}
-                            formAction={addUserBetFormAction}
-                            buttonLabel="Accept Calculator Tip"
-                            hiddenFields={{
-                              source: "calculator",
-                              calculator_tip_id: calculatorRaceTip?.id || "",
-                              race_id: activeRace?.id || "",
-                              race_runner_id: qualifiedTip.runner.id,
-                              horse_id: qualifiedTip.runner.horse_id || "",
-                              horse: qualifiedTip.runner.horse_name || "",
-                              race: activeRaceLabel,
-                              bet_type: qualifiedTip.type,
-                            }}
-                          />
-                        ) : null}
-                      </>
-                    ) : (
-                      <>
-                        <p className="mt-3 text-lg font-black text-zinc-200">
-                          ⚪ Awaiting Review
-                        </p>
-                        <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
-                          The Head Tipper has not published an official
-                          selection for this race.
-                        </p>
-                      </>
-                    )}
+                    <p className="mt-3 text-lg font-black text-zinc-200">
+                      ⚪ No Official Head Tipper Tip
+                    </p>
+                    <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
+                      The Head Tipper has not published an official selection
+                      for this race. If the calculator has a live Win or Place
+                      recommendation, you can accept it directly on that horse
+                      in the SmartPunt Calculator Top 3 above.
+                    </p>
                   </div>
                 ) : null}
 
