@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { addUserBetAction } from "@/lib/actions";
 import {
   buildHorseHistory,
   calculateRaceConfidence,
@@ -45,6 +47,21 @@ type OfficialTip = {
   status?: string | null;
   created_at?: string | null;
   published_at?: string | null;
+};
+
+type UserBet = {
+  id: number;
+  source: string | null;
+  suggested_tip_id?: number | null;
+  calculator_tip_id?: number | null;
+  race_id?: number | null;
+  race_runner_id?: number | null;
+  horse_id?: number | null;
+  horse?: string | null;
+  race?: string | null;
+  bet_type?: string | null;
+  odds_taken?: number | string | null;
+  settled_at?: string | null;
 };
 
 type SpecialistAlert = {
@@ -197,6 +214,108 @@ function ScoreStars({ score }: { score?: number | null }) {
         </span>
       ))}
     </span>
+  );
+}
+
+
+function formatOdds(value?: number | string | null) {
+  const numberValue = Number(value || 0);
+
+  if (!numberValue || Number.isNaN(numberValue)) return "—";
+
+  return numberValue.toFixed(2).replace(/\.00$/, "");
+}
+
+function hiddenValue(value: unknown) {
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
+function TipAcceptanceControl({
+  tipKey,
+  activeKey,
+  setActiveKey,
+  activeBet,
+  isSaving,
+  formAction,
+  hiddenFields,
+  buttonLabel = "Accept Tip",
+}: {
+  tipKey: string;
+  activeKey: string | null;
+  setActiveKey: (value: string | null) => void;
+  activeBet?: UserBet | null;
+  isSaving: boolean;
+  formAction: (formData: FormData) => void;
+  hiddenFields: Record<string, unknown>;
+  buttonLabel?: string;
+}) {
+  const isOpen = activeKey === tipKey;
+
+  if (activeBet) {
+    return (
+      <div className="mt-3 rounded-2xl border border-emerald-300/30 bg-emerald-500/15 px-3 py-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
+          🟢 On My Tips
+        </p>
+        <p className="mt-1 text-[11px] font-semibold text-emerald-50/85">
+          Odds taken: {formatOdds(activeBet.odds_taken)}
+        </p>
+      </div>
+    );
+  }
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setActiveKey(tipKey)}
+        className="mt-3 rounded-full border border-emerald-300/40 bg-emerald-500/15 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100 transition hover:bg-emerald-500/25"
+      >
+        {buttonLabel}
+      </button>
+    );
+  }
+
+  return (
+    <form
+      action={formAction}
+      className="mt-3 rounded-2xl border border-emerald-300/25 bg-black/45 p-3"
+    >
+      {Object.entries(hiddenFields).map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={hiddenValue(value)} />
+      ))}
+
+      <label className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100/85">
+        Odds taken
+        <input
+          type="number"
+          name="odds_taken"
+          min="1.01"
+          step="0.01"
+          required
+          placeholder="e.g. 3.40"
+          className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-black text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
+        />
+      </label>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="flex-1 rounded-xl bg-gradient-to-r from-emerald-300 via-green-300 to-emerald-300 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-black transition hover:brightness-110 disabled:opacity-60"
+        >
+          {isSaving ? "Saving..." : "Save Tip"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveKey(null)}
+          className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:bg-white/15"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -425,6 +544,7 @@ export default function SubscriberCalculatorLivePicks({
   jockeyProfiles,
   calculatorTips = [],
   officialTips = [],
+  activeUserBets = [],
 }: {
   currentUser: any;
   races: Race[];
@@ -434,11 +554,35 @@ export default function SubscriberCalculatorLivePicks({
   jockeyProfiles: JockeyProfile[];
   calculatorTips?: CalculatorTip[];
   officialTips?: OfficialTip[];
+  activeUserBets?: UserBet[];
 }) {
   const [selectedRaceId, setSelectedRaceId] = useState("");
   const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
     useState(false);
-  const [showBestOpportunities, setShowBestOpportunities] = useState(true);
+const [showBestOpportunities, setShowBestOpportunities] = useState(true);
+  const [acceptingTipKey, setAcceptingTipKey] = useState<string | null>(null);
+  const [tipMessage, setTipMessage] = useState<string | null>(null);
+  const [tipError, setTipError] = useState<string | null>(null);
+  const [isSavingTip, startSavingTipTransition] = useTransition();
+  const router = useRouter();
+
+  function addUserBetFormAction(formData: FormData) {
+    setTipMessage(null);
+    setTipError(null);
+
+    startSavingTipTransition(async () => {
+      const result = await addUserBetAction(formData);
+
+      if (result?.success) {
+        setAcceptingTipKey(null);
+        setTipMessage("Added to My Tips.");
+        router.refresh();
+        return;
+      }
+
+      setTipError(result?.error || "Could not add this tip.");
+    });
+  }
   const publishedRaces = useMemo(
     () => races.filter((race) => race.status === "published"),
     [races],
@@ -688,6 +832,53 @@ export default function SubscriberCalculatorLivePicks({
     Number(officialRaceTipRunner.id) === Number(qualifiedTip.runner.id),
   );
 
+  const activeRaceLabel = activeRace
+    ? `${activeMeeting?.meeting_name || "Meeting"} R${activeRace.race_number} ${activeRace.race_name}`
+    : "";
+
+  const activeHeadTipperUserBet = useMemo(() => {
+    if (!officialRaceTip) return null;
+
+    return (
+      activeUserBets.find((bet) => {
+        if (String(bet.source || "").toLowerCase() !== "head_tipper") return false;
+
+        if (officialRaceTip.id && Number(bet.suggested_tip_id || 0) === Number(officialRaceTip.id)) {
+          return true;
+        }
+
+        return (
+          Number(bet.race_id || 0) === Number(officialRaceTip.race_id || activeRace?.id || 0) &&
+          (officialRaceTip.race_runner_id
+            ? Number(bet.race_runner_id || 0) === Number(officialRaceTip.race_runner_id)
+            : officialRaceTip.horse_id
+              ? Number(bet.horse_id || 0) === Number(officialRaceTip.horse_id)
+              : String(bet.horse || "").trim().toLowerCase() ===
+                String(officialTipSelection || "").trim().toLowerCase())
+        );
+      }) || null
+    );
+  }, [activeRace?.id, activeUserBets, officialRaceTip, officialTipSelection]);
+
+  const activeCalculatorUserBet = useMemo(() => {
+    if (!activeRace || !qualifiedTip?.runner) return null;
+
+    return (
+      activeUserBets.find((bet) => {
+        if (String(bet.source || "").toLowerCase() !== "calculator") return false;
+
+        if (calculatorRaceTip?.id && Number(bet.calculator_tip_id || 0) === Number(calculatorRaceTip.id)) {
+          return true;
+        }
+
+        return (
+          Number(bet.race_id || 0) === Number(activeRace.id) &&
+          Number(bet.race_runner_id || 0) === Number(qualifiedTip.runner.id)
+        );
+      }) || null
+    );
+  }, [activeRace, activeUserBets, calculatorRaceTip?.id, qualifiedTip?.runner]);
+
   const fieldSizeLabel =
     scoredRunners.length <= 7
       ? `Small field (${scoredRunners.length})`
@@ -895,20 +1086,9 @@ export default function SubscriberCalculatorLivePicks({
               <h1 className="text-sm font-black leading-tight text-white">
                 SmartPunt Calculator Live Picks
               </h1>
-              <button
-                type="button"
-                onClick={() => setShowBestOpportunities((value) => !value)}
-                className="mt-1 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-amber-200 transition hover:bg-amber-500/20"
-                aria-expanded={showBestOpportunities}
-              >
-                <span>Best Opportunities</span>
-                <span className="rounded-full bg-amber-300/20 px-2 py-0.5 text-[8px] text-amber-100">
-                  {bestOpportunities.length}
-                </span>
-                <span className="text-[10px] text-amber-100">
-                  {showBestOpportunities ? "▾" : "▸"}
-                </span>
-              </button>
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
+                Best Opportunities
+              </p>
             </div>
             <Link
               href="/"
@@ -918,10 +1098,9 @@ export default function SubscriberCalculatorLivePicks({
             </Link>
           </div>
 
-          {showBestOpportunities ? (
-            <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
-              {bestOpportunities.length ? (
-                bestOpportunities.map((item) => {
+          <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
+            {bestOpportunities.length ? (
+              bestOpportunities.map((item) => {
                 const isSelected =
                   activeRace && Number(activeRace.id) === Number(item.raceId);
                 const sourceClasses =
@@ -970,17 +1149,12 @@ export default function SubscriberCalculatorLivePicks({
                 );
               })
             ) : (
-                <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center text-[11px] font-bold text-zinc-300">
-                  No SmartPunt opportunities yet. Use the race selector below to
-                  review every live race.
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
-              Tap Best Opportunities to show today&apos;s quick links.
-            </div>
-          )}
+              <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center text-[11px] font-bold text-zinc-300">
+                No SmartPunt opportunities yet. Use the race selector below to
+                review every live race.
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mb-4 overflow-hidden rounded-[26px] border border-amber-300/40 bg-[#f7f0df] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
@@ -1125,12 +1299,29 @@ export default function SubscriberCalculatorLivePicks({
                         ) : null}
                       </div>
 
-                      <Link
-                        href="/current-tips"
-                        className="rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100 transition hover:bg-emerald-500/25"
-                      >
-                        Current Tips
-                      </Link>
+                      <div className="min-w-[132px]">
+                        <TipAcceptanceControl
+                          tipKey={`head-${officialRaceTip.id}`}
+                          activeKey={acceptingTipKey}
+                          setActiveKey={setAcceptingTipKey}
+                          activeBet={activeHeadTipperUserBet}
+                          isSaving={isSavingTip}
+                          formAction={addUserBetFormAction}
+                          buttonLabel="Accept Tip"
+                          hiddenFields={{
+                            source: "head_tipper",
+                            suggested_tip_id: officialRaceTip.id,
+                            race_id: officialRaceTip.race_id || activeRace?.id || "",
+                            race_runner_id:
+                              officialRaceTip.race_runner_id || officialRaceTipRunner?.id || "",
+                            horse_id:
+                              officialRaceTip.horse_id || officialRaceTipRunner?.horse_id || "",
+                            horse: officialTipSelection,
+                            race: officialRaceTip.race || activeRaceLabel,
+                            bet_type: officialTipType,
+                          }}
+                        />
+                      </div>
                     </div>
 
                     {officialTipComment ? (
@@ -1374,6 +1565,27 @@ export default function SubscriberCalculatorLivePicks({
                           The calculator currently recommends this race, but no
                           official SmartPunt Tip has been published.
                         </p>
+                        {qualifiedTip ? (
+                          <TipAcceptanceControl
+                            tipKey={`calculator-${activeRace?.id}-${qualifiedTip.runner.id}`}
+                            activeKey={acceptingTipKey}
+                            setActiveKey={setAcceptingTipKey}
+                            activeBet={activeCalculatorUserBet}
+                            isSaving={isSavingTip}
+                            formAction={addUserBetFormAction}
+                            buttonLabel="Accept Calculator Tip"
+                            hiddenFields={{
+                              source: "calculator",
+                              calculator_tip_id: calculatorRaceTip?.id || "",
+                              race_id: activeRace?.id || "",
+                              race_runner_id: qualifiedTip.runner.id,
+                              horse_id: qualifiedTip.runner.horse_id || "",
+                              horse: qualifiedTip.runner.horse_name || "",
+                              race: activeRaceLabel,
+                              bet_type: qualifiedTip.type,
+                            }}
+                          />
+                        ) : null}
                       </>
                     ) : (
                       <>
