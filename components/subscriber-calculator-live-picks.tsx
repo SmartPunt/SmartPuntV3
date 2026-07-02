@@ -1086,9 +1086,19 @@ const [showBestOpportunities, setShowBestOpportunities] = useState(true);
               <h1 className="text-sm font-black leading-tight text-white">
                 SmartPunt Calculator Live Picks
               </h1>
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
-                Best Opportunities
-              </p>
+<button
+  type="button"
+  onClick={() => setShowBestOpportunities((value) => !value)}
+  className="mt-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-amber-300 transition hover:text-amber-200"
+>
+  <span>Best Opportunities</span>
+
+  <span className="rounded-full border border-amber-300/30 px-1.5 py-0.5 text-[8px]">
+    {bestOpportunities.length}
+  </span>
+
+  <span>{showBestOpportunities ? "▲" : "▼"}</span>
+</button>
             </div>
             <Link
               href="/"
