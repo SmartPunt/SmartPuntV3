@@ -159,11 +159,37 @@ function formatOfficialTipType(tip?: OfficialTip | null) {
     .join(" ") || "Official Tip";
 }
 
-function scoreStars(score?: number | null) {
+function getStarRating(score?: number | null) {
   const value = Number(score || 0);
-  const filled = Math.max(0, Math.min(5, Math.round(value / 20)));
 
-  return "★".repeat(filled) + "☆".repeat(5 - filled);
+  if (value >= 85) return 5;
+  if (value >= 70) return 4;
+  if (value >= 55) return 3;
+  if (value >= 40) return 2;
+  if (value >= 20) return 1;
+
+  return 0;
+}
+
+function ScoreStars({ score }: { score?: number | null }) {
+  const filled = getStarRating(score);
+
+  return (
+    <span
+      aria-label={`${filled} out of 5 stars`}
+      title={`${roundScore(Number(score || 0))}/100`}
+      className="inline-flex items-center gap-0.5 whitespace-nowrap"
+    >
+      {Array.from({ length: 5 }).map((_, index) => (
+        <span
+          key={index}
+          className={index < filled ? "text-amber-300" : "text-zinc-700"}
+        >
+          ★
+        </span>
+      ))}
+    </span>
+  );
 }
 
 function getRunnerSilk(index: number) {
@@ -346,6 +372,7 @@ export default function SubscriberCalculatorLivePicks({
   officialTips?: OfficialTip[];
 }) {
   const [selectedRaceId, setSelectedRaceId] = useState("");
+  const [expandedOfficialTipComment, setExpandedOfficialTipComment] = useState(false);
 
   const publishedRaces = useMemo(
     () => races.filter((race) => race.status === "published"),
@@ -760,6 +787,70 @@ export default function SubscriberCalculatorLivePicks({
                   </div>
                 </div>
 
+                {officialRaceTip ? (
+                  <div className="rounded-[20px] border border-emerald-300/45 bg-[linear-gradient(135deg,rgba(6,78,59,0.55)_0%,rgba(2,6,23,0.96)_55%,rgba(0,0,0,0.98)_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-200">
+                          ⭐ Official SmartPunt Tip
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <p className="text-lg font-black leading-tight text-white">
+                            {officialTipSelection}
+                          </p>
+                          <span className="rounded-full border border-amber-300/35 bg-amber-400/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
+                            {officialTipType}
+                          </span>
+                          {officialTipConfidence ? (
+                            <span className="rounded-full border border-sky-300/30 bg-sky-400/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-sky-100">
+                              {officialTipConfidence}
+                            </span>
+                          ) : null}
+                        </div>
+                        {isConsensusPick ? (
+                          <p className="mt-2 inline-flex rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
+                            SmartPunt Consensus Pick — calculator and Head Tipper agree
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <Link
+                        href="/current-tips"
+                        className="rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100 transition hover:bg-emerald-500/25"
+                      >
+                        Current Tips
+                      </Link>
+                    </div>
+
+                    {officialTipComment ? (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedOfficialTipComment((value) => !value)
+                          }
+                          className="rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:bg-white/10"
+                        >
+                          {expandedOfficialTipComment
+                            ? "Hide Head Tipper Comment"
+                            : "Read Head Tipper Comment"}
+                        </button>
+
+                        {expandedOfficialTipComment ? (
+                          <div className="mt-3 rounded-2xl border border-emerald-300/20 bg-black/45 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-200">
+                              Head Tipper Comment
+                            </p>
+                            <p className="mt-2 text-[12px] font-semibold leading-6 text-zinc-200">
+                              {officialTipComment}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#0b1120_58%,#050505_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -937,134 +1028,32 @@ export default function SubscriberCalculatorLivePicks({
                   </div>
                 </div>
 
-                <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#080808_0%,#111827_58%,#020617_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
-                        ⭐ Official SmartPunt Tip
-                      </p>
-                      <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-400">
-                        Head Tipper overlay for this race.
-                      </p>
-                    </div>
-                    {isConsensusPick ? (
-                      <span className="rounded-full border border-emerald-300/40 bg-emerald-500/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
-                        Consensus Pick
-                      </span>
-                    ) : officialRaceTip ? (
-                      <span className="rounded-full border border-emerald-300/40 bg-emerald-500/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
-                        Published
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {officialRaceTip ? (
-                    <div className="mt-4 space-y-4">
-                      <div className="rounded-[18px] border border-emerald-300/35 bg-emerald-500/10 p-4">
-                        <p className="text-lg font-black text-emerald-300">
-                          🟢 Published by the Head Tipper
+                {!officialRaceTip ? (
+                  <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#080808_0%,#111827_58%,#020617_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+                      ⭐ Head Tipper Status
+                    </p>
+                    {qualifiedTip || calculatorRaceTip ? (
+                      <>
+                        <p className="mt-3 text-lg font-black text-amber-300">
+                          🟡 Calculator Recommendation Only
                         </p>
-
-                        {isConsensusPick ? (
-                          <p className="mt-2 rounded-2xl border border-emerald-300/25 bg-black/35 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-100">
-                            SmartPunt Consensus Pick — the Calculator and Head Tipper agree.
-                          </p>
-                        ) : null}
-
-                        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-2xl border border-white/10 bg-black/45 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
-                              Selection
-                            </p>
-                            <p className="mt-2 text-xl font-black leading-tight text-white">
-                              {officialTipSelection}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl border border-white/10 bg-black/45 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
-                              Bet Type
-                            </p>
-                            <p className="mt-2 text-xl font-black text-amber-300">
-                              {officialTipType}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl border border-white/10 bg-black/45 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
-                              Confidence
-                            </p>
-                            <p className="mt-2 text-xl font-black text-sky-200">
-                              {officialTipConfidence || "Head Tipper"}
-                            </p>
-                          </div>
-                        </div>
-
-                        {officialTipComment ? (
-                          <div className="mt-4 rounded-2xl border border-amber-300/20 bg-black/40 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">
-                              Head Tipper Comment
-                            </p>
-                            <p className="mt-2 text-[12px] font-semibold leading-6 text-zinc-200">
-                              {officialTipComment}
-                            </p>
-                          </div>
-                        ) : null}
-
-                        <Link
-                          href="/current-tips"
-                          className="mt-4 inline-flex rounded-full border border-emerald-300/35 bg-emerald-500/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-emerald-100 transition hover:bg-emerald-500/25"
-                        >
-                          Read Full Analysis
-                        </Link>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-[18px] border border-sky-300/25 bg-sky-500/10 p-3">
-                          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-sky-200">
-                            Calculator View
-                          </p>
-                          <p className="mt-2 text-sm font-black text-white">
-                            {qualifiedTip?.runner?.horse_name || topWinChance?.horse_name || "No calculator selection"}
-                          </p>
-                          <p className="mt-1 text-[11px] font-semibold text-zinc-300">
-                            {qualifiedTip ? `${qualifiedTip.type} Bet` : bettingVerdictLabel}
-                          </p>
-                        </div>
-
-                        <div className="rounded-[18px] border border-amber-300/25 bg-amber-500/10 p-3">
-                          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-200">
-                            Head Tipper View
-                          </p>
-                          <p className="mt-2 text-sm font-black text-white">
-                            {officialTipSelection}
-                          </p>
-                          <p className="mt-1 text-[11px] font-semibold text-zinc-300">
-                            {officialTipType}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : qualifiedTip || calculatorRaceTip ? (
-                    <>
-                      <p className="mt-3 text-lg font-black text-amber-300">
-                        🟡 Calculator Recommendation Only
-                      </p>
-                      <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
-                        The calculator currently recommends this race, but no official SmartPunt Tip has been published.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="mt-3 text-lg font-black text-zinc-200">
-                        ⚪ Awaiting Review
-                      </p>
-                      <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
-                        The Head Tipper has not published an official selection for this race.
-                      </p>
-                    </>
-                  )}
-                </div>
+                        <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
+                          The calculator currently recommends this race, but no official SmartPunt Tip has been published.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="mt-3 text-lg font-black text-zinc-200">
+                          ⚪ Awaiting Review
+                        </p>
+                        <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
+                          The Head Tipper has not published an official selection for this race.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                ) : null}
 
                 <div className="rounded-[22px] border border-zinc-700 bg-black/95 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.4)]">
                   <div className="flex items-center justify-between gap-3">
@@ -1082,11 +1071,16 @@ export default function SubscriberCalculatorLivePicks({
                   </div>
 
                   <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10">
-                    <table className="min-w-full divide-y divide-white/10 text-left text-[11px]">
+                    <table className="min-w-[980px] divide-y divide-white/10 text-left text-[11px]">
                       <thead className="bg-white/[0.06] text-[9px] uppercase tracking-[0.14em] text-zinc-400">
                         <tr>
                           <th className="px-3 py-3 font-black">Rank</th>
                           <th className="px-3 py-3 font-black">Runner</th>
+                          <th className="px-3 py-3 font-black">Jockey</th>
+                          <th className="px-3 py-3 font-black text-center">Form</th>
+                          <th className="px-3 py-3 font-black text-center">Distance</th>
+                          <th className="px-3 py-3 font-black text-center">Track</th>
+                          <th className="px-3 py-3 font-black text-center">Conditions</th>
                           <th className="px-3 py-3 font-black">Score</th>
                           <th className="px-3 py-3 font-black">Win</th>
                           <th className="px-3 py-3 font-black">Place</th>
@@ -1122,6 +1116,33 @@ export default function SubscriberCalculatorLivePicks({
                                 </p>
                                 <p className="mt-1 text-[10px] font-semibold text-zinc-500">
                                   Barrier {runner.barrier || "—"} {isOfficialTip ? "• Official Tip" : isCalculatorTip ? "• Calculator Tip" : ""}
+                                </p>
+                              </td>
+                              <td className="px-3 py-3 font-semibold text-zinc-300">
+                                {(runner as any).jockey_name || "—"}
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <ScoreStars score={runner.components.recentForm} />
+                                <p className="mt-1 text-[9px] font-semibold text-zinc-500">
+                                  {roundScore(runner.components.recentForm)}
+                                </p>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <ScoreStars score={runner.components.distance} />
+                                <p className="mt-1 text-[9px] font-semibold text-zinc-500">
+                                  {roundScore(runner.components.distance)}
+                                </p>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <ScoreStars score={runner.components.track} />
+                                <p className="mt-1 text-[9px] font-semibold text-zinc-500">
+                                  {roundScore(runner.components.track)}
+                                </p>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <ScoreStars score={runner.components.condition} />
+                                <p className="mt-1 text-[9px] font-semibold text-zinc-500">
+                                  {roundScore(runner.components.condition)}
                                 </p>
                               </td>
                               <td className="px-3 py-3 font-black text-white">
