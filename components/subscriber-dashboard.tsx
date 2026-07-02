@@ -713,13 +713,20 @@ async function addUserBetFormAction(formData: FormData) {
                 </p>
               </div>
 
-              <div className="mt-6 space-y-2">
-                <Link
-                  href="/current-races"
-                  className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                >
-                  Current Races
-                </Link>
+<div className="mt-6 space-y-2">
+  <Link
+    href="/smartpunt-calculator-live-picks"
+    className="block rounded-2xl border border-amber-300/30 bg-amber-500/15 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/25"
+  >
+    ⭐ SmartPunt Calculator Live Picks
+  </Link>
+
+  <Link
+    href="/current-races"
+    className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
+  >
+    Current Races
+  </Link>
                 <Link
                   href="/my-active-tips"
                   className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
