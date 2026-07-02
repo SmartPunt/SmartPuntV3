@@ -889,6 +889,161 @@ export default function SubscriberCalculatorLivePicks({
                     </>
                   )}
                 </div>
+
+
+                <div className="rounded-[22px] border border-amber-400/40 bg-black/95 p-3 shadow-[0_14px_32px_rgba(0,0,0,0.42)]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
+                        📊 Full Field Breakdown
+                      </p>
+                      <p className="mt-1 text-[10px] font-semibold text-zinc-400">
+                        Live calculator ranking for every runner in this race.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
+                      {scoredRunners.length} runners
+                    </span>
+                  </div>
+
+                  <div className="mt-3 overflow-x-auto rounded-2xl border border-amber-400/20">
+                    <table className="min-w-[900px] w-full border-collapse text-left text-[10px]">
+                      <thead className="bg-[linear-gradient(180deg,rgba(251,191,36,0.18),rgba(251,191,36,0.06))] text-[9px] uppercase tracking-[0.12em] text-amber-200">
+                        <tr>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2">#</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2">Horse</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Barrier</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Score</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Win %</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Place %</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2">Form</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Track</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Dist</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2 text-center">Cond</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2">Jockey</th>
+                          <th className="border-b border-r border-amber-400/15 px-3 py-2">Trainer</th>
+                          <th className="border-b border-amber-400/15 px-3 py-2 text-center">Weight</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-amber-400/10 text-zinc-200">
+                        {scoredRunners.map((runner, index) => {
+                          const runnerAny = runner as any;
+                          const horse = horses.find(
+                            (item) => Number(item.id) === Number(runner.horse_id),
+                          ) as any;
+                          const isQualified =
+                            qualifiedTip &&
+                            Number(qualifiedTip.runner.id) === Number(runner.id);
+
+                          const formText =
+                            runnerAny.form_last_6 ||
+                            horse?.form_last_6 ||
+                            horse?.recent_form ||
+                            "—";
+
+                          const trackScore =
+                            runnerAny.trackScore ??
+                            runnerAny.track_score ??
+                            runnerAny.trackSuitability ??
+                            runnerAny.track_suitability_score ??
+                            0;
+
+                          const distanceScore =
+                            runnerAny.distanceScore ??
+                            runnerAny.distance_score ??
+                            runnerAny.distanceSuitability ??
+                            runnerAny.distance_suitability_score ??
+                            0;
+
+                          const conditionScore =
+                            runnerAny.conditionScore ??
+                            runnerAny.condition_score ??
+                            runnerAny.conditionSuitability ??
+                            runnerAny.condition_suitability_score ??
+                            0;
+
+                          const jockeyName =
+                            runnerAny.jockey_name ||
+                            runnerAny.jockey ||
+                            horse?.jockey_name ||
+                            "—";
+
+                          const trainerName =
+                            runnerAny.trainer_name ||
+                            runnerAny.trainer ||
+                            horse?.trainer_name ||
+                            "—";
+
+                          const weight =
+                            runnerAny.effective_weight_kg ??
+                            runnerAny.weight_kg ??
+                            runnerAny.weight ??
+                            "—";
+
+                          return (
+                            <tr
+                              key={runner.id}
+                              className={`transition hover:bg-amber-400/10 ${
+                                isQualified ? "bg-amber-400/10 text-white" : ""
+                              }`}
+                            >
+                              <td className="border-r border-amber-400/10 px-3 py-2 font-black text-amber-200">
+                                {index + 1}
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2">
+                                <div className="font-black text-white">
+                                  {runner.horse_name}
+                                  {isQualified ? (
+                                    <span className="ml-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-emerald-200">
+                                      Tip
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 text-center font-bold">
+                                {runnerAny.barrier || "—"}
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 text-center font-black text-amber-200">
+                                {roundScore(runner.score)}
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 text-center font-bold">
+                                {roundScore(runner.winPercent)}%
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 text-center font-bold">
+                                {roundScore(runner.placePercent)}%
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 font-bold">
+                                {formText}
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 text-center text-amber-300">
+                                {scoreStars(Number(trackScore))}
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 text-center text-amber-300">
+                                {scoreStars(Number(distanceScore))}
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 text-center text-amber-300">
+                                {scoreStars(Number(conditionScore))}
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 font-semibold">
+                                {jockeyName}
+                              </td>
+                              <td className="border-r border-amber-400/10 px-3 py-2 font-semibold">
+                                {trainerName}
+                              </td>
+                              <td className="px-3 py-2 text-center font-bold">
+                                {weight}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p className="mt-2 text-[10px] font-semibold leading-4 text-zinc-500">
+                    The field breakdown is live and will update with scratchings, track changes and calculator inputs.
+                  </p>
+                </div>
               </div>
             ) : (
               <div className="rounded-[22px] border border-amber-400/45 bg-black p-5 text-center">
