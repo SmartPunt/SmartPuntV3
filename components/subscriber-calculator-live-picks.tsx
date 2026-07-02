@@ -267,15 +267,15 @@ function buildSetupMatchedSpecialistAlerts({
 
 function Pill({ children, tone = "gold" }: { children: React.ReactNode; tone?: "green" | "gold" | "blue" | "red" | "dark" }) {
   const classes = {
-    green: "border-green-400/30 bg-green-500/20 text-green-100 shadow-green-500/10",
-    gold: "border-yellow-300/30 bg-yellow-500/20 text-yellow-100 shadow-yellow-500/10",
-    blue: "border-sky-400/30 bg-sky-500/20 text-sky-100 shadow-sky-500/10",
-    red: "border-rose-400/30 bg-rose-500/20 text-rose-100 shadow-rose-500/10",
+    green: "border-emerald-300/35 bg-emerald-500/25 text-emerald-50 shadow-emerald-500/20",
+    gold: "border-yellow-200/40 bg-yellow-500/25 text-yellow-50 shadow-yellow-500/20",
+    blue: "border-sky-300/35 bg-sky-500/25 text-sky-50 shadow-sky-500/20",
+    red: "border-rose-300/40 bg-rose-500/25 text-rose-50 shadow-rose-500/20",
     dark: "border-white/15 bg-white/10 text-white shadow-white/10",
   }[tone];
 
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-lg ${classes}`}>
+    <span className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-extrabold shadow-lg backdrop-blur-sm ${classes}`}>
       {children}
     </span>
   );
@@ -283,7 +283,7 @@ function Pill({ children, tone = "gold" }: { children: React.ReactNode; tone?: "
 
 function GoldCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <section className={`rounded-[24px] border border-yellow-400/35 bg-[linear-gradient(145deg,rgba(17,17,17,0.98),rgba(2,2,2,0.96))] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_18px_50px_rgba(0,0,0,0.45)] ${className}`}>
+    <section className={`rounded-[22px] border border-yellow-400/45 bg-[radial-gradient(circle_at_top_left,rgba(250,204,21,0.08),transparent_34%),linear-gradient(145deg,rgba(20,20,18,0.98),rgba(2,2,2,0.98))] shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset,0_18px_50px_rgba(0,0,0,0.58),0_0_32px_rgba(250,204,21,0.06)] ${className}`}>
       {children}
     </section>
   );
@@ -291,7 +291,7 @@ function GoldCard({ children, className = "" }: { children: React.ReactNode; cla
 
 function CardTitle({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
-    <h3 className="flex items-center gap-2 text-base font-black text-yellow-300">
+    <h3 className="flex items-center gap-2 text-lg font-black text-yellow-300">
       <span>{icon}</span>
       <span>{children}</span>
     </h3>
@@ -546,13 +546,15 @@ export default function SubscriberCalculatorLivePicks({
   const raceStartTime = formatStartTime((activeRace as any)?.start_time || (activeRace as any)?.race_time || (activeRace as any)?.jump_time || null);
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white">
+    <div className="min-h-screen bg-[#020202] text-white">
       <div className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.14),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(120,53,15,0.18),transparent_30%),linear-gradient(180deg,#030303_0%,#090909_48%,#010409_100%)]" />
-      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-5 lg:px-6">
-        <header className="relative overflow-hidden rounded-[24px] border border-yellow-400/40 bg-black shadow-[0_0_60px_rgba(250,204,21,0.12)]">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.12),transparent_38%)]" />
+      <div className="mx-auto max-w-[1180px] px-3 py-4 sm:px-5 lg:px-6">
+        <header className="relative overflow-hidden rounded-[28px] border border-yellow-400/55 bg-black shadow-[0_0_80px_rgba(250,204,21,0.14)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(250,204,21,0.14),transparent_40%)]" />
+          <div className="absolute bottom-0 left-0 h-24 w-1/3 bg-[linear-gradient(18deg,rgba(250,204,21,0.22),transparent_55%)] blur-sm" />
+          <div className="absolute bottom-0 right-0 h-24 w-1/3 bg-[linear-gradient(162deg,rgba(250,204,21,0.22),transparent_55%)] blur-sm" />
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-yellow-300/80 to-transparent" />
-          <div className="relative z-10 flex min-h-[210px] flex-col items-center justify-center px-4 py-7 text-center">
+          <div className="relative z-10 flex min-h-[250px] flex-col items-center justify-center px-4 py-8 text-center sm:min-h-[275px]">
             <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
               <Pill tone="green">Live Picks <span className="h-2 w-2 rounded-full bg-green-300" /></Pill>
             </div>
@@ -566,15 +568,15 @@ export default function SubscriberCalculatorLivePicks({
             <img
               src="/header-logo.png"
               alt="Fortune on 5 SmartPunt"
-              className="mb-2 h-auto w-[300px] max-w-[72%] drop-shadow-[0_0_24px_rgba(250,204,21,0.35)] sm:w-[420px]"
+              className="mb-1 h-auto w-[430px] max-w-[86%] drop-shadow-[0_0_30px_rgba(250,204,21,0.45)] sm:w-[560px] lg:w-[640px]"
             />
-            <h1 className="text-3xl font-black tracking-tight text-white drop-shadow-lg sm:text-5xl">
+            <h1 className="text-4xl font-black tracking-tight text-white drop-shadow-lg sm:text-5xl lg:text-6xl">
               SmartPunt Calculator Live Picks
             </h1>
-            <p className="mt-3 text-sm font-medium text-zinc-200 sm:text-lg">
+            <p className="mt-2 text-base font-medium text-zinc-100 sm:text-xl">
               Every race analysed. Every recommendation explained.
             </p>
-            <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <div className="mt-5 flex flex-wrap justify-center gap-3 sm:gap-5">
               <Pill tone="green">◎ {publishedRaces.length} live races</Pill>
               <Pill tone="gold">♙ Live calculator</Pill>
               <Pill tone="blue">☑ Head Tipper status</Pill>
@@ -582,7 +584,7 @@ export default function SubscriberCalculatorLivePicks({
           </div>
         </header>
 
-        <div className="mt-4 rounded-[20px] border border-white/15 bg-black/85 p-3 shadow-2xl lg:flex lg:items-center lg:gap-4">
+        <div className="mt-4 rounded-[22px] border border-white/15 bg-black/90 p-3 shadow-2xl lg:flex lg:items-center lg:gap-4">
           {activeRace ? (
             <>
               <label className="mb-2 block text-sm font-semibold text-white lg:mb-0 lg:shrink-0">
@@ -609,7 +611,7 @@ export default function SubscriberCalculatorLivePicks({
                   type="button"
                   disabled={!previousRace}
                   onClick={() => previousRace && setSelectedRaceId(String(previousRace.id))}
-                  className="h-14 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-14 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   ◀ Previous Race
                 </button>
@@ -617,7 +619,7 @@ export default function SubscriberCalculatorLivePicks({
                   type="button"
                   disabled={!nextRace}
                   onClick={() => nextRace && setSelectedRaceId(String(nextRace.id))}
-                  className="h-14 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-14 rounded-2xl border border-white/15 bg-white/10 px-4 text-sm font-black text-white shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Next Race ▶
                 </button>
@@ -627,13 +629,13 @@ export default function SubscriberCalculatorLivePicks({
         </div>
 
         {activeRace ? (
-          <main className="mt-3 rounded-[24px] border border-yellow-400/50 bg-black/95 p-4 shadow-[0_0_40px_rgba(250,204,21,0.08)] sm:p-5 lg:p-7">
+          <main className="mt-3 rounded-[26px] border border-yellow-400/60 bg-black/95 p-4 shadow-[0_0_60px_rgba(250,204,21,0.10)] sm:p-6 lg:p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-sm font-black uppercase tracking-[0.28em] text-yellow-300">
                   {(activeMeeting?.meeting_name || "Meeting")} • R{activeRace.race_number}
                 </p>
-                <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">
+                <h2 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
                   {activeRace.race_name}
                 </h2>
                 <p className="mt-2 text-base font-medium text-zinc-200">
@@ -652,12 +654,12 @@ export default function SubscriberCalculatorLivePicks({
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
-              <GoldCard className="p-4">
+            <div className="mt-6 grid gap-4 lg:grid-cols-[1.06fr_1fr_1.06fr]">
+              <GoldCard className="p-5">
                 <CardTitle icon="🏆">SmartPunt Calculator Top 3</CardTitle>
                 <div className="mt-4 space-y-3">
                   {calculatorTopThree.map((runner, index) => (
-                    <div key={runner.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3 shadow-inner">
+                    <div key={runner.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] p-4 shadow-inner">
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-black ${index === 0 ? "bg-yellow-500/80 text-black" : index === 1 ? "bg-zinc-400/80 text-black" : "bg-amber-700/80 text-white"}`}>
                         {index + 1}
                       </div>
@@ -676,7 +678,7 @@ export default function SubscriberCalculatorLivePicks({
                 <p className="mt-4 text-center text-sm font-black text-yellow-300">View full field breakdown ↓</p>
               </GoldCard>
 
-              <GoldCard className="p-4">
+              <GoldCard className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <CardTitle icon="🛡️">Race Confidence</CardTitle>
                   {raceConfidence ? (
@@ -704,7 +706,7 @@ export default function SubscriberCalculatorLivePicks({
                 </div>
               </GoldCard>
 
-              <GoldCard className="p-4">
+              <GoldCard className="p-5">
                 <CardTitle icon="🎯">SmartPunt Tip Requirements</CardTitle>
                 <div className="mt-5 space-y-4">
                   <div className="rounded-2xl border border-white/10 bg-black/60 p-4">
@@ -730,7 +732,7 @@ export default function SubscriberCalculatorLivePicks({
               </GoldCard>
             </div>
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.18fr]">
               <GoldCard className="p-5">
                 <CardTitle icon="🎯">Betting Verdict</CardTitle>
                 <p className="mt-5 text-3xl font-black text-white">{bettingVerdictLabel}</p>
@@ -759,7 +761,7 @@ export default function SubscriberCalculatorLivePicks({
               </GoldCard>
             </div>
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.6fr]">
+            <div className="mt-4 grid gap-4 lg:grid-cols-[0.78fr_1.62fr]">
               <GoldCard className="p-5">
                 <CardTitle icon="⚠️">Watchouts</CardTitle>
                 <div className="mt-5 space-y-4">
