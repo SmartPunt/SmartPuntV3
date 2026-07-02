@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   buildHorseHistory,
   calculateRaceConfidence,
@@ -78,16 +78,22 @@ function getDistanceSpecialistLabel(distanceBucket: string, emerging = false) {
   const prefix = emerging ? "Emerging " : "";
 
   if (distanceBucket === "1000–1200m") return `${prefix}Sprint Specialist`;
-  if (distanceBucket === "1201–1400m") return `${prefix}Short Course Specialist`;
+  if (distanceBucket === "1201–1400m")
+    return `${prefix}Short Course Specialist`;
   if (distanceBucket === "1401–1600m") return `${prefix}Mile Specialist`;
-  if (distanceBucket === "1601–1800m") return `${prefix}Middle Distance Specialist`;
+  if (distanceBucket === "1601–1800m")
+    return `${prefix}Middle Distance Specialist`;
   if (distanceBucket === "1801–2200m") return `${prefix}Staying Specialist`;
-  if (distanceBucket === "2200m+") return emerging ? "Emerging Stayer" : "Stayer";
+  if (distanceBucket === "2200m+")
+    return emerging ? "Emerging Stayer" : "Stayer";
 
   return `${prefix}Distance Specialist`;
 }
 
-function getConditionSpecialistLabel(conditionBucket: string, emerging = false) {
+function getConditionSpecialistLabel(
+  conditionBucket: string,
+  emerging = false,
+) {
   const prefix = emerging ? "Emerging " : "";
 
   if (conditionBucket === "Heavy") return `${prefix}Heavy Tracker`;
@@ -98,9 +104,9 @@ function getConditionSpecialistLabel(conditionBucket: string, emerging = false) 
   return `${prefix}Condition Specialist`;
 }
 
-function getSpecialistRunStats<T extends { finishing_position?: number | null }>(
-  runs: T[],
-) {
+function getSpecialistRunStats<
+  T extends { finishing_position?: number | null },
+>(runs: T[]) {
   const wins = runs.filter((run) => run.finishing_position === 1).length;
   const places = runs.filter((run) => {
     const position = run.finishing_position;
@@ -152,11 +158,13 @@ function formatOfficialTipType(tip?: OfficialTip | null) {
   if (value === "each way" || value === "eachway") return "Each Way";
   if (value === "all up" || value === "allup") return "All Up";
 
-  return rawValue
-    .split(" ")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ") || "Official Tip";
+  return (
+    rawValue
+      .split(" ")
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ") || "Official Tip"
+  );
 }
 
 function getStarRating(score?: number | null) {
@@ -190,6 +198,41 @@ function ScoreStars({ score }: { score?: number | null }) {
       ))}
     </span>
   );
+}
+
+function getConfidenceStars(confidence?: number | null) {
+  const value = Number(confidence || 0);
+
+  if (value >= 85) return "★★★★★";
+  if (value >= 72) return "★★★★☆";
+  if (value >= 60) return "★★★☆☆";
+  if (value >= 45) return "★★☆☆☆";
+
+  return "★☆☆☆☆";
+}
+
+function normaliseTipStatus(status?: string | null) {
+  return String(status || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isLiveOfficialTipStatus(status?: string | null) {
+  const value = normaliseTipStatus(status);
+
+  return (
+    !value ||
+    value === "active" ||
+    value === "published" ||
+    value === "pending" ||
+    value === "open"
+  );
+}
+
+function isLiveCalculatorTipStatus(status?: string | null) {
+  const value = normaliseTipStatus(status);
+
+  return !value || value === "active" || value === "published";
 }
 
 function getRunnerSilk(index: number) {
@@ -230,7 +273,9 @@ function buildSetupMatchedSpecialistAlerts({
   }
 
   scoredRunners.forEach((runner) => {
-    const horse = horses.find((item) => Number(item.id) === Number(runner.horse_id));
+    const horse = horses.find(
+      (item) => Number(item.id) === Number(runner.horse_id),
+    );
     const horseName = horse?.horse_name || runner.horse_name;
     const historyRuns = buildHorseHistory(
       runner.horse_id,
@@ -242,7 +287,9 @@ function buildSetupMatchedSpecialistAlerts({
 
     if (raceDistanceBucket !== "Unknown") {
       const distanceRuns = historyRuns.filter(
-        (run) => getSpecialistDistanceBucket(run.race?.distance_m) === raceDistanceBucket,
+        (run) =>
+          getSpecialistDistanceBucket(run.race?.distance_m) ===
+          raceDistanceBucket,
       );
       const stats = getSpecialistRunStats(distanceRuns);
 
@@ -320,9 +367,16 @@ function buildSetupMatchedSpecialistAlerts({
     .slice(0, 8);
 }
 
-function Pill({ children, tone = "gold" }: { children: React.ReactNode; tone?: "green" | "gold" | "blue" | "red" | "dark" }) {
+function Pill({
+  children,
+  tone = "gold",
+}: {
+  children: ReactNode;
+  tone?: "green" | "gold" | "blue" | "red" | "dark";
+}) {
   const classes = {
-    green: "border-green-400/30 bg-green-500/20 text-green-100 shadow-green-500/10",
+    green:
+      "border-green-400/30 bg-green-500/20 text-green-100 shadow-green-500/10",
     gold: "border-yellow-300/30 bg-yellow-500/20 text-yellow-100 shadow-yellow-500/10",
     blue: "border-sky-400/30 bg-sky-500/20 text-sky-100 shadow-sky-500/10",
     red: "border-rose-400/30 bg-rose-500/20 text-rose-100 shadow-rose-500/10",
@@ -330,21 +384,31 @@ function Pill({ children, tone = "gold" }: { children: React.ReactNode; tone?: "
   }[tone];
 
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-lg ${classes}`}>
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-lg ${classes}`}
+    >
       {children}
     </span>
   );
 }
 
-function GoldCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function GoldCard({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <section className={`rounded-[24px] border border-yellow-400/35 bg-[linear-gradient(145deg,rgba(17,17,17,0.98),rgba(2,2,2,0.96))] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_18px_50px_rgba(0,0,0,0.45)] ${className}`}>
+    <section
+      className={`rounded-[24px] border border-yellow-400/35 bg-[linear-gradient(145deg,rgba(17,17,17,0.98),rgba(2,2,2,0.96))] shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_18px_50px_rgba(0,0,0,0.45)] ${className}`}
+    >
       {children}
     </section>
   );
 }
 
-function CardTitle({ icon, children }: { icon: string; children: React.ReactNode }) {
+function CardTitle({ icon, children }: { icon: string; children: ReactNode }) {
   return (
     <h3 className="flex items-center gap-2 text-base font-black text-yellow-300">
       <span>{icon}</span>
@@ -372,7 +436,8 @@ export default function SubscriberCalculatorLivePicks({
   officialTips?: OfficialTip[];
 }) {
   const [selectedRaceId, setSelectedRaceId] = useState("");
-  const [expandedOfficialTipComment, setExpandedOfficialTipComment] = useState(false);
+  const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
+    useState(false);
 
   const publishedRaces = useMemo(
     () => races.filter((race) => race.status === "published"),
@@ -385,9 +450,9 @@ export default function SubscriberCalculatorLivePicks({
         const meetingA = meetings.find((item) => item.id === a.meeting_id);
         const meetingB = meetings.find((item) => item.id === b.meeting_id);
 
-        const meetingCompare = String(meetingA?.meeting_name || "").localeCompare(
-          String(meetingB?.meeting_name || ""),
-        );
+        const meetingCompare = String(
+          meetingA?.meeting_name || "",
+        ).localeCompare(String(meetingB?.meeting_name || ""));
 
         if (meetingCompare !== 0) return meetingCompare;
 
@@ -399,7 +464,9 @@ export default function SubscriberCalculatorLivePicks({
   const activeRace = useMemo(() => {
     if (selectedRaceId) {
       return (
-        orderedPublishedRaces.find((race) => String(race.id) === selectedRaceId) ||
+        orderedPublishedRaces.find(
+          (race) => String(race.id) === selectedRaceId,
+        ) ||
         orderedPublishedRaces[0] ||
         null
       );
@@ -494,7 +561,9 @@ export default function SubscriberCalculatorLivePicks({
   );
 
   const activeRaceIndex = activeRace
-    ? orderedPublishedRaces.findIndex((race) => Number(race.id) === Number(activeRace.id))
+    ? orderedPublishedRaces.findIndex(
+        (race) => Number(race.id) === Number(activeRace.id),
+      )
     : -1;
 
   const previousRace =
@@ -520,7 +589,15 @@ export default function SubscriberCalculatorLivePicks({
             meetings,
           })
         : [],
-    [activeMeeting, activeRace, horses, meetings, races, runners, scoredRunners],
+    [
+      activeMeeting,
+      activeRace,
+      horses,
+      meetings,
+      races,
+      runners,
+      scoredRunners,
+    ],
   );
 
   const officialRaceTip = useMemo(() => {
@@ -577,7 +654,9 @@ export default function SubscriberCalculatorLivePicks({
           .toLowerCase();
 
         return tipHorseName
-          ? String(runner.horse_name || "").trim().toLowerCase() === tipHorseName
+          ? String(runner.horse_name || "")
+              .trim()
+              .toLowerCase() === tipHorseName
           : false;
       }) || null
     );
@@ -605,8 +684,8 @@ export default function SubscriberCalculatorLivePicks({
 
   const isConsensusPick = Boolean(
     officialRaceTipRunner &&
-      qualifiedTip?.runner &&
-      Number(officialRaceTipRunner.id) === Number(qualifiedTip.runner.id),
+    qualifiedTip?.runner &&
+    Number(officialRaceTipRunner.id) === Number(qualifiedTip.runner.id),
   );
 
   const fieldSizeLabel =
@@ -651,46 +730,244 @@ export default function SubscriberCalculatorLivePicks({
     .filter(Boolean)
     .slice(0, 4) as string[];
 
-  const raceStartTime = formatStartTime((activeRace as any)?.start_time || (activeRace as any)?.race_time || (activeRace as any)?.jump_time || null);
+  const raceStartTime = formatStartTime(
+    (activeRace as any)?.start_time ||
+      (activeRace as any)?.race_time ||
+      (activeRace as any)?.jump_time ||
+      null,
+  );
+
+  const bestOpportunities = useMemo(() => {
+    const items: Array<{
+      raceId: number;
+      raceNumber: number;
+      meetingName: string;
+      raceLabel: string;
+      horseName: string;
+      betType: string;
+      source: "CONSENSUS" | "HEAD" | "CALC";
+      confidencePercent: number;
+      confidenceTier: string;
+      sortGroup: number;
+    }> = [];
+
+    orderedPublishedRaces.forEach((race) => {
+      const meeting = meetings.find(
+        (item) => Number(item.id) === Number(race.meeting_id),
+      );
+      const raceScoredRunners = calculateRaceScores({
+        activeRace: race,
+        races,
+        runners,
+        horses,
+        meetings,
+        jockeyProfiles,
+      });
+
+      if (!raceScoredRunners.length) return;
+
+      const raceTopRunner = raceScoredRunners[0] || null;
+      const raceConfidenceResult = calculateRaceConfidence(raceScoredRunners, {
+        trackCondition: raceTopRunner?.track_condition || null,
+        raceName: race.race_name || "",
+        placeTerms: race.place_terms || "top_3",
+      });
+      const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
+        trackCondition: raceTopRunner?.track_condition || null,
+        raceName: race.race_name || "",
+        placeTerms: race.place_terms || "top_3",
+      });
+      const raceOfficialTip =
+        officialTips.find((tip) => {
+          if (Number(tip.race_id || 0) !== Number(race.id)) return false;
+
+          return isLiveOfficialTipStatus(tip.status);
+        }) || null;
+
+      const raceOfficialTipRunner = raceOfficialTip
+        ? raceScoredRunners.find((runner) => {
+            if (raceOfficialTip.race_runner_id) {
+              return (
+                Number(runner.id) === Number(raceOfficialTip.race_runner_id)
+              );
+            }
+
+            if (raceOfficialTip.horse_id) {
+              return (
+                Number(runner.horse_id) === Number(raceOfficialTip.horse_id)
+              );
+            }
+
+            const tipHorseName = String(
+              raceOfficialTip.horse || raceOfficialTip.horse_name || "",
+            )
+              .trim()
+              .toLowerCase();
+
+            return tipHorseName
+              ? String(runner.horse_name || "")
+                  .trim()
+                  .toLowerCase() === tipHorseName
+              : false;
+          }) || null
+        : null;
+
+      const confidencePercent = Number(
+        raceConfidenceResult?.confidencePercent || 0,
+      );
+      const confidenceTier = String(raceConfidenceResult?.tier || "Live");
+      const raceLabel = `${meeting?.meeting_name || "Meeting"} R${race.race_number || "—"}`;
+      const officialSelection = raceOfficialTip
+        ? raceOfficialTip.horse ||
+          raceOfficialTip.horse_name ||
+          raceOfficialTipRunner?.horse_name ||
+          "Official selection"
+        : "";
+      const officialType = raceOfficialTip
+        ? formatOfficialTipType(raceOfficialTip)
+        : "";
+      const isConsensus = Boolean(
+        raceOfficialTipRunner &&
+        raceQualifiedTip?.runner &&
+        Number(raceOfficialTipRunner.id) === Number(raceQualifiedTip.runner.id),
+      );
+
+      if (raceOfficialTip) {
+        items.push({
+          raceId: Number(race.id),
+          raceNumber: Number(race.race_number || 0),
+          meetingName: meeting?.meeting_name || "Meeting",
+          raceLabel,
+          horseName: officialSelection,
+          betType: officialType,
+          source: isConsensus ? "CONSENSUS" : "HEAD",
+          confidencePercent,
+          confidenceTier,
+          sortGroup: isConsensus ? 0 : 1,
+        });
+
+        return;
+      }
+
+      if (raceQualifiedTip?.runner) {
+        items.push({
+          raceId: Number(race.id),
+          raceNumber: Number(race.race_number || 0),
+          meetingName: meeting?.meeting_name || "Meeting",
+          raceLabel,
+          horseName: raceQualifiedTip.runner.horse_name,
+          betType: raceQualifiedTip.type,
+          source: "CALC",
+          confidencePercent,
+          confidenceTier,
+          sortGroup: raceQualifiedTip.type === "Win" ? 2 : 3,
+        });
+      }
+    });
+
+    return items
+      .sort((a, b) => {
+        if (a.sortGroup !== b.sortGroup) return a.sortGroup - b.sortGroup;
+        if (b.confidencePercent !== a.confidencePercent) {
+          return b.confidencePercent - a.confidencePercent;
+        }
+        const meetingCompare = a.meetingName.localeCompare(b.meetingName);
+        if (meetingCompare !== 0) return meetingCompare;
+        return a.raceNumber - b.raceNumber;
+      })
+      .slice(0, 8);
+  }, [
+    horses,
+    jockeyProfiles,
+    meetings,
+    officialTips,
+    orderedPublishedRaces,
+    races,
+    runners,
+  ]);
 
   return (
     <div className="min-h-screen bg-[#171107] px-3 py-5 text-white sm:px-5">
       <div className="mx-auto max-w-[430px]">
-        <div className="mb-4 overflow-hidden rounded-[26px] border border-amber-300/40 bg-[#f7f0df] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
-          <div className="rounded-[22px] border border-amber-300/40 bg-[linear-gradient(135deg,#05070c_0%,#0b1220_56%,#05070c_100%)] p-4 shadow-[0_14px_30px_rgba(0,0,0,0.55)]">
-            <div className="flex items-start justify-between gap-3">
-              <span className="rounded-full border border-emerald-300/40 bg-emerald-500/15 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
-                Live Picks
-              </span>
-              <Link
-                href="/"
-                className="rounded-full border border-amber-300/40 bg-black/40 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-100"
-              >
-                Dashboard
-              </Link>
-            </div>
-
-            <div className="mt-4 text-center">
-              <img
-                src="/header-logo.png"
-                alt="Fortune on 5"
-                className="mx-auto h-20 w-auto object-contain drop-shadow-[0_0_22px_rgba(250,204,21,0.55)]"
-              />
-              <h1 className="mt-3 text-2xl font-black leading-tight tracking-tight text-white">
+        <div className="sticky top-0 z-30 mb-3 rounded-[22px] border border-amber-300/40 bg-[#171107]/95 p-2 shadow-[0_18px_45px_rgba(0,0,0,0.6)] backdrop-blur-md">
+          <div className="mb-2 flex items-center justify-between gap-3 px-1">
+            <div>
+              <h1 className="text-sm font-black leading-tight text-white">
                 SmartPunt Calculator Live Picks
               </h1>
-              <p className="mt-1 text-[11px] font-bold text-zinc-300">
-                Every race analysed. Every recommendation explained.
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
+                Best Opportunities
               </p>
-              <div className="mt-3 flex flex-wrap justify-center gap-2">
-                <Pill tone="green">{publishedRaces.length} live races</Pill>
-                <Pill tone="gold">Live calculator</Pill>
-                <Pill tone="blue">Head Tipper status</Pill>
-              </div>
             </div>
+            <Link
+              href="/"
+              className="rounded-full border border-amber-300/40 bg-black/45 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100"
+            >
+              Dashboard
+            </Link>
           </div>
 
-          <div className="mt-3 rounded-[20px] border border-black/10 bg-[#f7f0df]">
+          <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
+            {bestOpportunities.length ? (
+              bestOpportunities.map((item) => {
+                const isSelected =
+                  activeRace && Number(activeRace.id) === Number(item.raceId);
+                const sourceClasses =
+                  item.source === "CONSENSUS"
+                    ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
+                    : item.source === "HEAD"
+                      ? "border-amber-300/45 bg-amber-500/20 text-amber-100"
+                      : "border-sky-300/45 bg-sky-500/20 text-sky-100";
+                const betClasses = item.betType.toLowerCase().includes("win")
+                  ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
+                  : "border-sky-300/45 bg-sky-500/20 text-sky-100";
+
+                return (
+                  <button
+                    key={`${item.source}-${item.raceId}-${item.horseName}`}
+                    type="button"
+                    onClick={() => setSelectedRaceId(String(item.raceId))}
+                    className={`grid w-full grid-cols-[58px_1fr_56px] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
+                      isSelected
+                        ? "border-amber-300 bg-amber-300/20 shadow-[0_0_0_1px_rgba(251,191,36,0.35)_inset]"
+                        : "border-white/10 bg-black/65 hover:border-amber-300/45 hover:bg-black/85"
+                    }`}
+                  >
+                    <span
+                      className={`rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses}`}
+                    >
+                      {item.source}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300">
+                        <span>{item.raceLabel}</span>
+                        <span className="text-[8px] tracking-normal text-amber-200/80">
+                          {getConfidenceStars(item.confidencePercent)}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-[12px] font-black leading-tight text-white">
+                        {item.horseName}
+                      </span>
+                    </span>
+                    <span
+                      className={`rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${betClasses}`}
+                    >
+                      {item.betType}
+                    </span>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center text-[11px] font-bold text-zinc-300">
+                No SmartPunt opportunities yet. Use the race selector below to
+                review every live race.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-4 overflow-hidden rounded-[26px] border border-amber-300/40 bg-[#f7f0df] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
+          <div className="rounded-[20px] border border-black/10 bg-[#f7f0df]">
             {activeRace ? (
               <div className="space-y-3">
                 <div className="rounded-[18px] border border-zinc-300 bg-white p-3">
@@ -703,11 +980,14 @@ export default function SubscriberCalculatorLivePicks({
                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs font-black text-zinc-950 outline-none"
                   >
                     {orderedPublishedRaces.map((race) => {
-                      const meeting = meetings.find((item) => item.id === race.meeting_id);
+                      const meeting = meetings.find(
+                        (item) => item.id === race.meeting_id,
+                      );
 
                       return (
                         <option key={race.id} value={String(race.id)}>
-                          {(meeting?.meeting_name || "Meeting")} · R{race.race_number} {race.race_name}
+                          {meeting?.meeting_name || "Meeting"} · R
+                          {race.race_number} {race.race_name}
                         </option>
                       );
                     })}
@@ -717,7 +997,10 @@ export default function SubscriberCalculatorLivePicks({
                     <button
                       type="button"
                       disabled={!previousRace}
-                      onClick={() => previousRace && setSelectedRaceId(String(previousRace.id))}
+                      onClick={() =>
+                        previousRace &&
+                        setSelectedRaceId(String(previousRace.id))
+                      }
                       className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-[11px] font-black text-zinc-800 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       ◀ Previous Race
@@ -725,7 +1008,9 @@ export default function SubscriberCalculatorLivePicks({
                     <button
                       type="button"
                       disabled={!nextRace}
-                      onClick={() => nextRace && setSelectedRaceId(String(nextRace.id))}
+                      onClick={() =>
+                        nextRace && setSelectedRaceId(String(nextRace.id))
+                      }
                       className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-[11px] font-black text-zinc-800 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Next Race ▶
@@ -741,13 +1026,16 @@ export default function SubscriberCalculatorLivePicks({
                       </div>
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
-                          {(activeMeeting?.meeting_name || "Meeting")} · {activeMeeting?.meeting_date || ""}
+                          {activeMeeting?.meeting_name || "Meeting"} ·{" "}
+                          {activeMeeting?.meeting_date || ""}
                         </p>
                         <h2 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white">
                           {activeRace.race_name}
                         </h2>
                         <p className="mt-1 text-xs font-semibold text-zinc-300">
-                          {activeRace.distance_m || "—"}m · {activeMeeting?.track_condition || "Track not set"} · {placeTermsLabel(activeRace.place_terms)}
+                          {activeRace.distance_m || "—"}m ·{" "}
+                          {activeMeeting?.track_condition || "Track not set"} ·{" "}
+                          {placeTermsLabel(activeRace.place_terms)}
                         </p>
                       </div>
                     </div>
@@ -768,7 +1056,10 @@ export default function SubscriberCalculatorLivePicks({
                     <button
                       type="button"
                       disabled={!previousRace}
-                      onClick={() => previousRace && setSelectedRaceId(String(previousRace.id))}
+                      onClick={() =>
+                        previousRace &&
+                        setSelectedRaceId(String(previousRace.id))
+                      }
                       className="px-2 py-2 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       ‹ Prev
@@ -779,7 +1070,9 @@ export default function SubscriberCalculatorLivePicks({
                     <button
                       type="button"
                       disabled={!nextRace}
-                      onClick={() => nextRace && setSelectedRaceId(String(nextRace.id))}
+                      onClick={() =>
+                        nextRace && setSelectedRaceId(String(nextRace.id))
+                      }
                       className="px-2 py-2 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       Next ›
@@ -809,7 +1102,8 @@ export default function SubscriberCalculatorLivePicks({
                         </div>
                         {isConsensusPick ? (
                           <p className="mt-2 inline-flex rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
-                            SmartPunt Consensus Pick — calculator and Head Tipper agree
+                            SmartPunt Consensus Pick — calculator and Head
+                            Tipper agree
                           </p>
                         ) : null}
                       </div>
@@ -890,7 +1184,11 @@ export default function SubscriberCalculatorLivePicks({
                         >
                           <div
                             className={`absolute left-0 top-0 flex h-10 w-10 items-start justify-start bg-gradient-to-br ${
-                              index === 0 ? "from-zinc-500" : index === 1 ? "from-zinc-300" : "from-orange-400"
+                              index === 0
+                                ? "from-zinc-500"
+                                : index === 1
+                                  ? "from-zinc-300"
+                                  : "from-orange-400"
                             } to-transparent pl-2.5 pt-1.5 text-lg font-black text-black`}
                           >
                             {index + 1}
@@ -902,10 +1200,15 @@ export default function SubscriberCalculatorLivePicks({
                             {runner.horse_name}
                           </p>
                           <p className="mt-2 text-[10px] font-bold text-zinc-300">
-                            Score {roundScore(runner.score)} · Win {runner.winPercent}% · Rank #{runner.rank}
+                            Score {roundScore(runner.score)} · Win{" "}
+                            {runner.winPercent}% · Rank #{runner.rank}
                           </p>
                           <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-900 px-2 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
-                            {isWinTip ? "🏆 Win Tip" : isPlaceTip ? "🥈 Place Tip" : "⊘ No Bet"}
+                            {isWinTip
+                              ? "🏆 Win Tip"
+                              : isPlaceTip
+                                ? "🥈 Place Tip"
+                                : "⊘ No Bet"}
                           </div>
                         </div>
                       );
@@ -931,7 +1234,8 @@ export default function SubscriberCalculatorLivePicks({
 
                       <div>
                         <p className="text-[11px] font-black uppercase tracking-[0.14em] text-amber-300">
-                          Why this race scores {raceConfidence.confidencePercent}%
+                          Why this race scores{" "}
+                          {raceConfidence.confidencePercent}%
                         </p>
                         <p className="mt-3 text-sm font-bold leading-6 text-white">
                           {raceConfidence.summary}
@@ -957,12 +1261,15 @@ export default function SubscriberCalculatorLivePicks({
                       {tipThresholds ? (
                         raceConfidence.tier === "Low" ? (
                           <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-3 py-3 text-[11px] font-semibold leading-5 text-amber-100">
-                            Low Confidence race: SmartPunt does not issue Win or Place Tips while race confidence is Low.
+                            Low Confidence race: SmartPunt does not issue Win or
+                            Place Tips while race confidence is Low.
                           </p>
                         ) : (
                           <div className="mt-3 grid gap-2">
                             <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-[11px] font-semibold leading-5 text-zinc-200">
-                              Win: Score {tipThresholds.minWinScore}+ · Gap {tipThresholds.minWinGap}+ · Win {tipThresholds.minWinPercent}%+
+                              Win: Score {tipThresholds.minWinScore}+ · Gap{" "}
+                              {tipThresholds.minWinGap}+ · Win{" "}
+                              {tipThresholds.minWinPercent}%+
                             </p>
                             <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-[11px] font-semibold leading-5 text-zinc-200">
                               Place:{" "}
@@ -975,7 +1282,8 @@ export default function SubscriberCalculatorLivePicks({
                       ) : null}
 
                       <p className="mt-3 rounded-2xl border border-sky-400/20 bg-sky-500/15 px-3 py-3 text-[11px] font-semibold leading-5 text-sky-100">
-                        ⓘ Race Confidence measures the quality of the betting race, not just the quality of the top-rated horse.
+                        ⓘ Race Confidence measures the quality of the betting
+                        race, not just the quality of the top-rated horse.
                       </p>
                     </div>
                   </div>
@@ -1000,7 +1308,10 @@ export default function SubscriberCalculatorLivePicks({
                     </p>
                     <div className="mt-2 space-y-2">
                       {watchouts.map((item) => (
-                        <p key={item} className="text-[10px] font-semibold leading-4 text-zinc-300">
+                        <p
+                          key={item}
+                          className="text-[10px] font-semibold leading-4 text-zinc-300"
+                        >
                           ⚠️ {item}
                         </p>
                       ))}
@@ -1015,8 +1326,12 @@ export default function SubscriberCalculatorLivePicks({
                       {activeSpecialistAlerts.length ? (
                         activeSpecialistAlerts.slice(0, 3).map((alert) => (
                           <div key={`${alert.horseName}-${alert.label}`}>
-                            <p className="text-[10px] font-black text-white">{alert.horseName}</p>
-                            <p className="text-[9px] font-semibold leading-4 text-zinc-300">{alert.label}</p>
+                            <p className="text-[10px] font-black text-white">
+                              {alert.horseName}
+                            </p>
+                            <p className="text-[9px] font-semibold leading-4 text-zinc-300">
+                              {alert.label}
+                            </p>
                           </div>
                         ))
                       ) : (
@@ -1039,7 +1354,8 @@ export default function SubscriberCalculatorLivePicks({
                           🟡 Calculator Recommendation Only
                         </p>
                         <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
-                          The calculator currently recommends this race, but no official SmartPunt Tip has been published.
+                          The calculator currently recommends this race, but no
+                          official SmartPunt Tip has been published.
                         </p>
                       </>
                     ) : (
@@ -1048,7 +1364,8 @@ export default function SubscriberCalculatorLivePicks({
                           ⚪ Awaiting Review
                         </p>
                         <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
-                          The Head Tipper has not published an official selection for this race.
+                          The Head Tipper has not published an official
+                          selection for this race.
                         </p>
                       </>
                     )}
@@ -1077,10 +1394,18 @@ export default function SubscriberCalculatorLivePicks({
                           <th className="px-3 py-3 font-black">Rank</th>
                           <th className="px-3 py-3 font-black">Runner</th>
                           <th className="px-3 py-3 font-black">Jockey</th>
-                          <th className="px-3 py-3 font-black text-center">Form</th>
-                          <th className="px-3 py-3 font-black text-center">Distance</th>
-                          <th className="px-3 py-3 font-black text-center">Track</th>
-                          <th className="px-3 py-3 font-black text-center">Conditions</th>
+                          <th className="px-3 py-3 font-black text-center">
+                            Form
+                          </th>
+                          <th className="px-3 py-3 font-black text-center">
+                            Distance
+                          </th>
+                          <th className="px-3 py-3 font-black text-center">
+                            Track
+                          </th>
+                          <th className="px-3 py-3 font-black text-center">
+                            Conditions
+                          </th>
                           <th className="px-3 py-3 font-black">Score</th>
                           <th className="px-3 py-3 font-black">Win</th>
                           <th className="px-3 py-3 font-black">Place</th>
@@ -1091,10 +1416,12 @@ export default function SubscriberCalculatorLivePicks({
                         {scoredRunners.map((runner) => {
                           const isCalculatorTip =
                             qualifiedTip &&
-                            Number(qualifiedTip.runner.id) === Number(runner.id);
+                            Number(qualifiedTip.runner.id) ===
+                              Number(runner.id);
                           const isOfficialTip =
                             officialRaceTipRunner &&
-                            Number(officialRaceTipRunner.id) === Number(runner.id);
+                            Number(officialRaceTipRunner.id) ===
+                              Number(runner.id);
 
                           return (
                             <tr
@@ -1115,20 +1442,29 @@ export default function SubscriberCalculatorLivePicks({
                                   {runner.horse_name}
                                 </p>
                                 <p className="mt-1 text-[10px] font-semibold text-zinc-500">
-                                  Barrier {runner.barrier || "—"} {isOfficialTip ? "• Official Tip" : isCalculatorTip ? "• Calculator Tip" : ""}
+                                  Barrier {runner.barrier || "—"}{" "}
+                                  {isOfficialTip
+                                    ? "• Official Tip"
+                                    : isCalculatorTip
+                                      ? "• Calculator Tip"
+                                      : ""}
                                 </p>
                               </td>
                               <td className="px-3 py-3 font-semibold text-zinc-300">
                                 {(runner as any).jockey_name || "—"}
                               </td>
                               <td className="px-3 py-3 text-center">
-                                <ScoreStars score={runner.components.recentForm} />
+                                <ScoreStars
+                                  score={runner.components.recentForm}
+                                />
                                 <p className="mt-1 text-[9px] font-semibold text-zinc-500">
                                   {roundScore(runner.components.recentForm)}
                                 </p>
                               </td>
                               <td className="px-3 py-3 text-center">
-                                <ScoreStars score={runner.components.distance} />
+                                <ScoreStars
+                                  score={runner.components.distance}
+                                />
                                 <p className="mt-1 text-[9px] font-semibold text-zinc-500">
                                   {roundScore(runner.components.distance)}
                                 </p>
@@ -1140,7 +1476,9 @@ export default function SubscriberCalculatorLivePicks({
                                 </p>
                               </td>
                               <td className="px-3 py-3 text-center">
-                                <ScoreStars score={runner.components.condition} />
+                                <ScoreStars
+                                  score={runner.components.condition}
+                                />
                                 <p className="mt-1 text-[9px] font-semibold text-zinc-500">
                                   {roundScore(runner.components.condition)}
                                 </p>
@@ -1181,13 +1519,38 @@ export default function SubscriberCalculatorLivePicks({
               </div>
             ) : (
               <div className="rounded-[22px] border border-amber-400/45 bg-black p-5 text-center">
-                <h2 className="text-xl font-black text-white">No live calculator races available</h2>
+                <h2 className="text-xl font-black text-white">
+                  No live calculator races available
+                </h2>
                 <p className="mt-2 text-sm font-semibold text-zinc-400">
-                  Once today’s races are published, SmartPunt Calculator Live Picks will appear here.
+                  Once today’s races are published, SmartPunt Calculator Live
+                  Picks will appear here.
                 </p>
               </div>
             )}
           </div>
+
+          <footer className="mt-3 overflow-hidden rounded-[22px] border border-amber-300/40 bg-[linear-gradient(135deg,#05070c_0%,#0b1220_52%,#05070c_100%)] p-5 text-center shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+            <img
+              src="/header-logo.png"
+              alt="Fortune on 5"
+              className="mx-auto h-40 w-auto object-contain drop-shadow-[0_0_32px_rgba(250,204,21,0.72)] sm:h-48"
+            />
+            <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
+              Fortune on 5
+            </p>
+            <h2 className="mt-2 text-xl font-black leading-tight text-white">
+              SmartPunt Calculator Live Picks
+            </h2>
+            <p className="mt-2 text-[11px] font-bold leading-5 text-zinc-300">
+              Every race analysed. Every recommendation explained.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Pill tone="green">{publishedRaces.length} live races</Pill>
+              <Pill tone="gold">Live calculator</Pill>
+              <Pill tone="blue">Head Tipper status</Pill>
+            </div>
+          </footer>
         </div>
       </div>
     </div>
