@@ -335,6 +335,21 @@ export default async function Page() {
       })
     : [];
 
+  const activeUserBets = currentRaceIds.length
+    ? await fetchServiceRoleRowsByRaceIds<any>({
+        table: "user_bets",
+        select: "*",
+        raceIds: currentRaceIds,
+        order: "created_at.desc",
+      }).then((rows) =>
+        rows.filter(
+          (row) =>
+            String(row.user_id || "") === String(profile.id || "") &&
+            !row.settled_at,
+        ),
+      )
+    : [];
+
   return (
     <SubscriberCalculatorLivePicks
       currentUser={profile}
@@ -345,6 +360,7 @@ export default async function Page() {
       jockeyProfiles={jockeyProfiles}
       calculatorTips={calculatorTips}
       officialTips={officialTips}
+      activeUserBets={activeUserBets}
     />
   );
 }
