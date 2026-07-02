@@ -559,7 +559,7 @@ export default function SubscriberCalculatorLivePicks({
   const [selectedRaceId, setSelectedRaceId] = useState("");
   const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
     useState(false);
-const [showBestOpportunities, setShowBestOpportunities] = useState(true);
+  const [showBestOpportunities, setShowBestOpportunities] = useState(true);
   const [acceptingTipKey, setAcceptingTipKey] = useState<string | null>(null);
   const [tipMessage, setTipMessage] = useState<string | null>(null);
   const [tipError, setTipError] = useState<string | null>(null);
@@ -1086,19 +1086,20 @@ const [showBestOpportunities, setShowBestOpportunities] = useState(true);
               <h1 className="text-sm font-black leading-tight text-white">
                 SmartPunt Calculator Live Picks
               </h1>
-<button
-  type="button"
-  onClick={() => setShowBestOpportunities((value) => !value)}
-  className="mt-1 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.16em] text-amber-300 transition hover:text-amber-200"
->
-  <span>Best Opportunities</span>
-
-  <span className="rounded-full border border-amber-300/30 px-1.5 py-0.5 text-[8px]">
-    {bestOpportunities.length}
-  </span>
-
-  <span>{showBestOpportunities ? "▲" : "▼"}</span>
-</button>
+              <button
+                type="button"
+                onClick={() => setShowBestOpportunities((value) => !value)}
+                className="mt-1 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-amber-300 transition hover:bg-amber-500/20 hover:text-amber-200"
+                aria-expanded={showBestOpportunities}
+              >
+                <span>Best Opportunities</span>
+                <span className="rounded-full border border-amber-300/30 bg-black/30 px-1.5 py-0.5 text-[8px] leading-none text-amber-100">
+                  {bestOpportunities.length}
+                </span>
+                <span className="text-[8px] text-amber-100">
+                  {showBestOpportunities ? "▲" : "▼"}
+                </span>
+              </button>
             </div>
             <Link
               href="/"
@@ -1108,63 +1109,65 @@ const [showBestOpportunities, setShowBestOpportunities] = useState(true);
             </Link>
           </div>
 
-          <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
-            {bestOpportunities.length ? (
-              bestOpportunities.map((item) => {
-                const isSelected =
-                  activeRace && Number(activeRace.id) === Number(item.raceId);
-                const sourceClasses =
-                  item.source === "CONSENSUS"
+          {showBestOpportunities ? (
+            <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
+              {bestOpportunities.length ? (
+                bestOpportunities.map((item) => {
+                  const isSelected =
+                    activeRace && Number(activeRace.id) === Number(item.raceId);
+                  const sourceClasses =
+                    item.source === "CONSENSUS"
+                      ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
+                      : item.source === "HEAD"
+                        ? "border-amber-300/45 bg-amber-500/20 text-amber-100"
+                        : "border-sky-300/45 bg-sky-500/20 text-sky-100";
+                  const betClasses = item.betType.toLowerCase().includes("win")
                     ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
-                    : item.source === "HEAD"
-                      ? "border-amber-300/45 bg-amber-500/20 text-amber-100"
-                      : "border-sky-300/45 bg-sky-500/20 text-sky-100";
-                const betClasses = item.betType.toLowerCase().includes("win")
-                  ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
-                  : "border-sky-300/45 bg-sky-500/20 text-sky-100";
+                    : "border-sky-300/45 bg-sky-500/20 text-sky-100";
 
-                return (
-                  <button
-                    key={`${item.source}-${item.raceId}-${item.horseName}`}
-                    type="button"
-                    onClick={() => setSelectedRaceId(String(item.raceId))}
-                    className={`grid w-full grid-cols-[58px_1fr_56px] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
-                      isSelected
-                        ? "border-amber-300 bg-amber-300/20 shadow-[0_0_0_1px_rgba(251,191,36,0.35)_inset]"
-                        : "border-white/10 bg-black/65 hover:border-amber-300/45 hover:bg-black/85"
-                    }`}
-                  >
-                    <span
-                      className={`rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses}`}
+                  return (
+                    <button
+                      key={`${item.source}-${item.raceId}-${item.horseName}`}
+                      type="button"
+                      onClick={() => setSelectedRaceId(String(item.raceId))}
+                      className={`grid w-full grid-cols-[58px_1fr_56px] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
+                        isSelected
+                          ? "border-amber-300 bg-amber-300/20 shadow-[0_0_0_1px_rgba(251,191,36,0.35)_inset]"
+                          : "border-white/10 bg-black/65 hover:border-amber-300/45 hover:bg-black/85"
+                      }`}
                     >
-                      {item.source}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300">
-                        <span>{item.raceLabel}</span>
-                        <span className="text-[8px] tracking-normal text-amber-200/80">
-                          {getConfidenceStars(item.confidencePercent)}
+                      <span
+                        className={`rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses}`}
+                      >
+                        {item.source}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300">
+                          <span>{item.raceLabel}</span>
+                          <span className="text-[8px] tracking-normal text-amber-200/80">
+                            {getConfidenceStars(item.confidencePercent)}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 block truncate text-[12px] font-black leading-tight text-white">
+                          {item.horseName}
                         </span>
                       </span>
-                      <span className="mt-0.5 block truncate text-[12px] font-black leading-tight text-white">
-                        {item.horseName}
+                      <span
+                        className={`rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${betClasses}`}
+                      >
+                        {item.betType}
                       </span>
-                    </span>
-                    <span
-                      className={`rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${betClasses}`}
-                    >
-                      {item.betType}
-                    </span>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center text-[11px] font-bold text-zinc-300">
-                No SmartPunt opportunities yet. Use the race selector below to
-                review every live race.
-              </div>
-            )}
-          </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center text-[11px] font-bold text-zinc-300">
+                  No SmartPunt opportunities yet. Use the race selector below to
+                  review every live race.
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="mb-4 overflow-hidden rounded-[26px] border border-amber-300/40 bg-[#f7f0df] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
