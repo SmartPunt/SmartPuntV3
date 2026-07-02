@@ -438,7 +438,7 @@ export default function SubscriberCalculatorLivePicks({
   const [selectedRaceId, setSelectedRaceId] = useState("");
   const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
     useState(false);
-
+  const [showBestOpportunities, setShowBestOpportunities] = useState(true);
   const publishedRaces = useMemo(
     () => races.filter((race) => race.status === "published"),
     [races],
@@ -895,9 +895,20 @@ export default function SubscriberCalculatorLivePicks({
               <h1 className="text-sm font-black leading-tight text-white">
                 SmartPunt Calculator Live Picks
               </h1>
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
-                Best Opportunities
-              </p>
+              <button
+                type="button"
+                onClick={() => setShowBestOpportunities((value) => !value)}
+                className="mt-1 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-amber-200 transition hover:bg-amber-500/20"
+                aria-expanded={showBestOpportunities}
+              >
+                <span>Best Opportunities</span>
+                <span className="rounded-full bg-amber-300/20 px-2 py-0.5 text-[8px] text-amber-100">
+                  {bestOpportunities.length}
+                </span>
+                <span className="text-[10px] text-amber-100">
+                  {showBestOpportunities ? "▾" : "▸"}
+                </span>
+              </button>
             </div>
             <Link
               href="/"
@@ -907,9 +918,10 @@ export default function SubscriberCalculatorLivePicks({
             </Link>
           </div>
 
-          <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
-            {bestOpportunities.length ? (
-              bestOpportunities.map((item) => {
+          {showBestOpportunities ? (
+            <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
+              {bestOpportunities.length ? (
+                bestOpportunities.map((item) => {
                 const isSelected =
                   activeRace && Number(activeRace.id) === Number(item.raceId);
                 const sourceClasses =
@@ -958,12 +970,17 @@ export default function SubscriberCalculatorLivePicks({
                 );
               })
             ) : (
-              <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center text-[11px] font-bold text-zinc-300">
-                No SmartPunt opportunities yet. Use the race selector below to
-                review every live race.
-              </div>
-            )}
-          </div>
+                <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center text-[11px] font-bold text-zinc-300">
+                  No SmartPunt opportunities yet. Use the race selector below to
+                  review every live race.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              Tap Best Opportunities to show today&apos;s quick links.
+            </div>
+          )}
         </div>
 
         <div className="mb-4 overflow-hidden rounded-[26px] border border-amber-300/40 bg-[#f7f0df] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
