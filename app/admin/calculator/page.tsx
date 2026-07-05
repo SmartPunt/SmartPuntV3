@@ -73,6 +73,59 @@ async function fetchRowsByIds<T>({
   return rows;
 }
 
+async function fetchRowsByNumberColumn<T>({
+  supabase,
+  table,
+  column,
+  values,
+  orders = [],
+  notNullColumns = [],
+}: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  table: string;
+  column: string;
+  values: number[];
+  orders?: { column: string; ascending: boolean }[];
+  notNullColumns?: string[];
+}) {
+  const rows: T[] = [];
+  const pageSize = 1000;
+
+  for (const valueChunk of chunk(uniqueNumbers(values))) {
+    let from = 0;
+
+    while (true) {
+      let query: any = supabase
+        .from(table)
+        .select("*")
+        .in(column, valueChunk);
+
+      notNullColumns.forEach((notNullColumn) => {
+        query = query.not(notNullColumn, "is", null);
+      });
+
+      orders.forEach((order) => {
+        query = query.order(order.column, { ascending: order.ascending });
+      });
+
+      const { data, error } = await query.range(from, from + pageSize - 1);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      const pageRows = (data ?? []) as T[];
+      rows.push(...pageRows);
+
+      if (pageRows.length < pageSize) break;
+
+      from += pageSize;
+    }
+  }
+
+  return rows;
+}
+
 function getServiceRoleConfig() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -205,24 +258,19 @@ export default async function Page() {
 
   const currentRaceIds = uniqueNumbers(currentRaces.map((race) => race.id));
 
-  let currentRunners: any[] = [];
-
-  if (currentRaceIds.length) {
-    for (const raceIdChunk of chunk(currentRaceIds)) {
-      const { data, error } = await supabase
-        .from("race_runners")
-        .select("*")
-        .in("race_id", raceIdChunk)
-        .order("race_id", { ascending: true })
-        .order("barrier", { ascending: true });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      currentRunners.push(...(data ?? []));
-    }
-  }
+  const currentRunners = currentRaceIds.length
+    ? await fetchRowsByNumberColumn<any>({
+        supabase,
+        table: "race_runners",
+        column: "race_id",
+        values: currentRaceIds,
+        orders: [
+          { column: "race_id", ascending: true },
+          { column: "barrier", ascending: true },
+          { column: "id", ascending: true },
+        ],
+      })
+    : [];
 
   const activeHorseIds = uniqueNumbers(
     currentRunners.map((runner) => runner.horse_id),
@@ -234,27 +282,20 @@ export default async function Page() {
     ids: activeHorseIds,
   });
 
-  let historicalRunners: any[] = [];
-
-  if (activeHorseIds.length) {
-    for (const horseIdChunk of chunk(activeHorseIds)) {
-      const { data, error } = await supabase
-        .from("race_runners")
-        .select("*")
-        .in("horse_id", horseIdChunk)
-        .not("finishing_position", "is", null);
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      historicalRunners.push(...(data ?? []));
-    }
-  }
+  const resultedHistoricalRunners = activeHorseIds.length
+    ? await fetchRowsByNumberColumn<any>({
+        supabase,
+        table: "race_runners",
+        column: "horse_id",
+        values: activeHorseIds,
+        notNullColumns: ["finishing_position"],
+        orders: [{ column: "id", ascending: true }],
+      })
+    : [];
 
   const runnerMap = new Map<number, any>();
 
-  [...historicalRunners, ...currentRunners].forEach((runner) => {
+  [...resultedHistoricalRunners, ...currentRunners].forEach((runner) => {
     runnerMap.set(Number(runner.id), runner);
   });
 
@@ -262,7 +303,7 @@ export default async function Page() {
 
   const requiredRaceIds = uniqueNumbers([
     ...currentRaceIds,
-    ...historicalRunners.map((runner) => runner.race_id),
+    ...resultedHistoricalRunners.map((runner) => runner.race_id),
   ]);
 
   const historicalAndCurrentRaces = await fetchRowsByIds<any>({
