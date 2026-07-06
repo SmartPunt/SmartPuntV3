@@ -223,14 +223,17 @@ export default async function Page() {
 
   const supabase = await createClient();
 
+  const yesterday = getPerthDate(-1);
   const today = getPerthDate(0);
   const tomorrow = getPerthDate(1);
+  const loadedMeetingDates = [yesterday, today, tomorrow];
 
   const { data: currentMeetingsData, error: meetingsError } = await supabase
     .from("meetings")
     .select("*")
-    .gte("meeting_date", today)
-    .order("meeting_date", { ascending: true });
+    .in("meeting_date", loadedMeetingDates)
+    .order("meeting_date", { ascending: true })
+    .order("meeting_name", { ascending: true });
 
   if (meetingsError) {
     throw new Error(meetingsError.message);
@@ -248,7 +251,7 @@ export default async function Page() {
       const { data, error } = await supabase
         .from("races")
         .select("*")
-        .eq("status", "published")
+        .in("status", ["published", "closed"])
         .in("meeting_id", meetingIdChunk)
         .order("meeting_id", { ascending: true })
         .order("race_number", { ascending: true });
@@ -390,6 +393,7 @@ export default async function Page() {
       meetings={meetings}
       jockeyProfiles={jockeyProfiles}
       calculatorTips={calculatorTips}
+      dayDates={{ yesterday, today, tomorrow }}
     />
   );
 }
