@@ -4,6 +4,39 @@ import { getCurrentProfile } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+type AuditSection = {
+  label?: string;
+  score?: number | string;
+  status?: string;
+  summary?: string;
+  details?: string[];
+  decisionLog?: string[];
+};
+
+type ScoringAudit = {
+  overall?: {
+    score?: number | string;
+    baseScore?: number | string;
+    standoutBonus?: number | string;
+    powerAdjustment?: number | string;
+    overconfidenceDampenerApplied?: boolean;
+  };
+  sections?: {
+    recentForm?: AuditSection;
+    distance?: AuditSection;
+    track?: AuditSection;
+    condition?: AuditSection;
+    barrier?: AuditSection;
+    weight?: AuditSection;
+    jockey?: AuditSection;
+    trainer?: AuditSection;
+    consistency?: AuditSection;
+    power?: AuditSection;
+  };
+  decisionLog?: string[];
+  version?: string;
+};
+
 type Prediction = {
   race_id: number;
   runner_id: number;
@@ -30,6 +63,7 @@ type Prediction = {
   race_confidence_tier: string | null;
   race_confidence_percent: number | string | null;
   suggested_bet: string | null;
+  scoring_audit?: ScoringAudit | null;
   race?: RaceWithMeeting | null;
   runner?: RaceRunnerRow | null;
   horse?: HorseRow | null;
@@ -272,6 +306,124 @@ function groupByRace(rows: Prediction[]) {
   return map;
 }
 
+
+function normaliseAuditStatus(value?: string | null) {
+  if (!value) return "";
+
+  if (value === "positive") return "Positive";
+  if (value === "neutral") return "Neutral";
+  if (value === "risk") return "Risk";
+  if (value === "fallback") return "Fallback";
+
+  return value;
+}
+
+function auditSection(
+  row: Prediction,
+  section: keyof NonNullable<ScoringAudit["sections"]>,
+) {
+  return row.scoring_audit?.sections?.[section] || null;
+}
+
+function auditStatus(
+  row: Prediction,
+  section: keyof NonNullable<ScoringAudit["sections"]>,
+) {
+  return normaliseAuditStatus(auditSection(row, section)?.status || "");
+}
+
+function auditDetails(
+  row: Prediction,
+  section: keyof NonNullable<ScoringAudit["sections"]>,
+) {
+  return auditSection(row, section)?.details || [];
+}
+
+function auditSummary(
+  row: Prediction,
+  section: keyof NonNullable<ScoringAudit["sections"]>,
+) {
+  return auditSection(row, section)?.summary || "";
+}
+
+function auditDecisionLog(row: Prediction) {
+  return row.scoring_audit?.decisionLog?.join(" | ") || "";
+}
+
+function firstRunCountFromText(values: string[]) {
+  for (const value of values) {
+    const match = value.match(/(\d+)\s+runs?/i);
+    if (match) return match[1];
+  }
+
+  return "";
+}
+
+function sectionRunCount(
+  row: Prediction,
+  section: keyof NonNullable<ScoringAudit["sections"]>,
+) {
+  return firstRunCountFromText(auditDetails(row, section));
+}
+
+function isUnknownEvidence(
+  row: Prediction,
+  section: keyof NonNullable<ScoringAudit["sections"]>,
+) {
+  const status = auditStatus(row, section).toLowerCase();
+  const summary = auditSummary(row, section).toLowerCase();
+  const details = auditDetails(row, section).join(" ").toLowerCase();
+  const runCount = sectionRunCount(row, section);
+
+  return (
+    (status === "neutral" && summary.includes("no exact")) ||
+    (status === "neutral" && runCount === "0") ||
+    details.includes("neutral score applied")
+  );
+}
+
+function buildReviewReasons(row: Prediction) {
+  const reasons: string[] = [];
+  const totalScore = Number(row.score || 0);
+  const finish = Number(row.finishing_position || row.runner?.finishing_position || 0);
+
+  if (totalScore >= 75 && finish > 6) {
+    reasons.push("High-rated miss");
+  }
+
+  if (finish === 1 && totalScore > 0 && totalScore < 60) {
+    reasons.push("Underrated winner");
+  }
+
+  if (isUnknownEvidence(row, "track") && Number(row.track_score || 0) > 50) {
+    reasons.push("Track unknown but scored above neutral");
+  }
+
+  if (isUnknownEvidence(row, "distance") && Number(row.distance_score || 0) > 50) {
+    reasons.push("Distance unknown but scored above neutral");
+  }
+
+  const jockeyDetails = auditDetails(row, "jockey").join(" ").toLowerCase();
+  if (Number(row.jockey_score || 0) >= 70 && jockeyDetails.includes("0 runs")) {
+    reasons.push("High jockey score with no horse/jockey history");
+  }
+
+  const trainerDetails = auditDetails(row, "trainer").join(" ").toLowerCase();
+  if (Number(row.trainer_score || 0) >= 60 && trainerDetails.includes("0 wins")) {
+    reasons.push("High trainer score with no trainer wins");
+  }
+
+  return reasons;
+}
+
+function needsReview(row: Prediction) {
+  return buildReviewReasons(row).length ? "YES" : "NO";
+}
+
+function reviewReason(row: Prediction) {
+  return buildReviewReasons(row).join(" | ");
+}
+
 function buildCsv(rows: Prediction[]) {
   const raceMap = groupByRace(rows);
 
@@ -326,6 +478,30 @@ function buildCsv(rows: Prediction[]) {
     "weight_score",
     "jockey_score",
     "trainer_score",
+
+    "form_status",
+    "track_status",
+    "distance_status",
+    "condition_status",
+    "jockey_status",
+    "trainer_status",
+    "consistency_status",
+    "power_status",
+
+    "form_history_runs",
+    "track_history_runs",
+    "distance_history_runs",
+    "condition_history_runs",
+    "jockey_history_runs",
+    "trainer_history_runs",
+
+    "track_unknown",
+    "distance_unknown",
+    "condition_unknown",
+
+    "needs_review",
+    "review_reason",
+    "audit_decision_log",
 
     "race_gap",
     "race_confidence_tier",
@@ -421,6 +597,30 @@ function buildCsv(rows: Prediction[]) {
       row.weight_score,
       row.jockey_score,
       row.trainer_score,
+
+      auditStatus(row, "recentForm"),
+      auditStatus(row, "track"),
+      auditStatus(row, "distance"),
+      auditStatus(row, "condition"),
+      auditStatus(row, "jockey"),
+      auditStatus(row, "trainer"),
+      auditStatus(row, "consistency"),
+      auditStatus(row, "power"),
+
+      sectionRunCount(row, "recentForm"),
+      sectionRunCount(row, "track"),
+      sectionRunCount(row, "distance"),
+      sectionRunCount(row, "condition"),
+      sectionRunCount(row, "jockey"),
+      sectionRunCount(row, "trainer"),
+
+      isUnknownEvidence(row, "track") ? "YES" : "NO",
+      isUnknownEvidence(row, "distance") ? "YES" : "NO",
+      isUnknownEvidence(row, "condition") ? "YES" : "NO",
+
+      needsReview(row),
+      reviewReason(row),
+      auditDecisionLog(row),
 
       row.race_gap ?? "",
       row.race_confidence_tier ?? "",
