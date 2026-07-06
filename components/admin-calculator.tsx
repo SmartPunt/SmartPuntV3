@@ -281,6 +281,25 @@ function buildRaceEdgeLeaders(alerts: SpecialistAlert[]): RaceEdgeLeader[] {
   });
 }
 
+type RaceDayFilter = "yesterday" | "today" | "tomorrow";
+
+type DayDates = {
+  yesterday: string;
+  today: string;
+  tomorrow: string;
+};
+
+function getRaceDayLabel(value: RaceDayFilter) {
+  if (value === "yesterday") return "Yesterday";
+  if (value === "tomorrow") return "Tomorrow";
+  return "Today";
+}
+
+function matchesRaceDay(meeting: Meeting | undefined, raceDayFilter: RaceDayFilter, dayDates: DayDates) {
+  if (!meeting?.meeting_date) return false;
+  return meeting.meeting_date === dayDates[raceDayFilter];
+}
+
 export default function AdminCalculator({
   races,
   runners,
@@ -288,6 +307,7 @@ export default function AdminCalculator({
   meetings,
   jockeyProfiles,
   calculatorTips = [],
+  dayDates,
 }: {
   races: Race[];
   runners: Runner[];
@@ -295,27 +315,47 @@ export default function AdminCalculator({
   meetings: Meeting[];
   jockeyProfiles: JockeyProfile[];
   calculatorTips?: CalculatorTip[];
+  dayDates?: DayDates;
 }) {
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
   const [alertThreshold, setAlertThreshold] = useState("80");
   const [strongestBetMode, setStrongestBetMode] = useState<"win" | "place">("win");
 
-  const [raceDayFilter, setRaceDayFilter] = useState<
-    "today" | "tomorrow" | "upcoming"
-  >("today");
+  const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
   const [showTipsOnly, setShowTipsOnly] = useState(false);
   const [showSpecialistsOnly, setShowSpecialistsOnly] = useState(false);
   const [minimumConfidence, setMinimumConfidence] = useState("all");
 
+  const activeDayDates = useMemo<DayDates>(
+    () =>
+      dayDates || {
+        yesterday: getPerthDate(-1),
+        today: getPerthDate(0),
+        tomorrow: getPerthDate(1),
+      },
+    [dayDates],
+  );
+
+  const selectedRaceDayLabel = getRaceDayLabel(raceDayFilter);
+
   const publishedRaces = useMemo(
-    () => races.filter((race) => race.status === "published"),
+    () => races.filter((race) => ["published", "closed"].includes(String(race.status || ""))),
     [races],
+  );
+
+  const dayPublishedRaces = useMemo(
+    () =>
+      publishedRaces.filter((race) => {
+        const meeting = meetings.find((item) => item.id === race.meeting_id);
+        return matchesRaceDay(meeting, raceDayFilter, activeDayDates);
+      }),
+    [activeDayDates, meetings, publishedRaces, raceDayFilter],
   );
 
   const orderedPublishedRaces = useMemo(
     () =>
-      [...publishedRaces].sort((a, b) => {
+      [...dayPublishedRaces].sort((a, b) => {
         const meetingA = meetings.find((item) => item.id === a.meeting_id);
         const meetingB = meetings.find((item) => item.id === b.meeting_id);
 
@@ -333,7 +373,7 @@ export default function AdminCalculator({
 
         return Number(a.race_number || 0) - Number(b.race_number || 0);
       }),
-    [meetings, publishedRaces],
+    [dayPublishedRaces, meetings],
   );
 
   const matchingHorses = useMemo(() => {
@@ -370,11 +410,15 @@ export default function AdminCalculator({
 
   const activeRace = useMemo(() => {
     if (selectedRaceId) {
-      return publishedRaces.find((race) => String(race.id) === selectedRaceId) || null;
+      return (
+        orderedPublishedRaces.find((race) => String(race.id) === selectedRaceId) ||
+        orderedPublishedRaces[0] ||
+        null
+      );
     }
 
-    return horseRace;
-  }, [horseRace, publishedRaces, selectedRaceId]);
+    return horseRace || orderedPublishedRaces[0] || null;
+  }, [horseRace, orderedPublishedRaces, selectedRaceId]);
 
   const scoredRunners = useMemo(
     () =>
@@ -522,20 +566,7 @@ const activeRaceEdgeLeaders = useMemo(
 const activeRaceEdgeLeader = activeRaceEdgeLeaders[0] || null;
 
 const raceConfidenceBoard = useMemo(() => {
-  const today = getPerthDate(0);
-  const tomorrow = getPerthDate(1);
-
-  return publishedRaces
-    .filter((race) => {
-      const meeting = meetings.find((item) => item.id === race.meeting_id);
-
-      if (!meeting?.meeting_date) return false;
-
-      if (raceDayFilter === "today") return meeting.meeting_date === today;
-      if (raceDayFilter === "tomorrow") return meeting.meeting_date === tomorrow;
-
-      return meeting.meeting_date >= today;
-    })
+  return dayPublishedRaces
     .map((race) => {
       const meeting = meetings.find((item) => item.id === race.meeting_id);
 
@@ -599,8 +630,7 @@ return {
   horses,
   jockeyProfiles,
   meetings,
-  publishedRaces,
-  raceDayFilter,
+  dayPublishedRaces,
   races,
   runners,
 ]);
@@ -622,25 +652,7 @@ const filteredRaceConfidenceBoard = useMemo(() => {
 }, [minimumConfidence, raceConfidenceBoard, showSpecialistsOnly, showTipsOnly]);
 
   const strongestBets = useMemo(() => {
-    const today = getPerthDate(0);
-    const tomorrow = getPerthDate(1);
-
-    return publishedRaces
-      .filter((race) => {
-        const meeting = meetings.find((item) => item.id === race.meeting_id);
-
-        if (!meeting?.meeting_date) return false;
-
-        if (raceDayFilter === "today") {
-          return meeting.meeting_date === today;
-        }
-
-        if (raceDayFilter === "tomorrow") {
-          return meeting.meeting_date === tomorrow;
-        }
-
-        return meeting.meeting_date >= today;
-      })
+    return dayPublishedRaces
       .map((race) => {
         const scored = calculateRaceScores({
           activeRace: race,
@@ -705,11 +717,10 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
     horses,
     jockeyProfiles,
     meetings,
-    publishedRaces,
+    dayPublishedRaces,
     races,
     runners,
     strongestBetMode,
-    raceDayFilter,
     calculatorTips,
   ]);
 
@@ -825,7 +836,7 @@ const bettingVerdictSummary = qualifiedTip
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="green">{publishedRaces.length} published races</Badge>
+                <Badge tone="green">{orderedPublishedRaces.length} {selectedRaceDayLabel.toLowerCase()} races</Badge>
                 <Badge tone="blue">{horses.length} saved horses</Badge>
                 <Badge tone="amber">No market influence</Badge>
                 <Badge tone="green">Auto-saved on publish</Badge>
@@ -1480,14 +1491,14 @@ const bettingVerdictSummary = qualifiedTip
 
   <button
     type="button"
-    onClick={() => setRaceDayFilter("upcoming")}
+    onClick={() => setRaceDayFilter("yesterday")}
     className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-      raceDayFilter === "upcoming"
+      raceDayFilter === "yesterday"
         ? "bg-black text-amber-300"
         : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
     }`}
   >
-    All Upcoming
+    Yesterday
   </button>
 
   <Badge tone="blue">{filteredRaceConfidenceBoard.length} of {raceConfidenceBoard.length} races</Badge>
@@ -1738,7 +1749,7 @@ const bettingVerdictSummary = qualifiedTip
                     ? "Today’s"
                     : raceDayFilter === "tomorrow"
                       ? "Tomorrow’s"
-                      : "Upcoming"} strongest {strongestBetMode === "win" ? "win" : "place"} bets
+                      : "Yesterday’s"} strongest {strongestBetMode === "win" ? "win" : "place"} bets
                 </h2>
 
                 <div className="space-y-1">
@@ -1748,7 +1759,7 @@ const bettingVerdictSummary = qualifiedTip
                       ? "today’s published races"
                       : raceDayFilter === "tomorrow"
                         ? "tomorrow’s published races"
-                        : "all upcoming published races"}
+                        : "yesterday’s published races"}
                     .
                   </p>
 
@@ -1788,14 +1799,14 @@ const bettingVerdictSummary = qualifiedTip
 
                 <button
                   type="button"
-                  onClick={() => setRaceDayFilter("upcoming")}
+                  onClick={() => setRaceDayFilter("yesterday")}
                   className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                    raceDayFilter === "upcoming"
+                    raceDayFilter === "yesterday"
                       ? "bg-black text-amber-300"
                       : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
                   }`}
                 >
-                  All Upcoming
+                  Yesterday
                 </button>
 
                 <span className="mx-1 hidden h-8 w-px bg-zinc-200 sm:block" />
@@ -2111,14 +2122,14 @@ const bettingVerdictSummary = qualifiedTip
 
   <button
     type="button"
-    onClick={() => setRaceDayFilter("upcoming")}
+    onClick={() => setRaceDayFilter("yesterday")}
     className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-      raceDayFilter === "upcoming"
+      raceDayFilter === "yesterday"
         ? "bg-zinc-950 text-amber-300"
         : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
     }`}
   >
-    All Upcoming
+    Yesterday
   </button>
 </div>
                         <div className="flex flex-wrap gap-2">
