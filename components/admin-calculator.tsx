@@ -13,9 +13,9 @@ import {
   formatFormLine,
   getFactorStatus,
   getCalculatorTipThresholds,
-getSelectedHorseSummary,
-getQualifiedCalculatorTip,
-roundScore,
+  getSelectedHorseSummary,
+  getQualifiedCalculatorTip,
+  roundScore,
   type Horse,
   type JockeyProfile,
   type Meeting,
@@ -33,7 +33,6 @@ type CalculatorTip = {
   status: string | null;
   published_at: string | null;
 };
-
 
 type SpecialistAlert = {
   horseName: string;
@@ -72,7 +71,9 @@ function getPerthDate(offsetDays = 0) {
   const month = Number(perthParts.find((part) => part.type === "month")?.value);
   const day = Number(perthParts.find((part) => part.type === "day")?.value);
 
-  const perthCalendarDate = new Date(Date.UTC(year, month - 1, day + offsetDays, 12));
+  const perthCalendarDate = new Date(
+    Date.UTC(year, month - 1, day + offsetDays, 12),
+  );
 
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "UTC",
@@ -106,16 +107,22 @@ function getDistanceSpecialistLabel(distanceBucket: string, emerging = false) {
   const prefix = emerging ? "Emerging " : "";
 
   if (distanceBucket === "1000–1200m") return `${prefix}Sprint Specialist`;
-  if (distanceBucket === "1201–1400m") return `${prefix}Short Course Specialist`;
+  if (distanceBucket === "1201–1400m")
+    return `${prefix}Short Course Specialist`;
   if (distanceBucket === "1401–1600m") return `${prefix}Mile Specialist`;
-  if (distanceBucket === "1601–1800m") return `${prefix}Middle Distance Specialist`;
+  if (distanceBucket === "1601–1800m")
+    return `${prefix}Middle Distance Specialist`;
   if (distanceBucket === "1801–2200m") return `${prefix}Staying Specialist`;
-  if (distanceBucket === "2200m+") return emerging ? "Emerging Stayer" : "Stayer";
+  if (distanceBucket === "2200m+")
+    return emerging ? "Emerging Stayer" : "Stayer";
 
   return `${prefix}Distance Specialist`;
 }
 
-function getConditionSpecialistLabel(conditionBucket: string, emerging = false) {
+function getConditionSpecialistLabel(
+  conditionBucket: string,
+  emerging = false,
+) {
   const prefix = emerging ? "Emerging " : "";
 
   if (conditionBucket === "Heavy") return `${prefix}Heavy Tracker`;
@@ -126,7 +133,9 @@ function getConditionSpecialistLabel(conditionBucket: string, emerging = false) 
   return `${prefix}Condition Specialist`;
 }
 
-function getSpecialistRunStats<T extends { finishing_position?: number | null }>(runs: T[]) {
+function getSpecialistRunStats<
+  T extends { finishing_position?: number | null },
+>(runs: T[]) {
   const wins = runs.filter((run) => run.finishing_position === 1).length;
   const places = runs.filter((run) => {
     const position = run.finishing_position;
@@ -156,7 +165,9 @@ function buildSetupMatchedSpecialistAlerts({
   meetings,
 }: SpecialistAlertInput) {
   const raceDistanceBucket = getSpecialistDistanceBucket(race.distance_m);
-  const raceConditionBucket = getSpecialistConditionBucket(meeting?.track_condition || null);
+  const raceConditionBucket = getSpecialistConditionBucket(
+    meeting?.track_condition || null,
+  );
   const alerts: SpecialistAlert[] = [];
   const seen = new Set<string>();
 
@@ -169,13 +180,23 @@ function buildSetupMatchedSpecialistAlerts({
   }
 
   scoredRunners.forEach((runner) => {
-    const horse = horses.find((item) => Number(item.id) === Number(runner.horse_id));
+    const horse = horses.find(
+      (item) => Number(item.id) === Number(runner.horse_id),
+    );
     const horseName = horse?.horse_name || runner.horse_name;
-    const historyRuns = buildHorseHistory(runner.horse_id, runners, races, meetings, race.id);
+    const historyRuns = buildHorseHistory(
+      runner.horse_id,
+      runners,
+      races,
+      meetings,
+      race.id,
+    );
 
     if (raceDistanceBucket !== "Unknown") {
       const distanceRuns = historyRuns.filter(
-        (run) => getSpecialistDistanceBucket(run.race?.distance_m) === raceDistanceBucket,
+        (run) =>
+          getSpecialistDistanceBucket(run.race?.distance_m) ===
+          raceDistanceBucket,
       );
       const stats = getSpecialistRunStats(distanceRuns);
 
@@ -221,7 +242,9 @@ function buildSetupMatchedSpecialistAlerts({
 
     if (raceConditionBucket !== "Other") {
       const conditionRuns = historyRuns.filter(
-        (run) => getSpecialistConditionBucket(run.meeting?.track_condition) === raceConditionBucket,
+        (run) =>
+          getSpecialistConditionBucket(run.meeting?.track_condition) ===
+          raceConditionBucket,
       );
       const stats = getSpecialistRunStats(conditionRuns);
 
@@ -295,9 +318,47 @@ function getRaceDayLabel(value: RaceDayFilter) {
   return "Today";
 }
 
-function matchesRaceDay(meeting: Meeting | undefined, raceDayFilter: RaceDayFilter, dayDates: DayDates) {
+function matchesRaceDay(
+  meeting: Meeting | undefined,
+  raceDayFilter: RaceDayFilter,
+  dayDates: DayDates,
+) {
   if (!meeting?.meeting_date) return false;
   return meeting.meeting_date === dayDates[raceDayFilter];
+}
+
+function getAuditStatusLabel(status?: string | null) {
+  if (status === "strong") return "Strong evidence";
+  if (status === "supported") return "Supported";
+  if (status === "limited") return "Limited evidence";
+  if (status === "fallback") return "Fallback used";
+  if (status === "neutral") return "Neutral";
+  if (status === "risk") return "Risk";
+  return "Audit";
+}
+
+function getAuditStatusClass(status?: string | null) {
+  if (status === "strong" || status === "supported") {
+    return "border-emerald-400/35 bg-emerald-500/10 text-emerald-200";
+  }
+
+  if (status === "limited" || status === "fallback" || status === "neutral") {
+    return "border-amber-400/35 bg-amber-500/10 text-amber-200";
+  }
+
+  if (status === "risk") {
+    return "border-red-400/35 bg-red-500/10 text-red-200";
+  }
+
+  return "border-zinc-500/35 bg-zinc-500/10 text-zinc-200";
+}
+
+function getAuditDotClass(status?: string | null) {
+  if (status === "strong" || status === "supported") return "bg-emerald-400";
+  if (status === "risk") return "bg-red-400";
+  if (status === "limited" || status === "fallback" || status === "neutral")
+    return "bg-amber-300";
+  return "bg-zinc-400";
 }
 
 export default function AdminCalculator({
@@ -320,12 +381,17 @@ export default function AdminCalculator({
   const [search, setSearch] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState("");
   const [alertThreshold, setAlertThreshold] = useState("80");
-  const [strongestBetMode, setStrongestBetMode] = useState<"win" | "place">("win");
+  const [strongestBetMode, setStrongestBetMode] = useState<"win" | "place">(
+    "win",
+  );
 
   const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
   const [showTipsOnly, setShowTipsOnly] = useState(false);
   const [showSpecialistsOnly, setShowSpecialistsOnly] = useState(false);
   const [minimumConfidence, setMinimumConfidence] = useState("all");
+  const [selectedAuditRunnerId, setSelectedAuditRunnerId] = useState<
+    number | null
+  >(null);
 
   const activeDayDates = useMemo<DayDates>(
     () =>
@@ -340,7 +406,10 @@ export default function AdminCalculator({
   const selectedRaceDayLabel = getRaceDayLabel(raceDayFilter);
 
   const publishedRaces = useMemo(
-    () => races.filter((race) => ["published", "closed"].includes(String(race.status || ""))),
+    () =>
+      races.filter((race) =>
+        ["published", "closed"].includes(String(race.status || "")),
+      ),
     [races],
   );
 
@@ -365,9 +434,9 @@ export default function AdminCalculator({
 
         if (dateCompare !== 0) return dateCompare;
 
-        const meetingCompare = String(meetingA?.meeting_name || "").localeCompare(
-          String(meetingB?.meeting_name || ""),
-        );
+        const meetingCompare = String(
+          meetingA?.meeting_name || "",
+        ).localeCompare(String(meetingB?.meeting_name || ""));
 
         if (meetingCompare !== 0) return meetingCompare;
 
@@ -400,7 +469,9 @@ export default function AdminCalculator({
 
     const publishedRaceIds = new Set(publishedRaces.map((race) => race.id));
     const runner = runners.find(
-      (item) => item.horse_id === selectedHorse.id && publishedRaceIds.has(item.race_id),
+      (item) =>
+        item.horse_id === selectedHorse.id &&
+        publishedRaceIds.has(item.race_id),
     );
 
     if (!runner) return null;
@@ -411,7 +482,9 @@ export default function AdminCalculator({
   const activeRace = useMemo(() => {
     if (selectedRaceId) {
       return (
-        orderedPublishedRaces.find((race) => String(race.id) === selectedRaceId) ||
+        orderedPublishedRaces.find(
+          (race) => String(race.id) === selectedRaceId,
+        ) ||
         orderedPublishedRaces[0] ||
         null
       );
@@ -433,9 +506,22 @@ export default function AdminCalculator({
     [activeRace, horses, jockeyProfiles, meetings, races, runners],
   );
 
+  const selectedAuditRunner = useMemo(() => {
+    if (selectedAuditRunnerId === null) return null;
+
+    return (
+      scoredRunners.find(
+        (runner) => Number(runner.id) === Number(selectedAuditRunnerId),
+      ) || null
+    );
+  }, [scoredRunners, selectedAuditRunnerId]);
+
   const selectedHorseScore = useMemo(() => {
     if (!selectedHorse) return null;
-    return scoredRunners.find((runner) => runner.horse_id === selectedHorse.id) || null;
+    return (
+      scoredRunners.find((runner) => runner.horse_id === selectedHorse.id) ||
+      null
+    );
   }, [scoredRunners, selectedHorse]);
 
   const topWinChance = scoredRunners[0] || null;
@@ -444,212 +530,212 @@ export default function AdminCalculator({
     .slice(0, 3);
   const calculatorTopThree = scoredRunners.slice(0, 3);
   const activePlaceTerms = activeRace?.place_terms || "top_3";
-const placeBettingDisabled = activePlaceTerms === "win_only";
+  const placeBettingDisabled = activePlaceTerms === "win_only";
 
-function placeTermsLabel(value?: string | null) {
-  if (value === "win_only") return "Pay 1 Only";
-  if (value === "top_2") return "Pay 1 & 2";
-  return "Pay 1, 2 & 3";
-}
+  function placeTermsLabel(value?: string | null) {
+    if (value === "win_only") return "Pay 1 Only";
+    if (value === "top_2") return "Pay 1 & 2";
+    return "Pay 1, 2 & 3";
+  }
 
+  const raceConfidence = useMemo(
+    () =>
+      scoredRunners.length
+        ? calculateRaceConfidence(scoredRunners, {
+            trackCondition: topWinChance?.track_condition || null,
+            raceName: activeRace?.race_name || "",
+            placeTerms: activeRace?.place_terms || "top_3",
+          })
+        : null,
+    [
+      activeRace?.place_terms,
+      activeRace?.race_name,
+      scoredRunners,
+      topWinChance?.track_condition,
+    ],
+  );
 
-const raceConfidence = useMemo(
-  () =>
-    scoredRunners.length
-      ? calculateRaceConfidence(scoredRunners, {
-          trackCondition: topWinChance?.track_condition || null,
-          raceName: activeRace?.race_name || "",
-          placeTerms: activeRace?.place_terms || "top_3",
-        })
-      : null,
-  [
-    activeRace?.place_terms,
-    activeRace?.race_name,
-    scoredRunners,
-    topWinChance?.track_condition,
-  ],
-);
+  const tipThresholds = useMemo(
+    () =>
+      raceConfidence
+        ? getCalculatorTipThresholds(raceConfidence, {
+            trackCondition: topWinChance?.track_condition || null,
+            placeTerms: activeRace?.place_terms || "top_3",
+          })
+        : null,
+    [activeRace?.place_terms, raceConfidence, topWinChance?.track_condition],
+  );
 
-const tipThresholds = useMemo(
-  () =>
-    raceConfidence
-      ? getCalculatorTipThresholds(raceConfidence, {
-          trackCondition: topWinChance?.track_condition || null,
-          placeTerms: activeRace?.place_terms || "top_3",
-        })
-      : null,
-  [activeRace?.place_terms, raceConfidence, topWinChance?.track_condition],
-);
+  const activeTopPlaceChance = topPlaceChances[0] || null;
 
-const activeTopPlaceChance = topPlaceChances[0] || null;
+  const activeTopPlaceGap = useMemo(() => {
+    if (!activeTopPlaceChance) return 0;
 
-const activeTopPlaceGap = useMemo(() => {
-  if (!activeTopPlaceChance) return 0;
+    const secondPlaceChance =
+      scoredRunners.find(
+        (runner) => Number(runner.id) !== Number(activeTopPlaceChance.id),
+      ) || null;
 
-  const secondPlaceChance =
-    scoredRunners.find(
-      (runner) => Number(runner.id) !== Number(activeTopPlaceChance.id),
-    ) || null;
+    return secondPlaceChance
+      ? roundScore(
+          Number(activeTopPlaceChance.score || 0) -
+            Number(secondPlaceChance.score || 0),
+        )
+      : roundScore(Number(activeTopPlaceChance.score || 0));
+  }, [activeTopPlaceChance, scoredRunners]);
 
-  return secondPlaceChance
-    ? roundScore(
-        Number(activeTopPlaceChance.score || 0) -
-          Number(secondPlaceChance.score || 0),
+  const qualifiedTip = useMemo(
+    () =>
+      getQualifiedCalculatorTip(scoredRunners, {
+        trackCondition: topWinChance?.track_condition || null,
+        raceName: activeRace?.race_name || "",
+        placeTerms: activeRace?.place_terms || "top_3",
+      }),
+    [
+      activeRace?.place_terms,
+      activeRace?.race_name,
+      scoredRunners,
+      topWinChance?.track_condition,
+    ],
+  );
+  const activeRaceIndex = activeRace
+    ? orderedPublishedRaces.findIndex(
+        (race) => Number(race.id) === Number(activeRace.id),
       )
-    : roundScore(Number(activeTopPlaceChance.score || 0));
-}, [activeTopPlaceChance, scoredRunners]);
+    : -1;
 
+  const previousRace =
+    activeRaceIndex > 0 ? orderedPublishedRaces[activeRaceIndex - 1] : null;
 
+  const nextRace =
+    activeRaceIndex >= 0 && activeRaceIndex < orderedPublishedRaces.length - 1
+      ? orderedPublishedRaces[activeRaceIndex + 1]
+      : null;
 
-const qualifiedTip = useMemo(
-  () =>
-    getQualifiedCalculatorTip(scoredRunners, {
-      trackCondition: topWinChance?.track_condition || null,
-      raceName: activeRace?.race_name || "",
-      placeTerms: activeRace?.place_terms || "top_3",
-    }),
-  [
-    activeRace?.place_terms,
-    activeRace?.race_name,
-    scoredRunners,
-    topWinChance?.track_condition,
-  ],
-);
-const activeRaceIndex = activeRace
-  ? orderedPublishedRaces.findIndex((race) => Number(race.id) === Number(activeRace.id))
-  : -1;
+  function loadRaceById(raceId: number) {
+    setSelectedRaceId(String(raceId));
+  }
+  const activeMeeting = activeRace
+    ? meetings.find((item) => item.id === activeRace.meeting_id)
+    : undefined;
 
-const previousRace =
-  activeRaceIndex > 0 ? orderedPublishedRaces[activeRaceIndex - 1] : null;
+  const activeSpecialistAlerts = useMemo(
+    () =>
+      activeRace
+        ? buildSetupMatchedSpecialistAlerts({
+            race: activeRace,
+            meeting: activeMeeting,
+            scoredRunners,
+            races,
+            runners,
+            horses,
+            meetings,
+          })
+        : [],
+    [
+      activeMeeting,
+      activeRace,
+      horses,
+      meetings,
+      races,
+      runners,
+      scoredRunners,
+    ],
+  );
 
-const nextRace =
-  activeRaceIndex >= 0 && activeRaceIndex < orderedPublishedRaces.length - 1
-    ? orderedPublishedRaces[activeRaceIndex + 1]
-    : null;
+  const activeRaceEdgeLeaders = useMemo(
+    () => buildRaceEdgeLeaders(activeSpecialistAlerts),
+    [activeSpecialistAlerts],
+  );
 
-function loadRaceById(raceId: number) {
-  setSelectedRaceId(String(raceId));
-}
-const activeMeeting = activeRace
-  ? meetings.find((item) => item.id === activeRace.meeting_id)
-  : undefined;
+  const activeRaceEdgeLeader = activeRaceEdgeLeaders[0] || null;
 
-const activeSpecialistAlerts = useMemo(
-  () =>
-    activeRace
-      ? buildSetupMatchedSpecialistAlerts({
-          race: activeRace,
-          meeting: activeMeeting,
-          scoredRunners,
+  const raceConfidenceBoard = useMemo(() => {
+    return dayPublishedRaces
+      .map((race) => {
+        const meeting = meetings.find((item) => item.id === race.meeting_id);
+
+        const scored = calculateRaceScores({
+          activeRace: race,
           races,
           runners,
           horses,
           meetings,
-        })
-      : [],
-  [
-    activeMeeting,
-    activeRace,
-    horses,
-    meetings,
-    races,
-    runners,
-    scoredRunners,
-  ],
-);
+          jockeyProfiles,
+        });
 
-const activeRaceEdgeLeaders = useMemo(
-  () => buildRaceEdgeLeaders(activeSpecialistAlerts),
-  [activeSpecialistAlerts],
-);
+        const confidence = scored.length
+          ? calculateRaceConfidence(scored, {
+              trackCondition: meeting?.track_condition || null,
+              placeTerms: race.place_terms || "top_3",
+            })
+          : null;
 
-const activeRaceEdgeLeader = activeRaceEdgeLeaders[0] || null;
+        const raceMeeting = meetings.find(
+          (item) => Number(item.id) === Number(race.meeting_id),
+        );
 
-const raceConfidenceBoard = useMemo(() => {
-  return dayPublishedRaces
-    .map((race) => {
-      const meeting = meetings.find((item) => item.id === race.meeting_id);
+        const qualifiedTip = getQualifiedCalculatorTip(scored, {
+          trackCondition: raceMeeting?.track_condition || null,
+          raceName: race.race_name || "",
+          placeTerms: race.place_terms || "top_3",
+        });
 
-      const scored = calculateRaceScores({
-        activeRace: race,
-        races,
-        runners,
-        horses,
-        meetings,
-        jockeyProfiles,
-      });
+        const calculatorTip = qualifiedTip?.type || "No Bet";
 
-      const confidence = scored.length
-        ? calculateRaceConfidence(scored, {
-            trackCondition: meeting?.track_condition || null,
-            placeTerms: race.place_terms || "top_3",
-          })
-        : null;
+        const specialistAlerts = buildSetupMatchedSpecialistAlerts({
+          race,
+          meeting: meeting || undefined,
+          scoredRunners: scored,
+          races,
+          runners,
+          horses,
+          meetings,
+        });
 
-const raceMeeting = meetings.find(
-  (item) => Number(item.id) === Number(race.meeting_id),
-);
+        const raceEdgeLeaders = buildRaceEdgeLeaders(specialistAlerts);
 
-const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: raceMeeting?.track_condition || null,
-  raceName: race.race_name || "",
-  placeTerms: race.place_terms || "top_3",
-});
+        return {
+          race,
+          meeting,
+          fieldSize: scored.length,
+          confidence,
+          calculatorTip,
+          specialistAlerts,
+          raceEdgeLeaders,
+        };
+      })
+      .filter((item) => item.confidence)
+      .sort(
+        (a, b) =>
+          Number(b.confidence?.confidencePercent || 0) -
+          Number(a.confidence?.confidencePercent || 0),
+      );
+  }, [horses, jockeyProfiles, meetings, dayPublishedRaces, races, runners]);
 
-const calculatorTip = qualifiedTip?.type || "No Bet";
+  const filteredRaceConfidenceBoard = useMemo(() => {
+    const confidenceFloor =
+      minimumConfidence === "all" ? 0 : Number(minimumConfidence);
 
-const specialistAlerts = buildSetupMatchedSpecialistAlerts({
-  race,
-  meeting: meeting || undefined,
-  scoredRunners: scored,
-  races,
-  runners,
-  horses,
-  meetings,
-});
+    return raceConfidenceBoard.filter((item) => {
+      const confidencePercent = Number(item.confidence?.confidencePercent || 0);
+      const hasCalculatorTip =
+        item.calculatorTip === "Win" || item.calculatorTip === "Place";
+      const hasSpecialistMatch =
+        item.specialistAlerts.length > 0 || item.raceEdgeLeaders.length > 0;
 
-const raceEdgeLeaders = buildRaceEdgeLeaders(specialistAlerts);
+      if (showTipsOnly && !hasCalculatorTip) return false;
+      if (showSpecialistsOnly && !hasSpecialistMatch) return false;
+      if (confidencePercent < confidenceFloor) return false;
 
-return {
-  race,
-  meeting,
-  fieldSize: scored.length,
-  confidence,
-  calculatorTip,
-  specialistAlerts,
-  raceEdgeLeaders,
-};
-    })
-    .filter((item) => item.confidence)
-    .sort(
-      (a, b) =>
-        Number(b.confidence?.confidencePercent || 0) -
-        Number(a.confidence?.confidencePercent || 0),
-    );
-}, [
-  horses,
-  jockeyProfiles,
-  meetings,
-  dayPublishedRaces,
-  races,
-  runners,
-]);
-
-const filteredRaceConfidenceBoard = useMemo(() => {
-  const confidenceFloor = minimumConfidence === "all" ? 0 : Number(minimumConfidence);
-
-  return raceConfidenceBoard.filter((item) => {
-    const confidencePercent = Number(item.confidence?.confidencePercent || 0);
-    const hasCalculatorTip = item.calculatorTip === "Win" || item.calculatorTip === "Place";
-    const hasSpecialistMatch = item.specialistAlerts.length > 0 || item.raceEdgeLeaders.length > 0;
-
-    if (showTipsOnly && !hasCalculatorTip) return false;
-    if (showSpecialistsOnly && !hasSpecialistMatch) return false;
-    if (confidencePercent < confidenceFloor) return false;
-
-    return true;
-  });
-}, [minimumConfidence, raceConfidenceBoard, showSpecialistsOnly, showTipsOnly]);
+      return true;
+    });
+  }, [
+    minimumConfidence,
+    raceConfidenceBoard,
+    showSpecialistsOnly,
+    showTipsOnly,
+  ]);
 
   const strongestBets = useMemo(() => {
     return dayPublishedRaces
@@ -665,24 +751,26 @@ const filteredRaceConfidenceBoard = useMemo(() => {
 
         if (!scored.length) return null;
 
-const raceMeeting = meetings.find(
-  (item) => Number(item.id) === Number(race.meeting_id),
-);
+        const raceMeeting = meetings.find(
+          (item) => Number(item.id) === Number(race.meeting_id),
+        );
 
-const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: raceMeeting?.track_condition || null,
-  raceName: race.race_name || "",
-  placeTerms: race.place_terms || "top_3",
-});
-        
-if (!qualifiedTip) return null;
+        const qualifiedTip = getQualifiedCalculatorTip(scored, {
+          trackCondition: raceMeeting?.track_condition || null,
+          raceName: race.race_name || "",
+          placeTerms: race.place_terms || "top_3",
+        });
 
-if (strongestBetMode === "win" && qualifiedTip.type !== "Win") return null;
-if (strongestBetMode === "place" && qualifiedTip.type !== "Place") return null;
+        if (!qualifiedTip) return null;
 
-const selected = qualifiedTip.runner;
-const gap = qualifiedTip.gap;
-const raceConfidenceForRace = qualifiedTip.raceConfidence;
+        if (strongestBetMode === "win" && qualifiedTip.type !== "Win")
+          return null;
+        if (strongestBetMode === "place" && qualifiedTip.type !== "Place")
+          return null;
+
+        const selected = qualifiedTip.runner;
+        const gap = qualifiedTip.gap;
+        const raceConfidenceForRace = qualifiedTip.raceConfidence;
         const existingPublishedTip = calculatorTips.find(
           (tip) => Number(tip.race_runner_id) === Number(selected.id),
         );
@@ -736,7 +824,6 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
     return buildHorseHistory(selectedHorse.id, runners, races, meetings);
   }, [meetings, races, runners, selectedHorse]);
 
-
   const fieldSizeLabel =
     scoredRunners.length <= 7
       ? `Small field (${scoredRunners.length})`
@@ -752,11 +839,11 @@ const raceConfidenceForRace = qualifiedTip.raceConfidence;
       : "Place Bet"
     : "No Bet";
 
-const bettingVerdictSummary = qualifiedTip
-  ? qualifiedTip.type === "Win"
-    ? "Top pick clears the calculator threshold. Still keep staking disciplined."
-    : "Top pick has the strongest profile for running in the minors. Win confidence is moderate."
-  : "No runner currently clears the SmartPunt betting threshold for this race.";
+  const bettingVerdictSummary = qualifiedTip
+    ? qualifiedTip.type === "Win"
+      ? "Top pick clears the calculator threshold. Still keep staking disciplined."
+      : "Top pick has the strongest profile for running in the minors. Win confidence is moderate."
+    : "No runner currently clears the SmartPunt betting threshold for this race.";
 
   const watchouts = [
     topWinChance?.track_condition
@@ -772,7 +859,9 @@ const bettingVerdictSummary = qualifiedTip
         ? "Pay 1 & 2 — place bets need a stronger profile"
         : "Standard place terms",
     raceConfidence?.tier === "Low" ? "Low confidence race" : null,
-    activeRaceEdgeLeader ? `Specialist edge: ${activeRaceEdgeLeader.horseName}` : null,
+    activeRaceEdgeLeader
+      ? `Specialist edge: ${activeRaceEdgeLeader.horseName}`
+      : null,
   ]
     .filter(Boolean)
     .slice(0, 4) as string[];
@@ -793,32 +882,53 @@ const bettingVerdictSummary = qualifiedTip
               <Badge tone="amber">Calculator Lab</Badge>
 
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Link href="/admin/race-builder" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                <Link
+                  href="/admin/race-builder"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   Race Builder
                 </Link>
-                <Link href="/current-races" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                <Link
+                  href="/current-races"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   Current Races
                 </Link>
-                <Link href="/race-archive" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                <Link
+                  href="/race-archive"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   Race Archive
                 </Link>
-                <Link href="/admin/calculator-report" className="rounded-2xl border border-amber-400/40 bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-500/30">
+                <Link
+                  href="/admin/calculator-report"
+                  className="rounded-2xl border border-amber-400/40 bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-500/30"
+                >
                   Calculator Report
                 </Link>
                 <Link
-  href="/admin/power-rating-race-card"
-  className="rounded-2xl border border-amber-400/40 bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-500/30"
->
-  🏆 Power Rating Race Card
-</Link>
-                <Link href="/admin/horses" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                  href="/admin/power-rating-race-card"
+                  className="rounded-2xl border border-amber-400/40 bg-amber-500/20 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-500/30"
+                >
+                  🏆 Power Rating Race Card
+                </Link>
+                <Link
+                  href="/admin/horses"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   Saved Horses
                 </Link>
-                <Link href="/" className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15">
+                <Link
+                  href="/"
+                  className="rounded-2xl border border-white/15 bg-black/45 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+                >
                   Back to Admin
                 </Link>
                 <form action={signOutAction}>
-                  <button type="submit" className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 backdrop-blur-sm transition hover:bg-red-500/30">
+                  <button
+                    type="submit"
+                    className="rounded-2xl border border-red-400/30 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-200 backdrop-blur-sm transition hover:bg-red-500/30"
+                  >
                     Log Out
                   </button>
                 </form>
@@ -831,12 +941,16 @@ const bettingVerdictSummary = qualifiedTip
                   SmartPunt calculator lab
                 </h1>
                 <p className="text-sm text-zinc-200 lg:text-base">
-                  Admin-only modelling tool for published races, horse-triggered scoring, and race-wide ranking.
+                  Admin-only modelling tool for published races, horse-triggered
+                  scoring, and race-wide ranking.
                 </p>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="green">{orderedPublishedRaces.length} {selectedRaceDayLabel.toLowerCase()} races</Badge>
+                <Badge tone="green">
+                  {orderedPublishedRaces.length}{" "}
+                  {selectedRaceDayLabel.toLowerCase()} races
+                </Badge>
                 <Badge tone="blue">{horses.length} saved horses</Badge>
                 <Badge tone="amber">No market influence</Badge>
                 <Badge tone="green">Auto-saved on publish</Badge>
@@ -849,15 +963,19 @@ const bettingVerdictSummary = qualifiedTip
           <Panel className="bg-white/95">
             <div className="space-y-5 p-6 text-zinc-950">
               <div>
-                <h2 className="text-xl font-semibold">Horse-triggered lookup</h2>
+                <h2 className="text-xl font-semibold">
+                  Horse-triggered lookup
+                </h2>
                 <p className="text-sm text-zinc-500">
-                  Enter or select a horse. The calculator checks if it is part of a published race,
-                  then scores the whole field around it.
+                  Enter or select a horse. The calculator checks if it is part
+                  of a published race, then scores the whole field around it.
                 </p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-zinc-700">Search horse</label>
+                <label className="text-sm font-medium text-zinc-700">
+                  Search horse
+                </label>
                 <div className="mt-2">
                   <input
                     placeholder="Search horse name..."
@@ -893,7 +1011,9 @@ const bettingVerdictSummary = qualifiedTip
               ) : null}
 
               <div>
-                <label className="text-sm font-medium text-zinc-700">Or choose a published race</label>
+                <label className="text-sm font-medium text-zinc-700">
+                  Or choose a published race
+                </label>
                 <div className="mt-2">
                   <select
                     value={selectedRaceId}
@@ -902,10 +1022,13 @@ const bettingVerdictSummary = qualifiedTip
                   >
                     <option value="">Auto-detect from horse</option>
                     {orderedPublishedRaces.map((race) => {
-                      const meeting = meetings.find((item) => item.id === race.meeting_id);
+                      const meeting = meetings.find(
+                        (item) => item.id === race.meeting_id,
+                      );
                       return (
                         <option key={race.id} value={String(race.id)}>
-                          {(meeting?.meeting_name || "Meeting")} · R{race.race_number} {race.race_name}
+                          {meeting?.meeting_name || "Meeting"} · R
+                          {race.race_number} {race.race_name}
                         </option>
                       );
                     })}
@@ -916,7 +1039,9 @@ const bettingVerdictSummary = qualifiedTip
                   <button
                     type="button"
                     disabled={!previousRace}
-                    onClick={() => previousRace && loadRaceById(previousRace.id)}
+                    onClick={() =>
+                      previousRace && loadRaceById(previousRace.id)
+                    }
                     className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-bold text-zinc-800 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     ◀ Previous Race
@@ -934,7 +1059,9 @@ const bettingVerdictSummary = qualifiedTip
               </div>
 
               <div>
-                <label className="text-sm font-medium text-zinc-700">Alert threshold</label>
+                <label className="text-sm font-medium text-zinc-700">
+                  Alert threshold
+                </label>
                 <div className="mt-2">
                   <input
                     type="number"
@@ -944,7 +1071,8 @@ const bettingVerdictSummary = qualifiedTip
                   />
                 </div>
                 <p className="mt-2 text-xs text-zinc-500">
-                  Later this can trigger alerts to the head tipper for strong-rated runners.
+                  Later this can trigger alerts to the head tipper for
+                  strong-rated runners.
                 </p>
               </div>
 
@@ -972,8 +1100,11 @@ const bettingVerdictSummary = qualifiedTip
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
-                          {topWinChance?.meeting_name || activeMeeting?.meeting_name || "Meeting"}
-                          {topWinChance?.meeting_date || activeMeeting?.meeting_date
+                          {topWinChance?.meeting_name ||
+                            activeMeeting?.meeting_name ||
+                            "Meeting"}
+                          {topWinChance?.meeting_date ||
+                          activeMeeting?.meeting_date
                             ? ` · ${topWinChance?.meeting_date || activeMeeting?.meeting_date}`
                             : ""}
                           {activeRaceIndex >= 0
@@ -992,9 +1123,14 @@ const bettingVerdictSummary = qualifiedTip
                             <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm font-semibold text-zinc-300">
                               <span>{activeRace.distance_m || "—"}m</span>
                               <span>•</span>
-                              <span>{topWinChance?.track_condition || "No condition set"}</span>
+                              <span>
+                                {topWinChance?.track_condition ||
+                                  "No condition set"}
+                              </span>
                               <span>•</span>
-                              <span>{placeTermsLabel(activeRace.place_terms)}</span>
+                              <span>
+                                {placeTermsLabel(activeRace.place_terms)}
+                              </span>
                             </p>
                           </div>
                         </div>
@@ -1014,18 +1150,24 @@ const bettingVerdictSummary = qualifiedTip
                           <button
                             type="button"
                             disabled={!previousRace}
-                            onClick={() => previousRace && loadRaceById(previousRace.id)}
+                            onClick={() =>
+                              previousRace && loadRaceById(previousRace.id)
+                            }
                             className="px-3 py-3 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-35"
                           >
                             ‹ Prev
                           </button>
                           <div className="border-x border-amber-400/20 px-3 py-3 text-center text-white">
-                            {activeRaceIndex >= 0 ? `${activeRaceIndex + 1}` : "—"}
+                            {activeRaceIndex >= 0
+                              ? `${activeRaceIndex + 1}`
+                              : "—"}
                           </div>
                           <button
                             type="button"
                             disabled={!nextRace}
-                            onClick={() => nextRace && loadRaceById(nextRace.id)}
+                            onClick={() =>
+                              nextRace && loadRaceById(nextRace.id)
+                            }
                             className="px-3 py-3 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-35"
                           >
                             Next ›
@@ -1055,10 +1197,12 @@ const bettingVerdictSummary = qualifiedTip
                         {calculatorTopThree.map((runner, index) => {
                           const isTip =
                             qualifiedTip &&
-                            Number(qualifiedTip.runner.id) === Number(runner.id);
+                            Number(qualifiedTip.runner.id) ===
+                              Number(runner.id);
 
                           const isWinTip = isTip && qualifiedTip.type === "Win";
-                          const isPlaceTip = isTip && qualifiedTip.type === "Place";
+                          const isPlaceTip =
+                            isTip && qualifiedTip.type === "Place";
 
                           const tipLabel = isWinTip
                             ? "🏆 WIN TIP"
@@ -1112,7 +1256,8 @@ const bettingVerdictSummary = qualifiedTip
                               </p>
 
                               <p className="mt-2 text-sm font-semibold text-zinc-300">
-                                Score {roundScore(runner.score)} · Win {runner.winPercent}% · Rank #{runner.rank}
+                                Score {roundScore(runner.score)} · Win{" "}
+                                {runner.winPercent}% · Rank #{runner.rank}
                               </p>
 
                               <div
@@ -1149,7 +1294,8 @@ const bettingVerdictSummary = qualifiedTip
 
                         <div>
                           <p className="text-sm font-black uppercase tracking-[0.16em] text-amber-300">
-                            Why this race scores {raceConfidence.confidencePercent}%
+                            Why this race scores{" "}
+                            {raceConfidence.confidencePercent}%
                           </p>
                           <p className="mt-3 text-lg font-bold leading-8 text-white">
                             {raceConfidence.summary}
@@ -1176,7 +1322,8 @@ const bettingVerdictSummary = qualifiedTip
                         {tipThresholds ? (
                           raceConfidence.tier === "Low" ? (
                             <p className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm font-semibold leading-6 text-amber-100">
-                              Low Confidence race: SmartPunt does not issue Win or Place Tips while race confidence is Low.
+                              Low Confidence race: SmartPunt does not issue Win
+                              or Place Tips while race confidence is Low.
                             </p>
                           ) : (
                             <div className="mt-3 space-y-3">
@@ -1194,12 +1341,17 @@ const bettingVerdictSummary = qualifiedTip
                                       <span
                                         className={
                                           Number(topWinChance?.score || 0) >=
-                                          Number(tipThresholds.minWinScore || 999)
+                                          Number(
+                                            tipThresholds.minWinScore || 999,
+                                          )
                                             ? "text-emerald-300"
                                             : "text-rose-300"
                                         }
                                       >
-                                        Current {roundScore(Number(topWinChance?.score || 0))}{" "}
+                                        Current{" "}
+                                        {roundScore(
+                                          Number(topWinChance?.score || 0),
+                                        )}{" "}
                                         {Number(topWinChance?.score || 0) >=
                                         Number(tipThresholds.minWinScore || 999)
                                           ? "✓"
@@ -1219,7 +1371,10 @@ const bettingVerdictSummary = qualifiedTip
                                             : "text-rose-300"
                                         }
                                       >
-                                        Current +{roundScore(Number(raceConfidence.gap || 0))}{" "}
+                                        Current +
+                                        {roundScore(
+                                          Number(raceConfidence.gap || 0),
+                                        )}{" "}
                                         {Number(raceConfidence.gap || 0) >=
                                         tipThresholds.minWinGap
                                           ? "✓"
@@ -1233,15 +1388,21 @@ const bettingVerdictSummary = qualifiedTip
                                       </span>
                                       <span
                                         className={
-                                          Number(topWinChance?.winPercent || 0) >=
-                                          tipThresholds.minWinPercent
+                                          Number(
+                                            topWinChance?.winPercent || 0,
+                                          ) >= tipThresholds.minWinPercent
                                             ? "text-emerald-300"
                                             : "text-rose-300"
                                         }
                                       >
-                                        Current {roundScore(Number(topWinChance?.winPercent || 0))}%{" "}
-                                        {Number(topWinChance?.winPercent || 0) >=
-                                        tipThresholds.minWinPercent
+                                        Current{" "}
+                                        {roundScore(
+                                          Number(topWinChance?.winPercent || 0),
+                                        )}
+                                        %{" "}
+                                        {Number(
+                                          topWinChance?.winPercent || 0,
+                                        ) >= tipThresholds.minWinPercent
                                           ? "✓"
                                           : "✗"}
                                       </span>
@@ -1262,15 +1423,29 @@ const bettingVerdictSummary = qualifiedTip
                                         </span>
                                         <span
                                           className={
-                                            Number(activeTopPlaceChance?.score || 0) >=
-                                            Number(tipThresholds.minPlaceScore || 999)
+                                            Number(
+                                              activeTopPlaceChance?.score || 0,
+                                            ) >=
+                                            Number(
+                                              tipThresholds.minPlaceScore ||
+                                                999,
+                                            )
                                               ? "text-emerald-300"
                                               : "text-rose-300"
                                           }
                                         >
-                                          Current {roundScore(Number(activeTopPlaceChance?.score || 0))}{" "}
-                                          {Number(activeTopPlaceChance?.score || 0) >=
-                                          Number(tipThresholds.minPlaceScore || 999)
+                                          Current{" "}
+                                          {roundScore(
+                                            Number(
+                                              activeTopPlaceChance?.score || 0,
+                                            ),
+                                          )}{" "}
+                                          {Number(
+                                            activeTopPlaceChance?.score || 0,
+                                          ) >=
+                                          Number(
+                                            tipThresholds.minPlaceScore || 999,
+                                          )
                                             ? "✓"
                                             : "✗"}
                                         </span>
@@ -1282,13 +1457,15 @@ const bettingVerdictSummary = qualifiedTip
                                         </span>
                                         <span
                                           className={
-                                            activeTopPlaceGap >= tipThresholds.minPlaceGap
+                                            activeTopPlaceGap >=
+                                            tipThresholds.minPlaceGap
                                               ? "text-emerald-300"
                                               : "text-rose-300"
                                           }
                                         >
                                           Current +{activeTopPlaceGap}{" "}
-                                          {activeTopPlaceGap >= tipThresholds.minPlaceGap
+                                          {activeTopPlaceGap >=
+                                          tipThresholds.minPlaceGap
                                             ? "✓"
                                             : "✗"}
                                         </span>
@@ -1296,19 +1473,31 @@ const bettingVerdictSummary = qualifiedTip
 
                                       <div className="flex items-center justify-between gap-3">
                                         <span className="text-zinc-300">
-                                          Place {tipThresholds.minPlacePercent}%+
+                                          Place {tipThresholds.minPlacePercent}
+                                          %+
                                         </span>
                                         <span
                                           className={
-                                            Number(activeTopPlaceChance?.placePercent || 0) >=
-                                            tipThresholds.minPlacePercent
+                                            Number(
+                                              activeTopPlaceChance?.placePercent ||
+                                                0,
+                                            ) >= tipThresholds.minPlacePercent
                                               ? "text-emerald-300"
                                               : "text-rose-300"
                                           }
                                         >
-                                          Current {roundScore(Number(activeTopPlaceChance?.placePercent || 0))}%{" "}
-                                          {Number(activeTopPlaceChance?.placePercent || 0) >=
-                                          tipThresholds.minPlacePercent
+                                          Current{" "}
+                                          {roundScore(
+                                            Number(
+                                              activeTopPlaceChance?.placePercent ||
+                                                0,
+                                            ),
+                                          )}
+                                          %{" "}
+                                          {Number(
+                                            activeTopPlaceChance?.placePercent ||
+                                              0,
+                                          ) >= tipThresholds.minPlacePercent
                                             ? "✓"
                                             : "✗"}
                                         </span>
@@ -1316,7 +1505,8 @@ const bettingVerdictSummary = qualifiedTip
                                     </div>
                                   ) : (
                                     <p className="mt-3 rounded-xl border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-100">
-                                      Place betting is blocked for Pay 1 Only races.
+                                      Place betting is blocked for Pay 1 Only
+                                      races.
                                     </p>
                                   )}
                                 </div>
@@ -1334,7 +1524,8 @@ const bettingVerdictSummary = qualifiedTip
                         ) : null}
                       </div>
                       <p className="mt-4 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm font-semibold leading-6 text-sky-100">
-                        ⓘ Race Confidence measures the quality of the betting race, not just the quality of the top-rated horse.
+                        ⓘ Race Confidence measures the quality of the betting
+                        race, not just the quality of the top-rated horse.
                       </p>
                     </div>
                   ) : null}
@@ -1374,7 +1565,8 @@ const bettingVerdictSummary = qualifiedTip
                         {alertCandidates.length > 0 ? (
                           alertCandidates.slice(0, 4).map((runner) => (
                             <p key={runner.id}>
-                              {runner.horse_name} — Score {roundScore(runner.score)}
+                              {runner.horse_name} — Score{" "}
+                              {roundScore(runner.score)}
                             </p>
                           ))
                         ) : (
@@ -1397,7 +1589,8 @@ const bettingVerdictSummary = qualifiedTip
                           </p>
                         </div>
                         <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-xs font-black text-amber-100">
-                          {activeSpecialistAlerts.length} match{activeSpecialistAlerts.length === 1 ? "" : "es"}
+                          {activeSpecialistAlerts.length} match
+                          {activeSpecialistAlerts.length === 1 ? "" : "es"}
                         </span>
                       </div>
 
@@ -1410,9 +1603,15 @@ const bettingVerdictSummary = qualifiedTip
                             {activeRaceEdgeLeader.horseName}
                           </p>
                           <p className="mt-1 text-sm font-semibold text-zinc-300">
-                            {activeRaceEdgeLeader.signalCount} matching edge signal{activeRaceEdgeLeader.signalCount === 1 ? "" : "s"}
-                            {activeRaceEdgeLeader.provenCount > 0 ? ` · ${activeRaceEdgeLeader.provenCount} proven` : ""}
-                            {activeRaceEdgeLeader.emergingCount > 0 ? ` · ${activeRaceEdgeLeader.emergingCount} emerging` : ""}
+                            {activeRaceEdgeLeader.signalCount} matching edge
+                            signal
+                            {activeRaceEdgeLeader.signalCount === 1 ? "" : "s"}
+                            {activeRaceEdgeLeader.provenCount > 0
+                              ? ` · ${activeRaceEdgeLeader.provenCount} proven`
+                              : ""}
+                            {activeRaceEdgeLeader.emergingCount > 0
+                              ? ` · ${activeRaceEdgeLeader.emergingCount} emerging`
+                              : ""}
                           </p>
                         </div>
                       ) : null}
@@ -1434,10 +1633,18 @@ const bettingVerdictSummary = qualifiedTip
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <Badge tone="green">Win {selectedHorseScore.winPercent}%</Badge>
-                          <Badge tone="blue">Place {selectedHorseScore.placePercent}%</Badge>
-                          <Badge tone="amber">Rank #{selectedHorseScore.rank}</Badge>
-                          <Badge tone="amber">Score {roundScore(selectedHorseScore.score)}</Badge>
+                          <Badge tone="green">
+                            Win {selectedHorseScore.winPercent}%
+                          </Badge>
+                          <Badge tone="blue">
+                            Place {selectedHorseScore.placePercent}%
+                          </Badge>
+                          <Badge tone="amber">
+                            Rank #{selectedHorseScore.rank}
+                          </Badge>
+                          <Badge tone="amber">
+                            Score {roundScore(selectedHorseScore.score)}
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -1445,311 +1652,366 @@ const bettingVerdictSummary = qualifiedTip
                 </>
               ) : (
                 <div className="rounded-[24px] border border-amber-400/30 bg-black/60 p-5 text-sm font-semibold text-zinc-300">
-                  No published race found yet for that horse. Use a horse that is loaded into a published race, or pick a published race manually.
+                  No published race found yet for that horse. Use a horse that
+                  is loaded into a published race, or pick a published race
+                  manually.
                 </div>
               )}
             </div>
           </Panel>
         </div>
-<Panel className="mt-6 bg-white/95">
-  <div className="p-6 text-zinc-950">
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h2 className="text-xl font-semibold">Race confidence board</h2>
-        <p className="text-sm text-zinc-500">
-          Quick race-day guide showing which races look safest or riskiest to bet into.
-        </p>
-        <p className="mt-1 text-xs text-zinc-500">
-  Click a race row to load it into the Calculator Lab.
-</p>
-      </div>
-
-<div className="flex flex-wrap items-center gap-2">
-  <button
-    type="button"
-    onClick={() => setRaceDayFilter("today")}
-    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-      raceDayFilter === "today"
-        ? "bg-black text-amber-300"
-        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-    }`}
-  >
-    Today
-  </button>
-
-  <button
-    type="button"
-    onClick={() => setRaceDayFilter("tomorrow")}
-    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-      raceDayFilter === "tomorrow"
-        ? "bg-black text-amber-300"
-        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-    }`}
-  >
-    Tomorrow
-  </button>
-
-  <button
-    type="button"
-    onClick={() => setRaceDayFilter("yesterday")}
-    className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-      raceDayFilter === "yesterday"
-        ? "bg-black text-amber-300"
-        : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
-    }`}
-  >
-    Yesterday
-  </button>
-
-  <Badge tone="blue">{filteredRaceConfidenceBoard.length} of {raceConfidenceBoard.length} races</Badge>
-</div>
-    </div>
-
-    <div className="mt-5 rounded-2xl border border-amber-200/50 bg-amber-50/70 p-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setShowTipsOnly((value) => !value)}
-          className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-            showTipsOnly
-              ? "bg-black text-amber-300"
-              : "border border-amber-300/60 bg-white text-zinc-800 hover:bg-amber-100"
-          }`}
-        >
-          Tips Only
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setShowSpecialistsOnly((value) => !value)}
-          className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
-            showSpecialistsOnly
-              ? "bg-black text-amber-300"
-              : "border border-amber-300/60 bg-white text-zinc-800 hover:bg-amber-100"
-          }`}
-        >
-          Specialists Only
-        </button>
-
-        <label className="flex items-center gap-2 text-sm font-bold text-zinc-700">
-          Min confidence
-          <select
-            value={minimumConfidence}
-            onChange={(event) => setMinimumConfidence(event.target.value)}
-            className="rounded-2xl border border-amber-300/60 bg-white px-3 py-2 text-sm font-black text-zinc-900 outline-none transition focus:border-amber-500"
-          >
-            <option value="all">All</option>
-            <option value="60">60%+</option>
-            <option value="65">65%+</option>
-            <option value="70">70%+</option>
-            <option value="75">75%+</option>
-            <option value="80">80%+</option>
-          </select>
-        </label>
-
-        <button
-          type="button"
-          onClick={() => {
-            setShowTipsOnly(false);
-            setShowSpecialistsOnly(false);
-            setMinimumConfidence("all");
-          }}
-          className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
-        >
-          Reset
-        </button>
-      </div>
-
-      <p className="mt-3 text-xs font-medium text-zinc-600">
-        Filters only change this confidence board. Calculator scoring, race confidence, and publishing logic stay unchanged.
-      </p>
-    </div>
-
-    <div className="mt-5 overflow-x-auto rounded-2xl border border-zinc-200">
-      <table className="min-w-full divide-y divide-zinc-200 text-sm">
-        <thead className="bg-zinc-50">
-          <tr>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Race</th>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Field</th>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Terms</th>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Track</th>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Confidence</th>
-            <th className="px-4 py-3 text-left font-semibold text-zinc-600">Insights</th>
-<th className="px-4 py-3 text-left font-semibold text-zinc-600">Calculator Tip</th>
-          </tr>
-        </thead>
-
-        <tbody className="divide-y divide-zinc-100 bg-white">
-          {filteredRaceConfidenceBoard.map((item) => (
-<tr
-  key={item.race.id}
-  onClick={() => setSelectedRaceId(String(item.race.id))}
-  className="cursor-pointer transition hover:bg-amber-50"
->
-              <td className="px-4 py-3 font-semibold text-zinc-950">
-                <span className="inline-flex items-center gap-2">
-                  {item.specialistAlerts.length > 0 ? (
-                    <span
-                      title="Specialist profile match in this race"
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-300 text-xs font-black text-zinc-950 shadow-sm"
-                    >
-                      ★
-                    </span>
-                  ) : null}
-                  <span>
-                    {item.meeting?.meeting_name || "Meeting"} · R{item.race.race_number}{" "}
-                    {item.race.race_name}
-                  </span>
-                </span>
-              </td>
-
-              <td className="px-4 py-3 text-zinc-700">{item.fieldSize} runners</td>
-
-              <td className="px-4 py-3 text-zinc-700">
-                {item.race.place_terms === "win_only"
-                  ? "Pay 1 Only"
-                  : item.race.place_terms === "top_2"
-                    ? "Pay 1 & 2"
-                    : "Pay 1, 2 & 3"}
-              </td>
-
-              <td className="px-4 py-3 text-zinc-700">
-                {item.meeting?.track_condition || "—"}
-              </td>
-
-              <td className="px-4 py-3">
-                <Badge
-                  tone={
-                    item.confidence?.tier === "Elite" || item.confidence?.tier === "High"
-                      ? "green"
-                      : item.confidence?.tier === "Medium"
-                        ? "amber"
-                        : "rose"
-                  }
-                >
-                  {item.confidence?.confidencePercent}% {item.confidence?.tier}
-                </Badge>
-              </td>
-
-              <td className="px-4 py-3">
-                {item.specialistAlerts.length > 0 || item.raceEdgeLeaders.length > 0 ? (
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {item.specialistAlerts.length > 0 ? (
-                        <Badge tone="amber">★ {item.specialistAlerts.length}</Badge>
-                      ) : null}
-
-                      {item.raceEdgeLeaders.length > 0 ? (
-                        <Badge tone="blue">🎯 {item.raceEdgeLeaders[0].signalCount}</Badge>
-                      ) : null}
-                    </div>
-
-                    <p className="text-xs font-black leading-4 text-zinc-800">
-                      {item.raceEdgeLeaders[0]?.horseName || item.specialistAlerts[0]?.horseName}
-                    </p>
-                  </div>
-                ) : (
-                  <span className="text-zinc-400">—</span>
-                )}
-              </td>
-
-<td className="px-4 py-3">
-  <Badge tone={item.calculatorTip === "No Bet" ? "rose" : "green"}>
-    {item.calculatorTip}
-  </Badge>
-</td>
-            </tr>
-          ))}
-
-          {filteredRaceConfidenceBoard.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="px-4 py-8 text-center text-sm font-semibold text-zinc-500">
-                No races match those filters. Try lowering the confidence level or turning off a toggle.
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </table>
-    </div>
-
-    {raceConfidenceBoard.length === 0 ? (
-      <p className="mt-4 text-sm text-zinc-500">
-        No races match this day filter yet.
-      </p>
-    ) : null}
-
-    {raceConfidenceBoard.some((item) => item.specialistAlerts.length > 0) ? (
-      <div className="mt-6 rounded-[24px] border border-amber-200 bg-amber-50 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-800">
-              Specialist Alerts
-            </p>
-            <h3 className="mt-2 text-lg font-black text-zinc-950">
-              Race setup matches a proven or emerging profile
-            </h3>
-            <p className="mt-1 text-sm font-bold text-zinc-700">
-              Race Edge Leader shows the runner with the strongest stack of setup-matched signals.
-            </p>
-          </div>
-          <Badge tone="amber">★ race table flag</Badge>
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {raceConfidenceBoard
-            .filter((item) => item.specialistAlerts.length > 0)
-            .slice(0, 6)
-            .map((item) => (
-              <button
-                key={item.race.id}
-                type="button"
-                onClick={() => setSelectedRaceId(String(item.race.id))}
-                className="rounded-2xl border border-amber-200 bg-white p-4 text-left transition hover:border-amber-400 hover:bg-amber-50"
-              >
-                <p className="text-sm font-black text-zinc-950">
-                  ★ {item.meeting?.meeting_name || "Meeting"} · R{item.race.race_number} {item.race.race_name}
+        <Panel className="mt-6 bg-white/95">
+          <div className="p-6 text-zinc-950">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Race confidence board</h2>
+                <p className="text-sm text-zinc-500">
+                  Quick race-day guide showing which races look safest or
+                  riskiest to bet into.
                 </p>
-                {item.raceEdgeLeaders[0] ? (
-                  <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-800">
-                      🎯 Race Edge Leader
+                <p className="mt-1 text-xs text-zinc-500">
+                  Click a race row to load it into the Calculator Lab.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("today")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "today"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Today
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("tomorrow")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "tomorrow"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("yesterday")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "yesterday"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Yesterday
+                </button>
+
+                <Badge tone="blue">
+                  {filteredRaceConfidenceBoard.length} of{" "}
+                  {raceConfidenceBoard.length} races
+                </Badge>
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-amber-200/50 bg-amber-50/70 p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowTipsOnly((value) => !value)}
+                  className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
+                    showTipsOnly
+                      ? "bg-black text-amber-300"
+                      : "border border-amber-300/60 bg-white text-zinc-800 hover:bg-amber-100"
+                  }`}
+                >
+                  Tips Only
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowSpecialistsOnly((value) => !value)}
+                  className={`rounded-2xl px-4 py-2 text-sm font-black transition ${
+                    showSpecialistsOnly
+                      ? "bg-black text-amber-300"
+                      : "border border-amber-300/60 bg-white text-zinc-800 hover:bg-amber-100"
+                  }`}
+                >
+                  Specialists Only
+                </button>
+
+                <label className="flex items-center gap-2 text-sm font-bold text-zinc-700">
+                  Min confidence
+                  <select
+                    value={minimumConfidence}
+                    onChange={(event) =>
+                      setMinimumConfidence(event.target.value)
+                    }
+                    className="rounded-2xl border border-amber-300/60 bg-white px-3 py-2 text-sm font-black text-zinc-900 outline-none transition focus:border-amber-500"
+                  >
+                    <option value="all">All</option>
+                    <option value="60">60%+</option>
+                    <option value="65">65%+</option>
+                    <option value="70">70%+</option>
+                    <option value="75">75%+</option>
+                    <option value="80">80%+</option>
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTipsOnly(false);
+                    setShowSpecialistsOnly(false);
+                    setMinimumConfidence("all");
+                  }}
+                  className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50"
+                >
+                  Reset
+                </button>
+              </div>
+
+              <p className="mt-3 text-xs font-medium text-zinc-600">
+                Filters only change this confidence board. Calculator scoring,
+                race confidence, and publishing logic stay unchanged.
+              </p>
+            </div>
+
+            <div className="mt-5 overflow-x-auto rounded-2xl border border-zinc-200">
+              <table className="min-w-full divide-y divide-zinc-200 text-sm">
+                <thead className="bg-zinc-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-600">
+                      Race
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-600">
+                      Field
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-600">
+                      Terms
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-600">
+                      Track
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-600">
+                      Confidence
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-600">
+                      Insights
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-zinc-600">
+                      Calculator Tip
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-zinc-100 bg-white">
+                  {filteredRaceConfidenceBoard.map((item) => (
+                    <tr
+                      key={item.race.id}
+                      onClick={() => setSelectedRaceId(String(item.race.id))}
+                      className="cursor-pointer transition hover:bg-amber-50"
+                    >
+                      <td className="px-4 py-3 font-semibold text-zinc-950">
+                        <span className="inline-flex items-center gap-2">
+                          {item.specialistAlerts.length > 0 ? (
+                            <span
+                              title="Specialist profile match in this race"
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-300 text-xs font-black text-zinc-950 shadow-sm"
+                            >
+                              ★
+                            </span>
+                          ) : null}
+                          <span>
+                            {item.meeting?.meeting_name || "Meeting"} · R
+                            {item.race.race_number} {item.race.race_name}
+                          </span>
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3 text-zinc-700">
+                        {item.fieldSize} runners
+                      </td>
+
+                      <td className="px-4 py-3 text-zinc-700">
+                        {item.race.place_terms === "win_only"
+                          ? "Pay 1 Only"
+                          : item.race.place_terms === "top_2"
+                            ? "Pay 1 & 2"
+                            : "Pay 1, 2 & 3"}
+                      </td>
+
+                      <td className="px-4 py-3 text-zinc-700">
+                        {item.meeting?.track_condition || "—"}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <Badge
+                          tone={
+                            item.confidence?.tier === "Elite" ||
+                            item.confidence?.tier === "High"
+                              ? "green"
+                              : item.confidence?.tier === "Medium"
+                                ? "amber"
+                                : "rose"
+                          }
+                        >
+                          {item.confidence?.confidencePercent}%{" "}
+                          {item.confidence?.tier}
+                        </Badge>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {item.specialistAlerts.length > 0 ||
+                        item.raceEdgeLeaders.length > 0 ? (
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {item.specialistAlerts.length > 0 ? (
+                                <Badge tone="amber">
+                                  ★ {item.specialistAlerts.length}
+                                </Badge>
+                              ) : null}
+
+                              {item.raceEdgeLeaders.length > 0 ? (
+                                <Badge tone="blue">
+                                  🎯 {item.raceEdgeLeaders[0].signalCount}
+                                </Badge>
+                              ) : null}
+                            </div>
+
+                            <p className="text-xs font-black leading-4 text-zinc-800">
+                              {item.raceEdgeLeaders[0]?.horseName ||
+                                item.specialistAlerts[0]?.horseName}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-zinc-400">—</span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <Badge
+                          tone={
+                            item.calculatorTip === "No Bet" ? "rose" : "green"
+                          }
+                        >
+                          {item.calculatorTip}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+
+                  {filteredRaceConfidenceBoard.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-4 py-8 text-center text-sm font-semibold text-zinc-500"
+                      >
+                        No races match those filters. Try lowering the
+                        confidence level or turning off a toggle.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+
+            {raceConfidenceBoard.length === 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">
+                No races match this day filter yet.
+              </p>
+            ) : null}
+
+            {raceConfidenceBoard.some(
+              (item) => item.specialistAlerts.length > 0,
+            ) ? (
+              <div className="mt-6 rounded-[24px] border border-amber-200 bg-amber-50 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-800">
+                      Specialist Alerts
                     </p>
-                    <p className="mt-1 text-sm font-black text-zinc-950">
-                      {item.raceEdgeLeaders[0].horseName} · {item.raceEdgeLeaders[0].signalCount} signal{item.raceEdgeLeaders[0].signalCount === 1 ? "" : "s"}
+                    <h3 className="mt-2 text-lg font-black text-zinc-950">
+                      Race setup matches a proven or emerging profile
+                    </h3>
+                    <p className="mt-1 text-sm font-bold text-zinc-700">
+                      Race Edge Leader shows the runner with the strongest stack
+                      of setup-matched signals.
                     </p>
                   </div>
-                ) : null}
-                <div className="mt-3 space-y-2">
-                  {item.specialistAlerts.slice(0, 3).map((alert) => (
-                    <div key={`${item.race.id}-${alert.horseName}-${alert.label}`}>
-                      <p className="text-sm font-black text-zinc-900">
-                        {alert.horseName} — {alert.label}
-                      </p>
-                      <p className="text-xs leading-5 text-zinc-600">{alert.detail}</p>
-                    </div>
-                  ))}
+                  <Badge tone="amber">★ race table flag</Badge>
                 </div>
-              </button>
-            ))}
-        </div>
-      </div>
-    ) : (
-      <p className="mt-5 rounded-2xl bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
-        No specialist setup matches found for this race filter yet.
-      </p>
-    )}
-  </div>
-</Panel>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {raceConfidenceBoard
+                    .filter((item) => item.specialistAlerts.length > 0)
+                    .slice(0, 6)
+                    .map((item) => (
+                      <button
+                        key={item.race.id}
+                        type="button"
+                        onClick={() => setSelectedRaceId(String(item.race.id))}
+                        className="rounded-2xl border border-amber-200 bg-white p-4 text-left transition hover:border-amber-400 hover:bg-amber-50"
+                      >
+                        <p className="text-sm font-black text-zinc-950">
+                          ★ {item.meeting?.meeting_name || "Meeting"} · R
+                          {item.race.race_number} {item.race.race_name}
+                        </p>
+                        {item.raceEdgeLeaders[0] ? (
+                          <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2">
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-800">
+                              🎯 Race Edge Leader
+                            </p>
+                            <p className="mt-1 text-sm font-black text-zinc-950">
+                              {item.raceEdgeLeaders[0].horseName} ·{" "}
+                              {item.raceEdgeLeaders[0].signalCount} signal
+                              {item.raceEdgeLeaders[0].signalCount === 1
+                                ? ""
+                                : "s"}
+                            </p>
+                          </div>
+                        ) : null}
+                        <div className="mt-3 space-y-2">
+                          {item.specialistAlerts.slice(0, 3).map((alert) => (
+                            <div
+                              key={`${item.race.id}-${alert.horseName}-${alert.label}`}
+                            >
+                              <p className="text-sm font-black text-zinc-900">
+                                {alert.horseName} — {alert.label}
+                              </p>
+                              <p className="text-xs leading-5 text-zinc-600">
+                                {alert.detail}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              <p className="mt-5 rounded-2xl bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+                No specialist setup matches found for this race filter yet.
+              </p>
+            )}
+          </div>
+        </Panel>
         <Panel className="mt-6 bg-white/95">
           <div className="p-6 text-zinc-950">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold">
-                  🔥 {raceDayFilter === "today"
+                  🔥{" "}
+                  {raceDayFilter === "today"
                     ? "Today’s"
                     : raceDayFilter === "tomorrow"
                       ? "Tomorrow’s"
-                      : "Yesterday’s"} strongest {strongestBetMode === "win" ? "win" : "place"} bets
+                      : "Yesterday’s"}{" "}
+                  strongest {strongestBetMode === "win" ? "win" : "place"} bets
                 </h2>
 
                 <div className="space-y-1">
@@ -1763,12 +2025,13 @@ const bettingVerdictSummary = qualifiedTip
                     .
                   </p>
 
-<p className="text-xs text-zinc-500">
-  Win and place tip requirements are dynamic. They adjust automatically based
-  on each race's confidence, track condition, field shape and place terms.
-  Select a race below to see the exact qualification thresholds and why a horse
-  did or did not qualify as a SmartPunt tip.
-</p>
+                  <p className="text-xs text-zinc-500">
+                    Win and place tip requirements are dynamic. They adjust
+                    automatically based on each race's confidence, track
+                    condition, field shape and place terms. Select a race below
+                    to see the exact qualification thresholds and why a horse
+                    did or did not qualify as a SmartPunt tip.
+                  </p>
                 </div>
               </div>
 
@@ -1867,17 +2130,11 @@ const bettingVerdictSummary = qualifiedTip
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <Badge tone="green">
-                      Win {item.top.winPercent}%
-                    </Badge>
+                    <Badge tone="green">Win {item.top.winPercent}%</Badge>
 
-                    <Badge tone="blue">
-                      Place {item.top.placePercent}%
-                    </Badge>
+                    <Badge tone="blue">Place {item.top.placePercent}%</Badge>
 
-                    <Badge tone="amber">
-                      Gap +{item.gap}
-                    </Badge>
+                    <Badge tone="amber">Gap +{item.gap}</Badge>
 
                     <Badge tone="slate">
                       Race confidence {item.raceConfidence.confidencePercent}%
@@ -2002,23 +2259,23 @@ const bettingVerdictSummary = qualifiedTip
                       name="race_confidence_tier"
                       value={item.raceConfidence.tier}
                     />
-{item.existingPublishedTip ? (
-  <div className="mb-3 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3">
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <p className="text-sm font-semibold text-emerald-800">
-          Shared with subscribers
-        </p>
+                    {item.existingPublishedTip ? (
+                      <div className="mb-3 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-emerald-800">
+                              Shared with subscribers
+                            </p>
 
-        <p className="mt-1 text-xs text-emerald-700">
-          This calculator signal has already been published.
-        </p>
-      </div>
+                            <p className="mt-1 text-xs text-emerald-700">
+                              This calculator signal has already been published.
+                            </p>
+                          </div>
 
-      <Badge tone="green">Published</Badge>
-    </div>
-  </div>
-) : null}
+                          <Badge tone="green">Published</Badge>
+                        </div>
+                      </div>
+                    ) : null}
                     <label className="flex items-center gap-2 text-sm text-zinc-700">
                       <input
                         type="checkbox"
@@ -2029,19 +2286,19 @@ const bettingVerdictSummary = qualifiedTip
                       Email subscribers
                     </label>
 
-                   <button
-  type="submit"
-  disabled={Boolean(item.existingPublishedTip)}
-  className={`mt-3 w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-    item.existingPublishedTip
-      ? "cursor-not-allowed bg-emerald-100 text-emerald-700"
-      : "bg-zinc-950 text-amber-300 hover:bg-black"
-  }`}
->
-  {item.existingPublishedTip
-    ? "Already Published"
-    : "Publish SmartPunt Calculator Tip"}
-</button>
+                    <button
+                      type="submit"
+                      disabled={Boolean(item.existingPublishedTip)}
+                      className={`mt-3 w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                        item.existingPublishedTip
+                          ? "cursor-not-allowed bg-emerald-100 text-emerald-700"
+                          : "bg-zinc-950 text-amber-300 hover:bg-black"
+                      }`}
+                    >
+                      {item.existingPublishedTip
+                        ? "Already Published"
+                        : "Publish SmartPunt Calculator Tip"}
+                    </button>
                   </form>
                 </div>
               ))}
@@ -2061,7 +2318,9 @@ const bettingVerdictSummary = qualifiedTip
               <div>
                 <h2 className="text-xl font-semibold">Field scoring</h2>
                 <p className="text-sm text-zinc-500">
-                  This version scores recent form, distance, track, conditions, barrier, effective weight, jockey, and trainer. Market has been removed completely.
+                  This version scores recent form, distance, track, conditions,
+                  barrier, effective weight, jockey, and trainer. Market has
+                  been removed completely.
                 </p>
               </div>
               <Badge tone="green">{scoredRunners.length} ranked</Badge>
@@ -2083,60 +2342,78 @@ const bettingVerdictSummary = qualifiedTip
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                          <p className="text-sm text-zinc-500">Rank #{runner.rank}</p>
+                          <p className="text-sm text-zinc-500">
+                            Rank #{runner.rank}
+                          </p>
                           <h3 className="mt-1 text-xl font-bold text-zinc-950">
                             {runner.horse_name}
                           </h3>
                           <p className="mt-2 text-sm text-zinc-600">
-                            Jockey: {runner.jockey_name || "—"} · Barrier: {runner.barrier ?? "—"} · Weight:{" "}
+                            Jockey: {runner.jockey_name || "—"} · Barrier:{" "}
+                            {runner.barrier ?? "—"} · Weight:{" "}
                             {runner.weight_kg ?? "—"}
                             {runner.effectiveWeight !== null
                               ? ` · Effective: ${runner.effectiveWeight}kg`
                               : ""}
                           </p>
                         </div>
-<div className="mb-3 flex flex-wrap gap-2">
-  <button
-    type="button"
-    onClick={() => setRaceDayFilter("today")}
-    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-      raceDayFilter === "today"
-        ? "bg-zinc-950 text-amber-300"
-        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-    }`}
-  >
-    Today
-  </button>
+                        <div className="mb-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRaceDayFilter("today")}
+                            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                              raceDayFilter === "today"
+                                ? "bg-zinc-950 text-amber-300"
+                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                            }`}
+                          >
+                            Today
+                          </button>
 
-  <button
-    type="button"
-    onClick={() => setRaceDayFilter("tomorrow")}
-    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-      raceDayFilter === "tomorrow"
-        ? "bg-zinc-950 text-amber-300"
-        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-    }`}
-  >
-    Tomorrow
-  </button>
+                          <button
+                            type="button"
+                            onClick={() => setRaceDayFilter("tomorrow")}
+                            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                              raceDayFilter === "tomorrow"
+                                ? "bg-zinc-950 text-amber-300"
+                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                            }`}
+                          >
+                            Tomorrow
+                          </button>
 
-  <button
-    type="button"
-    onClick={() => setRaceDayFilter("yesterday")}
-    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-      raceDayFilter === "yesterday"
-        ? "bg-zinc-950 text-amber-300"
-        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-    }`}
-  >
-    Yesterday
-  </button>
-</div>
-                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRaceDayFilter("yesterday")}
+                            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                              raceDayFilter === "yesterday"
+                                ? "bg-zinc-950 text-amber-300"
+                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                            }`}
+                          >
+                            Yesterday
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge tone="green">Win {runner.winPercent}%</Badge>
-                          <Badge tone="blue">Place {runner.placePercent}%</Badge>
+                          <Badge tone="blue">
+                            Place {runner.placePercent}%
+                          </Badge>
                           <Badge tone="amber">{runner.verdict}</Badge>
-                          <Badge tone="slate">Score {roundScore(runner.score)}</Badge>
+                          <Badge tone="slate">
+                            Score {roundScore(runner.score)}
+                          </Badge>
+                          {runner.audit ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedAuditRunnerId(Number(runner.id))
+                              }
+                              className="rounded-full border border-amber-300/40 bg-zinc-950 px-3 py-1 text-xs font-bold text-amber-200 shadow-sm transition hover:bg-black hover:text-amber-100"
+                            >
+                              🔬 Audit
+                            </button>
+                          ) : null}
                         </div>
                       </div>
 
@@ -2151,7 +2428,10 @@ const bettingVerdictSummary = qualifiedTip
                           ["Jockey", runner.components.jockey],
                           ["Trainer", runner.components.trainer],
                         ].map(([label, score]) => (
-                          <div key={String(label)} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                          <div
+                            key={String(label)}
+                            className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3"
+                          >
                             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
                               {label}
                             </p>
@@ -2177,7 +2457,8 @@ const bettingVerdictSummary = qualifiedTip
                 })
               ) : (
                 <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 text-sm text-zinc-500">
-                  Once a published race is selected or auto-detected from a searched horse, the field rankings will appear here.
+                  Once a published race is selected or auto-detected from a
+                  searched horse, the field rankings will appear here.
                 </div>
               )}
             </div>
@@ -2233,6 +2514,175 @@ const bettingVerdictSummary = qualifiedTip
           </Panel>
         </div>
       </div>
+
+      {selectedAuditRunner?.audit ? (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/55 backdrop-blur-sm">
+          <button
+            type="button"
+            aria-label="Close scoring audit"
+            className="absolute inset-0 cursor-default"
+            onClick={() => setSelectedAuditRunnerId(null)}
+          />
+
+          <aside className="relative h-full w-full max-w-xl overflow-y-auto border-l border-amber-300/30 bg-[#070707] text-white shadow-2xl shadow-black/60">
+            <div className="sticky top-0 z-10 border-b border-amber-300/20 bg-black/90 px-5 py-4 backdrop-blur-md">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+                    SmartPunt Scoring Audit
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black tracking-tight text-white">
+                    {selectedAuditRunner.audit.horseName}
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    Why did this horse score{" "}
+                    {roundScore(selectedAuditRunner.audit.overall.score)}?
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedAuditRunnerId(null)}
+                  className="rounded-full border border-white/10 bg-white/10 px-3 py-2 text-sm font-bold text-zinc-200 transition hover:bg-white/20"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <div className="rounded-[28px] border border-amber-300/30 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.18),transparent_34%),linear-gradient(135deg,#111827_0%,#050505_80%)] p-5 shadow-xl shadow-amber-950/25">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/10 bg-black/45 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-400">
+                      Final Score
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-amber-300">
+                      {roundScore(selectedAuditRunner.audit.overall.score)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/45 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-400">
+                      Base Score
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-white">
+                      {roundScore(selectedAuditRunner.audit.overall.baseScore)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/45 p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-400">
+                      Power Adj.
+                    </p>
+                    <p className="mt-2 text-3xl font-black text-white">
+                      {roundScore(
+                        selectedAuditRunner.audit.overall.powerAdjustment,
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedAuditRunner.audit.overall
+                  .overconfidenceDampenerApplied ? (
+                  <p className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100">
+                    Overconfidence dampener was applied to this final score.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-white">
+                      Component Breakdown
+                    </h3>
+                    <p className="text-sm text-zinc-400">
+                      Each section shows the score, data support level, and the
+                      key evidence used.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {Object.values(selectedAuditRunner.audit.sections).map(
+                    (section: any) => (
+                      <div
+                        key={section.label}
+                        className="rounded-3xl border border-white/10 bg-black/45 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <span
+                              className={`mt-1 h-3 w-3 rounded-full ${getAuditDotClass(section.status)}`}
+                            />
+                            <div>
+                              <p className="text-base font-black text-white">
+                                {section.label}
+                              </p>
+                              <p className="mt-1 text-sm leading-6 text-zinc-300">
+                                {section.summary}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <p className="text-2xl font-black text-amber-300">
+                              {roundScore(section.score)}
+                            </p>
+                            <span
+                              className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${getAuditStatusClass(section.status)}`}
+                            >
+                              {getAuditStatusLabel(section.status)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {section.details?.length ? (
+                          <div className="mt-4 grid gap-2">
+                            {section.details
+                              .slice(0, 6)
+                              .map((detail: string) => (
+                                <div
+                                  key={detail}
+                                  className="rounded-2xl border border-white/5 bg-white/[0.04] px-3 py-2 text-xs leading-5 text-zinc-300"
+                                >
+                                  {detail}
+                                </div>
+                              ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-amber-300/25 bg-amber-500/10 p-5">
+                <h3 className="text-lg font-black text-amber-100">
+                  Decision Log
+                </h3>
+                <div className="mt-4 space-y-2">
+                  {selectedAuditRunner.audit.decisionLog.length ? (
+                    selectedAuditRunner.audit.decisionLog.map((item) => (
+                      <div
+                        key={item}
+                        className="rounded-2xl border border-amber-300/15 bg-black/35 px-3 py-2 text-sm text-amber-50"
+                      >
+                        ✓ {item}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="rounded-2xl border border-amber-300/15 bg-black/35 px-3 py-2 text-sm text-amber-50">
+                      No audit decisions were recorded for this runner.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </div>
   );
 }
