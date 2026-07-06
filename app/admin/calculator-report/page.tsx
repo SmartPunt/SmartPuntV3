@@ -355,6 +355,135 @@ function getPowerRank(row: Prediction, raceRows: Prediction[]) {
 
   return index >= 0 ? index + 1 : null;
 }
+
+
+type AuditComponentKey =
+  | "recent_form_score"
+  | "distance_score"
+  | "track_score"
+  | "condition_score"
+  | "barrier_score"
+  | "weight_score"
+  | "jockey_score"
+  | "trainer_score";
+
+type AuditComponent = {
+  key: AuditComponentKey;
+  label: string;
+};
+
+const AUDIT_COMPONENTS: AuditComponent[] = [
+  { key: "recent_form_score", label: "Recent Form" },
+  { key: "distance_score", label: "Distance" },
+  { key: "track_score", label: "Track" },
+  { key: "condition_score", label: "Condition" },
+  { key: "barrier_score", label: "Barrier" },
+  { key: "weight_score", label: "Weight" },
+  { key: "jockey_score", label: "Jockey" },
+  { key: "trainer_score", label: "Trainer" },
+];
+
+function average(values: number[]) {
+  const clean = values.filter((value) => Number.isFinite(value));
+  if (!clean.length) return 0;
+  return clean.reduce((sum, value) => sum + value, 0) / clean.length;
+}
+
+function roundedAverage(values: number[]) {
+  const avg = average(values);
+  return avg ? Math.round(avg) : 0;
+}
+
+function getComponentValue(row: Prediction, key: AuditComponentKey) {
+  return toNumber(row[key]);
+}
+
+function getComponentTone(separation: number): "green" | "amber" | "rose" | "slate" {
+  if (separation >= 6) return "green";
+  if (separation >= 3) return "amber";
+  if (separation <= -2) return "rose";
+  return "slate";
+}
+
+function getComponentHealthLabel(separation: number) {
+  if (separation >= 6) return "Strong separation";
+  if (separation >= 3) return "Useful signal";
+  if (separation <= -2) return "Review";
+  return "Neutral";
+}
+
+function buildScoringAuditSummary(rows: Prediction[], raceGroups: ReturnType<typeof groupByRace>) {
+  const winners = rows.filter((row) => row.finishing_position === 1);
+  const nonWinners = rows.filter((row) => row.finishing_position !== 1);
+
+  const componentSummaries = AUDIT_COMPONENTS.map((component) => {
+    const winnerAverage = roundedAverage(
+      winners.map((row) => getComponentValue(row, component.key)),
+    );
+    const fieldAverage = roundedAverage(
+      rows.map((row) => getComponentValue(row, component.key)),
+    );
+    const nonWinnerAverage = roundedAverage(
+      nonWinners.map((row) => getComponentValue(row, component.key)),
+    );
+    const separation = winnerAverage - nonWinnerAverage;
+
+    return {
+      ...component,
+      winnerAverage,
+      fieldAverage,
+      nonWinnerAverage,
+      separation,
+      tone: getComponentTone(separation),
+      health: getComponentHealthLabel(separation),
+    };
+  });
+
+  const unknownTrackRows = rows.filter((row) => Math.round(getComponentValue(row, "track_score")) === 50);
+  const unknownDistanceRows = rows.filter((row) => Math.round(getComponentValue(row, "distance_score")) === 50);
+  const unknownConditionRows = rows.filter((row) => Math.round(getComponentValue(row, "condition_score")) === 50);
+
+  const highestRatedMisses = rows
+    .filter(
+      (row) =>
+        toNumber(row.score) >= 68 &&
+        row.finishing_position !== null &&
+        row.finishing_position > 3,
+    )
+    .sort((a, b) => toNumber(b.score) - toNumber(a.score))
+    .slice(0, 8);
+
+  const underratedWinners = rows
+    .filter((row) => row.finishing_position === 1 && toNumber(row.score) <= 62)
+    .sort((a, b) => toNumber(a.score) - toNumber(b.score))
+    .slice(0, 8);
+
+  const topRatedMisses = raceGroups
+    .map((race) => race.rows.find((row) => row.rank === 1) || race.rows[0] || null)
+    .filter(
+      (row): row is Prediction =>
+        Boolean(row) &&
+        row.finishing_position !== null &&
+        row.finishing_position > 3,
+    )
+    .sort((a, b) => toNumber(b.score) - toNumber(a.score))
+    .slice(0, 8);
+
+  const reviewComponents = componentSummaries
+    .filter((component) => component.tone === "rose" || component.tone === "slate")
+    .map((component) => component.label);
+
+  return {
+    componentSummaries,
+    unknownTrackRows,
+    unknownDistanceRows,
+    unknownConditionRows,
+    highestRatedMisses,
+    underratedWinners,
+    topRatedMisses,
+    reviewComponents,
+  };
+}
 function filterByDate(rows: Prediction[], from: string, to: string) {
   return rows.filter((row) => {
     const meetingDate = isoDate(row.race?.meeting?.meeting_date);
@@ -664,6 +793,9 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
       )
       .sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
 
+
+  const scoringAudit = buildScoringAuditSummary(predictions, raceGroups);
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
@@ -956,6 +1088,209 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
               tone="slate"
             />
           </div>
+        </div>
+
+        <div className="mt-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                🔬 Scoring Audit
+              </h2>
+              <p className="mt-1 text-sm text-zinc-300">
+                Daily scoring health check. This highlights which components separated winners from the field and which horses deserve review.
+              </p>
+            </div>
+            <Badge tone="amber">Model development</Badge>
+          </div>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <StatCard
+              label="Unknown Track"
+              value={scoringAudit.unknownTrackRows.length}
+              hint={`${percent(scoringAudit.unknownTrackRows.length, totalRunners)}% of runners had neutral track evidence.`}
+              tone="amber"
+            />
+            <StatCard
+              label="Unknown Distance"
+              value={scoringAudit.unknownDistanceRows.length}
+              hint={`${percent(scoringAudit.unknownDistanceRows.length, totalRunners)}% of runners had neutral distance evidence.`}
+              tone="amber"
+            />
+            <StatCard
+              label="Review Components"
+              value={scoringAudit.reviewComponents.length}
+              hint={
+                scoringAudit.reviewComponents.length
+                  ? scoringAudit.reviewComponents.join(", ")
+                  : "All components showed useful separation."
+              }
+              tone={scoringAudit.reviewComponents.length ? "rose" : "green"}
+            />
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <Panel className="bg-white/95">
+              <div className="p-6 text-zinc-950">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold">Component effectiveness</h3>
+                    <p className="text-sm text-zinc-500">
+                      Winner average compared with non-winners. Positive separation means winners were scoring higher in that component.
+                    </p>
+                  </div>
+                  <Badge tone="blue">Evidence check</Badge>
+                </div>
+
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-200 text-xs uppercase tracking-[0.16em] text-zinc-500">
+                        <th className="py-3 pr-3">Component</th>
+                        <th className="py-3 pr-3">Field Avg</th>
+                        <th className="py-3 pr-3">Winner Avg</th>
+                        <th className="py-3 pr-3">Non-winner Avg</th>
+                        <th className="py-3 pr-3">Separation</th>
+                        <th className="py-3 pr-3">Health</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {scoringAudit.componentSummaries.map((component) => (
+                        <tr key={component.key} className="border-b border-zinc-100 last:border-0">
+                          <td className="py-3 pr-3 font-semibold text-zinc-950">
+                            {component.label}
+                          </td>
+                          <td className="py-3 pr-3">{component.fieldAverage}</td>
+                          <td className="py-3 pr-3">{component.winnerAverage}</td>
+                          <td className="py-3 pr-3">{component.nonWinnerAverage}</td>
+                          <td className="py-3 pr-3 font-semibold">
+                            {component.separation > 0 ? "+" : ""}
+                            {component.separation}
+                          </td>
+                          <td className="py-3 pr-3">
+                            <Badge tone={component.tone}>{component.health}</Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </Panel>
+
+            <Panel className="bg-white/95">
+              <div className="p-6 text-zinc-950">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold">Horses worth reviewing</h3>
+                    <p className="text-sm text-zinc-500">
+                      Automatic watchlist for high-rated misses, top-rated misses and low-rated winners.
+                    </p>
+                  </div>
+                  <Badge tone="rose">Audit queue</Badge>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                    <p className="text-sm font-bold text-rose-950">Highest-rated misses</p>
+                    <div className="mt-3 space-y-2">
+                      {scoringAudit.highestRatedMisses.length ? (
+                        scoringAudit.highestRatedMisses.slice(0, 4).map((row) => (
+                          <div key={`high-miss-${row.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2">
+                            <div>
+                              <p className="font-semibold text-zinc-950">{getHorseName(row)}</p>
+                              <p className="text-xs text-zinc-500">{raceLabel(row)}</p>
+                            </div>
+                            <Badge tone="rose">
+                              Score {Math.round(toNumber(row.score))} · Finished {row.finishing_position ?? "—"}
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-zinc-500">No high-rated misses in this range.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-sm font-bold text-amber-950">Top-rated misses</p>
+                    <div className="mt-3 space-y-2">
+                      {scoringAudit.topRatedMisses.length ? (
+                        scoringAudit.topRatedMisses.slice(0, 4).map((row) => (
+                          <div key={`top-miss-${row.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2">
+                            <div>
+                              <p className="font-semibold text-zinc-950">{getHorseName(row)}</p>
+                              <p className="text-xs text-zinc-500">{raceLabel(row)}</p>
+                            </div>
+                            <Badge tone="amber">
+                              Rank #{row.rank} · Finished {row.finishing_position ?? "—"}
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-zinc-500">No top-rated misses in this range.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p className="text-sm font-bold text-emerald-950">Underrated winners</p>
+                    <div className="mt-3 space-y-2">
+                      {scoringAudit.underratedWinners.length ? (
+                        scoringAudit.underratedWinners.slice(0, 4).map((row) => (
+                          <div key={`under-winner-${row.id}`} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white px-3 py-2">
+                            <div>
+                              <p className="font-semibold text-zinc-950">{getHorseName(row)}</p>
+                              <p className="text-xs text-zinc-500">{raceLabel(row)}</p>
+                            </div>
+                            <Badge tone="green">
+                              Won · Score {Math.round(toNumber(row.score))} · Rank #{row.rank}
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-zinc-500">No low-scored winners in this range.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <Panel className="mt-4 bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold">Development notes</h3>
+                  <p className="text-sm text-zinc-500">
+                    Current model-watch items based on recent audit findings.
+                  </p>
+                </div>
+                <Badge tone="slate">Scoring version {SMARTPUNT_SCORING_VERSION}</Badge>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="font-bold text-emerald-950">Track / Distance fallback removed</p>
+                  <p className="mt-2 text-sm text-emerald-800">
+                    Unknown track or distance evidence now stays neutral instead of being lifted by imported records.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="font-bold text-amber-950">Jockey / Trainer watch</p>
+                  <p className="mt-2 text-sm text-amber-800">
+                    Review any day where these components show weak or negative winner separation.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="font-bold text-blue-950">Consistency sample size</p>
+                  <p className="mt-2 text-sm text-blue-800">
+                    Monitor whether limited-history horses are still being lifted too strongly by consistency scoring.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Panel>
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-2">
