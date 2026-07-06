@@ -1904,7 +1904,24 @@ export async function loadCalculatorReportResultsAction(
           runnerResultById.set(Number(runner.id), runner);
         }
       }
+      for (const raceId of raceIds) {
+        const predictionUpdates = (settledRunners || [])
+          .filter((runner: any) => Number(runner.race_id) === Number(raceId))
+          .map((runner: any) => ({
+            id: Number(runner.id),
+            finishing_position: runner.finishing_position,
+            won: runner.won,
+            placed: runner.placed,
+            settled_at: runner.settled_at || null,
+          }));
 
+        if (predictionUpdates.length > 0) {
+          await updateCalculatorPredictionResultsForRace(
+            Number(raceId),
+            predictionUpdates,
+          );
+        }
+      }
       for (const tip of calculatorTips || []) {
         const runner = runnerResultById.get(Number((tip as any).race_runner_id));
 
