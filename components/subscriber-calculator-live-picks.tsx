@@ -536,6 +536,47 @@ function CardTitle({ icon, children }: { icon: string; children: ReactNode }) {
   );
 }
 
+type RaceDayFilter = "yesterday" | "today" | "tomorrow";
+
+type DayDates = {
+  yesterday: string;
+  today: string;
+  tomorrow: string;
+};
+
+function getRaceDayLabel(value: RaceDayFilter) {
+  if (value === "yesterday") return "Yesterday";
+  if (value === "tomorrow") return "Tomorrow";
+  return "Today";
+}
+
+function getPerthDate(offsetDays = 0) {
+  const perthParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = Number(perthParts.find((part) => part.type === "year")?.value);
+  const month = Number(perthParts.find((part) => part.type === "month")?.value);
+  const day = Number(perthParts.find((part) => part.type === "day")?.value);
+
+  const perthCalendarDate = new Date(Date.UTC(year, month - 1, day + offsetDays, 12));
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(perthCalendarDate);
+}
+
+function matchesRaceDay(meeting: Meeting | undefined, raceDayFilter: RaceDayFilter, dayDates: DayDates) {
+  if (!meeting?.meeting_date) return false;
+  return meeting.meeting_date === dayDates[raceDayFilter];
+}
+
 export default function SubscriberCalculatorLivePicks({
   races,
   runners,
@@ -545,6 +586,7 @@ export default function SubscriberCalculatorLivePicks({
   calculatorTips = [],
   officialTips = [],
   activeUserBets = [],
+  dayDates,
 }: {
   currentUser: any;
   races: Race[];
@@ -555,8 +597,10 @@ export default function SubscriberCalculatorLivePicks({
   calculatorTips?: CalculatorTip[];
   officialTips?: OfficialTip[];
   activeUserBets?: UserBet[];
+  dayDates?: DayDates;
 }) {
   const [selectedRaceId, setSelectedRaceId] = useState("");
+  const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
   const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
     useState(false);
   const [showBestOpportunities, setShowBestOpportunities] = useState(true);
@@ -565,6 +609,18 @@ export default function SubscriberCalculatorLivePicks({
   const [tipError, setTipError] = useState<string | null>(null);
   const [isSavingTip, startSavingTipTransition] = useTransition();
   const router = useRouter();
+
+  const activeDayDates = useMemo<DayDates>(
+    () =>
+      dayDates || {
+        yesterday: getPerthDate(-1),
+        today: getPerthDate(0),
+        tomorrow: getPerthDate(1),
+      },
+    [dayDates],
+  );
+
+  const selectedRaceDayLabel = getRaceDayLabel(raceDayFilter);
 
   function addUserBetFormAction(formData: FormData) {
     setTipMessage(null);
@@ -584,13 +640,22 @@ export default function SubscriberCalculatorLivePicks({
     });
   }
   const publishedRaces = useMemo(
-    () => races.filter((race) => race.status === "published"),
+    () => races.filter((race) => ["published", "closed"].includes(String(race.status || ""))),
     [races],
+  );
+
+  const dayPublishedRaces = useMemo(
+    () =>
+      publishedRaces.filter((race) => {
+        const meeting = meetings.find((item) => item.id === race.meeting_id);
+        return matchesRaceDay(meeting, raceDayFilter, activeDayDates);
+      }),
+    [activeDayDates, meetings, publishedRaces, raceDayFilter],
   );
 
   const orderedPublishedRaces = useMemo(
     () =>
-      [...publishedRaces].sort((a, b) => {
+      [...dayPublishedRaces].sort((a, b) => {
         const meetingA = meetings.find((item) => item.id === a.meeting_id);
         const meetingB = meetings.find((item) => item.id === b.meeting_id);
 
@@ -602,7 +667,7 @@ export default function SubscriberCalculatorLivePicks({
 
         return Number(a.race_number || 0) - Number(b.race_number || 0);
       }),
-    [meetings, publishedRaces],
+    [dayPublishedRaces, meetings],
   );
 
   const activeRace = useMemo(() => {
@@ -1174,9 +1239,29 @@ export default function SubscriberCalculatorLivePicks({
           <div className="rounded-[20px] border border-black/10 bg-[#f7f0df]">
             {activeRace ? (
               <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  {(["yesterday", "today", "tomorrow"] as RaceDayFilter[]).map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => {
+                        setRaceDayFilter(day);
+                        setSelectedRaceId("");
+                      }}
+                      className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition ${
+                        raceDayFilter === day
+                          ? "bg-zinc-950 text-amber-300"
+                          : "border border-zinc-300 bg-white text-zinc-700"
+                      }`}
+                    >
+                      {getRaceDayLabel(day)}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="rounded-[18px] border border-zinc-300 bg-white p-3">
                   <label className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-700">
-                    Choose race
+                    Choose {selectedRaceDayLabel.toLowerCase()} race
                   </label>
                   <select
                     value={String(activeRace.id)}
@@ -1767,7 +1852,7 @@ export default function SubscriberCalculatorLivePicks({
                   No live calculator races available
                 </h2>
                 <p className="mt-2 text-sm font-semibold text-zinc-400">
-                  Once today’s races are published, SmartPunt Calculator Live
+                  Once races are available for the selected day, SmartPunt Calculator Live
                   Picks will appear here.
                 </p>
               </div>
@@ -1790,7 +1875,7 @@ export default function SubscriberCalculatorLivePicks({
               Every race analysed. Every recommendation explained.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Pill tone="green">{publishedRaces.length} live races</Pill>
+              <Pill tone="green">{orderedPublishedRaces.length} {selectedRaceDayLabel.toLowerCase()} races</Pill>
               <Pill tone="gold">Live calculator</Pill>
               <Pill tone="blue">Head Tipper status</Pill>
             </div>
