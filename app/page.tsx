@@ -99,7 +99,9 @@ export default async function HomePage() {
   if (profile.role === "staff_admin") {
     redirect("/current-races");
   }
-
+  if (profile.role === "user") {
+    redirect("/smartpunt-calculator-live-picks");
+  }
   const supabase = await createClient();
 
   const suggestedTips = await fetchAllRows({
