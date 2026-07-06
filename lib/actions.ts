@@ -1794,6 +1794,7 @@ const raceConfidence = calculateRaceConfidence(scoredRunners, {
     race_confidence_tier: raceConfidence.tier,
     race_confidence_percent: raceConfidence.confidencePercent,
     suggested_bet: raceConfidence.suggestedBet,
+    scoring_audit: runner.audit,
     predicted_at: now,
     finishing_position: null,
     won: null,
