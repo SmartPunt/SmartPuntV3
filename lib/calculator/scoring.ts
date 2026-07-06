@@ -96,6 +96,44 @@ export type FactorStatus = {
   tone: "green" | "blue" | "rose";
 };
 
+export type ScoreAuditStatus = "positive" | "neutral" | "risk" | "fallback";
+
+export type ScoreAuditSection = {
+  label: string;
+  score: number;
+  status: ScoreAuditStatus;
+  summary: string;
+  details: string[];
+  decisionLog: string[];
+};
+
+export type RunnerScoringAudit = {
+  runnerId: number;
+  raceId: number;
+  horseId: number;
+  horseName: string;
+  overall: {
+    score: number;
+    baseScore: number;
+    standoutBonus: number;
+    powerAdjustment: number;
+    overconfidenceDampenerApplied: boolean;
+  };
+  sections: {
+    recentForm: ScoreAuditSection;
+    distance: ScoreAuditSection;
+    track: ScoreAuditSection;
+    condition: ScoreAuditSection;
+    barrier: ScoreAuditSection;
+    weight: ScoreAuditSection;
+    jockey: ScoreAuditSection;
+    trainer: ScoreAuditSection;
+    consistency: ScoreAuditSection;
+    power: ScoreAuditSection;
+  };
+  decisionLog: string[];
+};
+
 export type ScoredRunner = Runner & {
   horse_name: string;
   smartpunt_power_rating?: number | null;
@@ -124,6 +162,7 @@ export type ScoredRunner = Runner & {
     powerRating: number;
     powerAdjustment: number;
   };
+  audit: RunnerScoringAudit;
 };
 
 export type RaceVerdict = {
@@ -1039,6 +1078,59 @@ export function formatFormLine(historyRuns: HistoryRun[]) {
     .join(" • ");
 }
 
+
+function getAuditStatus(score: number, fallbackUsed = false): ScoreAuditStatus {
+  if (fallbackUsed) return "fallback";
+  if (score >= 65) return "positive";
+  if (score >= 50) return "neutral";
+  return "risk";
+}
+
+function formatAuditScore(score: number) {
+  return `${Math.round(Number(score || 0))}/100`;
+}
+
+function getRunStatsForAudit<T extends { finishing_position?: number | null }>(runs: T[]) {
+  const wins = runs.filter((run) => run.finishing_position === 1).length;
+  const places = runs.filter((run) => {
+    const position = run.finishing_position;
+    return position !== null && position !== undefined && Number(position) <= 3;
+  }).length;
+
+  return {
+    runs: runs.length,
+    wins,
+    places,
+    placeRate: runs.length ? Math.round((places / runs.length) * 100) : 0,
+    winRate: runs.length ? Math.round((wins / runs.length) * 100) : 0,
+  };
+}
+
+function buildAuditSection({
+  label,
+  score,
+  fallbackUsed = false,
+  summary,
+  details,
+  decisionLog = [],
+}: {
+  label: string;
+  score: number;
+  fallbackUsed?: boolean;
+  summary: string;
+  details: string[];
+  decisionLog?: string[];
+}): ScoreAuditSection {
+  return {
+    label,
+    score,
+    status: getAuditStatus(score, fallbackUsed),
+    summary,
+    details,
+    decisionLog,
+  };
+}
+
 export function getFactorStatus(score: number): FactorStatus {
   if (score >= 65) return { text: "Positive", tone: "green" };
   if (score >= 50) return { text: "Neutral", tone: "blue" };
@@ -1166,8 +1258,31 @@ powerRankedField.forEach((item, index) => {
       activeRace.id,
     );
 
+const recentHistoryRunCount = historyRuns.length;
+const distanceBucket = getDistanceBucket(activeRace.distance_m);
+const distanceHistoryRuns = historyRuns.filter(
+  (run) => getDistanceBucket(run.race?.distance_m) === distanceBucket,
+);
+const trackHistoryRuns = historyRuns.filter(
+  (run) => run.meeting?.meeting_name === raceMeeting?.meeting_name,
+);
+const conditionBucket = getConditionBucket(raceMeeting?.track_condition);
+const conditionHistoryRuns = historyRuns.filter(
+  (run) => getConditionBucket(run.meeting?.track_condition) === conditionBucket,
+);
+const conditionRecord =
+  conditionBucket === "Good"
+    ? horse?.good_track_record
+    : conditionBucket === "Soft"
+      ? horse?.soft_track_record
+      : conditionBucket === "Heavy"
+        ? horse?.heavy_track_record
+        : conditionBucket === "Other"
+          ? horse?.synthetic_track_record
+          : null;
+
 const recentForm =
-  historyRuns.length >= 3
+  recentHistoryRunCount >= 3
     ? scoreRecentForm(historyRuns)
     : Math.round(
         (scoreRecentForm(historyRuns) * 0.35) +
@@ -1175,11 +1290,7 @@ const recentForm =
       );
 
 const distance =
-  historyRuns.filter(
-    (run) =>
-      getDistanceBucket(run.race?.distance_m) ===
-      getDistanceBucket(activeRace.distance_m),
-  ).length >= 2
+  distanceHistoryRuns.length >= 2
     ? scoreDistanceSuitability(historyRuns, activeRace.distance_m)
     : Math.round(
         (scoreDistanceSuitability(historyRuns, activeRace.distance_m) * 0.4) +
@@ -1187,10 +1298,7 @@ const distance =
       );
 
 const track =
-  historyRuns.filter(
-    (run) =>
-      run.meeting?.meeting_name === raceMeeting?.meeting_name,
-  ).length >= 2
+  trackHistoryRuns.length >= 2
     ? scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name, horse)
     : Math.round(
         (scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name, horse) * 0.4) +
@@ -1203,6 +1311,7 @@ const condition =
     ? clamp(Number(scoreOverrides.condition))
 : scoreConditionSuitability(historyRuns, raceMeeting?.track_condition, horse);
 const effectiveBarrier = getEffectiveBarrier(runner, fieldWithScratchings);
+const effectiveWeight = getEffectiveWeight(runner);
 
 const barrier = scoreBarrier(
   effectiveBarrier,
@@ -1259,13 +1368,247 @@ const powerAdjustment = clamp(
   scoringProfile.power.maxAdjustment,
 );
 
+const preDampenedScore = clamp(baseScore + standoutBonus + powerAdjustment);
 const score = applyOverconfidenceDampener({
-  baseScore: clamp(baseScore + standoutBonus + powerAdjustment),
+  baseScore: preDampenedScore,
   recentForm,
   distance,
   track,
   condition,
 });
+
+const distanceStats = getRunStatsForAudit(distanceHistoryRuns);
+const trackStats = getRunStatsForAudit(trackHistoryRuns);
+const conditionStats = getRunStatsForAudit(conditionHistoryRuns);
+const recentStats = getRunStatsForAudit(historyRuns.slice(0, 5));
+const trainerRuns = allHistoryRuns.filter(
+  (run) =>
+    String(run.trainer_name || "").trim().toLowerCase() ===
+    String(runner.trainer_name || "").trim().toLowerCase(),
+);
+const trainerStats = getRunStatsForAudit(trainerRuns);
+const horseJockeyRuns = historyRuns.filter(
+  (run) =>
+    String(run.jockey_name || "").trim().toLowerCase() ===
+    String(runner.jockey_name || "").trim().toLowerCase(),
+);
+const jockeyStats = getRunStatsForAudit(horseJockeyRuns);
+const jockeyProfile = jockeyProfiles.find(
+  (item) =>
+    item.normalised_name === String(runner.jockey_name || "").trim().toLowerCase(),
+) || null;
+const importedRecentScore = scoreImportedRecentForm(runner.form_last_6);
+const importedDistanceScore = scoreImportedStatRecord(runner.distance_form_last_6);
+const importedTrackScore = scoreImportedStatRecord(runner.track_form_last_6);
+const importedConditionScore = scoreImportedStatRecord(conditionRecord);
+const recentFallbackUsed = recentHistoryRunCount < 3 && Boolean(runner.form_last_6);
+const distanceFallbackUsed = distanceHistoryRuns.length < 2 && Boolean(runner.distance_form_last_6);
+const trackFallbackUsed = trackHistoryRuns.length < 2 && Boolean(runner.track_form_last_6 || horse?.track_form_last_6);
+const conditionFallbackUsed = !conditionHistoryRuns.length && Boolean(conditionRecord);
+const powerRank = powerRankByRunnerId.get(Number(runner.id)) || null;
+
+const auditDecisionLog = [
+  recentFallbackUsed
+    ? "Recent form used imported form fallback because SmartPunt history sample was below 3 runs."
+    : `Recent form used ${recentHistoryRunCount} SmartPunt historical run${recentHistoryRunCount === 1 ? "" : "s"}.`,
+  distanceFallbackUsed
+    ? "Distance used imported runner distance profile because exact bucket history was below 2 runs."
+    : `Distance used ${distanceHistoryRuns.length} exact bucket run${distanceHistoryRuns.length === 1 ? "" : "s"}.`,
+  trackFallbackUsed
+    ? "Track used imported/horse track profile because exact track history was below 2 runs."
+    : `Track used ${trackHistoryRuns.length} exact track run${trackHistoryRuns.length === 1 ? "" : "s"}.`,
+  conditionFallbackUsed
+    ? "Condition used stored condition record because exact condition history was unavailable."
+    : `Condition used ${conditionHistoryRuns.length} exact condition run${conditionHistoryRuns.length === 1 ? "" : "s"}.`,
+  standoutBonus ? `Applied standout bonus of ${standoutBonus}.` : "No standout bonus applied.",
+  powerAdjustment ? `Applied power-rating adjustment of ${powerAdjustment}.` : "No power-rating adjustment applied.",
+  score !== preDampenedScore
+    ? `Overconfidence dampener reduced score from ${preDampenedScore} to ${score}.`
+    : "No overconfidence dampener applied.",
+];
+
+const audit: RunnerScoringAudit = {
+  runnerId: Number(runner.id),
+  raceId: Number(activeRace.id),
+  horseId: Number(runner.horse_id),
+  horseName: horse?.horse_name || "Unknown horse",
+  overall: {
+    score,
+    baseScore,
+    standoutBonus,
+    powerAdjustment,
+    overconfidenceDampenerApplied: score !== preDampenedScore,
+  },
+  sections: {
+    recentForm: buildAuditSection({
+      label: "Recent Form",
+      score: recentForm,
+      fallbackUsed: recentFallbackUsed,
+      summary: recentFallbackUsed
+        ? "Blended imported recent form with limited SmartPunt history."
+        : "Used SmartPunt historical form from previous resulted runs.",
+      details: [
+        `Score: ${formatAuditScore(recentForm)}`,
+        `SmartPunt history runs used: ${recentHistoryRunCount}`,
+        `Recent stats: ${recentStats.runs} runs, ${recentStats.wins} wins, ${recentStats.places} places (${recentStats.placeRate}% place rate)`,
+        `Imported form: ${runner.form_last_6 || "Not supplied"}`,
+        `Imported form score: ${formatAuditScore(importedRecentScore)}`,
+      ],
+      decisionLog: [
+        recentFallbackUsed ? "Fallback/blend used." : "Exact SmartPunt history used.",
+      ],
+    }),
+    distance: buildAuditSection({
+      label: "Distance",
+      score: distance,
+      fallbackUsed: distanceFallbackUsed,
+      summary: distanceFallbackUsed
+        ? `Limited exact ${distanceBucket} history, so imported distance profile helped the score.`
+        : `Used exact ${distanceBucket} distance bucket history.`,
+      details: [
+        `Score: ${formatAuditScore(distance)}`,
+        `Race distance: ${activeRace.distance_m || "Unknown"}m`,
+        `Bucket: ${distanceBucket}`,
+        `Exact bucket history: ${distanceStats.runs} runs, ${distanceStats.wins} wins, ${distanceStats.places} places (${distanceStats.placeRate}% place rate)`,
+        `Imported runner distance record: ${runner.distance_form_last_6 || "Not supplied"}`,
+        `Imported distance score: ${formatAuditScore(importedDistanceScore)}`,
+      ],
+      decisionLog: [
+        distanceFallbackUsed ? "Fallback/blend used." : "Exact distance bucket history used.",
+      ],
+    }),
+    track: buildAuditSection({
+      label: "Track",
+      score: track,
+      fallbackUsed: trackFallbackUsed,
+      summary: trackFallbackUsed
+        ? `Limited exact ${raceMeeting?.meeting_name || "track"} history, so imported track profile helped the score.`
+        : `Used exact ${raceMeeting?.meeting_name || "track"} history.`,
+      details: [
+        `Score: ${formatAuditScore(track)}`,
+        `Track: ${raceMeeting?.meeting_name || "Unknown"}`,
+        `Exact track history: ${trackStats.runs} runs, ${trackStats.wins} wins, ${trackStats.places} places (${trackStats.placeRate}% place rate)`,
+        `Runner imported track record: ${runner.track_form_last_6 || "Not supplied"}`,
+        `Horse imported track record: ${horse?.track_form_last_6 || "Not supplied"}`,
+        `Imported track score: ${formatAuditScore(importedTrackScore)}`,
+      ],
+      decisionLog: [
+        trackFallbackUsed ? "Fallback/blend used." : "Exact track history used.",
+      ],
+    }),
+    condition: buildAuditSection({
+      label: "Condition",
+      score: condition,
+      fallbackUsed: conditionFallbackUsed,
+      summary: conditionFallbackUsed
+        ? `Used stored ${conditionBucket} condition record due to no exact condition history.`
+        : `Used exact ${conditionBucket} condition history.`,
+      details: [
+        `Score: ${formatAuditScore(condition)}`,
+        `Track condition: ${raceMeeting?.track_condition || "Unknown"}`,
+        `Condition bucket: ${conditionBucket}`,
+        `Exact condition history: ${conditionStats.runs} runs, ${conditionStats.wins} wins, ${conditionStats.places} places (${conditionStats.placeRate}% place rate)`,
+        `Stored condition record: ${conditionRecord || "Not supplied"}`,
+        `Imported condition score: ${formatAuditScore(importedConditionScore)}`,
+      ],
+      decisionLog: [
+        conditionFallbackUsed ? "Stored record fallback used." : "Exact condition history used.",
+      ],
+    }),
+    barrier: buildAuditSection({
+      label: "Barrier",
+      score: barrier,
+      summary: "Barrier score uses effective barrier after inside scratchings and distance profile.",
+      details: [
+        `Score: ${formatAuditScore(barrier)}`,
+        `Original barrier: ${runner.barrier || "Unknown"}`,
+        `Effective barrier: ${effectiveBarrier || "Unknown"}`,
+        `Field size excluding scratchings: ${field.length}`,
+        `Race distance: ${activeRace.distance_m || "Unknown"}m`,
+      ],
+      decisionLog: ["Barrier adjusted for scratchings inside the draw."],
+    }),
+    weight: buildAuditSection({
+      label: "Weight",
+      score: weight,
+      summary: "Weight score compares effective weight against the field after apprentice claims.",
+      details: [
+        `Score: ${formatAuditScore(weight)}`,
+        `Listed weight: ${runner.weight_kg ?? "Unknown"}kg`,
+        `Apprentice claim: ${runner.apprentice_claim_kg ?? 0}kg`,
+        `Effective weight: ${effectiveWeight ?? "Unknown"}kg`,
+      ],
+      decisionLog: ["Effective weight calculated before scoring."],
+    }),
+    jockey: buildAuditSection({
+      label: "Jockey",
+      score: jockey,
+      fallbackUsed: !horseJockeyRuns.length && Boolean(jockeyProfile),
+      summary: horseJockeyRuns.length >= 2
+        ? "Used horse-and-jockey combination history."
+        : jockeyProfile
+          ? "Used SmartPunt/profile jockey information where available."
+          : "Limited jockey evidence available.",
+      details: [
+        `Score: ${formatAuditScore(jockey)}`,
+        `Jockey: ${runner.jockey_name || "Unknown"}`,
+        `Horse/jockey history: ${jockeyStats.runs} runs, ${jockeyStats.wins} wins, ${jockeyStats.places} places (${jockeyStats.placeRate}% place rate)`,
+        `Imported/profile rating: ${jockeyProfile?.rating ?? "Not supplied"}`,
+        `Manual rating: ${jockeyProfile?.manual_rating ?? "Not supplied"}`,
+      ],
+      decisionLog: [
+        horseJockeyRuns.length >= 2
+          ? "Horse/jockey combination history used."
+          : jockeyProfile
+            ? "Jockey profile contributed."
+            : "Neutral jockey score used.",
+      ],
+    }),
+    trainer: buildAuditSection({
+      label: "Trainer",
+      score: trainer,
+      summary: trainerRuns.length
+        ? "Trainer score uses SmartPunt historical stable performance."
+        : "No trainer history found, so neutral score used.",
+      details: [
+        `Score: ${formatAuditScore(trainer)}`,
+        `Trainer: ${runner.trainer_name || "Unknown"}`,
+        `Trainer history: ${trainerStats.runs} runs, ${trainerStats.wins} wins, ${trainerStats.places} places (${trainerStats.placeRate}% place rate)`,
+      ],
+      decisionLog: [trainerRuns.length ? "Trainer history used." : "Neutral trainer score used."],
+    }),
+    consistency: buildAuditSection({
+      label: "Consistency",
+      score: consistency,
+      fallbackUsed: !historyRuns.length && Boolean(runner.form_last_6),
+      summary: historyRuns.length
+        ? "Consistency uses recent SmartPunt finishing positions."
+        : "Consistency used imported form because no SmartPunt history was available.",
+      details: [
+        `Score: ${formatAuditScore(consistency)}`,
+        `SmartPunt history runs: ${historyRuns.length}`,
+        `Imported form: ${runner.form_last_6 || "Not supplied"}`,
+      ],
+      decisionLog: [historyRuns.length ? "SmartPunt history used." : "Imported form fallback used."],
+    }),
+    power: buildAuditSection({
+      label: "Power Rating",
+      score: Number(horse?.smartpunt_power_rating || 0),
+      summary: powerAdjustment
+        ? "Power rating adjusted the final score."
+        : "Power rating did not materially adjust the final score.",
+      details: [
+        `Power rating: ${horse?.smartpunt_power_rating ?? "Not supplied"}`,
+        `Class rating: ${(horse as any)?.smartpunt_class_rating ?? "Not supplied"}`,
+        `Field power rank: ${powerRank || "Not ranked"}`,
+        `Raw power adjustment: ${rawPowerAdjustment}`,
+        `Applied power adjustment: ${powerAdjustment}`,
+      ],
+      decisionLog: [powerAdjustment ? "Power adjustment applied." : "No power adjustment applied."],
+    }),
+  },
+  decisionLog: auditDecisionLog,
+};
 
     return {
       ...runner,
@@ -1277,7 +1620,7 @@ const score = applyOverconfidenceDampener({
       race_name: activeRace.race_name,
       race_number: activeRace.race_number,
       distance_m: activeRace.distance_m,
-      effectiveWeight: getEffectiveWeight(runner),
+      effectiveWeight,
       score,
       winPercent: 0,
       placePercent: 0,
@@ -1296,6 +1639,7 @@ const score = applyOverconfidenceDampener({
         powerRating: Number(horse?.smartpunt_power_rating || 0),
         powerAdjustment,
       },
+      audit,
     };
   });
 
