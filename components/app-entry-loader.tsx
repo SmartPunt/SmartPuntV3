@@ -59,7 +59,7 @@ export default function AppEntryLoader({
   }, []);
 
   useEffect(() => {
-    const shouldPlayIntro = getCookie("smartpunt_play_intro") === "true";
+const shouldPlayIntro = false;
 
     if (shouldPlayIntro) {
       clearCookie("smartpunt_play_intro");
