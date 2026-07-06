@@ -60,6 +60,28 @@ type SpecialistAlertInput = {
   meetings: Meeting[];
 };
 
+function getPerthDate(offsetDays = 0) {
+  const perthParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = Number(perthParts.find((part) => part.type === "year")?.value);
+  const month = Number(perthParts.find((part) => part.type === "month")?.value);
+  const day = Number(perthParts.find((part) => part.type === "day")?.value);
+
+  const perthCalendarDate = new Date(Date.UTC(year, month - 1, day + offsetDays, 12));
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(perthCalendarDate);
+}
+
 function getSpecialistDistanceBucket(distance?: number | null) {
   if (!distance) return "Unknown";
   if (distance <= 1200) return "1000–1200m";
@@ -500,28 +522,8 @@ const activeRaceEdgeLeaders = useMemo(
 const activeRaceEdgeLeader = activeRaceEdgeLeaders[0] || null;
 
 const raceConfidenceBoard = useMemo(() => {
-  const perthNow = new Date(
-    new Date().toLocaleString("en-US", {
-      timeZone: "Australia/Perth",
-    }),
-  );
-
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Australia/Perth",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(perthNow);
-
-  const tomorrowDate = new Date(perthNow);
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-
-  const tomorrow = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Australia/Perth",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(tomorrowDate);
+  const today = getPerthDate(0);
+  const tomorrow = getPerthDate(1);
 
   return publishedRaces
     .filter((race) => {
@@ -620,28 +622,8 @@ const filteredRaceConfidenceBoard = useMemo(() => {
 }, [minimumConfidence, raceConfidenceBoard, showSpecialistsOnly, showTipsOnly]);
 
   const strongestBets = useMemo(() => {
-    const perthNow = new Date(
-      new Date().toLocaleString("en-US", {
-        timeZone: "Australia/Perth",
-      }),
-    );
-
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Australia/Perth",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(perthNow);
-
-    const tomorrowDate = new Date(perthNow);
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-
-    const tomorrow = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Australia/Perth",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(tomorrowDate);
+    const today = getPerthDate(0);
+    const tomorrow = getPerthDate(1);
 
     return publishedRaces
       .filter((race) => {
