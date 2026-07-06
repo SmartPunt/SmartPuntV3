@@ -599,18 +599,17 @@ if (!matchingRuns.length) return 50;
 function scoreTrackSuitability(
   historyRuns: HistoryRun[],
   currentTrack: string | null | undefined,
-  horse?: Horse | null,
 ) {
   if (!currentTrack) return 50;
-
-  const trackRecordScore = scoreImportedStatRecord(horse?.track_form_last_6);
 
   const matchingRuns = historyRuns.filter(
     (run) => run.meeting?.meeting_name === currentTrack,
   );
 
+  // Track suitability must be specific to today's track.
+  // No exact track history means unknown/neutral, not positive fallback.
   if (!matchingRuns.length) {
-    return horse?.track_form_last_6 ? trackRecordScore : 50;
+    return 50;
   }
 
   const places = matchingRuns.filter((run) => {
@@ -624,16 +623,11 @@ function scoreTrackSuitability(
 
   const rawScore = Math.round(38 + placeRate * 38 + winRate * 24);
 
-const historyScore =
-  matchingRuns.length === 1
+  return matchingRuns.length === 1
     ? clamp(rawScore, 48, 72)
     : matchingRuns.length === 2
       ? clamp(rawScore, 46, 82)
       : clamp(rawScore, 25, 95);
-
-  if (!horse?.track_form_last_6) return historyScore;
-
-  return clamp(Math.round(historyScore * 0.6 + trackRecordScore * 0.4), 25, 95);
 }
 function scoreConditionSuitability(
   historyRuns: HistoryRun[],
@@ -1289,21 +1283,9 @@ const recentForm =
           (scoreImportedRecentForm(runner.form_last_6) * 0.65),
       );
 
-const distance =
-  distanceHistoryRuns.length >= 2
-    ? scoreDistanceSuitability(historyRuns, activeRace.distance_m)
-    : Math.round(
-        (scoreDistanceSuitability(historyRuns, activeRace.distance_m) * 0.4) +
-          (scoreImportedStatRecord(runner.distance_form_last_6) * 0.6),
-      );
+const distance = scoreDistanceSuitability(historyRuns, activeRace.distance_m);
 
-const track =
-  trackHistoryRuns.length >= 2
-    ? scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name, horse)
-    : Math.round(
-        (scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name, horse) * 0.4) +
-          (scoreImportedStatRecord(runner.track_form_last_6) * 0.6),
-      );
+const track = scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name);
 const condition =
   scoreOverrides?.condition !== null &&
   scoreOverrides?.condition !== undefined &&
@@ -1402,8 +1384,8 @@ const importedDistanceScore = scoreImportedStatRecord(runner.distance_form_last_
 const importedTrackScore = scoreImportedStatRecord(runner.track_form_last_6);
 const importedConditionScore = scoreImportedStatRecord(conditionRecord);
 const recentFallbackUsed = recentHistoryRunCount < 3 && Boolean(runner.form_last_6);
-const distanceFallbackUsed = distanceHistoryRuns.length < 2 && Boolean(runner.distance_form_last_6);
-const trackFallbackUsed = trackHistoryRuns.length < 2 && Boolean(runner.track_form_last_6 || horse?.track_form_last_6);
+const distanceFallbackUsed = false;
+const trackFallbackUsed = false;
 const conditionFallbackUsed = !conditionHistoryRuns.length && Boolean(conditionRecord);
 const powerRank = powerRankByRunnerId.get(Number(runner.id)) || null;
 
@@ -1411,12 +1393,12 @@ const auditDecisionLog = [
   recentFallbackUsed
     ? "Recent form used imported form fallback because SmartPunt history sample was below 3 runs."
     : `Recent form used ${recentHistoryRunCount} SmartPunt historical run${recentHistoryRunCount === 1 ? "" : "s"}.`,
-  distanceFallbackUsed
-    ? "Distance used imported runner distance profile because exact bucket history was below 2 runs."
-    : `Distance used ${distanceHistoryRuns.length} exact bucket run${distanceHistoryRuns.length === 1 ? "" : "s"}.`,
-  trackFallbackUsed
-    ? "Track used imported/horse track profile because exact track history was below 2 runs."
-    : `Track used ${trackHistoryRuns.length} exact track run${trackHistoryRuns.length === 1 ? "" : "s"}.`,
+  distanceHistoryRuns.length
+    ? `Distance used ${distanceHistoryRuns.length} exact ${distanceBucket} bucket run${distanceHistoryRuns.length === 1 ? "" : "s"}.`
+    : `Distance has no exact ${distanceBucket} bucket history. Neutral score applied.`,
+  trackHistoryRuns.length
+    ? `Track used ${trackHistoryRuns.length} exact ${raceMeeting?.meeting_name || "track"} run${trackHistoryRuns.length === 1 ? "" : "s"}.`
+    : `Track has no exact ${raceMeeting?.meeting_name || "track"} history. Neutral score applied.`,
   conditionFallbackUsed
     ? "Condition used stored condition record because exact condition history was unavailable."
     : `Condition used ${conditionHistoryRuns.length} exact condition run${conditionHistoryRuns.length === 1 ? "" : "s"}.`,
@@ -1461,39 +1443,43 @@ const audit: RunnerScoringAudit = {
     distance: buildAuditSection({
       label: "Distance",
       score: distance,
-      fallbackUsed: distanceFallbackUsed,
-      summary: distanceFallbackUsed
-        ? `Limited exact ${distanceBucket} history, so imported distance profile helped the score.`
-        : `Used exact ${distanceBucket} distance bucket history.`,
+      fallbackUsed: false,
+      summary: distanceHistoryRuns.length
+        ? `Used exact ${distanceBucket} distance bucket history.`
+        : `No exact ${distanceBucket} distance history. Neutral score applied.`,
       details: [
         `Score: ${formatAuditScore(distance)}`,
         `Race distance: ${activeRace.distance_m || "Unknown"}m`,
         `Bucket: ${distanceBucket}`,
         `Exact bucket history: ${distanceStats.runs} runs, ${distanceStats.wins} wins, ${distanceStats.places} places (${distanceStats.placeRate}% place rate)`,
         `Imported runner distance record: ${runner.distance_form_last_6 || "Not supplied"}`,
-        `Imported distance score: ${formatAuditScore(importedDistanceScore)}`,
+        `Imported distance score shown for reference only: ${formatAuditScore(importedDistanceScore)}`,
       ],
       decisionLog: [
-        distanceFallbackUsed ? "Fallback/blend used." : "Exact distance bucket history used.",
+        distanceHistoryRuns.length
+          ? "Exact distance bucket history used."
+          : "No exact distance bucket evidence. Imported fallback ignored.",
       ],
     }),
     track: buildAuditSection({
       label: "Track",
       score: track,
-      fallbackUsed: trackFallbackUsed,
-      summary: trackFallbackUsed
-        ? `Limited exact ${raceMeeting?.meeting_name || "track"} history, so imported track profile helped the score.`
-        : `Used exact ${raceMeeting?.meeting_name || "track"} history.`,
+      fallbackUsed: false,
+      summary: trackHistoryRuns.length
+        ? `Used exact ${raceMeeting?.meeting_name || "track"} history.`
+        : `No exact ${raceMeeting?.meeting_name || "track"} history. Neutral score applied.`,
       details: [
         `Score: ${formatAuditScore(track)}`,
         `Track: ${raceMeeting?.meeting_name || "Unknown"}`,
         `Exact track history: ${trackStats.runs} runs, ${trackStats.wins} wins, ${trackStats.places} places (${trackStats.placeRate}% place rate)`,
         `Runner imported track record: ${runner.track_form_last_6 || "Not supplied"}`,
         `Horse imported track record: ${horse?.track_form_last_6 || "Not supplied"}`,
-        `Imported track score: ${formatAuditScore(importedTrackScore)}`,
+        `Imported track score shown for reference only: ${formatAuditScore(importedTrackScore)}`,
       ],
       decisionLog: [
-        trackFallbackUsed ? "Fallback/blend used." : "Exact track history used.",
+        trackHistoryRuns.length
+          ? "Exact track history used."
+          : "No exact track evidence. Imported fallback ignored.",
       ],
     }),
     condition: buildAuditSection({
