@@ -1130,8 +1130,7 @@ export default function SubscriberCalculatorLivePicks({
         const meetingCompare = a.meetingName.localeCompare(b.meetingName);
         if (meetingCompare !== 0) return meetingCompare;
         return a.raceNumber - b.raceNumber;
-      })
-      .slice(0, 8);
+      });
   }, [
     horses,
     jockeyProfiles,
@@ -1237,29 +1236,30 @@ export default function SubscriberCalculatorLivePicks({
 
         <div className="mb-4 overflow-hidden rounded-[26px] border border-amber-300/40 bg-[#f7f0df] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
           <div className="rounded-[20px] border border-black/10 bg-[#f7f0df]">
-            {activeRace ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-2">
-                  {(["yesterday", "today", "tomorrow"] as RaceDayFilter[]).map((day) => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => {
-                        setRaceDayFilter(day);
-                        setSelectedRaceId("");
-                      }}
-                      className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition ${
-                        raceDayFilter === day
-                          ? "bg-zinc-950 text-amber-300"
-                          : "border border-zinc-300 bg-white text-zinc-700"
-                      }`}
-                    >
-                      {getRaceDayLabel(day)}
-                    </button>
-                  ))}
-                </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                {(["yesterday", "today", "tomorrow"] as RaceDayFilter[]).map((day) => (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => {
+                      setRaceDayFilter(day);
+                      setSelectedRaceId("");
+                    }}
+                    className={`rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] transition ${
+                      raceDayFilter === day
+                        ? "bg-zinc-950 text-amber-300"
+                        : "border border-zinc-300 bg-white text-zinc-700"
+                    }`}
+                  >
+                    {getRaceDayLabel(day)}
+                  </button>
+                ))}
+              </div>
 
-                <div className="rounded-[18px] border border-zinc-300 bg-white p-3">
+              {activeRace ? (
+                <>
+                  <div className="rounded-[18px] border border-zinc-300 bg-white p-3">
                   <label className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-700">
                     Choose {selectedRaceDayLabel.toLowerCase()} race
                   </label>
@@ -1845,18 +1845,18 @@ export default function SubscriberCalculatorLivePicks({
                     </table>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="rounded-[22px] border border-amber-400/45 bg-black p-5 text-center">
-                <h2 className="text-xl font-black text-white">
-                  No live calculator races available
-                </h2>
-                <p className="mt-2 text-sm font-semibold text-zinc-400">
-                  Once races are available for the selected day, SmartPunt Calculator Live
-                  Picks will appear here.
-                </p>
-              </div>
-            )}
+                </>
+              ) : (
+                <div className="rounded-[22px] border border-amber-400/45 bg-black p-5 text-center">
+                  <h2 className="text-xl font-black text-white">
+                    No races available for {selectedRaceDayLabel}
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold text-zinc-400">
+                    Try viewing Yesterday or Today, or check back once races are loaded for this day.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <footer className="mt-3 overflow-hidden rounded-[22px] border border-amber-300/40 bg-[linear-gradient(135deg,#05070c_0%,#0b1220_52%,#05070c_100%)] p-5 text-center shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
