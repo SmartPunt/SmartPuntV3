@@ -259,28 +259,77 @@ export default function AdminDashboard({
   const [newUserRole, setNewUserRole] = useState("user");
 const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@email.com");
 
+  const [publishedRaces, setPublishedRaces] = useState<Race[]>(initialPublishedRaces);
+  const [publishedRunners, setPublishedRunners] = useState<Runner[]>(initialPublishedRunners);
+  const [publishedHorses, setPublishedHorses] = useState<Horse[]>(initialHorses);
+  const [publishedMeetings, setPublishedMeetings] = useState<Meeting[]>(initialMeetings);
+  const [raceDataLoaded, setRaceDataLoaded] = useState(
+    initialPublishedRaces.length > 0 ||
+      initialPublishedRunners.length > 0 ||
+      initialHorses.length > 0 ||
+      initialMeetings.length > 0,
+  );
+  const [raceDataLoading, setRaceDataLoading] = useState(false);
+  const [raceDataError, setRaceDataError] = useState("");
+
+  async function loadPublishedRaceData() {
+    if (raceDataLoaded || raceDataLoading) return;
+
+    setRaceDataLoading(true);
+    setRaceDataError("");
+
+    try {
+      const response = await fetch("/api/admin-dashboard-race-data", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to load published race data.");
+      }
+
+      setPublishedRaces(payload.publishedRaces || []);
+      setPublishedRunners(payload.publishedRunners || []);
+      setPublishedHorses(payload.horses || []);
+      setPublishedMeetings(payload.meetings || []);
+      setRaceDataLoaded(true);
+    } catch (error) {
+      setRaceDataError(
+        error instanceof Error ? error.message : "Failed to load published race data.",
+      );
+    } finally {
+      setRaceDataLoading(false);
+    }
+  }
+
+  const publishedRaceCountLabel = raceDataLoaded
+    ? String(publishedRaces.length)
+    : "On demand";
+
   const meetingMap = useMemo(() => {
-    return new Map(initialMeetings.map((meeting) => [meeting.id, meeting]));
-  }, [initialMeetings]);
+    return new Map(publishedMeetings.map((meeting) => [meeting.id, meeting]));
+  }, [publishedMeetings]);
 
   const horseMap = useMemo(() => {
-    return new Map(initialHorses.map((horse) => [horse.id, horse]));
-  }, [initialHorses]);
+    return new Map(publishedHorses.map((horse) => [horse.id, horse]));
+  }, [publishedHorses]);
 
   const selectedPublishedRace = useMemo(() => {
-    return initialPublishedRaces.find((race) => String(race.id) === selectedPublishedRaceId) || null;
-  }, [initialPublishedRaces, selectedPublishedRaceId]);
+    return publishedRaces.find((race) => String(race.id) === selectedPublishedRaceId) || null;
+  }, [publishedRaces, selectedPublishedRaceId]);
 
   const runnersForSelectedRace = useMemo(() => {
     if (!selectedPublishedRace) return [];
-    return initialPublishedRunners
+    return publishedRunners
       .filter((runner) => runner.race_id === selectedPublishedRace.id && !runner.scratched)
       .sort((a, b) => {
         const aBarrier = a.barrier ?? 999;
         const bBarrier = b.barrier ?? 999;
         return aBarrier - bBarrier;
       });
-  }, [initialPublishedRunners, selectedPublishedRace]);
+  }, [publishedRunners, selectedPublishedRace]);
 
   const selectedRunner = useMemo(() => {
     return runnersForSelectedRace.find((runner) => String(runner.id) === selectedRunnerId) || null;
@@ -306,6 +355,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
   }
 
   function loadTipIntoForm(tip: any) {
+    void loadPublishedRaceData();
     setTipEdit(tip);
 
     setSelectedPublishedRaceId(tip.race_id ? String(tip.race_id) : "");
@@ -443,7 +493,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="green">{suggestedTips.length} live tips</Badge>
-                <Badge tone="blue">{initialPublishedRaces.length} published races</Badge>
+                <Badge tone="blue">{publishedRaceCountLabel} published races</Badge>
                 <Badge tone="amber">{watchlistItems.length} watchlist items</Badge>
                 <Badge tone="rose">{getOnEarlyItems.length} Get On Early</Badge>
               </div>
@@ -496,9 +546,9 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                     Published races
                   </p>
-                  <p className="mt-2 text-3xl font-bold">{initialPublishedRaces.length}</p>
+                  <p className="mt-2 text-3xl font-bold">{publishedRaceCountLabel}</p>
                   <p className="mt-2 text-sm text-zinc-500">
-                    Linked races available for exact settlement.
+                    Linked races load when you open the tip builder.
                   </p>
                 </div>
               </Panel>
@@ -771,6 +821,9 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     <Field label="Published race">
                       <select
                         value={selectedPublishedRaceId}
+                        onFocus={loadPublishedRaceData}
+                        onClick={loadPublishedRaceData}
+                        disabled={raceDataLoading}
                         onChange={(e) => {
                           const nextRaceId = e.target.value;
                           setSelectedPublishedRaceId(nextRaceId);
@@ -779,7 +832,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                           setTipHorse("");
 
                           const race =
-                            initialPublishedRaces.find((item) => String(item.id) === nextRaceId) || null;
+                            publishedRaces.find((item) => String(item.id) === nextRaceId) || null;
 
                           if (race) {
                             const meeting = meetingMap.get(race.meeting_id) || null;
@@ -792,13 +845,23 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                         }}
                         className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
-                        <option value="">Select published race</option>
-                        {initialPublishedRaces.map((race) => (
+                        <option value="">{raceDataLoading ? "Loading race fields..." : "Select published race"}</option>
+                        {publishedRaces.map((race) => (
                           <option key={race.id} value={String(race.id)}>
                             {buildRaceLabel(race, meetingMap.get(race.meeting_id) || null)}
                           </option>
                         ))}
                       </select>
+                      {!raceDataLoaded && !raceDataLoading ? (
+                        <p className="mt-2 text-xs text-zinc-500">
+                          Race fields will load when you open this selector.
+                        </p>
+                      ) : null}
+                      {raceDataError ? (
+                        <p className="mt-2 text-xs font-semibold text-red-600">
+                          {raceDataError}
+                        </p>
+                      ) : null}
                     </Field>
 
                     <Field label="Runner">
