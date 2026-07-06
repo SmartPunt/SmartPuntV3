@@ -4,20 +4,25 @@ import { getCurrentProfile } from "@/lib/auth";
 import AdminCalculator from "@/components/admin-calculator";
 
 function getPerthDate(offsetDays = 0) {
-  const perthNow = new Date(
-    new Date().toLocaleString("en-US", {
-      timeZone: "Australia/Perth",
-    }),
-  );
-
-  perthNow.setDate(perthNow.getDate() + offsetDays);
-
-  return new Intl.DateTimeFormat("en-CA", {
+  const perthParts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Australia/Perth",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(perthNow);
+  }).formatToParts(new Date());
+
+  const year = Number(perthParts.find((part) => part.type === "year")?.value);
+  const month = Number(perthParts.find((part) => part.type === "month")?.value);
+  const day = Number(perthParts.find((part) => part.type === "day")?.value);
+
+  const perthCalendarDate = new Date(Date.UTC(year, month - 1, day + offsetDays, 12));
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(perthCalendarDate);
 }
 
 function uniqueNumbers(values: unknown[]) {
