@@ -1,10 +1,10 @@
 export default function Loading() {
   return (
-    <main className="min-h-screen bg-black">
+    <main className="flex min-h-screen items-center justify-center bg-black">
       <img
         src="/smartpunt-loading-screen.png"
         alt="SmartPunt loading"
-        className="h-screen w-screen object-cover"
+        className="h-[90vh] w-[90vw] object-contain"
       />
     </main>
   );
