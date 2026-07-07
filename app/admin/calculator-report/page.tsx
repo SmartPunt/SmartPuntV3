@@ -7,6 +7,7 @@ import {
 } from "@/lib/calculator/scoring";
 import { Badge, Panel } from "@/components/ui";
 import PowerRatingDryRunPanel from "@/components/power-rating-dry-run-panel";
+import { loadCalculatorReportResultsAction } from "@/lib/actions";
 
 type SearchValue = string | string[] | undefined;
 type CalculatorReportSearchParams = Record<string, SearchValue>;
