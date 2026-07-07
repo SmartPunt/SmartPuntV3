@@ -1803,19 +1803,29 @@ const raceConfidence = calculateRaceConfidence(scoredRunners, {
     updated_at: now,
   }));
 
-  await serviceRoleDelete(
-    `calculator_predictions?race_id=eq.${raceId}&scoring_version=eq.${encodeURIComponent(
-      SMARTPUNT_SCORING_VERSION,
-    )}`,
-  );
+  try {
+    await serviceRoleDelete(
+      `calculator_predictions?race_id=eq.${raceId}&scoring_version=eq.${encodeURIComponent(
+        SMARTPUNT_SCORING_VERSION,
+      )}`,
+    );
 
-  await serviceRoleFetch("calculator_predictions", {
-    method: "POST",
-    headers: {
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(payload),
-  });
+    await serviceRoleFetch("calculator_predictions", {
+      method: "POST",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    console.error("Failed saving calculator prediction snapshot", {
+      raceId,
+      scoringVersion: SMARTPUNT_SCORING_VERSION,
+      error,
+    });
+
+    throw error;
+  }
 
   await serviceRoleDelete(`power_rating_predictions?race_id=eq.${raceId}`);
 
