@@ -124,7 +124,7 @@ const activeBets = ((data || []) as Array<
           </h1>
 
           <Link
-            href="/"
+href="/subscriber-dashboard"
             className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur transition hover:bg-white/20"
           >
             Back to Dashboard
