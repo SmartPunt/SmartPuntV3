@@ -26,7 +26,7 @@ type Race = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
-  place_terms?: string | null;
+place_terms?: "win_only" | "top_2" | "top_3" | null;
 };
 
 type Runner = {
