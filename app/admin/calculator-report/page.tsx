@@ -927,12 +927,20 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
                   />
                 </div>
 
-                <div className="flex items-end">
+                               <div className="flex items-end gap-2">
                   <button
                     type="submit"
                     className="w-full rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
                   >
                     Apply Filter
+                  </button>
+
+                  <button
+                    type="submit"
+                    formAction={loadCalculatorReportResultsAction}
+                    className="w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-black transition hover:bg-amber-400"
+                  >
+                    Repair Results
                   </button>
                 </div>
               </form>
