@@ -6,7 +6,7 @@ export default function Loading() {
 <img
   src="/smartpunt-icon-512.png"
   alt="SmartPunt"
-  className="h-full w-full bg-black object-contain"
+className="h-[115%] w-[115%] bg-black object-cover"
 />
         </div>
 
