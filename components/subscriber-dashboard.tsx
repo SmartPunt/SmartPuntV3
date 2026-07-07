@@ -694,556 +694,309 @@ async function addUserBetFormAction(formData: FormData) {
     );
   }
 
+  const displayName = currentUser.full_name || currentUser.email || "SmartPunt member";
+  const latestHeadTipperPlays = availableTips.slice(0, 3);
+  const latestCalculatorPlays = calculatorTips.slice(0, 3);
+  const watchlistPreview = watchlistItems.slice(0, 3);
+  const getOnEarlyPreview = longTermBets.slice(0, 3);
+  const meetingPreview = upcomingPublishedRaces.slice(0, 5);
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
-      <div className="mx-auto max-w-7xl p-4 lg:p-8">
-        <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
-          <aside className="space-y-6">
-            <div className="rounded-[32px] border border-white/10 bg-black/80 p-5 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <Badge tone="amber">Premium Member</Badge>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.22),transparent_30%),linear-gradient(180deg,#050505_0%,#0a0a0a_45%,#020617_100%)] text-white">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+        <header className="rounded-[2rem] border border-amber-300/20 bg-black/75 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur md:p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-black shadow-[0_0_35px_rgba(245,158,11,0.28)]">
+                <img src="/smartpunt-icon-512.png" alt="SmartPunt" className="h-full w-full object-cover" />
               </div>
-
-              <div className="mt-4">
-                <p className="text-lg font-bold text-white">
-                  {currentUser.full_name || currentUser.email}
-                </p>
-                <p className="mt-1 text-sm text-zinc-400">
-                  SmartPunt subscriber dashboard
-                </p>
-              </div>
-
-<div className="mt-6 space-y-2">
-  <Link
-    href="/smartpunt-calculator-live-picks"
-    className="block rounded-2xl border border-amber-300/30 bg-amber-500/15 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/25"
-  >
-    ⭐ SmartPunt Calculator Live Picks
-  </Link>
-
-  <Link
-    href="/current-races"
-    className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-  >
-    Current Races
-  </Link>
-                <Link
-                  href="/my-active-tips"
-                  className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                >
-                  My Active Tips
-                </Link>
-                <Link
-                  href="/my-resulted-tips"
-                  className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                >
-                  My Resulted Tips
-                </Link>
-                <Link
-                  href="/race-archive"
-                  className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                >
-                  Race Archive
-                </Link>
-                <Link
-                  href="/long-term-bets"
-                  className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-                >
-                  Get On Early
-                </Link>
-                <Link
-  href="/fortune-on-5"
-  className="block rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
->
-  Fortune on 5
-</Link>
-                <form action={signOutAction}>
-                  <button className="w-full rounded-2xl border border-white/15 bg-black/45 px-4 py-3 text-left text-sm font-semibold text-white transition hover:bg-white/15">
-                    Log out
-                  </button>
-                </form>
-              </div>
-
-              <div className="mt-6 grid gap-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
-                    Live Tips
-                  </p>
-                  <p className="mt-2 text-2xl font-bold text-white">{availableTips.length}</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
-                    Active Tips
-                  </p>
-<p className="mt-2 text-2xl font-bold text-white">
-  {initialActiveUserBetCount}
-</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
-                    Published Races
-                  </p>
-                  <p className="mt-2 text-2xl font-bold text-white">{initialPublishedRaces.length}</p>
-                </div>
-              </div>
-            </div>
-          </aside>
-
-          <div className="space-y-6">
-            <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-2xl">
-              <img
-                src="/header-logo.png"
-                alt="Fortune on 5"
-                className="pointer-events-none absolute left-1/2 top-[42%] w-[260px] max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-95 sm:w-[420px] lg:w-[900px]"
-              />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.22)_0%,rgba(0,0,0,0.06)_30%,rgba(0,0,0,0.52)_100%)]" />
-
-              <div className="relative z-10 flex min-h-[220px] flex-col justify-end p-4 lg:min-h-[280px] lg:p-8">
-                <div className="rounded-2xl bg-black/20 px-4 py-4 backdrop-blur-[1px] lg:px-5">
-                  <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-                    <h1 className="text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
-                      Fortune on 5 premium race tips
-                    </h1>
-                    <p className="text-sm text-zinc-200 lg:text-base">
-                      Sharp tips, live races, and your own punting lane in one spot.
-                    </p>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge tone="green">{availableTips.length} head tipper tips</Badge>
-                    <Badge tone="blue">{calculatorTips.length} calculator signals</Badge>
-                    <Badge tone="blue">{watchlistItems.length} watchlist notes</Badge>
-                    <Badge tone="amber">{longTermBets.length} get on early</Badge>
-<Badge tone="rose">
-  {initialActiveUserBetCount} active tips
-</Badge>
-                  </div>
-                </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.35em] text-amber-300">SmartPunt</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white sm:text-3xl">Subscriber Dashboard</h1>
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-5">
-              <Panel className="bg-white/95">
-                <div className="p-6 text-zinc-950">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    Live tips
-                  </p>
-                  <p className="mt-2 text-3xl font-bold">{availableTips.length}</p>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    Current SmartPunt plays ready to follow.
-                  </p>
-                </div>
-              </Panel>
-
-
-
-              <Panel className="bg-white/95">
-                <div className="p-6 text-zinc-950">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    Calculator signals
-                  </p>
-                  <p className="mt-2 text-3xl font-bold">{calculatorTips.length}</p>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    Model-rated plays separate from the Head Tipper.
-                  </p>
-                </div>
-              </Panel>
-
-              <Panel className="bg-white/95">
-                <div className="p-6 text-zinc-950">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    My active tips
-                  </p>
-<p className="mt-2 text-3xl font-bold">
-  {initialActiveUserBetCount}
-</p>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    Tips you’ve accepted and moved off the live board.
-                  </p>
-                </div>
-              </Panel>
-
-              <Panel className="bg-white/95">
-                <div className="p-6 text-zinc-950">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    Linked race fields
-                  </p>
-                  <p className="mt-2 text-3xl font-bold">
-                    {availableTips.filter((tip) => tip.race_runner_id).length}
-                  </p>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    Tips tied directly to actual runners and race fields.
-                  </p>
-                </div>
-              </Panel>
-
-              <Panel className="bg-white/95">
-                <div className="p-6 text-zinc-950">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    Published races
-                  </p>
-                  <p className="mt-2 text-3xl font-bold">{initialPublishedRaces.length}</p>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    Race-day board now connected to the dashboard.
-                  </p>
-                </div>
-              </Panel>
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-              <Panel className="bg-white/95">
-                <div className="space-y-5 p-6 text-zinc-950">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-semibold">Featured play</h2>
-                      <p className="text-sm text-zinc-500">
-                        The headliner on the board right now.
-                      </p>
-                    </div>
-                    <Badge tone="amber">Top shelf</Badge>
-                  </div>
-
-                  {featuredTip ? (
-                    renderTipCard(featuredTip, true)
-                  ) : (
-                    <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-                      <p className="text-lg font-semibold text-zinc-900">No live tips just yet.</p>
-                      <p className="mt-2 text-sm text-zinc-500">
-                        Once the head tipper posts one, it’ll land here.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Panel>
-
-              <Panel className="bg-white/95">
-                <div className="space-y-5 p-6 text-zinc-950">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-semibold">My punting lane</h2>
-                      <p className="text-sm text-zinc-500">
-                        Your active plays and quick links in one tidy strip.
-                      </p>
-                    </div>
-<Badge tone="rose">
-  {initialActiveUserBetCount}
-</Badge>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="rounded-[24px] border border-amber-200/30 bg-zinc-50 p-5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                        Active tips
-                      </p>
-                      <p className="mt-2 text-3xl font-bold text-zinc-950">{initialActiveUserBetCount}</p>
-                      <p className="mt-2 text-sm text-zinc-600">
-                        Accepted tips move off the live board and into your own page.
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Link
-                          href="/my-active-tips"
-                          className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
-                        >
-                          Open My Active Tips
-                        </Link>
-                        <Link
-                          href="/my-resulted-tips"
-                          className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                        >
-                          View My Resulted Tips
-                        </Link>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <h3 className="text-lg font-semibold text-zinc-950">Watchlist</h3>
-                          <p className="text-sm text-zinc-500">
-                            Horses and races worth keeping in the black book.
-                          </p>
-                        </div>
-                        <Badge tone="blue">{watchlistItems.length}</Badge>
-                      </div>
-
-                      <div className="mt-4 space-y-3">
-                        {watchlistItems.length > 0 ? (
-                          watchlistItems.slice(0, 2).map((item) => (
-                            <div
-                              key={item.id}
-                              className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-sm text-zinc-500">{item.race}</p>
-                                  <p className="mt-1 text-base font-semibold text-zinc-950">
-                                    {item.horse}
-                                  </p>
-                                </div>
-                                <TipPill type={item.label} />
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-zinc-500">No watchlist notes yet.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Panel>
-            </div>
-
-            <div>
-              <Panel className="bg-white/95">
-                <div className="space-y-5 p-6 text-zinc-950">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-semibold">Today’s live races</h2>
-                      <p className="text-sm text-zinc-500">
-                        Quick race-day view tied directly into your published race board.
-                      </p>
-                    </div>
-                    <Link
-                      href="/current-races"
-                      className="rounded-2xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                    >
-                      Open Current Races
-                    </Link>
-                  </div>
-
-                  {upcomingPublishedRaces.length > 0 ? (
-                    <div className="grid gap-5 lg:grid-cols-3">
-                      {upcomingPublishedRaces.map((race) => {
-                        const meeting = meetingMap.get(race.meeting_id) || null;
-                        const raceTips = getTipsForRace(race.id);
-                        const runners = getRunnersForRace(race.id);
-                        const topTip = raceTips[0] || null;
-
-                        return (
-                          <div
-                            key={race.id}
-                            className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-sm text-zinc-500">
-                                  {meeting?.meeting_name || "Meeting"}
-                                </p>
-                                <p className="mt-1 text-lg font-semibold text-zinc-950">
-                                  R{race.race_number} {race.race_name}
-                                </p>
-                              </div>
-                              <Badge tone="amber">{race.distance_m || "—"}m</Badge>
-                            </div>
-
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {meeting?.track_condition ? (
-                                <Badge tone="blue">{meeting.track_condition}</Badge>
-                              ) : null}
-                              {formatMeetingDate(meeting?.meeting_date) ? (
-                                <Badge tone="slate">{formatMeetingDate(meeting?.meeting_date)}</Badge>
-                              ) : null}
-                              <Badge tone="green">{runners.length} runners</Badge>
-                            </div>
-
-                            {topTip ? (
-                              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-800">
-                                  Top linked tip
-                                </p>
-                                <p className="mt-2 text-base font-semibold text-zinc-950">
-                                  {topTip.horse}
-                                </p>
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  <Badge tone="green">{topTip.type}</Badge>
-                                  {topTip.confidence ? (
-                                    <Badge tone="blue">{topTip.confidence}</Badge>
-                                  ) : null}
-                                  {topTip.tip_angle ? (
-                                    <Badge tone="slate">{topTip.tip_angle}</Badge>
-                                  ) : null}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                                <p className="text-sm text-zinc-600">
-                                  No linked live tip on this race yet.
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-                      <p className="text-lg font-semibold text-zinc-900">No published races yet.</p>
-                      <p className="mt-2 text-sm text-zinc-500">
-                        Once races are published, they’ll appear here for a quick race-day scan.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Panel>
-            </div>
-
-
-            <div>
-              <Panel className="bg-white/95">
-                <div className="space-y-5 p-6 text-zinc-950">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-semibold">SmartPunt Calculator signals</h2>
-                      <p className="text-sm text-zinc-500">
-                        Model-rated opportunities published separately from Head Tipper selections.
-                      </p>
-                    </div>
-                    <Badge tone="blue">Model Signal</Badge>
-                  </div>
-
-                  {calculatorTips.length > 0 ? (
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      {calculatorTips.map((tip) => (
-                        <div
-                          key={tip.id}
-                          className="rounded-[24px] border border-sky-200 bg-gradient-to-br from-slate-950 to-slate-800 p-5 text-white shadow-sm"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm text-sky-200/80">{tip.race || "Race"}</p>
-                              <h3 className="mt-1 text-2xl font-bold text-white">
-                                {tip.horse || "Unnamed horse"}
-                              </h3>
-                            </div>
-                            <Badge tone="blue">Calculator</Badge>
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {tip.bet_type ? <Badge tone="green">{tip.bet_type}</Badge> : null}
-                            {tip.score !== null && tip.score !== undefined ? (
-                              <Badge tone="amber">Score {Math.round(Number(tip.score))}</Badge>
-                            ) : null}
-                            {tip.win_percent !== null && tip.win_percent !== undefined ? (
-                              <Badge tone="green">Win {Number(tip.win_percent)}%</Badge>
-                            ) : null}
-                            {tip.place_percent !== null && tip.place_percent !== undefined ? (
-                              <Badge tone="blue">Place {Number(tip.place_percent)}%</Badge>
-                            ) : null}
-                            {tip.race_confidence_percent !== null && tip.race_confidence_percent !== undefined ? (
-                              <Badge tone="slate">Race confidence {Number(tip.race_confidence_percent)}%</Badge>
-                            ) : null}
-                          </div>
-
-                          <p className="mt-4 text-sm leading-6 text-slate-200">
-                            This is a SmartPunt Calculator signal. It is tracked separately from Head Tipper selections.
-                          </p>
-
-                          {renderCalculatorBetForm(tip)}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-                      <p className="text-lg font-semibold text-zinc-900">No calculator signals published yet.</p>
-                      <p className="mt-2 text-sm text-zinc-500">
-                        Once the model publishes a play, it’ll appear here as a separate channel.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Panel>
-            </div>
-
-            <div>{renderCustomBetBuilder()}</div>
-
-            <div>
-              <Panel className="bg-white/95">
-                <div className="space-y-5 p-6 text-zinc-950">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-semibold">Live board</h2>
-                      <p className="text-sm text-zinc-500">
-                        Every current SmartPunt play in one spot, excluding the featured headliner.
-                      </p>
-                    </div>
-                    <Badge tone="green">{liveBoardTips.length}</Badge>
-                  </div>
-
-                  {liveBoardTips.length > 0 ? (
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      {liveBoardTips.map((tip) => renderTipCard(tip))}
-                    </div>
-                  ) : (
-                    <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-                      <p className="text-lg font-semibold text-zinc-900">
-                        No additional live tips on the board right now.
-                      </p>
-                      <p className="mt-2 text-sm text-zinc-500">
-                        Accepted tips move to My Active Tips until they result.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </Panel>
-            </div>
-
-            <div>
-              <Panel className="bg-white/95">
-                <div className="space-y-5 p-6 text-zinc-950">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-semibold">Get On Early</h2>
-                      <p className="text-sm text-zinc-500">
-                        Futures and longer-range angles worth locking in early.
-                      </p>
-                    </div>
-                    <Badge tone="rose">{longTermBets.length}</Badge>
-                  </div>
-
-                  {longTermBets.length > 0 ? (
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      {longTermBets.map((bet) => {
-                        const raceDateTime = formatRaceDateTime(bet.race_start_at, bet.race_timezone);
-
-                        return (
-                          <div
-                            key={bet.id}
-                            className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-sm text-zinc-500">{bet.title}</p>
-                                <p className="mt-1 text-xl font-semibold text-zinc-950">{bet.horse}</p>
-                              </div>
-                              <TipPill type="Get On Early" />
-                            </div>
-
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <Badge tone="amber">{bet.bet_type}</Badge>
-                              {bet.odds ? <Badge tone="green">{bet.odds}</Badge> : null}
-                              {bet.meeting ? <Badge tone="blue">{bet.meeting}</Badge> : null}
-                              {bet.race_number ? <Badge tone="slate">R{bet.race_number}</Badge> : null}
-                              {raceDateTime ? <Badge tone="slate">{raceDateTime}</Badge> : null}
-                            </div>
-
-                            {bet.commentary ? (
-                              <p className="mt-4 text-sm leading-7 text-zinc-700">
-                                {bet.commentary}
-                              </p>
-                            ) : null}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-zinc-500">No get on early bets loaded yet.</p>
-                  )}
-                </div>
-              </Panel>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/smartpunt-calculator-live-picks" className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-2.5 text-sm font-black text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110">
+                Open Live Picks
+              </Link>
+              <form action={signOutAction}>
+                <button className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/10">
+                  Log out
+                </button>
+              </form>
             </div>
           </div>
-        </div>
+        </header>
+
+        <main className="mt-6 space-y-6">
+          <section className="overflow-hidden rounded-[2.25rem] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.96),rgba(24,24,27,0.98),rgba(120,53,15,0.42))] shadow-[0_30px_90px_rgba(0,0,0,0.55)]">
+            <div className="relative p-6 sm:p-8 lg:p-10">
+              <div className="absolute inset-y-0 right-0 hidden w-1/2 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.20),transparent_58%)] lg:block" />
+              <div className="relative max-w-3xl">
+                <Badge tone="amber">Premium Member</Badge>
+                <p className="mt-5 text-sm font-bold uppercase tracking-[0.22em] text-amber-200/80">Welcome back, {displayName}</p>
+                <h2 className="mt-3 text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
+                  Your Racing <span className="text-amber-300">Command Centre</span>
+                </h2>
+                <p className="mt-5 max-w-2xl text-base leading-8 text-zinc-200 sm:text-lg">
+                  Live calculator picks, Head Tipper plays, your active bets, watchlist alerts and Get On Early angles — all in one premium SmartPunt hub.
+                </p>
+                <div className="mt-7 flex flex-wrap gap-3">
+                  <Link href="/smartpunt-calculator-live-picks" className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-5 py-3 text-sm font-black text-black shadow-lg shadow-amber-500/25 transition hover:brightness-110">
+                    🏆 Open Live Picks
+                  </Link>
+                  <Link href="/my-active-tips" className="rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15">
+                    My Active Tips
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <Link href="/smartpunt-calculator-live-picks" className="group rounded-[1.75rem] border border-amber-300/25 bg-black/70 p-5 shadow-xl shadow-black/30 transition hover:-translate-y-0.5 hover:border-amber-300/50 hover:bg-black/85">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">Live Picks</p>
+                  <p className="mt-3 text-4xl font-black text-white">{availableTips.length + calculatorTips.length}</p>
+                  <p className="mt-2 text-sm text-zinc-400">Head Tipper + Calculator</p>
+                </div>
+                <span className="rounded-2xl bg-amber-400/15 px-3 py-2 text-2xl">◎</span>
+              </div>
+              <p className="mt-5 border-t border-white/10 pt-4 text-sm font-bold text-amber-200 group-hover:text-amber-100">View Live Picks →</p>
+            </Link>
+
+            <Link href="/my-active-tips" className="group rounded-[1.75rem] border border-amber-300/25 bg-black/70 p-5 shadow-xl shadow-black/30 transition hover:-translate-y-0.5 hover:border-amber-300/50 hover:bg-black/85">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">My Active Tips</p>
+                  <p className="mt-3 text-4xl font-black text-white">{initialActiveUserBetCount}</p>
+                  <p className="mt-2 text-sm text-zinc-400">Tips you’ve marked active</p>
+                </div>
+                <span className="rounded-2xl bg-amber-400/15 px-3 py-2 text-2xl">✓</span>
+              </div>
+              <p className="mt-5 border-t border-white/10 pt-4 text-sm font-bold text-amber-200 group-hover:text-amber-100">View Active Tips →</p>
+            </Link>
+
+            <Link href="/my-resulted-tips" className="group rounded-[1.75rem] border border-amber-300/25 bg-black/70 p-5 shadow-xl shadow-black/30 transition hover:-translate-y-0.5 hover:border-amber-300/50 hover:bg-black/85">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">Resulted Tips</p>
+                  <p className="mt-3 text-4xl font-black text-white">↗</p>
+                  <p className="mt-2 text-sm text-zinc-400">Completed plays and results</p>
+                </div>
+                <span className="rounded-2xl bg-amber-400/15 px-3 py-2 text-2xl">🏆</span>
+              </div>
+              <p className="mt-5 border-t border-white/10 pt-4 text-sm font-bold text-amber-200 group-hover:text-amber-100">View Results →</p>
+            </Link>
+
+            <Link href="/long-term-bets" className="group rounded-[1.75rem] border border-amber-300/25 bg-black/70 p-5 shadow-xl shadow-black/30 transition hover:-translate-y-0.5 hover:border-amber-300/50 hover:bg-black/85">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">Watchlist / Early</p>
+                  <p className="mt-3 text-4xl font-black text-white">{watchlistItems.length + longTermBets.length}</p>
+                  <p className="mt-2 text-sm text-zinc-400">Horses and early plays</p>
+                </div>
+                <span className="rounded-2xl bg-amber-400/15 px-3 py-2 text-2xl">☆</span>
+              </div>
+              <p className="mt-5 border-t border-white/10 pt-4 text-sm font-bold text-amber-200 group-hover:text-amber-100">Open Get On Early →</p>
+            </Link>
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-2">
+            <Panel className="border-amber-300/25 bg-black/72 text-white shadow-2xl shadow-black/30">
+              <div className="space-y-5 p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black uppercase tracking-tight text-white">Latest Head Tipper Plays</h2>
+                    <p className="mt-1 text-sm text-zinc-400">Fresh plays from the SmartPunt team.</p>
+                  </div>
+                  <Link href="/smartpunt-calculator-live-picks" className="rounded-xl border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-300/10">View all</Link>
+                </div>
+
+                {latestHeadTipperPlays.length > 0 ? (
+                  <div className="space-y-4">
+                    {latestHeadTipperPlays.map((tip) => renderTipCard(tip))}
+                  </div>
+                ) : (
+                  <div className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/5 p-8 text-center">
+                    <p className="text-lg font-black text-white">No Head Tipper plays live.</p>
+                    <p className="mt-2 text-sm text-zinc-400">They’ll appear here as soon as they’re posted.</p>
+                  </div>
+                )}
+              </div>
+            </Panel>
+
+            <Panel className="border-amber-300/25 bg-black/72 text-white shadow-2xl shadow-black/30">
+              <div className="space-y-5 p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black uppercase tracking-tight text-white">Latest Calculator Plays</h2>
+                    <p className="mt-1 text-sm text-zinc-400">Published SmartPunt model signals.</p>
+                  </div>
+                  <Link href="/smartpunt-calculator-live-picks" className="rounded-xl border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-300/10">View all</Link>
+                </div>
+
+                {latestCalculatorPlays.length > 0 ? (
+                  <div className="space-y-4">
+                    {latestCalculatorPlays.map((tip, index) => (
+                      <div key={tip.id} className="rounded-[1.5rem] border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(2,6,23,0.98))] p-5 shadow-lg">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex gap-4">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-amber-500 text-lg font-black text-black">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="text-sm text-zinc-400">{tip.race || "Race"}</p>
+                              <h3 className="mt-1 text-xl font-black text-white">{tip.horse || "Unnamed horse"}</h3>
+                            </div>
+                          </div>
+                          {tip.bet_type ? <TipPill type={tip.bet_type} /> : null}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {tip.score !== null && tip.score !== undefined ? <Badge tone="amber">Score {Math.round(Number(tip.score))}</Badge> : null}
+                          {tip.win_percent !== null && tip.win_percent !== undefined ? <Badge tone="green">Win {Number(tip.win_percent)}%</Badge> : null}
+                          {tip.place_percent !== null && tip.place_percent !== undefined ? <Badge tone="blue">Place {Number(tip.place_percent)}%</Badge> : null}
+                          {tip.race_confidence_percent !== null && tip.race_confidence_percent !== undefined ? <Badge tone="slate">Race {Number(tip.race_confidence_percent)}%</Badge> : null}
+                        </div>
+
+                        {renderCalculatorBetForm(tip)}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/5 p-8 text-center">
+                    <p className="text-lg font-black text-white">No Calculator plays live.</p>
+                    <p className="mt-2 text-sm text-zinc-400">Model signals will appear here once published.</p>
+                  </div>
+                )}
+              </div>
+            </Panel>
+          </section>
+
+          <section className="grid gap-6 lg:grid-cols-3">
+            <Panel className="border-amber-300/25 bg-black/72 text-white shadow-2xl shadow-black/30">
+              <div className="space-y-5 p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black uppercase tracking-tight text-white">Watchlist Alerts</h2>
+                    <p className="mt-1 text-sm text-zinc-400">Black book runners to keep an eye on.</p>
+                  </div>
+                  <Badge tone="blue">{watchlistItems.length}</Badge>
+                </div>
+
+                {watchlistPreview.length > 0 ? (
+                  <div className="space-y-3">
+                    {watchlistPreview.map((item) => (
+                      <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm text-zinc-400">{item.race}</p>
+                        <div className="mt-1 flex items-center justify-between gap-3">
+                          <p className="font-black text-white">{item.horse}</p>
+                          <TipPill type={item.label} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-white/15 bg-white/5 p-5 text-sm text-zinc-400">No watchlist notes yet.</p>
+                )}
+              </div>
+            </Panel>
+
+            <Panel className="border-amber-300/25 bg-black/72 text-white shadow-2xl shadow-black/30">
+              <div className="space-y-5 p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black uppercase tracking-tight text-white">Get On Early</h2>
+                    <p className="mt-1 text-sm text-zinc-400">Longer-range plays worth noting.</p>
+                  </div>
+                  <Badge tone="rose">{longTermBets.length}</Badge>
+                </div>
+
+                {getOnEarlyPreview.length > 0 ? (
+                  <div className="space-y-3">
+                    {getOnEarlyPreview.map((bet) => (
+                      <div key={bet.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm text-zinc-400">{bet.title}</p>
+                        <p className="mt-1 font-black text-white">{bet.horse}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Badge tone="amber">{bet.bet_type}</Badge>
+                          {bet.odds ? <Badge tone="green">{bet.odds}</Badge> : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-white/15 bg-white/5 p-5 text-sm text-zinc-400">No Get On Early plays loaded.</p>
+                )}
+              </div>
+            </Panel>
+
+            <Panel className="border-amber-300/25 bg-black/72 text-white shadow-2xl shadow-black/30">
+              <div className="space-y-5 p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-black uppercase tracking-tight text-white">Upcoming Meetings</h2>
+                    <p className="mt-1 text-sm text-zinc-400">Latest published race cards.</p>
+                  </div>
+                  <Badge tone="amber">{initialPublishedRaces.length}</Badge>
+                </div>
+
+                {meetingPreview.length > 0 ? (
+                  <div className="space-y-3">
+                    {meetingPreview.map((race) => {
+                      const meeting = meetingMap.get(race.meeting_id) || null;
+                      const runners = getRunnersForRace(race.id);
+
+                      return (
+                        <div key={race.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-black text-white">{meeting?.meeting_name || "Meeting"}</p>
+                              <p className="mt-1 text-sm text-zinc-400">R{race.race_number} · {race.distance_m || "—"}m</p>
+                            </div>
+                            <Badge tone="slate">{runners.length}</Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-white/15 bg-white/5 p-5 text-sm text-zinc-400">No meetings published yet.</p>
+                )}
+              </div>
+            </Panel>
+          </section>
+
+          <section className="grid gap-6 xl:grid-cols-[1fr_0.85fr]">
+            <div>{renderCustomBetBuilder()}</div>
+
+            <Panel className="border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.92),rgba(24,24,27,0.95))] text-white shadow-2xl shadow-black/30">
+              <div className="flex h-full flex-col justify-between gap-6 p-6">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.26em] text-amber-300">SmartPunt Edge</p>
+                  <h2 className="mt-3 text-2xl font-black text-white">Premium racing intelligence</h2>
+                  <p className="mt-3 text-sm leading-7 text-zinc-300">
+                    Powered by race intelligence, data and performance review. Live picks are now your front door; this dashboard is your personal command centre.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Link href="/current-races" className="rounded-2xl border border-amber-300/30 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/10">
+                    Current Races
+                  </Link>
+                  <Link href="/race-archive" className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10">
+                    Race Archive
+                  </Link>
+                  <Link href="/fortune-on-5" className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10">
+                    Fortune on 5
+                  </Link>
+                </div>
+              </div>
+            </Panel>
+          </section>
+        </main>
       </div>
     </div>
   );
