@@ -299,7 +299,7 @@ export default async function SubscriberDashboardPage() {
       const { data, error } = await (supabase as any)
         .from("races")
         .select("*")
-        .eq("status", "published")
+        .in("status", ["published", "closed"])
         .in("meeting_id", meetingIdChunk)
         .order("meeting_id", { ascending: true })
         .order("race_number", { ascending: true });
@@ -312,46 +312,13 @@ export default async function SubscriberDashboardPage() {
     }
   }
 
-  const todayRaceIds = uniqueNumbers(latestRaces.map((race: any) => race.id));
-
-  const calculatorTips = todayRaceIds.length
-    ? await fetchServiceRoleRows<{
-        id: number;
-        race_id: number | null;
-        race_runner_id: number | null;
-        horse_id: number | null;
-        race: string | null;
-        horse: string | null;
-        bet_type: string | null;
-        confidence: string | null;
-        score: number | string | null;
-        win_percent: number | string | null;
-        place_percent: number | string | null;
-        race_gap: number | string | null;
-        race_confidence_percent: number | string | null;
-        race_confidence_tier: string | null;
-        status: string | null;
-        finishing_position: number | null;
-        won: boolean | null;
-        placed: boolean | null;
-        settled_at: string | null;
-        published_at: string | null;
-      }>(
-        `smartpunt_calculator_tips?select=*&status=eq.active&settled_at=is.null&race_id=in.(${todayRaceIds.join(
-          ",",
-        )})&order=published_at.desc`,
-      )
-    : [];
-
   const raceIds = uniqueNumbers([
-    ...todayRaceIds,
+    ...latestRaces.map((race: any) => race.id),
     ...suggestedTips.map((tip: any) => tip.race_id),
-    ...calculatorTips.map((tip: any) => tip.race_id),
   ]);
 
   const runnerIdsFromTips = uniqueNumbers([
     ...suggestedTips.map((tip: any) => tip.race_runner_id),
-    ...calculatorTips.map((tip: any) => tip.race_runner_id),
   ]);
 
   const racesFromTips = await fetchRowsByIds<any>({
@@ -400,7 +367,6 @@ export default async function SubscriberDashboardPage() {
   const horseIds = uniqueNumbers([
     ...publishedRunners.map((runner: any) => runner.horse_id),
     ...suggestedTips.map((tip: any) => tip.horse_id),
-    ...calculatorTips.map((tip: any) => tip.horse_id),
   ]);
 
   const [meetingsFromIds, horses] = await Promise.all([
@@ -418,6 +384,32 @@ export default async function SubscriberDashboardPage() {
       orderBy: { column: "horse_name", ascending: true },
     }),
   ]);
+
+
+  const activeJockeyNames = Array.from(
+    new Set(
+      publishedRunners
+        .map((runner: any) => String(runner.jockey_name || "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  let jockeyProfiles: any[] = [];
+
+  if (activeJockeyNames.length > 0) {
+    for (const nameChunk of chunk(activeJockeyNames)) {
+      const { data, error } = await (supabase as any)
+        .from("jockey_profiles")
+        .select("*")
+        .in("jockey_name", nameChunk);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      jockeyProfiles.push(...(data ?? []));
+    }
+  }
 
   const meetingMap = new Map<number, any>();
 
@@ -442,7 +434,7 @@ export default async function SubscriberDashboardPage() {
       <SubscriberDashboard
         currentUser={profile}
         initialSuggestedTips={suggestedTips}
-        initialCalculatorTips={calculatorTips}
+        initialCalculatorTips={[]}
         initialWatchlistItems={watchlistItems}
         initialLongTermBets={longTermBets}
         initialActiveTipIds={activeTipIds}
@@ -452,6 +444,7 @@ export default async function SubscriberDashboardPage() {
         initialPublishedRunners={publishedRunners}
         initialHorses={horses}
         initialMeetings={meetings}
+        initialJockeyProfiles={jockeyProfiles}
         initialResultedUserBets={resultedUserBetsQuery.data ?? []}
       />
     </AppEntryLoader>
