@@ -129,6 +129,24 @@ function getServiceRoleConfig() {
   };
 }
 
+
+function getPerthDate(offsetDays = 0) {
+  const perthNow = new Date(
+    new Date().toLocaleString("en-US", {
+      timeZone: "Australia/Perth",
+    }),
+  );
+
+  perthNow.setDate(perthNow.getDate() + offsetDays);
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(perthNow);
+}
+
 async function fetchServiceRoleRows<T>(tablePath: string) {
   const allRows: T[] = [];
   let offset = 0;
@@ -190,7 +208,8 @@ export default async function SubscriberDashboardPage() {
     watchlistItems,
     longTermBets,
     activeUserBetsQuery,
-    latestPublishedRaces,
+    resultedUserBetsQuery,
+    currentMeetingsQuery,
   ] = await Promise.all([
     fetchAllRows<any>({
       getPage: async (from, to) => {
@@ -272,23 +291,52 @@ export default async function SubscriberDashboardPage() {
       .is("settled_at", null),
 
     supabase
-      .from("races")
+      .from("user_bets")
+      .select("id, won, placed, bet_type, settled_at")
+      .eq("user_id", profile.id)
+      .not("settled_at", "is", null),
+
+    supabase
+      .from("meetings")
       .select("*")
-      .eq("status", "published")
-      .order("published_at", { ascending: false, nullsFirst: false })
-      .order("updated_at", { ascending: false })
-      .limit(6),
+      .eq("meeting_date", getPerthDate(0))
+      .order("meeting_name", { ascending: true }),
   ]);
 
   if (activeUserBetsQuery.error) {
     throw new Error(activeUserBetsQuery.error.message);
   }
 
-  if (latestPublishedRaces.error) {
-    throw new Error(latestPublishedRaces.error.message);
+  if (resultedUserBetsQuery.error) {
+    throw new Error(resultedUserBetsQuery.error.message);
   }
 
-  const latestRaces = latestPublishedRaces.data ?? [];
+  if (currentMeetingsQuery.error) {
+    throw new Error(currentMeetingsQuery.error.message);
+  }
+
+  const currentMeetings = currentMeetingsQuery.data ?? [];
+  const currentMeetingIds = uniqueNumbers(currentMeetings.map((meeting: any) => meeting.id));
+
+  let latestRaces: any[] = [];
+
+  if (currentMeetingIds.length) {
+    for (const meetingIdChunk of chunk(currentMeetingIds)) {
+      const { data, error } = await (supabase as any)
+        .from("races")
+        .select("*")
+        .eq("status", "published")
+        .in("meeting_id", meetingIdChunk)
+        .order("meeting_id", { ascending: true })
+        .order("race_number", { ascending: true });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      latestRaces.push(...(data ?? []));
+    }
+  }
 
   const raceIds = uniqueNumbers([
     ...latestRaces.map((race: any) => race.id),
@@ -350,7 +398,7 @@ export default async function SubscriberDashboardPage() {
     ...calculatorTips.map((tip: any) => tip.horse_id),
   ]);
 
-  const [meetings, horses] = await Promise.all([
+  const [meetingsFromIds, horses] = await Promise.all([
     fetchRowsByIds<any>({
       supabase,
       table: "meetings",
@@ -365,6 +413,14 @@ export default async function SubscriberDashboardPage() {
       orderBy: { column: "horse_name", ascending: true },
     }),
   ]);
+
+  const meetingMap = new Map<number, any>();
+
+  [...currentMeetings, ...meetingsFromIds].forEach((meeting: any) => {
+    meetingMap.set(Number(meeting.id), meeting);
+  });
+
+  const meetings = Array.from(meetingMap.values());
 
   const activeTipIds = (activeUserBetsQuery.data || [])
     .map((row: any) => row.suggested_tip_id)
@@ -391,6 +447,7 @@ export default async function SubscriberDashboardPage() {
         initialPublishedRunners={publishedRunners}
         initialHorses={horses}
         initialMeetings={meetings}
+        initialResultedUserBets={resultedUserBetsQuery.data ?? []}
       />
     </AppEntryLoader>
   );
