@@ -23,6 +23,7 @@ type Race = {
   distance_m: number | null;
   status: "draft" | "published" | "closed";
   published_at: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
   place_terms?: string | null;
