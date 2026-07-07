@@ -204,7 +204,6 @@ export default async function SubscriberDashboardPage() {
 
   const [
     suggestedTips,
-    calculatorTips,
     watchlistItems,
     longTermBets,
     activeUserBetsQuery,
@@ -227,31 +226,6 @@ export default async function SubscriberDashboardPage() {
         };
       },
     }),
-
-    fetchServiceRoleRows<{
-      id: number;
-      race_id: number | null;
-      race_runner_id: number | null;
-      horse_id: number | null;
-      race: string | null;
-      horse: string | null;
-      bet_type: string | null;
-      confidence: string | null;
-      score: number | string | null;
-      win_percent: number | string | null;
-      place_percent: number | string | null;
-      race_gap: number | string | null;
-      race_confidence_percent: number | string | null;
-      race_confidence_tier: string | null;
-      status: string | null;
-      finishing_position: number | null;
-      won: boolean | null;
-      placed: boolean | null;
-      settled_at: string | null;
-      published_at: string | null;
-    }>(
-      "smartpunt_calculator_tips?select=*&settled_at=is.null&status=eq.active&order=published_at.desc",
-    ),
 
     fetchAllRows<any>({
       getPage: async (from, to) => {
@@ -338,8 +312,39 @@ export default async function SubscriberDashboardPage() {
     }
   }
 
+  const todayRaceIds = uniqueNumbers(latestRaces.map((race: any) => race.id));
+
+  const calculatorTips = todayRaceIds.length
+    ? await fetchServiceRoleRows<{
+        id: number;
+        race_id: number | null;
+        race_runner_id: number | null;
+        horse_id: number | null;
+        race: string | null;
+        horse: string | null;
+        bet_type: string | null;
+        confidence: string | null;
+        score: number | string | null;
+        win_percent: number | string | null;
+        place_percent: number | string | null;
+        race_gap: number | string | null;
+        race_confidence_percent: number | string | null;
+        race_confidence_tier: string | null;
+        status: string | null;
+        finishing_position: number | null;
+        won: boolean | null;
+        placed: boolean | null;
+        settled_at: string | null;
+        published_at: string | null;
+      }>(
+        `smartpunt_calculator_tips?select=*&status=eq.active&settled_at=is.null&race_id=in.(${todayRaceIds.join(
+          ",",
+        )})&order=published_at.desc`,
+      )
+    : [];
+
   const raceIds = uniqueNumbers([
-    ...latestRaces.map((race: any) => race.id),
+    ...todayRaceIds,
     ...suggestedTips.map((tip: any) => tip.race_id),
     ...calculatorTips.map((tip: any) => tip.race_id),
   ]);
