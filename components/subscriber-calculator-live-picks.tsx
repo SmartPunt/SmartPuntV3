@@ -1166,7 +1166,7 @@ export default function SubscriberCalculatorLivePicks({
               </button>
             </div>
             <Link
-              href="/"
+              href="/subscriber-dashboard"
               className="rounded-full border border-amber-300/40 bg-black/45 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100"
             >
               Dashboard
