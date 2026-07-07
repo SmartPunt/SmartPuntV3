@@ -1902,9 +1902,17 @@ export async function loadCalculatorReportResultsAction(
     );
 
     for (const raceId of resultedRaceIds) {
-      await saveCalculatorPredictionsForRace(Number(raceId), {
-        excludeScratched: true,
-      });
+try {
+  console.log("Repairing calculator predictions for race", raceId);
+
+  await saveCalculatorPredictionsForRace(Number(raceId), {
+    excludeScratched: true,
+  });
+
+  console.log("Finished calculator predictions for race", raceId);
+} catch (error) {
+  console.error("FAILED rebuilding race", raceId, error);
+}
 
       const predictionUpdates = resultedRunners
         .filter((runner: any) => Number(runner.race_id) === Number(raceId))
