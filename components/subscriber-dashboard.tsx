@@ -342,8 +342,6 @@ export default function SubscriberDashboard({
         if ((tip.status || "active") !== "active") return false;
         if (activeCalculatorTipIdSet.has(tip.id)) return false;
 
-        const tipDate = getDateOnlyInTimezone(tip.published_at, "Australia/Perth");
-        if (tipDate && tipDate !== today) return false;
 
         if (tip.race_id) {
           const race = raceMap.get(Number(tip.race_id));
