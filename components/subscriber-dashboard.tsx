@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { addUserBetAction, signOutAction } from "@/lib/actions";
 import { TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
+import { calculateRaceConfidence, calculateRaceScores, getQualifiedCalculatorTip } from "@/lib/calculator/scoring";
 
 type Meeting = {
   id: number;
@@ -24,6 +25,7 @@ type Race = {
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  place_terms?: string | null;
 };
 
 type Runner = {
@@ -53,6 +55,13 @@ type Horse = {
   age: number | null;
 };
 
+type JockeyProfile = {
+  id?: number;
+  jockey_name?: string | null;
+  rating?: number | null;
+  [key: string]: any;
+};
+
 type SuggestedTip = {
   id: number;
   meeting_id: number | null;
@@ -77,7 +86,7 @@ type SuggestedTip = {
 };
 
 type CalculatorTip = {
-  id: number;
+  id?: number | null;
   race_id: number | null;
   race_runner_id: number | null;
   horse_id: number | null;
@@ -234,6 +243,7 @@ export default function SubscriberDashboard({
   initialPublishedRunners,
   initialHorses,
   initialMeetings,
+  initialJockeyProfiles = [],
   initialResultedUserBets = [],
 }: {
   currentUser: any;
@@ -248,6 +258,7 @@ export default function SubscriberDashboard({
   initialPublishedRunners: Runner[];
   initialHorses: Horse[];
   initialMeetings: Meeting[];
+  initialJockeyProfiles?: JockeyProfile[];
   initialResultedUserBets?: ResultedUserBet[];
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
@@ -335,30 +346,77 @@ export default function SubscriberDashboard({
     [activeTipIdSet, allTips, meetingMap, raceMap, runnerMap, today],
   );
 
-  const calculatorTips = useMemo(
-    () =>
-      initialCalculatorTips.filter((tip) => {
-        if (tip.settled_at !== null) return false;
-        if ((tip.status || "active") !== "active") return false;
-        if (activeCalculatorTipIdSet.has(tip.id)) return false;
+  const calculatorTips = useMemo<CalculatorTip[]>(() => {
+    const automaticTips: CalculatorTip[] = [];
 
+    todayRaces.forEach((race) => {
+      const meeting = meetingMap.get(Number(race.meeting_id));
+      if (!meeting || meeting.meeting_date !== today) return;
 
-        if (tip.race_id) {
-          const race = raceMap.get(Number(tip.race_id));
-          const meeting = race ? meetingMap.get(Number(race.meeting_id)) : null;
-          if (meeting?.meeting_date && meeting.meeting_date !== today) return false;
-        }
+      const scoredRunners = calculateRaceScores({
+        activeRace: race,
+        races: initialPublishedRaces,
+        runners: initialPublishedRunners,
+        horses: initialHorses,
+        meetings: initialMeetings,
+        jockeyProfiles: initialJockeyProfiles,
+      });
 
-        if (!tip.race_runner_id) return true;
+      if (!scoredRunners.length) return;
 
-        const linkedRunner = runnerMap.get(Number(tip.race_runner_id));
+      const topRunner = scoredRunners[0] || null;
+      const raceConfidence = calculateRaceConfidence(scoredRunners, {
+        trackCondition: topRunner?.track_condition || meeting.track_condition || null,
+        raceName: race.race_name || "",
+        placeTerms: race.place_terms || "top_3",
+      });
 
-        if (!linkedRunner) return true;
+      const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
+        trackCondition: topRunner?.track_condition || meeting.track_condition || null,
+        raceName: race.race_name || "",
+        placeTerms: race.place_terms || "top_3",
+      });
 
-        return linkedRunner.scratched !== true;
-      }),
-    [activeCalculatorTipIdSet, initialCalculatorTips, meetingMap, raceMap, runnerMap, today],
-  );
+      if (!qualifiedTip?.runner) return;
+
+      if (activeCalculatorTipIdSet.has(Number(qualifiedTip.runner.id))) return;
+
+      automaticTips.push({
+        id: null,
+        race_id: Number(race.id),
+        race_runner_id: Number(qualifiedTip.runner.id),
+        horse_id: Number(qualifiedTip.runner.horse_id),
+        race: `${meeting.meeting_name} R${race.race_number} ${race.race_name || ""}`.trim(),
+        horse: qualifiedTip.runner.horse_name || "Unnamed horse",
+        bet_type: qualifiedTip.type,
+        confidence: raceConfidence.tier,
+        score: Number(qualifiedTip.runner.score || 0),
+        win_percent: Number(qualifiedTip.runner.winPercent || 0),
+        place_percent: Number(qualifiedTip.runner.placePercent || 0),
+        race_gap: Number(qualifiedTip.gap || raceConfidence.gap || 0),
+        race_confidence_percent: Number(raceConfidence.confidencePercent || 0),
+        race_confidence_tier: raceConfidence.tier,
+        status: "automatic",
+        finishing_position: null,
+        won: null,
+        placed: null,
+        settled_at: null,
+        published_at: null,
+      });
+    });
+
+    return automaticTips;
+  }, [
+    activeCalculatorTipIdSet,
+    initialHorses,
+    initialJockeyProfiles,
+    initialMeetings,
+    initialPublishedRaces,
+    initialPublishedRunners,
+    meetingMap,
+    today,
+    todayRaces,
+  ]);
 
   const topHeadTipperPlays = useMemo(
     () =>
@@ -509,7 +567,7 @@ export default function SubscriberDashboard({
     return (
       <form action={addUserBetFormAction} className="mt-4 flex flex-wrap items-end gap-3">
         <input type="hidden" name="source" value="calculator" />
-        <input type="hidden" name="calculator_tip_id" value={tip.id} />
+        <input type="hidden" name="calculator_tip_id" value={tip.id || ""} />
         <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
         <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
         <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
@@ -663,7 +721,7 @@ export default function SubscriberDashboard({
 
     return (
       <Link
-        key={tip.id}
+        key={`calculator-${tip.race_id}-${tip.race_runner_id}`}
         href={tipHref(tip.race_id)}
         className="block rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4 transition hover:border-amber-300/45 hover:bg-amber-300/10"
       >
@@ -691,7 +749,7 @@ export default function SubscriberDashboard({
   function renderCalculatorCard(tip: CalculatorTip, index: number) {
     return (
       <Link
-        key={tip.id}
+        key={`calculator-${tip.race_id}-${tip.race_runner_id}`}
         href={tipHref(tip.race_id)}
         className="block rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4 transition hover:border-amber-300/45 hover:bg-amber-300/10"
       >
