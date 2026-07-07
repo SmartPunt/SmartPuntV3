@@ -246,59 +246,22 @@ export default async function SubscriberDashboardPage() {
     },
   });
 
-  const subscriberProfiles =
-    profile.role === "admin"
-      ? await fetchAllRows({
-          getPage: async (from, to) => {
-            const result = await supabase
-              .from("profiles")
-              .select("id, full_name, email, role, status, email_alerts_enabled, created_at")
-              .eq("role", "user")
-              .order("full_name", { ascending: true, nullsFirst: false })
-              .order("email", { ascending: true, nullsFirst: false })
-              .range(from, to);
+  const activeUserBetsQuery = await supabase
+    .from("user_bets")
+    .select("suggested_tip_id, calculator_tip_id")
+    .eq("user_id", profile.id)
+    .is("settled_at", null);
 
-            return {
-              data: result.data ?? [],
-              error: result.error,
-            };
-          },
-        })
-      : [];
+  const activeTipIds = (activeUserBetsQuery.data || [])
+    .map((row: any) => row.suggested_tip_id)
+    .filter(Boolean);
 
-  if (profile.role === "admin") {
-    return (
-      <AppEntryLoader>
-        <AdminDashboard
-          currentUser={profile}
-          initialSuggestedTips={suggestedTips}
-          initialWatchlistItems={watchlistItems}
-          initialLongTermBets={longTermBets}
-          initialPublishedRaces={publishedRaces}
-          initialPublishedRunners={publishedRunners}
-          initialHorses={horses}
-          initialMeetings={meetings}
-          initialSubscriberProfiles={subscriberProfiles}
-        />
-      </AppEntryLoader>
-    );
-  }
+  const activeCalculatorTipIds = (activeUserBetsQuery.data || [])
+    .map((row: any) => row.calculator_tip_id)
+    .filter(Boolean);
 
-const activeUserBetsQuery = await supabase
-  .from("user_bets")
-  .select("suggested_tip_id, calculator_tip_id")
-  .eq("user_id", profile.id)
-  .is("settled_at", null);
+  const activeUserBetCount = (activeUserBetsQuery.data || []).length;
 
-const activeTipIds = (activeUserBetsQuery.data || [])
-  .map((row: any) => row.suggested_tip_id)
-  .filter(Boolean);
-
-const activeCalculatorTipIds = (activeUserBetsQuery.data || [])
-  .map((row: any) => row.calculator_tip_id)
-  .filter(Boolean);
-const activeUserBetCount =
-  (activeUserBetsQuery.data || []).length;
   return (
     <AppEntryLoader>
       <SubscriberDashboard
