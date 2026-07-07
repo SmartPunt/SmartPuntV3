@@ -3,11 +3,11 @@ export default function Loading() {
     <main className="flex min-h-screen items-center justify-center bg-black px-6">
       <div className="flex flex-col items-center gap-5 text-center">
 <div className="flex h-[85vw] w-[85vw] max-h-[520px] max-w-[520px] items-center justify-center overflow-hidden bg-black">
-          <img
-            src="/smartpunt-icon-512.png"
-            alt="SmartPunt"
-className="h-full w-full object-contain"
-          />
+<img
+  src="/smartpunt-icon-512.png"
+  alt="SmartPunt"
+  className="h-full w-full bg-black object-contain"
+/>
         </div>
 
         <div>
