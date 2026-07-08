@@ -727,38 +727,6 @@ export default function SubscriberDashboard({
     );
   }
 
-  function renderHeadTipperCard(tip: SuggestedTip, index: number) {
-    const time = formatRaceTime(tip.race_start_at, tip.race_timezone);
-    const race = tip.race_id ? raceMap.get(Number(tip.race_id)) || null : null;
-    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
-
-    return (
-      <div
-        key={tip.id}
-        className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4"
-      >
-        <Link href={tipHref(tip.race_id)} className="block rounded-xl transition hover:bg-amber-300/10">
-        <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-amber-500 text-sm font-black text-black">
-            {index + 1}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-              {meeting?.meeting_name || tip.race || "Race"} {race ? `R${race.race_number}` : ""}
-            </p>
-            <h3 className="mt-1 truncate text-lg font-black text-white">{tip.horse}</h3>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <TipPill type={tip.type} />
-              {tip.confidence ? smallPill(tip.confidence, "gold") : null}
-              {time ? smallPill(time) : null}
-            </div>
-          </div>
-        </div>
-        </Link>
-        {renderHeadTipperBetForm(tip)}
-      </div>
-    );
-  }
 
   function renderHeadTipperCard(tip: SuggestedTip, index: number) {
     const time = formatRaceTime(tip.race_start_at, tip.race_timezone);
