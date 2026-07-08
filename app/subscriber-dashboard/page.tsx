@@ -99,7 +99,7 @@ export default async function SubscriberDashboardPage() {
 
     supabase
       .from("user_bets")
-      .select("suggested_tip_id, calculator_tip_id")
+      .select("suggested_tip_id, calculator_tip_id, race_runner_id")
       .eq("user_id", profile.id)
       .is("settled_at", null),
 
@@ -126,6 +126,11 @@ export default async function SubscriberDashboardPage() {
     .map((row: any) => row.calculator_tip_id)
     .filter(Boolean);
 
+  const activeCalculatorRunnerIds = (activeUserBetsQuery.data || [])
+    .filter((row: any) => row.calculator_tip_id || row.race_runner_id)
+    .map((row: any) => row.race_runner_id)
+    .filter(Boolean);
+
   const activeUserBetCount = (activeUserBetsQuery.data || []).length;
 
   return (
@@ -138,6 +143,7 @@ export default async function SubscriberDashboardPage() {
         initialLongTermBets={longTermBets}
         initialActiveTipIds={activeTipIds}
         initialActiveCalculatorTipIds={activeCalculatorTipIds}
+        initialActiveCalculatorRunnerIds={activeCalculatorRunnerIds}
         initialActiveUserBetCount={activeUserBetCount}
         initialPublishedRaces={livePicksData.currentRaces}
         initialPublishedRunners={livePicksData.currentRunners}
