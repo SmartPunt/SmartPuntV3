@@ -971,8 +971,8 @@ export default function SubscriberDashboard({
 
           {renderCustomBetBuilder()}
 
-          <section className="grid gap-4 lg:grid-cols-2">
-            <section className="rounded-[2rem] border border-amber-300/25 bg-black/82 p-5 shadow-2xl shadow-black/40">
+<section className="grid min-w-0 gap-4 overflow-hidden lg:grid-cols-2">
+            <section className="min-w-0 overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-black uppercase tracking-tight text-white">⭐ Top Head Tipper Plays</h2>
@@ -992,7 +992,7 @@ export default function SubscriberDashboard({
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-amber-300/25 bg-black/82 p-5 shadow-2xl shadow-black/40">
+            <section className="min-w-0 overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-black uppercase tracking-tight text-white">🔥 Best Calculator Plays</h2>
@@ -1013,7 +1013,7 @@ export default function SubscriberDashboard({
             </section>
           </section>
 
-          <section className="rounded-[2rem] border border-amber-300/25 bg-black/82 p-5 shadow-2xl shadow-black/40">
+          <section className="min-w-0 overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black uppercase tracking-tight text-white">Upcoming Meetings</h2>
