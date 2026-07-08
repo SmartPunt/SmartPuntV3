@@ -314,6 +314,33 @@ export default function SubscriberDashboard({
     [initialPublishedRaces, meetingMap, today],
   );
 
+  const allTodaySuggestedTips = useMemo(
+    () =>
+      allTips.filter((tip) => {
+        if (tip.settled_at !== null) return false;
+
+        if (tip.race_start_at) {
+          const tipDate = getDateOnlyInTimezone(tip.race_start_at, tip.race_timezone || "Australia/Perth");
+          if (tipDate && tipDate !== today) return false;
+        }
+
+        if (tip.race_id) {
+          const race = raceMap.get(Number(tip.race_id));
+          const meeting = race ? meetingMap.get(Number(race.meeting_id)) : null;
+          if (meeting?.meeting_date && meeting.meeting_date !== today) return false;
+        }
+
+        if (!tip.race_runner_id) return true;
+
+        const linkedRunner = runnerMap.get(Number(tip.race_runner_id));
+
+        if (!linkedRunner) return true;
+
+        return linkedRunner.scratched !== true;
+      }),
+    [allTips, meetingMap, raceMap, runnerMap, today],
+  );
+
   const suggestedTips = useMemo(
     () =>
       allTips.filter((tip) => {
@@ -447,7 +474,7 @@ export default function SubscriberDashboard({
     ? Math.round((activeSuccessCount / resultedTotal) * 100)
     : 0;
 
-  const livePicksCount = suggestedTips.length + calculatorTips.length;
+  const livePicksCount = allTodaySuggestedTips.length + calculatorTips.length;
   const watchEarlyCount = watchlistItems.length + longTermBets.length;
   const displayName = currentUser.full_name || currentUser.email || "SmartPunt member";
 
