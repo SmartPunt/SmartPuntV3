@@ -609,11 +609,11 @@ export default function SubscriberDashboard({
     const selectedHorse = selectedRunner ? horseMap.get(Number(selectedRunner.horse_id)) || null : null;
 
     return (
-      <section className="rounded-[2rem] border border-amber-300/25 bg-black/78 p-5 text-white shadow-2xl shadow-black/35 sm:p-6">
+      <section className="rounded-[2rem] border border-amber-300/25 bg-[linear-gradient(145deg,rgba(0,0,0,0.9),rgba(24,24,27,0.88))] p-5 text-white shadow-2xl shadow-black/40 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-300">My Pick Builder</p>
-            <h2 className="mt-2 text-2xl font-black">Build My Own Pick</h2>
+            <h2 className="mt-2 text-3xl font-black tracking-tight">Build My Own Pick</h2>
             <p className="mt-2 text-sm leading-6 text-zinc-400">
               Choose any horse from today’s current races, enter Win or Place, and record the odds you took.
             </p>
@@ -760,39 +760,154 @@ export default function SubscriberDashboard({
     );
   }
 
-  function renderCalculatorCard(tip: CalculatorTip, index: number) {
+  function renderHeadTipperCard(tip: SuggestedTip, index: number) {
+    const time = formatRaceTime(tip.race_start_at, tip.race_timezone);
+    const race = tip.race_id ? raceMap.get(Number(tip.race_id)) || null : null;
+    const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
+
     return (
-      <div
+      <article
         key={tip.id}
-        className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4"
+        className="overflow-hidden rounded-[1.75rem] border border-amber-300/20 bg-[linear-gradient(145deg,rgba(0,0,0,0.86),rgba(24,24,27,0.92))] shadow-xl shadow-black/30"
       >
-        <Link href={tipHref(tip.race_id)} className="block rounded-xl transition hover:bg-amber-300/10">
-        <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-amber-500 text-sm font-black text-black">
-            {index + 1}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
-              {tip.race || "Race"}
-            </p>
-            <h3 className="mt-1 truncate text-lg font-black text-white">{tip.horse || "Unnamed horse"}</h3>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {tip.bet_type ? <TipPill type={tip.bet_type} /> : null}
-              {tip.score !== null && tip.score !== undefined ? smallPill(`Score ${Math.round(Number(tip.score))}`, "gold") : null}
-              {tip.place_percent !== null && tip.place_percent !== undefined ? smallPill(`Place ${Number(tip.place_percent)}%`, "blue") : null}
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 text-sm font-black text-black shadow-lg shadow-amber-500/20">
+              {index + 1}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-300/80">
+                {meeting?.meeting_name || tip.race || "Race"} {race ? `R${race.race_number}` : ""}
+              </p>
+              <h3 className="mt-1 truncate text-xl font-black leading-tight text-white">
+                {tip.horse}
+              </h3>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <TipPill type={tip.type} />
+                {tip.confidence ? smallPill(tip.confidence, "gold") : null}
+                {time ? smallPill(time) : null}
+              </div>
             </div>
           </div>
+
+          {tip.commentary || tip.note ? (
+            <p className="mt-3 line-clamp-2 text-sm leading-6 text-zinc-400">
+              {tip.commentary || tip.note}
+            </p>
+          ) : null}
+
+          <div className="mt-4">
+            <Link
+              href={tipHref(tip.race_id)}
+              className="inline-flex w-full items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-amber-200 transition hover:bg-amber-300/15"
+            >
+              View Race
+            </Link>
+          </div>
         </div>
-        </Link>
-        {renderCalculatorBetForm(tip)}
-      </div>
+
+        <div className="border-t border-white/10 bg-black/35 px-4 pb-4 pt-3">
+          {renderHeadTipperBetForm(tip)}
+        </div>
+      </article>
+    );
+  }
+
+  function renderCalculatorCard(tip: CalculatorTip, index: number) {
+    return (
+      <article
+        key={tip.id}
+        className="overflow-hidden rounded-[1.75rem] border border-amber-300/20 bg-[linear-gradient(145deg,rgba(0,0,0,0.86),rgba(24,24,27,0.92))] shadow-xl shadow-black/30"
+      >
+        <div className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 text-sm font-black text-black shadow-lg shadow-amber-500/20">
+              {index + 1}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-300/80">
+                {tip.race || "Race"}
+              </p>
+              <h3 className="mt-1 truncate text-xl font-black leading-tight text-white">
+                {tip.horse || "Unnamed horse"}
+              </h3>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {tip.bet_type ? <TipPill type={tip.bet_type} /> : null}
+                {tip.score !== null && tip.score !== undefined ? smallPill(`Score ${Math.round(Number(tip.score))}`, "gold") : null}
+                {tip.place_percent !== null && tip.place_percent !== undefined ? smallPill(`Place ${Number(tip.place_percent)}%`, "blue") : null}
+                {tip.win_percent !== null && tip.win_percent !== undefined ? smallPill(`Win ${Number(tip.win_percent)}%`, "green") : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <Link
+              href={tipHref(tip.race_id)}
+              className="inline-flex w-full items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-amber-200 transition hover:bg-amber-300/15"
+            >
+              View Race
+            </Link>
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 bg-black/35 px-4 pb-4 pt-3">
+          {renderCalculatorBetForm(tip)}
+        </div>
+      </article>
+    );
+  }
+
+  function renderStatCard({
+    href,
+    eyebrow,
+    value,
+    label,
+    cta,
+    icon,
+  }: {
+    href: string;
+    eyebrow: string;
+    value: string | number;
+    label: string;
+    cta: string;
+    icon: string;
+  }) {
+    return (
+      <Link
+        href={href}
+        className="group relative overflow-hidden rounded-[1.6rem] border border-amber-300/20 bg-[linear-gradient(145deg,rgba(0,0,0,0.9),rgba(24,24,27,0.86))] p-4 shadow-xl shadow-black/30 transition active:scale-[0.99] hover:border-amber-300/45"
+      >
+        <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/10 blur-2xl transition group-hover:bg-amber-300/18" />
+        <div className="relative">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
+              {eyebrow}
+            </p>
+            <span className="text-lg">{icon}</span>
+          </div>
+
+          <p className="mt-3 text-4xl font-black leading-none tracking-tight text-white">
+            {value}
+          </p>
+          <p className="mt-2 min-h-[2rem] text-xs font-semibold leading-4 text-zinc-400">
+            {label}
+          </p>
+          <p className="mt-4 border-t border-white/10 pt-3 text-xs font-black uppercase tracking-[0.14em] text-amber-200">
+            {cta} →
+          </p>
+        </div>
+      </Link>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_28%),linear-gradient(180deg,#050505_0%,#09090b_45%,#020617_100%)] text-white">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,rgba(245,158,11,0.2),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(217,119,6,0.12),transparent_26%),linear-gradient(180deg,#030303_0%,#09090b_45%,#020617_100%)] text-white">
       <div className="mx-auto max-w-5xl px-3 py-4 sm:px-5 lg:px-8">
-        <header className="rounded-[1.75rem] border border-amber-300/20 bg-black/76 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur sm:p-4">
+        <header className="sticky top-2 z-20 rounded-[1.75rem] border border-amber-300/20 bg-black/82 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black shadow-[0_0_28px_rgba(245,158,11,0.25)]">
@@ -817,26 +932,30 @@ export default function SubscriberDashboard({
           </div>
         </header>
 
-        <main className="mt-4 space-y-4">
-          <section className="overflow-hidden rounded-[2rem] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.95),rgba(24,24,27,0.98),rgba(120,53,15,0.36))] shadow-[0_28px_80px_rgba(0,0,0,0.55)]">
-            <div className="relative p-5 sm:p-7">
-              <div className="absolute inset-y-0 right-0 w-2/3 bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.16),transparent_56%)]" />
+        <main className="mt-4 space-y-5 pb-8">
+          <section className="overflow-hidden rounded-[2rem] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.96),rgba(24,24,27,0.98),rgba(146,64,14,0.32))] shadow-[0_28px_80px_rgba(0,0,0,0.6)]">
+            <div className="relative p-5 sm:p-8">
+              <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/12 blur-3xl" />
+              <div className="absolute bottom-0 right-0 h-px w-2/3 bg-gradient-to-l from-amber-300/50 to-transparent" />
               <div className="relative">
-                {smallPill("Premium Member", "gold")}
-                <p className="mt-4 text-[11px] font-black uppercase tracking-[0.22em] text-amber-200/80">
+                <div className="flex flex-wrap items-center gap-2">
+                  {smallPill("Premium Member", "gold")}
+                  {smallPill(`${livePicksCount} Live Picks Today`, "green")}
+                </div>
+                <p className="mt-5 text-[11px] font-black uppercase tracking-[0.24em] text-amber-200/80">
                   Welcome back, {displayName}
                 </p>
-                <h2 className="mt-2 text-3xl font-black leading-tight text-white sm:text-5xl">
+                <h2 className="mt-2 max-w-3xl text-4xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl">
                   Your Racing <span className="text-amber-300">Command Centre</span>
                 </h2>
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-zinc-200 sm:text-base">
-                  Live picks, your active bets, today's race cards and your own quick-pick builder — built for fast iPhone use.
+                <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-200 sm:text-base">
+                  Fast access to today's SmartPunt plays, your active bets, race cards and personal strike rate — tuned for iPhone.
                 </p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Link href="/smartpunt-calculator-live-picks" className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-3 text-xs font-black text-black shadow-lg shadow-amber-500/25 transition hover:brightness-110">
+                <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+                  <Link href="/smartpunt-calculator-live-picks" className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-black shadow-lg shadow-amber-500/25 transition hover:brightness-110">
                     Open Live Picks
                   </Link>
-                  <Link href="/my-active-tips" className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs font-bold text-white transition hover:bg-white/15">
+                  <Link href="/my-active-tips" className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/15">
                     My Active Tips
                   </Link>
                 </div>
@@ -845,43 +964,51 @@ export default function SubscriberDashboard({
           </section>
 
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Link href="/smartpunt-calculator-live-picks" className="group rounded-[1.5rem] border border-amber-300/25 bg-black/72 p-4 shadow-xl shadow-black/25 transition hover:border-amber-300/50">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">Live Picks</p>
-              <p className="mt-2 text-3xl font-black text-white">{livePicksCount}</p>
-              <p className="mt-1 text-xs text-zinc-400">Today</p>
-              <p className="mt-3 border-t border-white/10 pt-3 text-xs font-black text-amber-200">View →</p>
-            </Link>
+            {renderStatCard({
+              href: "/smartpunt-calculator-live-picks",
+              eyebrow: "Live Picks",
+              value: livePicksCount,
+              label: "Today's opportunities",
+              cta: "View",
+              icon: "🏇",
+            })}
 
-            <Link href="/my-active-tips" className="group rounded-[1.5rem] border border-amber-300/25 bg-black/72 p-4 shadow-xl shadow-black/25 transition hover:border-amber-300/50">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">My Active Tips</p>
-              <p className="mt-2 text-3xl font-black text-white">{initialActiveUserBetCount}</p>
-              <p className="mt-1 text-xs text-zinc-400">Following</p>
-              <p className="mt-3 border-t border-white/10 pt-3 text-xs font-black text-amber-200">Open →</p>
-            </Link>
+            {renderStatCard({
+              href: "/my-active-tips",
+              eyebrow: "My Active Tips",
+              value: initialActiveUserBetCount,
+              label: "Currently following",
+              cta: "Open",
+              icon: "🎯",
+            })}
 
-            <Link href="/my-resulted-tips" className="group rounded-[1.5rem] border border-amber-300/25 bg-black/72 p-4 shadow-xl shadow-black/25 transition hover:border-amber-300/50">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">My Strike Rate</p>
-              <p className="mt-2 text-3xl font-black text-white">{resultedTotal ? `${strikeRate}%` : "—"}</p>
-              <p className="mt-1 text-xs text-zinc-400">{resultedTotal ? `${activeSuccessCount}/${resultedTotal}` : "No results yet"}</p>
-              <p className="mt-3 border-t border-white/10 pt-3 text-xs font-black text-amber-200">Results →</p>
-            </Link>
+            {renderStatCard({
+              href: "/my-resulted-tips",
+              eyebrow: "My Strike Rate",
+              value: resultedTotal ? `${strikeRate}%` : "—",
+              label: resultedTotal ? `${activeSuccessCount}/${resultedTotal} successful` : "No results yet",
+              cta: "Results",
+              icon: "📈",
+            })}
 
-            <Link href="/long-term-bets" className="group rounded-[1.5rem] border border-amber-300/25 bg-black/72 p-4 shadow-xl shadow-black/25 transition hover:border-amber-300/50">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">Watchlist / Early</p>
-              <p className="mt-2 text-3xl font-black text-white">{watchEarlyCount}</p>
-              <p className="mt-1 text-xs text-zinc-400">Alerts</p>
-              <p className="mt-3 border-t border-white/10 pt-3 text-xs font-black text-amber-200">Open →</p>
-            </Link>
+            {renderStatCard({
+              href: "/long-term-bets",
+              eyebrow: "Watchlist / Early",
+              value: watchEarlyCount,
+              label: "Alerts and early plays",
+              cta: "Open",
+              icon: "👀",
+            })}
           </section>
 
           {renderCustomBetBuilder()}
 
           <section className="grid gap-4 lg:grid-cols-2">
-            <section className="rounded-[2rem] border border-amber-300/25 bg-black/76 p-5 shadow-2xl shadow-black/30">
+            <section className="rounded-[2rem] border border-amber-300/25 bg-black/82 p-5 shadow-2xl shadow-black/40">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-black uppercase tracking-tight text-white">Top 3 Head Tipper Plays</h2>
-                  <p className="mt-1 text-sm text-zinc-400">Today's highest-confidence team plays.</p>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-white">⭐ Top Head Tipper Plays</h2>
+                  <p className="mt-1 text-sm text-zinc-400">Today's strongest head tipper opportunities.</p>
                 </div>
                 <Link href="/smartpunt-calculator-live-picks" className="rounded-xl border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-300/10">All</Link>
               </div>
@@ -897,11 +1024,11 @@ export default function SubscriberDashboard({
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-amber-300/25 bg-black/76 p-5 shadow-2xl shadow-black/30">
+            <section className="rounded-[2rem] border border-amber-300/25 bg-black/82 p-5 shadow-2xl shadow-black/40">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-black uppercase tracking-tight text-white">Top 3 Calculator Plays</h2>
-                  <p className="mt-1 text-sm text-zinc-400">Today's strongest SmartPunt model signals.</p>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-white">🔥 Best Calculator Plays</h2>
+                  <p className="mt-1 text-sm text-zinc-400">The model's strongest current signals.</p>
                 </div>
                 <Link href="/smartpunt-calculator-live-picks" className="rounded-xl border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-300/10">All</Link>
               </div>
@@ -918,7 +1045,7 @@ export default function SubscriberDashboard({
             </section>
           </section>
 
-          <section className="rounded-[2rem] border border-amber-300/25 bg-black/76 p-5 shadow-2xl shadow-black/30">
+          <section className="rounded-[2rem] border border-amber-300/25 bg-black/82 p-5 shadow-2xl shadow-black/40">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black uppercase tracking-tight text-white">Upcoming Meetings</h2>
@@ -930,7 +1057,7 @@ export default function SubscriberDashboard({
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {meetingSummary.length > 0 ? (
                 meetingSummary.map(({ meeting, raceCount }) => (
-                  <div key={meeting.id} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4">
+                  <div key={meeting.id} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 shadow-lg shadow-black/20">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="font-black uppercase tracking-wide text-white">{meeting.meeting_name}</p>
