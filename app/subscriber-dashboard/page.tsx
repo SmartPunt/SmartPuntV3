@@ -143,6 +143,7 @@ export default async function SubscriberDashboardPage() {
         initialPublishedRunners={livePicksData.currentRunners}
         initialHorses={livePicksData.horses}
         initialMeetings={livePicksData.currentMeetings}
+        initialJockeyProfiles={livePicksData.jockeyProfiles}
         initialResultedUserBets={resultedUserBetsQuery.data ?? []}
       />
     </AppEntryLoader>
