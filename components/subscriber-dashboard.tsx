@@ -711,11 +711,11 @@ export default function SubscriberDashboard({
     const meeting = race ? meetingMap.get(Number(race.meeting_id)) || null : null;
 
     return (
-      <Link
+      <div
         key={tip.id}
-        href={tipHref(tip.race_id)}
-        className="block rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4 transition hover:border-amber-300/45 hover:bg-amber-300/10"
+        className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4"
       >
+        <Link href={tipHref(tip.race_id)} className="block rounded-xl transition hover:bg-amber-300/10">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-amber-500 text-sm font-black text-black">
             {index + 1}
@@ -732,18 +732,19 @@ export default function SubscriberDashboard({
             </div>
           </div>
         </div>
+        </Link>
         {renderHeadTipperBetForm(tip)}
-      </Link>
+      </div>
     );
   }
 
   function renderCalculatorCard(tip: CalculatorTip, index: number) {
     return (
-      <Link
+      <div
         key={tip.id}
-        href={tipHref(tip.race_id)}
-        className="block rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4 transition hover:border-amber-300/45 hover:bg-amber-300/10"
+        className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4"
       >
+        <Link href={tipHref(tip.race_id)} className="block rounded-xl transition hover:bg-amber-300/10">
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-amber-500 text-sm font-black text-black">
             {index + 1}
@@ -760,8 +761,9 @@ export default function SubscriberDashboard({
             </div>
           </div>
         </div>
+        </Link>
         {renderCalculatorBetForm(tip)}
-      </Link>
+      </div>
     );
   }
 
