@@ -8,10 +8,11 @@ export const dynamic = "force-dynamic";
 export default async function Page({
   searchParams,
 }: {
-  searchParams?: {
+  searchParams?: Promise<{
     raceId?: string;
-  };
+  }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -34,7 +35,7 @@ export default async function Page({
   officialTips={livePicksData.officialTips}
   activeUserBets={livePicksData.activeUserBets}
   dayDates={livePicksData.dayDates}
-  initialRaceId={searchParams?.raceId ?? ""}
+initialRaceId={resolvedSearchParams?.raceId ?? ""}
 />
   );
 }
