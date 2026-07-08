@@ -234,6 +234,8 @@ export default function SubscriberDashboard({
   initialActiveUserBetCount,
   initialPublishedRaces,
   initialPublishedRunners,
+  initialScoringRaces = [],
+  initialScoringRunners = [],
   initialHorses,
   initialMeetings,
   initialJockeyProfiles = [],
@@ -249,6 +251,8 @@ export default function SubscriberDashboard({
   initialActiveUserBetCount: number;
   initialPublishedRaces: Race[];
   initialPublishedRunners: Runner[];
+  initialScoringRaces?: Race[];
+  initialScoringRunners?: Runner[];
   initialHorses: Horse[];
   initialMeetings: Meeting[];
   initialJockeyProfiles?: any[];
@@ -343,7 +347,13 @@ export default function SubscriberDashboard({
     () =>
       getSubscriberCalculatorPlays({
         races: todayRaces,
+        scoringRaces: initialScoringRaces.length
+          ? initialScoringRaces
+          : initialPublishedRaces,
         runners: initialPublishedRunners,
+        scoringRunners: initialScoringRunners.length
+          ? initialScoringRunners
+          : initialPublishedRunners,
         horses: initialHorses,
         meetings: initialMeetings,
         jockeyProfiles: initialJockeyProfiles,
@@ -357,7 +367,10 @@ export default function SubscriberDashboard({
       }),
     [
       todayRaces,
+      initialPublishedRaces,
       initialPublishedRunners,
+      initialScoringRaces,
+      initialScoringRunners,
       initialHorses,
       initialMeetings,
       initialJockeyProfiles,
