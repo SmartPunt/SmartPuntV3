@@ -5,7 +5,13 @@ import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: {
+    raceId?: string;
+  };
+}) {
   const profile = await getCurrentProfile();
 
   if (!profile) {
@@ -17,17 +23,18 @@ export default async function Page() {
   });
 
   return (
-    <SubscriberCalculatorLivePicks
-      currentUser={profile}
-      races={livePicksData.races}
-      runners={livePicksData.runners}
-      horses={livePicksData.horses}
-      meetings={livePicksData.meetings}
-      jockeyProfiles={livePicksData.jockeyProfiles}
-      calculatorTips={livePicksData.calculatorTips}
-      officialTips={livePicksData.officialTips}
-      activeUserBets={livePicksData.activeUserBets}
-      dayDates={livePicksData.dayDates}
-    />
+<SubscriberCalculatorLivePicks
+  currentUser={profile}
+  races={livePicksData.races}
+  runners={livePicksData.runners}
+  horses={livePicksData.horses}
+  meetings={livePicksData.meetings}
+  jockeyProfiles={livePicksData.jockeyProfiles}
+  calculatorTips={livePicksData.calculatorTips}
+  officialTips={livePicksData.officialTips}
+  activeUserBets={livePicksData.activeUserBets}
+  dayDates={livePicksData.dayDates}
+  initialRaceId={searchParams?.raceId ?? ""}
+/>
   );
 }
