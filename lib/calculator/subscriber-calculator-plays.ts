@@ -54,19 +54,24 @@ function asJockeyProfiles(rows: any[]): JockeyProfile[] {
 
 export function getSubscriberCalculatorPlays({
   races,
+  scoringRaces,
   runners,
+  scoringRunners,
   horses,
   meetings,
   jockeyProfiles,
 }: {
   races: any[];
+  scoringRaces?: any[];
   runners: any[];
+  scoringRunners?: any[];
   horses: any[];
   meetings: any[];
   jockeyProfiles?: any[];
 }): SubscriberCalculatorPlay[] {
   const typedRaces = asRaces(races || []);
-  const typedRunners = asRunners(runners || []);
+  const typedScoringRaces = asRaces(scoringRaces?.length ? scoringRaces : races || []);
+  const typedScoringRunners = asRunners(scoringRunners?.length ? scoringRunners : runners || []);
   const typedHorses = asHorses(horses || []);
   const typedMeetings = asMeetings(meetings || []);
   const typedJockeyProfiles = asJockeyProfiles(jockeyProfiles || []);
@@ -89,8 +94,8 @@ export function getSubscriberCalculatorPlays({
     .map((race) => {
       const scoredRunners = calculateRaceScores({
         activeRace: race,
-        races: typedRaces,
-        runners: typedRunners,
+        races: typedScoringRaces,
+        runners: typedScoringRunners,
         horses: typedHorses,
         meetings: typedMeetings,
         jockeyProfiles: typedJockeyProfiles,
