@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { addUserBetAction, signOutAction } from "@/lib/actions";
 import { TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
+import { getSubscriberCalculatorPlays } from "@/lib/calculator/subscriber-calculator-plays";
 
 type Meeting = {
   id: number;
@@ -97,6 +98,7 @@ type CalculatorTip = {
   placed: boolean | null;
   settled_at: string | null;
   published_at: string | null;
+  calculator_tip_id?: number | null;
 };
 
 type WatchItem = {
@@ -234,6 +236,7 @@ export default function SubscriberDashboard({
   initialPublishedRunners,
   initialHorses,
   initialMeetings,
+  initialJockeyProfiles = [],
   initialResultedUserBets = [],
 }: {
   currentUser: any;
@@ -248,6 +251,7 @@ export default function SubscriberDashboard({
   initialPublishedRunners: Runner[];
   initialHorses: Horse[];
   initialMeetings: Meeting[];
+  initialJockeyProfiles?: any[];
   initialResultedUserBets?: ResultedUserBet[];
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
@@ -337,29 +341,28 @@ export default function SubscriberDashboard({
 
   const calculatorTips = useMemo(
     () =>
-      initialCalculatorTips.filter((tip) => {
-        if (tip.settled_at !== null) return false;
-        if ((tip.status || "active") !== "active") return false;
-        if (activeCalculatorTipIdSet.has(tip.id)) return false;
-
-        const tipDate = getDateOnlyInTimezone(tip.published_at, "Australia/Perth");
-        if (tipDate && tipDate !== today) return false;
-
-        if (tip.race_id) {
-          const race = raceMap.get(Number(tip.race_id));
-          const meeting = race ? meetingMap.get(Number(race.meeting_id)) : null;
-          if (meeting?.meeting_date && meeting.meeting_date !== today) return false;
-        }
-
+      getSubscriberCalculatorPlays({
+        races: todayRaces,
+        runners: initialPublishedRunners,
+        horses: initialHorses,
+        meetings: initialMeetings,
+        jockeyProfiles: initialJockeyProfiles,
+      }).filter((tip) => {
         if (!tip.race_runner_id) return true;
 
         const linkedRunner = runnerMap.get(Number(tip.race_runner_id));
-
         if (!linkedRunner) return true;
 
         return linkedRunner.scratched !== true;
       }),
-    [activeCalculatorTipIdSet, initialCalculatorTips, meetingMap, raceMap, runnerMap, today],
+    [
+      todayRaces,
+      initialPublishedRunners,
+      initialHorses,
+      initialMeetings,
+      initialJockeyProfiles,
+      runnerMap,
+    ],
   );
 
   const topHeadTipperPlays = useMemo(
@@ -511,7 +514,11 @@ export default function SubscriberDashboard({
     return (
       <form action={addUserBetFormAction} className="mt-4 flex flex-wrap items-end gap-3">
         <input type="hidden" name="source" value="calculator" />
-        <input type="hidden" name="calculator_tip_id" value={tip.id} />
+        <input
+          type="hidden"
+          name="calculator_tip_id"
+          value={tip.calculator_tip_id ?? ""}
+        />
         <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
         <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
         <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
