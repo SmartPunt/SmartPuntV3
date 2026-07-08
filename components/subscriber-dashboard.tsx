@@ -231,6 +231,7 @@ export default function SubscriberDashboard({
   initialLongTermBets,
   initialActiveTipIds,
   initialActiveCalculatorTipIds,
+  initialActiveCalculatorRunnerIds = [],
   initialActiveUserBetCount,
   initialPublishedRaces,
   initialPublishedRunners,
@@ -248,6 +249,7 @@ export default function SubscriberDashboard({
   initialLongTermBets: LongTermBet[];
   initialActiveTipIds: number[];
   initialActiveCalculatorTipIds: number[];
+  initialActiveCalculatorRunnerIds?: number[];
   initialActiveUserBetCount: number;
   initialPublishedRaces: Race[];
   initialPublishedRunners: Runner[];
@@ -295,6 +297,11 @@ export default function SubscriberDashboard({
   const activeCalculatorTipIdSet = useMemo(
     () => new Set(initialActiveCalculatorTipIds),
     [initialActiveCalculatorTipIds],
+  );
+
+  const activeCalculatorRunnerIdSet = useMemo(
+    () => new Set(initialActiveCalculatorRunnerIds.map((id) => Number(id)).filter(Boolean)),
+    [initialActiveCalculatorRunnerIds],
   );
 
   const todayRaces = useMemo(
@@ -370,7 +377,7 @@ export default function SubscriberDashboard({
     [activeTipIdSet, allTips, meetingMap, raceMap, runnerMap, today],
   );
 
-  const calculatorTips = useMemo(
+  const allCalculatorTips = useMemo(
     () =>
       getSubscriberCalculatorPlays({
         races: todayRaces,
@@ -403,6 +410,21 @@ export default function SubscriberDashboard({
       initialJockeyProfiles,
       runnerMap,
     ],
+  );
+
+  const calculatorTips = useMemo(
+    () =>
+      allCalculatorTips.filter((tip) => {
+        if (
+          tip.race_runner_id &&
+          activeCalculatorRunnerIdSet.has(Number(tip.race_runner_id))
+        ) {
+          return false;
+        }
+
+        return true;
+      }),
+    [activeCalculatorRunnerIdSet, allCalculatorTips],
   );
 
   const topHeadTipperPlays = useMemo(
@@ -474,7 +496,7 @@ export default function SubscriberDashboard({
     ? Math.round((activeSuccessCount / resultedTotal) * 100)
     : 0;
 
-  const livePicksCount = allTodaySuggestedTips.length + calculatorTips.length;
+  const livePicksCount = allTodaySuggestedTips.length + allCalculatorTips.length;
   const watchEarlyCount = watchlistItems.length + longTermBets.length;
   const displayName = currentUser.full_name || currentUser.email || "SmartPunt member";
 
