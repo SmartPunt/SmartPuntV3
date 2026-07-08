@@ -587,6 +587,7 @@ export default function SubscriberCalculatorLivePicks({
   officialTips = [],
   activeUserBets = [],
   dayDates,
+  initialRaceId = "",
 }: {
   currentUser: any;
   races: Race[];
@@ -597,9 +598,10 @@ export default function SubscriberCalculatorLivePicks({
   calculatorTips?: CalculatorTip[];
   officialTips?: OfficialTip[];
   activeUserBets?: UserBet[];
+  initialRaceId?: string;
   dayDates?: DayDates;
 }) {
-  const [selectedRaceId, setSelectedRaceId] = useState("");
+const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
   const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
   const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
     useState(false);
