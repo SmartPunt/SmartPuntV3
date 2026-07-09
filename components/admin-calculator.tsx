@@ -1251,9 +1251,17 @@ export default function AdminCalculator({
                                 Calculator #{index + 1}
                               </p>
 
-                              <p className="mt-4 text-xl font-black text-white">
-                                {runner.horse_name}
-                              </p>
+<div className="flex items-center gap-2">
+  {runner.runner_number ? (
+    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
+      {runner.runner_number}
+    </span>
+  ) : null}
+
+  <p className="font-black text-white">
+    {runner.horse_name}
+  </p>
+</div>
 
                               <p className="mt-2 text-sm font-semibold text-zinc-300">
                                 Score {roundScore(runner.score)} · Win{" "}
