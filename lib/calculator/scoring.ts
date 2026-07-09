@@ -18,6 +18,7 @@ export type Runner = {
   id: number;
   race_id: number;
   horse_id: number;
+  runner_number?: number | null;
   jockey_name: string | null;
   trainer_name: string | null;
   barrier: number | null;
