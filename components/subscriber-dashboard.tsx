@@ -559,7 +559,7 @@ export default function SubscriberDashboard({
         <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
         <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
         <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
-        <input type="hidden" name="horse" value=<div className="flex items-center gap-2">
+        <input type="hidden" name="horse" value={tip.horse} />
   {tip.runner_number ? (
     <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
       {tip.runner_number}
