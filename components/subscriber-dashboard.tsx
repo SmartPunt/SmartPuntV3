@@ -669,7 +669,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                 const meeting = meetingMap.get(Number(race.meeting_id)) || null;
                 return (
                   <option key={race.id} value={race.id} className="bg-black text-white">
-                    {formatLinkedRaceLabel(race, meeting)}
+{meeting?.meeting_name || "Meeting"} • Race {race.race_number}
                   </option>
                 );
               })}
@@ -692,7 +692,8 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                   const horse = horseMap.get(Number(runner.horse_id));
                   return (
                     <option key={runner.id} value={runner.id} className="bg-black text-white">
-                      {horse?.horse_name || `Runner ${runner.id}`}
+{runner.runner_number ? `[${runner.runner_number}] ` : ""}
+{horse?.horse_name || `Runner ${runner.id}`}
                     </option>
                   );
                 })}
