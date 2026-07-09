@@ -170,6 +170,7 @@ function formatFormString(positions: Array<number | null | undefined>) {
 
 type ImportedRunner = {
   horse_name: string;
+  runner_number: string;
   barrier: string;
   weight_kg: string;
   jockey_name: string;
@@ -388,7 +389,15 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
       continue;
     }
 
-    const horse_name = stripHorseSuffixes(line);
+let runner_number = "";
+let horse_name = stripHorseSuffixes(line);
+
+const runnerMatch = horse_name.match(/^(\d+)\s+(.+)$/);
+
+if (runnerMatch) {
+  runner_number = runnerMatch[1];
+  horse_name = stripHorseSuffixes(runnerMatch[2].trim());
+}
     const windowLines = lines.slice(i + 1, i + 20);
 const is_scratched = windowLines.some((entry) =>
   /^scr$|^scratched\b/i.test(entry.trim()),
@@ -507,8 +516,9 @@ const is_scratched = windowLines.some((entry) =>
       horse_name &&
       (barrier || weight_kg || jockey_name || trainer_name || market_price || form_last_6)
     ) {
-      runners.push({
-        horse_name,
+runners.push({
+  horse_name,
+  runner_number,
         barrier,
         weight_kg,
         jockey_name,
