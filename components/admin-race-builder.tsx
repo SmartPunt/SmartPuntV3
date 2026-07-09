@@ -389,7 +389,12 @@ function parseRaceImportText(raw: string): ImportedRunner[] {
       continue;
     }
 
-let runner_number = "";
+const previousLine = lines[i - 1] || "";
+
+let runner_number = /^\d{1,2}$/.test(previousLine)
+  ? previousLine
+  : "";
+
 let horse_name = stripHorseSuffixes(line);
 
 const runnerMatch = horse_name.match(/^(\d+)\s+(.+)$/);
