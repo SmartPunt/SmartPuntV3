@@ -559,7 +559,15 @@ export default function SubscriberDashboard({
         <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
         <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
         <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
-        <input type="hidden" name="horse" value={tip.horse} />
+        <input type="hidden" name="horse" value=<div className="flex items-center gap-2">
+  {tip.runner_number ? (
+    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
+      {tip.runner_number}
+    </span>
+  ) : null}
+
+  <span>{tip.horse}</span>
+</div> />
         <input type="hidden" name="race" value={tip.race} />
         <input type="hidden" name="bet_type" value={tip.type} />
 
@@ -749,7 +757,15 @@ export default function SubscriberDashboard({
                 {meeting?.meeting_name || tip.race || "Race"} {race ? `R${race.race_number}` : ""}
               </p>
               <h3 className="mt-1 truncate text-xl font-black leading-tight text-white">
-                {tip.horse}
+                <div className="flex items-center gap-2">
+  {tip.runner_number ? (
+    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
+      {tip.runner_number}
+    </span>
+  ) : null}
+
+  <span>{tip.horse}</span>
+</div>
               </h3>
 
               <div className="mt-3 flex flex-wrap gap-2">
@@ -800,7 +816,15 @@ export default function SubscriberDashboard({
                 {tip.race || "Race"}
               </p>
               <h3 className="mt-1 truncate text-xl font-black leading-tight text-white">
-                {tip.horse || "Unnamed horse"}
+                <div className="flex items-center gap-2">
+  {tip.runner_number ? (
+    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
+      {tip.runner_number}
+    </span>
+  ) : null}
+
+  <span>{tip.horse || "Unnamed horse"}</span>
+</div>
               </h3>
 
               <div className="mt-3 flex flex-wrap gap-2">
