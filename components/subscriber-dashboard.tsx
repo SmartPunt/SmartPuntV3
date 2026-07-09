@@ -551,34 +551,26 @@ export default function SubscriberDashboard({
     );
   }
 
-  function renderHeadTipperBetForm(tip: SuggestedTip) {
-    return (
-      <form action={addUserBetFormAction} className="mt-4 flex flex-wrap items-end gap-3">
-        <input type="hidden" name="source" value="head_tipper" />
-        <input type="hidden" name="suggested_tip_id" value={tip.id} />
-        <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
-        <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
-        <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
-        <input type="hidden" name="horse" value={tip.horse} />
-  {tip.runner_number ? (
-    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
-      {tip.runner_number}
-    </span>
-  ) : null}
+function renderHeadTipperBetForm(tip: SuggestedTip) {
+  return (
+    <form action={addUserBetFormAction} className="mt-4 flex flex-wrap items-end gap-3">
+      <input type="hidden" name="source" value="head_tipper" />
+      <input type="hidden" name="suggested_tip_id" value={tip.id} />
+      <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
+      <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
+      <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
+      <input type="hidden" name="horse" value={tip.horse} />
+      <input type="hidden" name="race" value={tip.race} />
+      <input type="hidden" name="bet_type" value={tip.type} />
 
-  <span>{tip.horse}</span>
-</div> />
-        <input type="hidden" name="race" value={tip.race} />
-        <input type="hidden" name="bet_type" value={tip.type} />
+      {renderOddsInput(true)}
 
-        {renderOddsInput(true)}
-
-        <button className="rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-3 py-2 text-xs font-black text-black shadow-md shadow-amber-500/20 transition hover:brightness-110">
-          Add
-        </button>
-      </form>
-    );
-  }
+      <button className="rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-3 py-2 text-xs font-black text-black shadow-md shadow-amber-500/20 transition hover:brightness-110">
+        Add
+      </button>
+    </form>
+  );
+}
 
   function renderCalculatorBetForm(tip: CalculatorTip) {
     return (
