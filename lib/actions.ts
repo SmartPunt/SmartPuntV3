@@ -4030,6 +4030,7 @@ export async function createRaceRunnersBulkAction(
 
     let importedRunners: Array<{
       horse_name?: string;
+      runner_number?: number | string | null;
       jockey_name?: string;
       trainer_name?: string;
       barrier?: string;
