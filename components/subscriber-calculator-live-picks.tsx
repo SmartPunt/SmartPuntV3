@@ -1776,9 +1776,17 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
                                 #{runner.rank}
                               </td>
                               <td className="px-3 py-3">
-                                <p className="font-black text-white">
-                                  {runner.horse_name}
-                                </p>
+<div className="flex items-center gap-2">
+  {runner.runner_number ? (
+    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
+      {runner.runner_number}
+    </span>
+  ) : null}
+
+  <p className="font-black text-white">
+    {runner.horse_name}
+  </p>
+</div>
                                 <p className="mt-1 text-[10px] font-semibold text-zinc-500">
                                   Barrier {runner.barrier || "—"}{" "}
                                   {isOfficialTip
