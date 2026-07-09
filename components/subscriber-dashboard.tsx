@@ -440,8 +440,18 @@ export default function SubscriberDashboard({
           const bTime = b.race_start_at ? new Date(b.race_start_at).getTime() : 0;
           return aTime - bTime;
         })
-        .slice(0, 3),
-    [suggestedTips],
+        .map((tip) => {
+  const runner = tip.race_runner_id
+    ? runnerMap.get(Number(tip.race_runner_id))
+    : null;
+
+  return {
+    ...tip,
+    runner_number: runner?.runner_number ?? null,
+  };
+})
+.slice(0, 3),
+[suggestedTips, runnerMap],
   );
 
   const topCalculatorPlays = useMemo(
@@ -462,8 +472,18 @@ export default function SubscriberDashboard({
 
           return bStrength - aStrength;
         })
-        .slice(0, 3),
-    [calculatorTips],
+        .map((tip) => {
+  const runner = tip.race_runner_id
+    ? runnerMap.get(Number(tip.race_runner_id))
+    : null;
+
+  return {
+    ...tip,
+    runner_number: runner?.runner_number ?? null,
+  };
+})
+.slice(0, 3),
+[calculatorTips, runnerMap],
   );
 
   const meetingSummary = useMemo(() => {
