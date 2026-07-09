@@ -60,6 +60,7 @@ type SuggestedTip = {
   race_id: number | null;
   horse_id: number | null;
   race_runner_id: number | null;
+  runner_number?: number | null;
   race: string;
   horse: string;
   type: string;
