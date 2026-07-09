@@ -892,6 +892,7 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
     : "";
 
   const officialTipConfidence = officialRaceTip?.confidence || null;
+  const officialTipAngle = officialRaceTip?.tip_angle || null;
 
   const isConsensusPick = Boolean(
     officialRaceTipRunner &&
@@ -1388,6 +1389,12 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
                           {officialTipConfidence ? (
                             <span className="rounded-full border border-sky-300/30 bg-sky-400/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-sky-100">
                               {officialTipConfidence}
+                            </span>
+                          ) : null}
+
+                          {officialTipAngle ? (
+                            <span className="rounded-full border border-amber-300/45 bg-amber-400/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
+                              {officialTipAngle}
                             </span>
                           ) : null}
                         </div>
