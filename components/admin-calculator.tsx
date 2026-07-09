@@ -29,6 +29,7 @@ type CalculatorTip = {
   race_id: number | null;
   race_runner_id: number | null;
   horse_id: number | null;
+  runner_number?: number | null;
   bet_type: string | null;
   status: string | null;
   published_at: string | null;
