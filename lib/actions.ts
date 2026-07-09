@@ -4277,9 +4277,8 @@ horsesByNormalisedName.set(String((horse as any).normalised_name), {
       return {
         race_id: raceId,
         horse_id: horse?.id,
-        runner_number:
-  runner.runner_number !== null &&
-  runner.runner_number !== undefined &&
+runner_number:
+  String(runner.runner_number ?? "").trim() !== "" &&
   !Number.isNaN(Number(runner.runner_number))
     ? Number(runner.runner_number)
     : null,
