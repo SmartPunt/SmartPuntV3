@@ -3818,6 +3818,7 @@ export async function createRaceRunnerAction(
     const horseNameRaw = String(formData.get("horse_name") ?? "").trim();
     const jockeyName = String(formData.get("jockey_name") ?? "").trim();
     const trainerName = String(formData.get("trainer_name") ?? "").trim();
+    const runnerNumberRaw = String(formData.get("runner_number") ?? "").trim();
     const barrierRaw = String(formData.get("barrier") ?? "").trim();
     const marketPriceRaw = String(formData.get("market_price") ?? "").trim();
     const weightKgRaw = String(formData.get("weight_kg") ?? "").trim();
@@ -3944,7 +3945,7 @@ export async function createRaceRunnerAction(
         }
       }
     }
-
+const runnerNumberValue = runnerNumberRaw ? Number(runnerNumberRaw) : null;
     const barrierValue = barrierRaw ? Number(barrierRaw) : null;
     const marketPriceValue = marketPriceRaw ? Number(marketPriceRaw) : null;
     const weightKgValue = weightKgRaw ? Number(weightKgRaw) : null;
@@ -3961,6 +3962,10 @@ export async function createRaceRunnerAction(
     const { error } = await supabase.from("race_runners").insert({
       race_id: raceId,
       horse_id: horseId,
+      runner_number:
+  runnerNumberValue !== null && !Number.isNaN(runnerNumberValue)
+    ? runnerNumberValue
+    : null,
       jockey_name: jockeyName || null,
       trainer_name: trainerName || null,
       barrier:
@@ -4271,6 +4276,12 @@ horsesByNormalisedName.set(String((horse as any).normalised_name), {
       return {
         race_id: raceId,
         horse_id: horse?.id,
+        runner_number:
+  runner.runner_number !== null &&
+  runner.runner_number !== undefined &&
+  !Number.isNaN(Number(runner.runner_number))
+    ? Number(runner.runner_number)
+    : null,
         jockey_name: runner.jockey_name || null,
         trainer_name: runner.trainer_name || null,
         barrier:
@@ -4418,6 +4429,7 @@ export async function updateRaceRunnerDetailsAction(
 
     const jockeyName = String(formData.get("jockey_name") ?? "").trim();
     const trainerName = String(formData.get("trainer_name") ?? "").trim();
+    const runnerNumberRaw = String(formData.get("runner_number") ?? "").trim();
     const barrierRaw = String(formData.get("barrier") ?? "").trim();
     const marketPriceRaw = String(formData.get("market_price") ?? "").trim();
     const weightKgRaw = String(formData.get("weight_kg") ?? "").trim();
@@ -4432,7 +4444,7 @@ export async function updateRaceRunnerDetailsAction(
     const distanceFormLast6 = String(
       formData.get("distance_form_last_6") ?? "",
     ).trim();
-
+const runnerNumberValue = runnerNumberRaw ? Number(runnerNumberRaw) : null;
     const barrierValue = barrierRaw ? Number(barrierRaw) : null;
     const marketPriceValue = marketPriceRaw ? Number(marketPriceRaw) : null;
     const weightKgValue = weightKgRaw ? Number(weightKgRaw) : null;
@@ -4452,6 +4464,10 @@ export async function updateRaceRunnerDetailsAction(
       .update({
         jockey_name: jockeyName || null,
         trainer_name: trainerName || null,
+        runner_number:
+  runnerNumberValue !== null && !Number.isNaN(runnerNumberValue)
+    ? runnerNumberValue
+    : null,
         barrier:
           barrierValue !== null && !Number.isNaN(barrierValue)
             ? barrierValue
