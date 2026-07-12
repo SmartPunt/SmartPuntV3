@@ -63,6 +63,7 @@ export default async function SubscriberDashboardPage() {
     longTermBets,
     activeUserBetsQuery,
     resultedUserBetsQuery,
+    liveFortuneFivesQuery,
   ] = await Promise.all([
     loadSubscriberLivePicksData({ userId: profile.id }),
 
@@ -108,6 +109,13 @@ export default async function SubscriberDashboardPage() {
       .select("id, won, placed, bet_type, settled_at")
       .eq("user_id", profile.id)
       .not("settled_at", "is", null),
+
+    supabase
+      .from("fortune_fives")
+      .select("id, title, description, published_date, status, settled_at")
+      .is("settled_at", null)
+      .neq("status", "void")
+      .order("published_date", { ascending: false }),
   ]);
 
   if (activeUserBetsQuery.error) {
@@ -116,6 +124,10 @@ export default async function SubscriberDashboardPage() {
 
   if (resultedUserBetsQuery.error) {
     throw new Error(resultedUserBetsQuery.error.message);
+  }
+
+  if (liveFortuneFivesQuery.error) {
+    throw new Error(liveFortuneFivesQuery.error.message);
   }
 
   const activeTipIds = (activeUserBetsQuery.data || [])
@@ -153,6 +165,7 @@ export default async function SubscriberDashboardPage() {
         initialMeetings={livePicksData.meetings}
         initialJockeyProfiles={livePicksData.jockeyProfiles}
         initialResultedUserBets={resultedUserBetsQuery.data ?? []}
+        initialLiveFortuneFives={liveFortuneFivesQuery.data ?? []}
       />
     </AppEntryLoader>
   );
