@@ -527,6 +527,51 @@ function buildInFilter(values: number[]) {
   return `in.(${values.join(",")})`;
 }
 
+async function updateRacePlaceTermsFromActiveField({
+  supabase,
+  raceId,
+}: {
+  supabase: any;
+  raceId: number;
+}) {
+  const { data: raceRunners, error: runnersError } = await supabase
+    .from("race_runners")
+    .select("id, scratched")
+    .eq("race_id", raceId);
+
+  if (runnersError) {
+    throw new Error(runnersError.message);
+  }
+
+  const activeRunnerCount = (raceRunners || []).filter(
+    (runner: any) => runner.scratched !== true,
+  ).length;
+
+  const placeTerms =
+    activeRunnerCount <= 4
+      ? "win_only"
+      : activeRunnerCount <= 7
+        ? "top_2"
+        : "top_3";
+
+  const { error: raceUpdateError } = await supabase
+    .from("races")
+    .update({
+      place_terms: placeTerms,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", raceId);
+
+  if (raceUpdateError) {
+    throw new Error(raceUpdateError.message);
+  }
+
+  return {
+    activeRunnerCount,
+    placeTerms,
+  };
+}
+
 function getBaseAppUrl() {
   return String(process.env.SMARTPUNT_APP_URL || "")
     .trim()
@@ -4526,6 +4571,20 @@ export async function toggleRaceRunnerScratchAction(
       return { success: false, error: "Runner is required." };
     }
 
+    const { data: runner, error: runnerError } = await supabase
+      .from("race_runners")
+      .select("id, race_id")
+      .eq("id", runnerId)
+      .maybeSingle();
+
+    if (runnerError) {
+      return { success: false, error: runnerError.message };
+    }
+
+    if (!runner?.race_id) {
+      return { success: false, error: "Runner race could not be found." };
+    }
+
     const scratched = scratchedRaw === "true";
 
     const { error } = await supabase
@@ -4540,8 +4599,17 @@ export async function toggleRaceRunnerScratchAction(
       return { success: false, error: error.message };
     }
 
+    await updateRacePlaceTermsFromActiveField({
+      supabase,
+      raceId: Number(runner.race_id),
+    });
+
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/smartpunt-calculator-live-picks");
+    revalidatePath("/");
+
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -4553,7 +4621,6 @@ export async function toggleRaceRunnerScratchAction(
     };
   }
 }
-
 export async function bulkScratchRaceRunnersAction(
   formData: FormData,
 ): Promise<ActionResult> {
@@ -4572,6 +4639,7 @@ export async function bulkScratchRaceRunnersAction(
 
     try {
       const parsed = JSON.parse(runnerIdsRaw || "[]");
+
       runnerIds = Array.isArray(parsed)
         ? parsed.map((value) => Number(value)).filter(Boolean)
         : [];
@@ -4619,8 +4687,17 @@ export async function bulkScratchRaceRunnersAction(
       return { success: false, error: error.message };
     }
 
+    await updateRacePlaceTermsFromActiveField({
+      supabase,
+      raceId,
+    });
+
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/smartpunt-calculator-live-picks");
+    revalidatePath("/");
+
     return { success: true, error: null };
   } catch (error) {
     return {
@@ -4632,7 +4709,6 @@ export async function bulkScratchRaceRunnersAction(
     };
   }
 }
-
 export async function settleRaceRunnersAction(
   formData: FormData,
 ): Promise<ActionResult> {
