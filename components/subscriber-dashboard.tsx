@@ -137,6 +137,15 @@ type ResultedUserBet = {
   settled_at: string | null;
 };
 
+type LiveFortuneFive = {
+  id: number;
+  title: string;
+  description: string | null;
+  published_date: string;
+  status: string;
+  settled_at: string | null;
+};
+
 function getPerthDate(offsetDays = 0) {
   const perthNow = new Date(
     new Date().toLocaleString("en-US", {
@@ -244,6 +253,7 @@ export default function SubscriberDashboard({
   initialMeetings,
   initialJockeyProfiles = [],
   initialResultedUserBets = [],
+  initialLiveFortuneFives = [],
 }: {
   currentUser: any;
   initialSuggestedTips: SuggestedTip[];
@@ -262,6 +272,7 @@ export default function SubscriberDashboard({
   initialMeetings: Meeting[];
   initialJockeyProfiles?: any[];
   initialResultedUserBets?: ResultedUserBet[];
+  initialLiveFortuneFives?: LiveFortuneFive[];
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
   const [customRunnerId, setCustomRunnerId] = useState("");
@@ -970,6 +981,46 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               </div>
             </div>
           </section>
+
+          {initialLiveFortuneFives.length > 0 ? (
+            <Link
+              href="/fortune-on-5"
+              className="group relative block overflow-hidden rounded-[2rem] border border-amber-300/35 bg-[linear-gradient(135deg,rgba(0,0,0,0.96),rgba(69,26,3,0.86),rgba(180,83,9,0.42))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.5)] transition active:scale-[0.99] hover:border-amber-200/60 sm:p-6"
+            >
+              <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-amber-300/20 blur-3xl transition group-hover:bg-amber-300/30" />
+              <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
+
+              <div className="relative flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-amber-200/40 bg-amber-300/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-100">
+                      Fortune On 5
+                    </span>
+                    <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">
+                      {initialLiveFortuneFives.length} Live
+                    </span>
+                  </div>
+
+                  <h2 className="mt-3 truncate text-2xl font-black tracking-tight text-white sm:text-3xl">
+                    {initialLiveFortuneFives[0]?.title || "Today’s 5-Leg Multi"}
+                  </h2>
+
+                  <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-amber-50/75">
+                    {initialLiveFortuneFives[0]?.description ||
+                      "Five SmartPunt selections are ready. View the full multi and enter your accepted odds."}
+                  </p>
+
+                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-amber-200">
+                    View Fortune On 5 →
+                  </p>
+                </div>
+
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-amber-200/30 bg-black/35 text-3xl shadow-lg shadow-black/30">
+                  🏆
+                </div>
+              </div>
+            </Link>
+          ) : null}
 
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {renderStatCard({
