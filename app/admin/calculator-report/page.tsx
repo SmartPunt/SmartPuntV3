@@ -1847,29 +1847,42 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
                             <Badge tone="slate">
                               {race.rows.length} runners
                             </Badge>
-                            {smartPuntTip ? (
-                              <Badge
-                                tone={
-  smartPuntTip.finishing_position === 1
-    ? "green"
-    : isPlacedForRace(
-        smartPuntTip.finishing_position,
-        smartPuntTip.race?.place_terms,
-      )
-      ? "blue"
-      : "rose"
-}
-                              >
-                                SP {smartPuntTip.smartPuntSuggestedBet}:{" "}
-smartPuntTip.finishing_position === 1
-  ? "Won"
-  : isPlacedForRace(
-      smartPuntTip.finishing_position,
-      smartPuntTip.race?.place_terms,
-    )
-    ? "Placed"
-                                    : `Finished ${smartPuntTip.finishing_position ?? "—"}`}
-                              </Badge>
+{smartPuntTip ? (
+  <Badge
+    tone={
+      smartPuntTip.finishing_position === 1
+        ? "green"
+        : String(
+              smartPuntTip.smartPuntSuggestedBet || "",
+            )
+              .toLowerCase()
+              .includes("place") &&
+            isPlacedForRace(
+              smartPuntTip.finishing_position,
+              smartPuntTip.race?.place_terms,
+            )
+          ? "blue"
+          : "rose"
+    }
+  >
+    SP {smartPuntTip.smartPuntSuggestedBet}:{" "}
+    {smartPuntTip.finishing_position === 1
+      ? "Won"
+      : String(
+            smartPuntTip.smartPuntSuggestedBet || "",
+          )
+            .toLowerCase()
+            .includes("place") &&
+          isPlacedForRace(
+            smartPuntTip.finishing_position,
+            smartPuntTip.race?.place_terms,
+          )
+        ? "Placed"
+        : `Finished ${smartPuntTip.finishing_position ?? "—"}`}
+  </Badge>
+) : (
+  <Badge tone="slate">SP No Bet</Badge>
+)}
                             ) : (
                               <Badge tone="slate">SP No Bet</Badge>
                             )}
