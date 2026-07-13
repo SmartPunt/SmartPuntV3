@@ -485,6 +485,236 @@ function buildScoringAuditSummary(rows: Prediction[], raceGroups: ReturnType<typ
     reviewComponents,
   };
 }
+
+type ConfidenceAuditRace = {
+  raceId: number;
+  tier: string;
+  confidence: number;
+  tipType: "Win" | "Place";
+  successful: boolean;
+  weekend: boolean;
+  gap: number;
+};
+
+type ConfidenceAuditRow = {
+  label: string;
+  races: number;
+  winTips: number;
+  winHits: number;
+  placeTips: number;
+  placeHits: number;
+  avgConfidence: number;
+};
+
+function getMeetingDay(value?: string | null) {
+  if (!value) return -1;
+
+  const date = new Date(`${isoDate(value)}T00:00:00`);
+
+  return Number.isNaN(date.getTime()) ? -1 : date.getDay();
+}
+
+function getPlaceLimit(placeTerms?: string | null) {
+  if (placeTerms === "win_only") return 1;
+  if (placeTerms === "top_2") return 2;
+  return 3;
+}
+
+function buildConfidenceAudit(raceGroups: ReturnType<typeof groupByRace>) {
+  const auditRaces: ConfidenceAuditRace[] = raceGroups
+    .map((race) => {
+      const tip = getSmartPuntCalculatorTip(race.rows);
+
+      if (!tip) return null;
+
+      const tipTypeRaw = String(tip.smartPuntSuggestedBet || "")
+        .trim()
+        .toLowerCase();
+
+      const tipType: "Win" | "Place" =
+        tipTypeRaw.includes("place") ? "Place" : "Win";
+
+      const finishingPosition =
+        tip.finishing_position !== null &&
+        tip.finishing_position !== undefined
+          ? Number(tip.finishing_position)
+          : null;
+
+      const placeLimit = getPlaceLimit(tip.race?.place_terms);
+      const successful =
+        finishingPosition !== null &&
+        (tipType === "Win"
+          ? finishingPosition === 1
+          : finishingPosition >= 1 && finishingPosition <= placeLimit);
+
+      const top = race.rows[0] || null;
+      const second = race.rows[1] || null;
+      const gap =
+        top && second
+          ? Math.round(toNumber(top.score) - toNumber(second.score))
+          : 0;
+
+      const day = getMeetingDay(race.meetingDate);
+
+      return {
+        raceId: race.raceId,
+        tier: tip.smartPuntConfidenceTier || "Unknown",
+        confidence: Number(tip.smartPuntRaceConfidence || 0),
+        tipType,
+        successful,
+        weekend: day === 0 || day === 6,
+        gap,
+      };
+    })
+    .filter((row): row is ConfidenceAuditRace => Boolean(row));
+
+  function summarise(
+    label: string,
+    rows: ConfidenceAuditRace[],
+  ): ConfidenceAuditRow {
+    const winRows = rows.filter((row) => row.tipType === "Win");
+    const placeRows = rows.filter((row) => row.tipType === "Place");
+
+    return {
+      label,
+      races: rows.length,
+      winTips: winRows.length,
+      winHits: winRows.filter((row) => row.successful).length,
+      placeTips: placeRows.length,
+      placeHits: placeRows.filter((row) => row.successful).length,
+      avgConfidence: rows.length
+        ? Math.round(
+            rows.reduce((sum, row) => sum + row.confidence, 0) / rows.length,
+          )
+        : 0,
+    };
+  }
+
+  const tierOrder = ["Elite", "High", "Medium", "Low", "Unknown"];
+  const tierRows = tierOrder
+    .map((tier) =>
+      summarise(
+        tier,
+        auditRaces.filter((row) => row.tier === tier),
+      ),
+    )
+    .filter((row) => row.races > 0);
+
+  const confidenceBands = [
+    { label: "95–100", min: 95, max: 100 },
+    { label: "90–94", min: 90, max: 94 },
+    { label: "85–89", min: 85, max: 89 },
+    { label: "80–84", min: 80, max: 84 },
+    { label: "75–79", min: 75, max: 79 },
+    { label: "70–74", min: 70, max: 74 },
+    { label: "65–69", min: 65, max: 69 },
+    { label: "60–64", min: 60, max: 64 },
+    { label: "55–59", min: 55, max: 59 },
+    { label: "Below 55", min: 0, max: 54 },
+  ];
+
+  const bandRows = confidenceBands
+    .map((band) =>
+      summarise(
+        band.label,
+        auditRaces.filter(
+          (row) =>
+            row.confidence >= band.min && row.confidence <= band.max,
+        ),
+      ),
+    )
+    .filter((row) => row.races > 0);
+
+  const weekendRows = [
+    summarise(
+      "Weekday",
+      auditRaces.filter((row) => !row.weekend),
+    ),
+    summarise(
+      "Weekend",
+      auditRaces.filter((row) => row.weekend),
+    ),
+  ];
+
+  const gapBands = [
+    { label: "Gap 0–1", min: 0, max: 1 },
+    { label: "Gap 2–3", min: 2, max: 3 },
+    { label: "Gap 4–5", min: 4, max: 5 },
+    { label: "Gap 6+", min: 6, max: Number.POSITIVE_INFINITY },
+  ];
+
+  const gapRows = gapBands
+    .map((band) =>
+      summarise(
+        band.label,
+        auditRaces.filter(
+          (row) => row.gap >= band.min && row.gap <= band.max,
+        ),
+      ),
+    )
+    .filter((row) => row.races > 0);
+
+  return {
+    totalTips: auditRaces.length,
+    tierRows,
+    bandRows,
+    weekendRows,
+    gapRows,
+  };
+}
+
+function ConfidenceAuditTable({
+  rows,
+}: {
+  rows: ConfidenceAuditRow[];
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-left text-sm">
+        <thead>
+          <tr className="border-b border-zinc-200 text-xs uppercase tracking-[0.14em] text-zinc-500">
+            <th className="py-3 pr-3">Group</th>
+            <th className="py-3 pr-3">Tips</th>
+            <th className="py-3 pr-3">Win tips</th>
+            <th className="py-3 pr-3">Win strike</th>
+            <th className="py-3 pr-3">Place tips</th>
+            <th className="py-3 pr-3">Place strike</th>
+            <th className="py-3 pr-3">Avg conf.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.label}
+              className="border-b border-zinc-100 last:border-0"
+            >
+              <td className="py-3 pr-3 font-bold text-zinc-950">
+                {row.label}
+              </td>
+              <td className="py-3 pr-3">{row.races}</td>
+              <td className="py-3 pr-3">{row.winTips}</td>
+              <td className="py-3 pr-3 font-semibold">
+                {row.winTips
+                  ? `${percent(row.winHits, row.winTips)}% (${row.winHits}/${row.winTips})`
+                  : "—"}
+              </td>
+              <td className="py-3 pr-3">{row.placeTips}</td>
+              <td className="py-3 pr-3 font-semibold">
+                {row.placeTips
+                  ? `${percent(row.placeHits, row.placeTips)}% (${row.placeHits}/${row.placeTips})`
+                  : "—"}
+              </td>
+              <td className="py-3 pr-3">
+                {row.races ? `${row.avgConfidence}%` : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function filterByDate(rows: Prediction[], from: string, to: string) {
   return rows.filter((row) => {
     const meetingDate = isoDate(row.race?.meeting?.meeting_date);
@@ -796,6 +1026,7 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
 
 
   const scoringAudit = buildScoringAuditSummary(predictions, raceGroups);
+  const confidenceAudit = buildConfidenceAudit(raceGroups);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
@@ -1097,6 +1328,155 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
               tone="slate"
             />
           </div>
+        </div>
+
+        <div className="mt-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-white">
+                🎯 Race Confidence Audit
+              </h2>
+              <p className="mt-1 text-sm text-zinc-300">
+                Tests whether higher race-confidence ratings are producing
+                stronger Calculator tips, including weekend and score-gap
+                comparisons.
+              </p>
+            </div>
+            <Badge tone="amber">
+              {confidenceAudit.totalTips} settled tips
+            </Badge>
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <Panel className="bg-white/95">
+              <div className="p-6 text-zinc-950">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold">
+                      Confidence tier performance
+                    </h3>
+                    <p className="text-sm text-zinc-500">
+                      Elite, High, Medium and Low tiers compared with actual tip
+                      outcomes.
+                    </p>
+                  </div>
+                  <Badge tone="blue">Tier calibration</Badge>
+                </div>
+
+                <div className="mt-4">
+                  <ConfidenceAuditTable rows={confidenceAudit.tierRows} />
+                </div>
+              </div>
+            </Panel>
+
+            <Panel className="bg-white/95">
+              <div className="p-6 text-zinc-950">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold">
+                      Weekend versus weekday
+                    </h3>
+                    <p className="text-sm text-zinc-500">
+                      Saturday and Sunday tips compared with Monday to Friday.
+                    </p>
+                  </div>
+                  <Badge tone="amber">Weekend check</Badge>
+                </div>
+
+                <div className="mt-4">
+                  <ConfidenceAuditTable rows={confidenceAudit.weekendRows} />
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            <Panel className="bg-white/95">
+              <div className="p-6 text-zinc-950">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold">
+                      Confidence percentage bands
+                    </h3>
+                    <p className="text-sm text-zinc-500">
+                      Fine-grained view showing where confidence performance
+                      starts to strengthen or fall away.
+                    </p>
+                  </div>
+                  <Badge tone="green">Confidence bands</Badge>
+                </div>
+
+                <div className="mt-4">
+                  <ConfidenceAuditTable rows={confidenceAudit.bandRows} />
+                </div>
+              </div>
+            </Panel>
+
+            <Panel className="bg-white/95">
+              <div className="p-6 text-zinc-950">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-bold">Score-gap analysis</h3>
+                    <p className="text-sm text-zinc-500">
+                      Measures whether stronger separation from the second-rated
+                      runner leads to better tip performance.
+                    </p>
+                  </div>
+                  <Badge tone="slate">Race separation</Badge>
+                </div>
+
+                <div className="mt-4">
+                  <ConfidenceAuditTable rows={confidenceAudit.gapRows} />
+                </div>
+              </div>
+            </Panel>
+          </div>
+
+          <Panel className="mt-4 bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold">How to read this audit</h3>
+                  <p className="text-sm text-zinc-500">
+                    Use larger samples before adjusting thresholds. A healthy
+                    confidence engine should show improving strike rates as
+                    confidence and score gap rise.
+                  </p>
+                </div>
+                <Badge tone="amber">Reporting only</Badge>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="font-bold text-emerald-950">
+                    Healthy calibration
+                  </p>
+                  <p className="mt-2 text-sm text-emerald-800">
+                    Elite and High should outperform Medium, while larger gaps
+                    should outperform compressed races.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="font-bold text-amber-950">
+                    Weekend warning
+                  </p>
+                  <p className="mt-2 text-sm text-amber-800">
+                    A materially lower weekend strike rate can justify a future
+                    weekend-specific confidence adjustment.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="font-bold text-blue-950">
+                    Correct place terms
+                  </p>
+                  <p className="mt-2 text-sm text-blue-800">
+                    Place-tip success respects Win Only, Pay 1 &amp; 2 and Pay
+                    1, 2 &amp; 3 race terms.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Panel>
         </div>
 
         <div className="mt-6">
