@@ -556,16 +556,27 @@ export default function AdminCalculator({
     ],
   );
 
-  const tipThresholds = useMemo(
-    () =>
-      raceConfidence
-        ? getCalculatorTipThresholds(raceConfidence, {
-            trackCondition: topWinChance?.track_condition || null,
-            placeTerms: activeRace?.place_terms || "top_3",
-          })
-        : null,
-    [activeRace?.place_terms, raceConfidence, topWinChance?.track_condition],
-  );
+const tipThresholds = useMemo(
+  () =>
+    raceConfidence
+      ? getCalculatorTipThresholds(raceConfidence, {
+          trackCondition: topWinChance?.track_condition || null,
+          placeTerms: activeRace?.place_terms || "top_3",
+          meetingDate:
+            meetings.find(
+              (meeting) =>
+                Number(meeting.id) === Number(activeRace?.meeting_id),
+            )?.meeting_date || null,
+        })
+      : null,
+  [
+    activeRace?.meeting_id,
+    activeRace?.place_terms,
+    meetings,
+    raceConfidence,
+    topWinChance?.track_condition,
+  ],
+);
 
   const activeTopPlaceChance = topPlaceChances[0] || null;
 
@@ -585,20 +596,27 @@ export default function AdminCalculator({
       : roundScore(Number(activeTopPlaceChance.score || 0));
   }, [activeTopPlaceChance, scoredRunners]);
 
-  const qualifiedTip = useMemo(
-    () =>
-      getQualifiedCalculatorTip(scoredRunners, {
-        trackCondition: topWinChance?.track_condition || null,
-        raceName: activeRace?.race_name || "",
-        placeTerms: activeRace?.place_terms || "top_3",
-      }),
-    [
-      activeRace?.place_terms,
-      activeRace?.race_name,
-      scoredRunners,
-      topWinChance?.track_condition,
-    ],
-  );
+const qualifiedTip = useMemo(
+  () =>
+    getQualifiedCalculatorTip(scoredRunners, {
+      trackCondition: topWinChance?.track_condition || null,
+      raceName: activeRace?.race_name || "",
+      placeTerms: activeRace?.place_terms || "top_3",
+      meetingDate:
+        meetings.find(
+          (meeting) =>
+            Number(meeting.id) === Number(activeRace?.meeting_id),
+        )?.meeting_date || null,
+    }),
+  [
+    activeRace?.meeting_id,
+    activeRace?.place_terms,
+    activeRace?.race_name,
+    meetings,
+    scoredRunners,
+    topWinChance?.track_condition,
+  ],
+);
   const activeRaceIndex = activeRace
     ? orderedPublishedRaces.findIndex(
         (race) => Number(race.id) === Number(activeRace.id),
@@ -676,11 +694,12 @@ export default function AdminCalculator({
           (item) => Number(item.id) === Number(race.meeting_id),
         );
 
-        const qualifiedTip = getQualifiedCalculatorTip(scored, {
-          trackCondition: raceMeeting?.track_condition || null,
-          raceName: race.race_name || "",
-          placeTerms: race.place_terms || "top_3",
-        });
+const qualifiedTip = getQualifiedCalculatorTip(scored, {
+  trackCondition: raceMeeting?.track_condition || null,
+  raceName: race.race_name || "",
+  placeTerms: race.place_terms || "top_3",
+  meetingDate: raceMeeting?.meeting_date || null,
+});
 
         const calculatorTip = qualifiedTip?.type || "No Bet";
 
@@ -756,11 +775,12 @@ export default function AdminCalculator({
           (item) => Number(item.id) === Number(race.meeting_id),
         );
 
-        const qualifiedTip = getQualifiedCalculatorTip(scored, {
-          trackCondition: raceMeeting?.track_condition || null,
-          raceName: race.race_name || "",
-          placeTerms: race.place_terms || "top_3",
-        });
+const qualifiedTip = getQualifiedCalculatorTip(scored, {
+  trackCondition: raceMeeting?.track_condition || null,
+  raceName: race.race_name || "",
+  placeTerms: race.place_terms || "top_3",
+  meetingDate: raceMeeting?.meeting_date || null,
+});
 
         if (!qualifiedTip) return null;
 
@@ -782,10 +802,8 @@ export default function AdminCalculator({
           gap,
           raceConfidence: raceConfidenceForRace,
           existingPublishedTip,
-          qualifiesAsStrongWin:
-            selected.score >= 72 && gap >= 6 && selected.winPercent >= 10,
-          qualifiesAsStrongPlace:
-            selected.score >= 66 && selected.placePercent >= 34 && gap >= 3,
+qualifiesAsStrongWin: qualifiedTip.qualifiesAsStrongWin,
+qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
