@@ -1852,9 +1852,7 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
     tone={
       smartPuntTip.finishing_position === 1
         ? "green"
-        : String(
-              smartPuntTip.smartPuntSuggestedBet || "",
-            )
+        : String(smartPuntTip.smartPuntSuggestedBet || "")
               .toLowerCase()
               .includes("place") &&
             isPlacedForRace(
@@ -1868,9 +1866,7 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
     SP {smartPuntTip.smartPuntSuggestedBet}:{" "}
     {smartPuntTip.finishing_position === 1
       ? "Won"
-      : String(
-            smartPuntTip.smartPuntSuggestedBet || "",
-          )
+      : String(smartPuntTip.smartPuntSuggestedBet || "")
             .toLowerCase()
             .includes("place") &&
           isPlacedForRace(
@@ -1883,9 +1879,6 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
 ) : (
   <Badge tone="slate">SP No Bet</Badge>
 )}
-                            ) : (
-                              <Badge tone="slate">SP No Bet</Badge>
-                            )}
                           </div>
                         </div>
                       </summary>
