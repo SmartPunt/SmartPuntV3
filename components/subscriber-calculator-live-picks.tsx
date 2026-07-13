@@ -745,31 +745,39 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
     ],
   );
 
-  const tipThresholds = useMemo(
-    () =>
-      raceConfidence
-        ? getCalculatorTipThresholds(raceConfidence, {
-            trackCondition: topWinChance?.track_condition || null,
-            placeTerms: activeRace?.place_terms || "top_3",
-          })
-        : null,
-    [activeRace?.place_terms, raceConfidence, topWinChance?.track_condition],
-  );
+const tipThresholds = useMemo(
+  () =>
+    raceConfidence
+      ? getCalculatorTipThresholds(raceConfidence, {
+          trackCondition: topWinChance?.track_condition || null,
+          placeTerms: activeRace?.place_terms || "top_3",
+          meetingDate: activeMeeting?.meeting_date || null,
+        })
+      : null,
+  [
+    activeMeeting?.meeting_date,
+    activeRace?.place_terms,
+    raceConfidence,
+    topWinChance?.track_condition,
+  ],
+);
 
-  const qualifiedTip = useMemo(
-    () =>
-      getQualifiedCalculatorTip(scoredRunners, {
-        trackCondition: topWinChance?.track_condition || null,
-        raceName: activeRace?.race_name || "",
-        placeTerms: activeRace?.place_terms || "top_3",
-      }),
-    [
-      activeRace?.place_terms,
-      activeRace?.race_name,
-      scoredRunners,
-      topWinChance?.track_condition,
-    ],
-  );
+const qualifiedTip = useMemo(
+  () =>
+    getQualifiedCalculatorTip(scoredRunners, {
+      trackCondition: topWinChance?.track_condition || null,
+      raceName: activeRace?.race_name || "",
+      placeTerms: activeRace?.place_terms || "top_3",
+      meetingDate: activeMeeting?.meeting_date || null,
+    }),
+  [
+    activeMeeting?.meeting_date,
+    activeRace?.place_terms,
+    activeRace?.race_name,
+    scoredRunners,
+    topWinChance?.track_condition,
+  ],
+);
 
   const activeRaceIndex = activeRace
     ? orderedPublishedRaces.findIndex(
@@ -1031,11 +1039,12 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
         raceName: race.race_name || "",
         placeTerms: race.place_terms || "top_3",
       });
-      const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
-        trackCondition: raceTopRunner?.track_condition || null,
-        raceName: race.race_name || "",
-        placeTerms: race.place_terms || "top_3",
-      });
+const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
+  trackCondition: raceTopRunner?.track_condition || null,
+  raceName: race.race_name || "",
+  placeTerms: race.place_terms || "top_3",
+  meetingDate: meeting?.meeting_date || null,
+});
       const raceOfficialTip =
         officialTips.find((tip) => {
           if (Number(tip.race_id || 0) !== Number(race.id)) return false;
