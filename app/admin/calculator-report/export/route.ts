@@ -956,9 +956,9 @@ function buildCsv(rows: Prediction[]) {
       tipFinish ?? "",
       tipSuccess,
       qualifiedTip?.type || "",
-      qualifiedTip
-        ? Number(qualifiedTip.runner.id ?? qualifiedTip.runner.runner_id ?? 0) || ""
-        : "",
+qualifiedTip
+  ? Number(qualifiedTip.runner.runner_id ?? 0) || ""
+  : "",
       qualifiedTip?.qualifiesAsStrongWin ? "YES" : "NO",
       qualifiedTip?.qualifiesAsStrongPlace ? "YES" : "NO",
       metrics.qualificationFailureReason,
