@@ -1324,11 +1324,12 @@ export async function sendPowerRatingRaceCardEmailAction() {
           placeTerms: (race as any).place_terms || "top_3",
         });
 
-        const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
-          trackCondition: meeting?.track_condition || null,
-          raceName: race.race_name,
-          placeTerms: (race as any).place_terms || "top_3",
-        });
+const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
+  trackCondition: meeting?.track_condition || null,
+  raceName: race.race_name,
+  placeTerms: (race as any).place_terms || "top_3",
+  meetingDate: meeting?.meeting_date || null,
+});
 
         const tip = tipDisplay(Number(topRunner.id), qualifiedTip);
 
@@ -1745,11 +1746,12 @@ const raceConfidence = calculateRaceConfidence(scoredRunners, {
   placeTerms: (activeRace as any)?.place_terms || "top_3",
 });
 
-  const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
-    trackCondition: meetingForSnapshot?.track_condition || null,
-    raceName: activeRace.race_name || "",
-    placeTerms: (activeRace as any)?.place_terms || "top_3",
-  });
+const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
+  trackCondition: meetingForSnapshot?.track_condition || null,
+  raceName: activeRace.race_name || "",
+  placeTerms: (activeRace as any)?.place_terms || "top_3",
+  meetingDate: meetingForSnapshot?.meeting_date || null,
+});
 
   function getSmartPuntTipType(runnerId: number) {
     if (!qualifiedTip || Number(qualifiedTip.runner.id) !== Number(runnerId)) {
