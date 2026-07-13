@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v6";
+export const SMARTPUNT_SCORING_VERSION = "v7";
 
 export type Race = {
   id: number;
@@ -1661,6 +1661,7 @@ context?: {
   trackCondition?: string | null;
   raceName?: string | null;
   placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
+  meetingDate?: string | null;
 },
 ): RaceConfidence {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
@@ -1842,6 +1843,11 @@ export type CalculatorTipCandidate = {
   win_percent?: number | string;
   placePercent?: number | string;
   place_percent?: number | string;
+  recentForm?: number | string;
+  recent_form_score?: number | string;
+  components?: {
+    recentForm?: number | string;
+  } | null;
 };
 
 export type QualifiedCalculatorTip<T extends CalculatorTipCandidate> = {
@@ -1869,12 +1875,70 @@ function getCandidatePlacePercent(row: CalculatorTipCandidate) {
   return Number(row.placePercent ?? row.place_percent ?? 0);
 }
 
+function getCandidateRecentForm(row: CalculatorTipCandidate) {
+  return Number(
+    row.recentForm ??
+      row.recent_form_score ??
+      row.components?.recentForm ??
+      0,
+  );
+}
+
+const WEEKDAY_WIN_THRESHOLDS = {
+  score: 74,
+  gap: 7,
+  winPercent: 12,
+  recentForm: null,
+} as const;
+
+const WEEKEND_WIN_THRESHOLDS = {
+  score: 80,
+  gap: 8,
+  winPercent: 12,
+  recentForm: 78,
+} as const;
+
+const STRONG_WIN_THRESHOLDS = {
+  score: 82,
+  gap: 8,
+  winPercent: 13,
+  recentForm: 80,
+} as const;
+
+function isWeekendMeetingDate(value?: string | null) {
+  if (!value) return false;
+
+  const dateOnlyMatch = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (dateOnlyMatch) {
+    const year = Number(dateOnlyMatch[1]);
+    const month = Number(dateOnlyMatch[2]);
+    const day = Number(dateOnlyMatch[3]);
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+
+    return weekday === 0 || weekday === 6;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return false;
+
+  const perthWeekday = new Intl.DateTimeFormat("en-AU", {
+    weekday: "short",
+    timeZone: "Australia/Perth",
+  }).format(parsed);
+
+  return perthWeekday === "Sat" || perthWeekday === "Sun";
+}
+
 export type CalculatorTipThresholds = {
   placeBettingAllowed: boolean;
   isHeavyTrack: boolean;
+  isWeekend: boolean;
   minWinScore: number | null;
   minWinGap: number;
   minWinPercent: number;
+  minWinRecentForm: number | null;
   minPlaceScore: number | null;
   minPlaceGap: number;
   minPlacePercent: number;
@@ -1885,28 +1949,27 @@ export function getCalculatorTipThresholds(
   context?: {
     trackCondition?: string | null;
     placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
+    meetingDate?: string | null;
   },
 ): CalculatorTipThresholds {
   const placeTerms = String(context?.placeTerms || "top_3");
   const placeBettingAllowed = placeTerms !== "win_only";
   const trackCondition = String(context?.trackCondition || "").toLowerCase();
   const isHeavyTrack = trackCondition.startsWith("heavy");
+  const isWeekend = isWeekendMeetingDate(context?.meetingDate);
 
-  const baseMinWinScore =
-    raceConfidence.tier === "Elite"
-      ? 70
-      : raceConfidence.tier === "High"
-        ? 72
-        : raceConfidence.tier === "Medium"
-          ? 75
-          : null;
+  const winProfile = isWeekend
+    ? WEEKEND_WIN_THRESHOLDS
+    : WEEKDAY_WIN_THRESHOLDS;
 
   const minWinScore =
-    baseMinWinScore === null
+    raceConfidence.tier === "Low"
       ? null
-      : isHeavyTrack
-        ? baseMinWinScore + 2
-        : baseMinWinScore;
+      : winProfile.score + (isHeavyTrack ? 2 : 0);
+
+  const minWinGap = winProfile.gap + (isHeavyTrack ? 1 : 0);
+  const minWinPercent = winProfile.winPercent;
+  const minWinRecentForm = winProfile.recentForm;
 
   const basePlaceScore =
     raceConfidence.tier === "Elite"
@@ -1929,15 +1992,14 @@ export function getCalculatorTipThresholds(
   const minPlacePercent = placeTerms === "top_2" ? 35 : isHeavyTrack ? 32 : 30;
   const minPlaceGap = placeTerms === "top_2" ? 3 : isHeavyTrack ? 3 : 2;
 
-  const minWinGap = isHeavyTrack ? 7 : 6;
-  const minWinPercent = isHeavyTrack ? 12 : 11;
-
   return {
     placeBettingAllowed,
     isHeavyTrack,
+    isWeekend,
     minWinScore,
     minWinGap,
     minWinPercent,
+    minWinRecentForm,
     minPlaceScore,
     minPlaceGap,
     minPlacePercent,
@@ -1994,11 +2056,15 @@ context?: {
 
   const thresholds = getCalculatorTipThresholds(raceConfidence, context);
 
+  const topWinRecentForm = getCandidateRecentForm(topWin);
+
   const qualifiesAsWin =
     thresholds.minWinScore !== null &&
     getCandidateScore(topWin) >= thresholds.minWinScore &&
     winGap >= thresholds.minWinGap &&
-    getCandidateWinPercent(topWin) >= thresholds.minWinPercent;
+    getCandidateWinPercent(topWin) >= thresholds.minWinPercent &&
+    (thresholds.minWinRecentForm === null ||
+      topWinRecentForm >= thresholds.minWinRecentForm);
 
   const qualifiesAsPlace =
     thresholds.placeBettingAllowed &&
@@ -2008,9 +2074,10 @@ context?: {
     placeGap >= thresholds.minPlaceGap;
 
   const qualifiesAsStrongWin =
-    getCandidateScore(topWin) >= 74 &&
-    winGap >= 7 &&
-    getCandidateWinPercent(topWin) >= 12;
+    getCandidateScore(topWin) >= STRONG_WIN_THRESHOLDS.score &&
+    winGap >= STRONG_WIN_THRESHOLDS.gap &&
+    getCandidateWinPercent(topWin) >= STRONG_WIN_THRESHOLDS.winPercent &&
+    topWinRecentForm >= STRONG_WIN_THRESHOLDS.recentForm;
 
   const qualifiesAsStrongPlace =
     thresholds.placeBettingAllowed &&
