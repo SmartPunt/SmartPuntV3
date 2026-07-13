@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentProfile } from "@/lib/auth";
+import {
+  calculateRaceConfidence,
+  getCalculatorTipThresholds,
+  getQualifiedCalculatorTip,
+} from "@/lib/calculator/scoring";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -63,6 +68,9 @@ type Prediction = {
   race_confidence_tier: string | null;
   race_confidence_percent: number | string | null;
   suggested_bet: string | null;
+  is_smartpunt_tip?: boolean | null;
+  smartpunt_tip_type?: string | null;
+  audit_json?: ScoringAudit | null;
   scoring_audit?: ScoringAudit | null;
   race?: RaceWithMeeting | null;
   runner?: RaceRunnerRow | null;
@@ -76,6 +84,7 @@ type RaceRow = {
   distance_m: number | null;
   meeting_id: number;
   status: string;
+  place_terms?: string | null;
 };
 
 type MeetingRow = {
@@ -103,6 +112,8 @@ type HorseRow = {
 type RaceRunnerRow = {
   id: number;
   horse_id: number | null;
+  runner_number?: number | null;
+  scratched?: boolean | null;
   barrier: number | null;
   weight_kg: number | null;
   apprentice_claim_kg: number | null;
@@ -241,7 +252,7 @@ async function fetchPredictions() {
 
   const races = await serviceSelectByIds<RaceRow>({
     table: "races",
-    select: "id,race_number,race_name,distance_m,meeting_id,status",
+    select: "id,race_number,race_name,distance_m,meeting_id,status,place_terms",
     ids: raceIds,
   });
 
@@ -256,7 +267,7 @@ async function fetchPredictions() {
   const raceRunners = await serviceSelectByIds<RaceRunnerRow>({
     table: "race_runners",
     select:
-      "id,horse_id,barrier,weight_kg,apprentice_claim_kg,jockey_name,trainer_name,form_last_6,track_form_last_6,distance_form_last_6,finishing_position,starting_price,won,placed",
+      "id,horse_id,runner_number,scratched,barrier,weight_kg,apprentice_claim_kg,jockey_name,trainer_name,form_last_6,track_form_last_6,distance_form_last_6,finishing_position,starting_price,won,placed",
     ids: runnerIds,
   });
 
@@ -318,11 +329,15 @@ function normaliseAuditStatus(value?: string | null) {
   return value;
 }
 
+function getScoringAudit(row: Prediction) {
+  return row.audit_json || row.scoring_audit || null;
+}
+
 function auditSection(
   row: Prediction,
   section: keyof NonNullable<ScoringAudit["sections"]>,
 ) {
-  return row.scoring_audit?.sections?.[section] || null;
+  return getScoringAudit(row)?.sections?.[section] || null;
 }
 
 function auditStatus(
@@ -347,7 +362,7 @@ function auditSummary(
 }
 
 function auditDecisionLog(row: Prediction) {
-  return row.scoring_audit?.decisionLog?.join(" | ") || "";
+  return getScoringAudit(row)?.decisionLog?.join(" | ") || "";
 }
 
 function firstRunCountFromText(values: string[]) {
@@ -424,22 +439,244 @@ function reviewReason(row: Prediction) {
   return buildReviewReasons(row).join(" | ");
 }
 
+
+function toNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function dayOfWeek(value?: string | null) {
+  const dateValue = isoDate(value);
+  if (!dateValue) return "";
+
+  const date = new Date(`${dateValue}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return new Intl.DateTimeFormat("en-AU", {
+    weekday: "long",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function median(values: number[]) {
+  const clean = values
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+
+  if (!clean.length) return 0;
+
+  const middle = Math.floor(clean.length / 2);
+
+  return clean.length % 2
+    ? clean[middle]
+    : (clean[middle - 1] + clean[middle]) / 2;
+}
+
+function placeLimit(placeTerms?: string | null) {
+  if (placeTerms === "win_only") return 1;
+  if (placeTerms === "top_2") return 2;
+  return 3;
+}
+
+function raceAuditMetrics(raceRows: Prediction[]) {
+  const ranked = [...raceRows].sort((a, b) => Number(a.rank) - Number(b.rank));
+  const scores = ranked.map((row) => toNumber(row.score));
+  const top = ranked[0] || null;
+  const second = ranked[1] || null;
+  const third = ranked[2] || null;
+  const fourth = ranked[3] || null;
+
+  const topScore = top ? toNumber(top.score) : 0;
+  const secondScore = second ? toNumber(second.score) : 0;
+  const thirdScore = third ? toNumber(third.score) : 0;
+  const fourthScore = fourth ? toNumber(fourth.score) : 0;
+  const gap = top && second ? Math.round(topScore - secondScore) : 0;
+  const topFourSpread = top && fourth ? Math.round(topScore - fourthScore) : gap;
+  const topFourAverage = ranked.length
+    ? Number(
+        (
+          ranked
+            .slice(0, 4)
+            .reduce((sum, row) => sum + toNumber(row.score), 0) /
+          Math.min(ranked.length, 4)
+        ).toFixed(2),
+      )
+    : 0;
+
+  const race = top?.race || null;
+  const meeting = race?.meeting || null;
+  const trackCondition = String(meeting?.track_condition || "").toLowerCase();
+  const raceName = String(race?.race_name || "").toLowerCase();
+  const placeTerms = String(race?.place_terms || "top_3");
+
+  const confidence = calculateRaceConfidence(
+    ranked.map((row) => ({
+      score: toNumber(row.score),
+      placePercent: toNumber(row.place_percent),
+    })),
+    {
+      trackCondition: meeting?.track_condition || null,
+      raceName: race?.race_name || null,
+      placeTerms,
+    },
+  );
+
+  const baseConfidence = 30;
+  const topScoreBoost = Math.max(
+    0,
+    Math.min(18, Math.round((topScore - 58) * 0.9)),
+  );
+  const gapBoost = Math.max(0, Math.min(18, gap * 3));
+  const topPlacePercent = top ? toNumber(top.place_percent) : 0;
+  const placeBoost = Math.max(
+    0,
+    Math.min(8, Math.round((topPlacePercent - 30) * 0.35)),
+  );
+  const compressionPenalty =
+    ranked.length >= 4 && topFourSpread <= 3
+      ? 22
+      : ranked.length >= 4 && topFourSpread <= 5
+        ? 12
+        : ranked.length >= 4 && topFourSpread <= 7
+          ? 6
+          : 0;
+  const fieldSizeAdjustment =
+    ranked.length <= 7
+      ? 4
+      : ranked.length >= 14
+        ? -12
+        : ranked.length >= 11
+          ? -6
+          : 0;
+  const conditionPenalty = trackCondition.startsWith("heavy")
+    ? 14
+    : trackCondition.startsWith("soft")
+      ? 5
+      : 0;
+  const placeTermsPenalty =
+    placeTerms === "win_only" ? 10 : placeTerms === "top_2" ? 5 : 0;
+  const maidenPenalty =
+    raceName.includes("maiden") || /\bmdn\b/i.test(raceName) ? 10 : 0;
+
+  const qualifiedTip = getQualifiedCalculatorTip(ranked, {
+    trackCondition: meeting?.track_condition || null,
+    raceName: race?.race_name || null,
+    placeTerms,
+  });
+
+  const thresholds = getCalculatorTipThresholds(confidence, {
+    trackCondition: meeting?.track_condition || null,
+    placeTerms,
+  });
+
+  const storedTip =
+    ranked.find((row) => row.is_smartpunt_tip === true) || null;
+  const storedTipType = String(
+    storedTip?.smartpunt_tip_type || storedTip?.suggested_bet || "",
+  ).trim();
+
+  let qualificationFailureReason = "";
+
+  if (!qualifiedTip) {
+    if (confidence.tier === "Low") {
+      qualificationFailureReason = "Low race confidence";
+    } else if (!top) {
+      qualificationFailureReason = "No scored runners";
+    } else {
+      const winFailures: string[] = [];
+      if (thresholds.minWinScore === null) {
+        winFailures.push("win score threshold unavailable");
+      } else if (topScore < thresholds.minWinScore) {
+        winFailures.push(`win score below ${thresholds.minWinScore}`);
+      }
+      if (gap < thresholds.minWinGap) {
+        winFailures.push(`win gap below ${thresholds.minWinGap}`);
+      }
+      if (toNumber(top.win_percent) < thresholds.minWinPercent) {
+        winFailures.push(`win percent below ${thresholds.minWinPercent}`);
+      }
+
+      const placeFailures: string[] = [];
+      if (!thresholds.placeBettingAllowed) {
+        placeFailures.push("place betting disabled");
+      }
+      if (
+        thresholds.minPlaceScore !== null &&
+        topScore < thresholds.minPlaceScore
+      ) {
+        placeFailures.push(`place score below ${thresholds.minPlaceScore}`);
+      }
+      if (toNumber(top.place_percent) < thresholds.minPlacePercent) {
+        placeFailures.push(`place percent below ${thresholds.minPlacePercent}`);
+      }
+      if (gap < thresholds.minPlaceGap) {
+        placeFailures.push(`place gap below ${thresholds.minPlaceGap}`);
+      }
+
+      qualificationFailureReason = [
+        winFailures.length ? `Win: ${winFailures.join("; ")}` : "",
+        placeFailures.length ? `Place: ${placeFailures.join("; ")}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
+    }
+  }
+
+  return {
+    fieldSize: ranked.length,
+    topScore,
+    secondScore,
+    thirdScore,
+    fourthScore,
+    gap,
+    topFourSpread,
+    topFourAverage,
+    averageScore: scores.length
+      ? Number((scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(2))
+      : 0,
+    medianScore: Number(median(scores).toFixed(2)),
+    minScore: scores.length ? Math.min(...scores) : 0,
+    maxScore: scores.length ? Math.max(...scores) : 0,
+    confidence,
+    baseConfidence,
+    topScoreBoost,
+    gapBoost,
+    placeBoost,
+    compressionPenalty,
+    fieldSizeAdjustment,
+    conditionPenalty,
+    placeTermsPenalty,
+    maidenPenalty,
+    isMaiden: maidenPenalty > 0,
+    qualifiedTip,
+    qualificationFailureReason,
+    storedTip,
+    storedTipType,
+  };
+}
+
 function buildCsv(rows: Prediction[]) {
-  const raceMap = groupByRace(rows);
+  const grouped = groupByRace(rows);
 
   const headers = [
     "meeting_date",
+    "day_of_week",
+    "is_weekend",
     "meeting_name",
     "track_condition",
     "race_id",
     "race_number",
     "race_name",
     "distance_m",
+    "race_status",
+    "place_terms",
+    "field_size",
 
     "runner_id",
+    "runner_number",
     "horse_id",
     "horse_name",
-
+    "scratched",
     "barrier",
     "weight_kg",
     "apprentice_claim_kg",
@@ -469,7 +706,6 @@ function buildCsv(rows: Prediction[]) {
     "total_score",
     "win_percent",
     "place_percent",
-
     "recent_form_score",
     "distance_score",
     "track_score",
@@ -498,15 +734,50 @@ function buildCsv(rows: Prediction[]) {
     "track_unknown",
     "distance_unknown",
     "condition_unknown",
-
     "needs_review",
     "review_reason",
     "audit_decision_log",
+    "full_scoring_audit_json",
 
+    "race_top_score",
+    "race_second_score",
+    "race_third_score",
+    "race_fourth_score",
+    "race_average_score",
+    "race_median_score",
+    "race_min_score",
+    "race_max_score",
     "race_gap",
+    "top_four_spread",
+    "top_four_average",
+    "race_volatility",
+
     "race_confidence_tier",
     "race_confidence_percent",
-    "suggested_bet",
+    "confidence_base",
+    "confidence_top_score_boost",
+    "confidence_gap_boost",
+    "confidence_place_boost",
+    "confidence_compression_penalty",
+    "confidence_field_size_adjustment",
+    "confidence_condition_penalty",
+    "confidence_place_terms_penalty",
+    "confidence_maiden_penalty",
+    "is_maiden",
+    "race_suggested_bet",
+
+    "is_smartpunt_tip",
+    "smartpunt_tip_type",
+    "tip_horse",
+    "tip_runner_id",
+    "tip_finishing_position",
+    "tip_success",
+    "qualified_tip_type",
+    "qualified_tip_runner_id",
+    "qualified_as_strong_win",
+    "qualified_as_strong_place",
+    "qualification_failure_reason",
+    "no_bet_race",
 
     "winner_rank",
     "winner_power_rating",
@@ -520,22 +791,26 @@ function buildCsv(rows: Prediction[]) {
   ];
 
   const body = rows.map((row) => {
-    const raceRows = raceMap.get(row.race_id) || [];
+    const raceRows = grouped.get(row.race_id) || [];
+    const metrics = raceAuditMetrics(raceRows);
+    const race = row.race;
+    const meeting = race?.meeting;
+    const meetingDay = dayOfWeek(meeting?.meeting_date);
+    const isWeekend = meetingDay === "Saturday" || meetingDay === "Sunday";
 
     const winnerRow =
       raceRows.find((runner) => runner.finishing_position === 1) || null;
-
     const winnerRank = winnerRow?.rank ?? "";
 
-    const powerRankedRows = [...raceRows].sort((a, b) => {
-      const aRating = Number(a.horse?.smartpunt_power_rating || 0);
-      const bRating = Number(b.horse?.smartpunt_power_rating || 0);
-
-      return bRating - aRating;
-    });
+    const powerRankedRows = [...raceRows]
+      .filter((runner) => Number(runner.horse?.smartpunt_power_rating || 0) > 0)
+      .sort(
+        (a, b) =>
+          Number(b.horse?.smartpunt_power_rating || 0) -
+          Number(a.horse?.smartpunt_power_rating || 0),
+      );
 
     const powerRankByHorseId = new Map<number, number>();
-
     powerRankedRows.forEach((runner, index) => {
       powerRankByHorseId.set(Number(runner.horse_id), index + 1);
     });
@@ -546,19 +821,45 @@ function buildCsv(rows: Prediction[]) {
       ? powerRankByHorseId.get(Number(winnerRow.horse_id)) || ""
       : "";
 
+    const storedTip = metrics.storedTip;
+    const storedTipType = metrics.storedTipType;
+    const tipFinish =
+      storedTip?.finishing_position !== null &&
+      storedTip?.finishing_position !== undefined
+        ? Number(storedTip.finishing_position)
+        : null;
+    const tipSuccess =
+      tipFinish === null
+        ? ""
+        : storedTipType.toLowerCase().includes("place")
+          ? tipFinish <= placeLimit(race?.place_terms)
+            ? "YES"
+            : "NO"
+          : tipFinish === 1
+            ? "YES"
+            : "NO";
+
+    const qualifiedTip = metrics.qualifiedTip;
+
     return [
-      row.race?.meeting?.meeting_date || "",
-      row.race?.meeting?.meeting_name || "",
-      row.race?.meeting?.track_condition || "",
+      meeting?.meeting_date || "",
+      meetingDay,
+      isWeekend ? "YES" : "NO",
+      meeting?.meeting_name || "",
+      meeting?.track_condition || "",
       row.race_id,
-      row.race?.race_number || "",
-      row.race?.race_name || "",
-      row.race?.distance_m || "",
+      race?.race_number || "",
+      race?.race_name || "",
+      race?.distance_m || "",
+      race?.status || "",
+      race?.place_terms || "top_3",
+      metrics.fieldSize,
 
       row.runner_id,
+      row.runner?.runner_number ?? "",
       row.horse_id,
       row.horse?.horse_name || "",
-
+      row.runner?.scratched ? "YES" : "NO",
       row.runner?.barrier ?? "",
       row.runner?.weight_kg ?? "",
       row.runner?.apprentice_claim_kg ?? "",
@@ -588,7 +889,6 @@ function buildCsv(rows: Prediction[]) {
       row.score,
       row.win_percent,
       row.place_percent,
-
       row.recent_form_score,
       row.distance_score,
       row.track_score,
@@ -617,29 +917,68 @@ function buildCsv(rows: Prediction[]) {
       isUnknownEvidence(row, "track") ? "YES" : "NO",
       isUnknownEvidence(row, "distance") ? "YES" : "NO",
       isUnknownEvidence(row, "condition") ? "YES" : "NO",
-
       needsReview(row),
       reviewReason(row),
       auditDecisionLog(row),
+      JSON.stringify(getScoringAudit(row) || {}),
 
-      row.race_gap ?? "",
-      row.race_confidence_tier ?? "",
-      row.race_confidence_percent ?? "",
-      row.suggested_bet ?? "",
+      metrics.topScore,
+      metrics.secondScore,
+      metrics.thirdScore,
+      metrics.fourthScore,
+      metrics.averageScore,
+      metrics.medianScore,
+      metrics.minScore,
+      metrics.maxScore,
+      metrics.gap,
+      metrics.topFourSpread,
+      metrics.topFourAverage,
+      metrics.confidence.volatility,
+
+      metrics.confidence.tier,
+      metrics.confidence.confidencePercent,
+      metrics.baseConfidence,
+      metrics.topScoreBoost,
+      metrics.gapBoost,
+      metrics.placeBoost,
+      metrics.compressionPenalty,
+      metrics.fieldSizeAdjustment,
+      metrics.conditionPenalty,
+      metrics.placeTermsPenalty,
+      metrics.maidenPenalty,
+      metrics.isMaiden ? "YES" : "NO",
+      metrics.confidence.suggestedBet,
+
+      row.is_smartpunt_tip === true ? "YES" : "NO",
+      row.smartpunt_tip_type || "",
+      storedTip?.horse?.horse_name || "",
+      storedTip?.runner_id || "",
+      tipFinish ?? "",
+      tipSuccess,
+      qualifiedTip?.type || "",
+      qualifiedTip
+        ? Number(qualifiedTip.runner.id ?? qualifiedTip.runner.runner_id ?? 0) || ""
+        : "",
+      qualifiedTip?.qualifiesAsStrongWin ? "YES" : "NO",
+      qualifiedTip?.qualifiesAsStrongPlace ? "YES" : "NO",
+      metrics.qualificationFailureReason,
+      qualifiedTip ? "NO" : "YES",
 
       winnerRank,
       winnerPowerRating,
       winnerPowerRatingRank,
-      winnerRank !== "" && winnerRank <= 3 ? "YES" : "NO",
-      winnerRank !== "" && winnerRank <= 5 ? "YES" : "NO",
-      winnerRank !== "" && winnerRank <= 10 ? "YES" : "NO",
+      winnerRank !== "" && Number(winnerRank) <= 3 ? "YES" : "NO",
+      winnerRank !== "" && Number(winnerRank) <= 5 ? "YES" : "NO",
+      winnerRank !== "" && Number(winnerRank) <= 10 ? "YES" : "NO",
 
       row.predicted_at,
       row.settled_at || "",
     ];
   });
 
-  return [headers, ...body].map((row) => row.map(csvCell).join(",")).join("\n");
+  return [headers, ...body]
+    .map((csvRow) => csvRow.map(csvCell).join(","))
+    .join("\n");
 }
 
 export async function GET(request: Request) {
@@ -662,7 +1001,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="smartpunt-calculator-forensic-${suffix}.csv"`,
+        "Content-Disposition": `attachment; filename="smartpunt-master-audit-${suffix}.csv"`,
         "Cache-Control": "no-store",
       },
     });
