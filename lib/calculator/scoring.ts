@@ -2008,11 +2008,12 @@ export function getCalculatorTipThresholds(
 
 export function getQualifiedCalculatorTip<T extends CalculatorTipCandidate>(
   rows: T[],
-context?: {
-  trackCondition?: string | null;
-  raceName?: string | null;
-  placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
-},
+  context?: {
+    trackCondition?: string | null;
+    raceName?: string | null;
+    placeTerms?: "win_only" | "top_2" | "top_3" | string | null;
+    meetingDate?: string | null;
+  },
 ): QualifiedCalculatorTip<T> | null {
   if (!rows.length) return null;
 
