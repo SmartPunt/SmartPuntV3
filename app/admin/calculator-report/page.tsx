@@ -519,7 +519,16 @@ function getPlaceLimit(placeTerms?: string | null) {
   if (placeTerms === "top_2") return 2;
   return 3;
 }
+function isPlacedForRace(
+  finishingPosition: number | null | undefined,
+  placeTerms?: string | null,
+) {
+  if (finishingPosition === null || finishingPosition === undefined) {
+    return false;
+  }
 
+  return finishingPosition <= getPlaceLimit(placeTerms);
+}
 function buildConfidenceAudit(raceGroups: ReturnType<typeof groupByRace>) {
   const auditRaces: ConfidenceAuditRace[] = raceGroups
     .map((race) => {
@@ -976,11 +985,12 @@ predictions = filterByDate(
     (row) => row.won === true || row.finishing_position === 1,
   ).length;
 
-  const calculatorTipPlaces = calculatorPlaceTips.filter(
-    (row) =>
-      row.placed === true ||
-      (row.finishing_position !== null && row.finishing_position <= 3),
-  ).length;
+const calculatorTipPlaces = calculatorPlaceTips.filter((row) =>
+  isPlacedForRace(
+    row.finishing_position,
+    row.race?.place_terms,
+  ),
+).length;
 
   const calculatorTipAvgConfidence = calculatorGeneratedTips.length
     ? Math.round(
@@ -1840,20 +1850,24 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
                             {smartPuntTip ? (
                               <Badge
                                 tone={
-                                  smartPuntTip.finishing_position === 1
-                                    ? "green"
-                                    : smartPuntTip.finishing_position &&
-                                        smartPuntTip.finishing_position <= 3
-                                      ? "blue"
-                                      : "rose"
-                                }
+  smartPuntTip.finishing_position === 1
+    ? "green"
+    : isPlacedForRace(
+        smartPuntTip.finishing_position,
+        smartPuntTip.race?.place_terms,
+      )
+      ? "blue"
+      : "rose"
+}
                               >
                                 SP {smartPuntTip.smartPuntSuggestedBet}:{" "}
-                                {smartPuntTip.finishing_position === 1
-                                  ? "Won"
-                                  : smartPuntTip.finishing_position &&
-                                      smartPuntTip.finishing_position <= 3
-                                    ? "Placed"
+smartPuntTip.finishing_position === 1
+  ? "Won"
+  : isPlacedForRace(
+      smartPuntTip.finishing_position,
+      smartPuntTip.race?.place_terms,
+    )
+    ? "Placed"
                                     : `Finished ${smartPuntTip.finishing_position ?? "—"}`}
                               </Badge>
                             ) : (
@@ -1954,9 +1968,12 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
                                     <Badge
                                       tone={
                                         row.finishing_position === 1
-                                          ? "green"
-                                          : row.finishing_position &&
-                                              row.finishing_position <= 3
+  ? "green"
+  : isPlacedForRace(
+      row.finishing_position,
+      race.rows[0]?.race?.place_terms,
+    )
+    ? "blue"
                                             ? "blue"
                                             : "rose"
                                       }
