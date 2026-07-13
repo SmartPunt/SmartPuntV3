@@ -4832,97 +4832,8 @@ try {
     if (rpcError) {
       return { success: false, error: rpcError.message };
     }
-    try {
-  const calculatorTipUpdates = updates.map((update) => ({
-    race_id: raceId,
-    race_runner_id: update.id,
-    finishing_position: update.finishing_position,
-    won: update.won,
-    placed: update.placed,
-    settled_at: update.settled_at,
-    updated_at: now,
-  }));
 
-await Promise.all(
-  calculatorTipUpdates.map((update) =>
-    serviceRoleFetch(
-      `smartpunt_calculator_tips?race_id=eq.${raceId}&race_runner_id=eq.${update.race_runner_id}`,
-      {
-        method: "PATCH",
-        headers: {
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({
-          finishing_position: update.finishing_position,
-          won: update.won,
-          placed: update.placed,
-          settled_at: update.settled_at,
-          updated_at: update.updated_at,
-        }),
-      },
-    ),
-  ),
-);
-      await updateCalculatorPredictionResultsForRace(raceId, updates);
-await updatePowerRatingPredictionResultsForRace(raceId, updates);
-} catch (calculatorTipSettleError) {
-  console.error(
-    "SmartPunt calculator tip settlement update failed:",
-    calculatorTipSettleError,
-  );
-}
-try {
-  await Promise.all(
-    updates.map(async (update) => {
-    const finishingPosition = update.finishing_position;
 
-    const won = finishingPosition === 1;
-    const placed =
-      finishingPosition !== null &&
-      finishingPosition !== undefined &&
-      finishingPosition <= 3;
-
-    const matchingUserBets = await serviceRoleSelect(
-      `user_bets?race_runner_id=eq.${update.id}&settled_at=is.null`,
-    );
-
-    await Promise.all(
-      (matchingUserBets || []).map((bet: any) => {
-        const betType = String(bet.bet_type || "Win");
-        const oddsTaken = Number(bet.odds_taken || 0);
-        const stakePoints = Number(bet.stake_points || 1);
-
-        const successful = betType.toLowerCase().includes("place")
-          ? placed
-          : won;
-
-        const returnPoints = successful
-          ? Number((oddsTaken * stakePoints).toFixed(2))
-          : 0;
-
-        const profitLossPoints = Number(
-          (returnPoints - stakePoints).toFixed(2),
-        );
-
-        return serviceRolePatch(`user_bets?id=eq.${bet.id}`, {
-          finishing_position: finishingPosition,
-          won,
-          placed,
-          return_points: returnPoints,
-          profit_loss_points: profitLossPoints,
-          settled_at: now,
-          updated_at: now,
-        });
-      }),
-    );
-  }),
-);
-} catch (userBetSettlementError) {
-  console.error(
-    "User bet settlement process failed:",
-    userBetSettlementError,
-  );
-}
     const horseIds = Array.from(
       new Set(
         updates
@@ -5177,8 +5088,10 @@ await updateHorseConditionStat({
     revalidatePath("/race-archive");
     revalidatePath("/admin/horses");
     revalidatePath("/resulted-tips");
-    revalidatePath("/my-resulted-tips");
-    revalidatePath("/");
+revalidatePath("/my-resulted-tips");
+revalidatePath("/fortune-on-5");
+revalidatePath("/admin/fortune-on-5");
+revalidatePath("/");
 
     return { success: true, error: null };
   } catch (error) {
