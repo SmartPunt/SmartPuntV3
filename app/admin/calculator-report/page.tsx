@@ -738,18 +738,43 @@ async function fetchPredictions({
     "select=*",
     "settled_at=not.is.null",
     "finishing_position=not.is.null",
-    `scoring_version=eq.${encodeURIComponent(SMARTPUNT_SCORING_VERSION)}`,
   ];
 
   filters.push("order=settled_at.desc");
 
-const predictions = await serviceSelectAllRows<Prediction>(
+const allPredictionVersions = await serviceSelectAllRows<Prediction>(
   `calculator_predictions?${filters.join("&")}`,
 );
 
-  const raceIds = Array.from(
-    new Set(predictions.map((row) => row.race_id).filter(Boolean)),
-  );
+const latestPredictionByRunner = new Map<string, Prediction>();
+
+for (const prediction of allPredictionVersions) {
+  const key = `${Number(prediction.race_id)}-${Number(prediction.runner_id)}`;
+  const existing = latestPredictionByRunner.get(key);
+
+  if (!existing) {
+    latestPredictionByRunner.set(key, prediction);
+    continue;
+  }
+
+  const existingTime = new Date(
+    existing.predicted_at || existing.settled_at || 0,
+  ).getTime();
+
+  const predictionTime = new Date(
+    prediction.predicted_at || prediction.settled_at || 0,
+  ).getTime();
+
+  if (predictionTime >= existingTime) {
+    latestPredictionByRunner.set(key, prediction);
+  }
+}
+
+const predictions = Array.from(latestPredictionByRunner.values());
+
+const raceIds = Array.from(
+  new Set(predictions.map((row) => row.race_id).filter(Boolean)),
+);
   const runnerIds = Array.from(
     new Set(predictions.map((row) => row.runner_id).filter(Boolean)),
   );
