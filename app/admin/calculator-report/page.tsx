@@ -1965,21 +1965,20 @@ smartPuntTip.finishing_position === 1
                                     {row.place_percent}%
                                   </td>
                                   <td className="py-3 pr-3">
-                                    <Badge
-                                      tone={
-                                        row.finishing_position === 1
-  ? "green"
-  : isPlacedForRace(
-      row.finishing_position,
-      race.rows[0]?.race?.place_terms,
-    )
-    ? "blue"
-                                            ? "blue"
-                                            : "rose"
-                                      }
-                                    >
-                                      {row.finishing_position ?? "—"}
-                                    </Badge>
+<Badge
+  tone={
+    row.finishing_position === 1
+      ? "green"
+      : isPlacedForRace(
+          row.finishing_position,
+          race.rows[0]?.race?.place_terms,
+        )
+        ? "blue"
+        : "rose"
+  }
+>
+  {row.finishing_position ?? "—"}
+</Badge>
                                   </td>
                                   <td className="py-3 pr-3">
                                     {Math.round(
