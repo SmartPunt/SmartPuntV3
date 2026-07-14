@@ -977,6 +977,12 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                   <Link href="/my-active-tips" className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/15">
                     My Active Tips
                   </Link>
+                  <Link
+  href="/the-vault"
+  className="rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-300/15"
+>
+  The Vault
+</Link>
                 </div>
               </div>
             </div>
@@ -1050,14 +1056,14 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               icon: "📈",
             })}
 
-            {renderStatCard({
-              href: "/long-term-bets",
-              eyebrow: "Watchlist / Early",
-              value: watchEarlyCount,
-              label: "Alerts and early plays",
-              cta: "Open",
-              icon: "👀",
-            })}
+{renderStatCard({
+  href: "/the-vault",
+  eyebrow: "The Vault",
+  value: 0,
+  label: "Personal racing intelligence",
+  cta: "Open",
+  icon: "🏦",
+})}
           </section>
 
           {renderCustomBetBuilder()}
