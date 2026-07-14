@@ -4087,11 +4087,15 @@ export async function createRaceRunnersBulkAction(
       weight_kg?: string;
       is_apprentice?: boolean;
       apprentice_claim_kg?: string;
-      form_last_6?: string;
-      track_form_last_6?: string;
-      distance_form_last_6?: string;
-            prize_money?: string;
-      is_scratched?: boolean;
+form_last_6?: string;
+track_form_last_6?: string;
+distance_form_last_6?: string;
+good_track_record?: string;
+soft_track_record?: string;
+heavy_track_record?: string;
+synthetic_track_record?: string;
+prize_money?: string;
+is_scratched?: boolean;
     }> = [];
 
     try {
@@ -4144,9 +4148,9 @@ export async function createRaceRunnersBulkAction(
 
     const { data: existingHorses, error: existingHorsesError } = await supabase
       .from("horses")
-      .select(
-"id, horse_name, normalised_name, form_last_6, track_form_last_6, distance_form_last_6, career_prize_money",
-      )
+.select(
+  "id, horse_name, normalised_name, form_last_6, track_form_last_6, distance_form_last_6, good_track_record, soft_track_record, heavy_track_record, synthetic_track_record, career_prize_money",
+)
       .in("normalised_name", normalisedNames);
 
     if (existingHorsesError) {
@@ -4159,8 +4163,12 @@ const horsesByNormalisedName = new Map<
     id: number;
     form_last_6: string | null;
     track_form_last_6: string | null;
-    distance_form_last_6: string | null;
-    career_prize_money: number | null;
+distance_form_last_6: string | null;
+good_track_record: string | null;
+soft_track_record: string | null;
+heavy_track_record: string | null;
+synthetic_track_record: string | null;
+career_prize_money: number | null;
   }
 >();
 
@@ -4169,8 +4177,13 @@ horsesByNormalisedName.set(String((horse as any).normalised_name), {
   id: Number((horse as any).id),
   form_last_6: (horse as any).form_last_6 || null,
   track_form_last_6: (horse as any).track_form_last_6 || null,
-  distance_form_last_6: (horse as any).distance_form_last_6 || null,
-  career_prize_money:
+distance_form_last_6: (horse as any).distance_form_last_6 || null,
+good_track_record: (horse as any).good_track_record || null,
+soft_track_record: (horse as any).soft_track_record || null,
+heavy_track_record: (horse as any).heavy_track_record || null,
+synthetic_track_record:
+  (horse as any).synthetic_track_record || null,
+career_prize_money:
     (horse as any).career_prize_money !== null &&
     (horse as any).career_prize_money !== undefined
       ? Number((horse as any).career_prize_money)
@@ -4186,9 +4199,13 @@ horsesByNormalisedName.set(String((horse as any).normalised_name), {
         form_last_6: runner.form_last_6
           ? normaliseImportedForm(String(runner.form_last_6))
           : null,
-        track_form_last_6: runner.track_form_last_6 || null,
-        distance_form_last_6: runner.distance_form_last_6 || null,
-                career_prize_money: parseImportedPrizeMoney(runner.prize_money),
+track_form_last_6: runner.track_form_last_6 || null,
+distance_form_last_6: runner.distance_form_last_6 || null,
+good_track_record: runner.good_track_record || null,
+soft_track_record: runner.soft_track_record || null,
+heavy_track_record: runner.heavy_track_record || null,
+synthetic_track_record: runner.synthetic_track_record || null,
+career_prize_money: parseImportedPrizeMoney(runner.prize_money),
         updated_at: new Date().toISOString(),
       }));
 
@@ -4221,8 +4238,13 @@ horsesByNormalisedName.set(String((horse as any).normalised_name), {
             id: Number((horse as any).id),
             form_last_6: (horse as any).form_last_6 || null,
             track_form_last_6: (horse as any).track_form_last_6 || null,
-            distance_form_last_6: (horse as any).distance_form_last_6 || null,
-            career_prize_money:
+distance_form_last_6: (horse as any).distance_form_last_6 || null,
+good_track_record: (horse as any).good_track_record || null,
+soft_track_record: (horse as any).soft_track_record || null,
+heavy_track_record: (horse as any).heavy_track_record || null,
+synthetic_track_record:
+  (horse as any).synthetic_track_record || null,
+career_prize_money:
               (horse as any).career_prize_money !== null &&
               (horse as any).career_prize_money !== undefined
                 ? Number((horse as any).career_prize_money)
@@ -4235,8 +4257,13 @@ horsesByNormalisedName.set(String((horse as any).normalised_name), {
             id: Number((horse as any).id),
             form_last_6: (horse as any).form_last_6 || null,
             track_form_last_6: (horse as any).track_form_last_6 || null,
-            distance_form_last_6: (horse as any).distance_form_last_6 || null,
-            career_prize_money:
+distance_form_last_6: (horse as any).distance_form_last_6 || null,
+good_track_record: (horse as any).good_track_record || null,
+soft_track_record: (horse as any).soft_track_record || null,
+heavy_track_record: (horse as any).heavy_track_record || null,
+synthetic_track_record:
+  (horse as any).synthetic_track_record || null,
+career_prize_money:
               (horse as any).career_prize_money !== null &&
               (horse as any).career_prize_money !== undefined
                 ? Number((horse as any).career_prize_money)
@@ -4274,6 +4301,79 @@ horsesByNormalisedName.set(String((horse as any).normalised_name), {
         horse.career_prize_money = prizeMoney;
       }),
     );
+    await Promise.all(
+  cleanedRunners.map(async (runner) => {
+    const horse = horsesByNormalisedName.get(runner.normalised_name);
+
+    if (!horse?.id) return;
+
+    const conditionUpdates: Record<string, string> = {};
+
+    const goodRecord = String(
+      runner.good_track_record || "",
+    ).trim();
+
+    const softRecord = String(
+      runner.soft_track_record || "",
+    ).trim();
+
+    const heavyRecord = String(
+      runner.heavy_track_record || "",
+    ).trim();
+
+    const syntheticRecord = String(
+      runner.synthetic_track_record || "",
+    ).trim();
+
+    if (goodRecord) {
+      conditionUpdates.good_track_record = goodRecord;
+    }
+
+    if (softRecord) {
+      conditionUpdates.soft_track_record = softRecord;
+    }
+
+    if (heavyRecord) {
+      conditionUpdates.heavy_track_record = heavyRecord;
+    }
+
+    if (syntheticRecord) {
+      conditionUpdates.synthetic_track_record = syntheticRecord;
+    }
+
+    if (!Object.keys(conditionUpdates).length) {
+      return;
+    }
+
+    const { error: conditionUpdateError } = await supabase
+      .from("horses")
+      .update({
+        ...conditionUpdates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", horse.id);
+
+    if (conditionUpdateError) {
+      throw new Error(conditionUpdateError.message);
+    }
+
+    if (goodRecord) {
+      horse.good_track_record = goodRecord;
+    }
+
+    if (softRecord) {
+      horse.soft_track_record = softRecord;
+    }
+
+    if (heavyRecord) {
+      horse.heavy_track_record = heavyRecord;
+    }
+
+    if (syntheticRecord) {
+      horse.synthetic_track_record = syntheticRecord;
+    }
+  }),
+);
     const horseIds = cleanedRunners
       .map((runner) => horsesByNormalisedName.get(runner.normalised_name)?.id)
       .filter((id): id is number => Boolean(id));
