@@ -1304,13 +1304,13 @@ const conditionHistoryRuns = historyRuns.filter(
   (run) => getConditionBucket(run.meeting?.track_condition) === conditionBucket,
 );
 const conditionRecord =
-  target === "Good"
+  conditionBucket === "Good"
     ? horse?.good_track_record
-    : target === "Soft"
+    : conditionBucket === "Soft"
       ? horse?.soft_track_record
-      : target === "Heavy"
+      : conditionBucket === "Heavy"
         ? horse?.heavy_track_record
-        : target === "Synthetic"
+        : conditionBucket === "Synthetic"
           ? horse?.synthetic_track_record
           : null;
 
