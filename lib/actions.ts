@@ -5080,14 +5080,6 @@ raceDetailsByRaceId.set(Number((raceRow as any).id), {
       horseRow?.form_last_6 ||
       normaliseImportedForm(String(matchingRunner?.form_last_6 || ""));
 
-    const existingTrackForm =
-      horseRow?.track_form_last_6 ||
-      String(matchingRunner?.track_form_last_6 || "");
-
-    const existingDistanceForm =
-      horseRow?.distance_form_last_6 ||
-      String(matchingRunner?.distance_form_last_6 || "");
-
     const raceDetails = raceDetailsByRaceId.get(
       Number(matchingRunner?.race_id),
     );
@@ -5100,16 +5092,6 @@ raceDetailsByRaceId.set(Number((raceRow as any).id), {
       .update({
         form_last_6: updateFormStringWithResult(
           existingHorseForm || null,
-          Number(update.finishing_position),
-        ),
-
-        track_form_last_6: updateStatRecordWithResult(
-          existingTrackForm || null,
-          Number(update.finishing_position),
-        ),
-
-        distance_form_last_6: updateStatRecordWithResult(
-          existingDistanceForm || null,
           Number(update.finishing_position),
         ),
 
