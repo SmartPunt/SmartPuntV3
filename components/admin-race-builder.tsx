@@ -180,9 +180,13 @@ type ImportedRunner = {
   form_last_6: string;
   track_form_last_6: string;
   distance_form_last_6: string;
+  good_track_record: string;
+  soft_track_record: string;
+  heavy_track_record: string;
+  synthetic_track_record: string;
   is_apprentice: boolean;
   apprentice_claim_kg: string;
-    prize_money: string;
+  prize_money: string;
   is_scratched: boolean;
 };
 
@@ -403,7 +407,22 @@ if (runnerMatch) {
   runner_number = runnerMatch[1];
   horse_name = stripHorseSuffixes(runnerMatch[2].trim());
 }
-    const windowLines = lines.slice(i + 1, i + 20);
+let blockEnd = lines.length;
+
+for (let nextIndex = i + 1; nextIndex < lines.length; nextIndex += 1) {
+  if (
+    looksLikeHorseName(
+      lines[nextIndex],
+      lines.slice(nextIndex + 1, nextIndex + 16),
+    )
+  ) {
+    blockEnd = nextIndex;
+    break;
+  }
+}
+
+const windowLines = lines.slice(i + 1, blockEnd);
+
 const is_scratched = windowLines.some((entry) =>
   /^scr$|^scratched\b/i.test(entry.trim()),
 );
@@ -414,10 +433,14 @@ const is_scratched = windowLines.some((entry) =>
     let trainer_name = "";
     let market_price = "";
     let fixed_place_odds = "";
-    let form_last_6 = "";
-    let track_form_last_6 = "";
-    let distance_form_last_6 = "";
-        let prize_money = "";
+let form_last_6 = "";
+let track_form_last_6 = "";
+let distance_form_last_6 = "";
+let good_track_record = "";
+let soft_track_record = "";
+let heavy_track_record = "";
+let synthetic_track_record = "";
+let prize_money = "";
     let is_apprentice = false;
     let apprentice_claim_kg = "";
 
@@ -488,6 +511,45 @@ const is_scratched = windowLines.some((entry) =>
           track_form_last_6 = trackMatch[1].trim();
         }
       }
+      if (!good_track_record) {
+  const goodMatch = entry.match(
+    /^good[:\s]*([0-9]+:[0-9]+,[0-9]+,[0-9]+)$/i,
+  );
+
+  if (goodMatch) {
+    good_track_record = goodMatch[1].trim();
+  }
+}
+
+if (!soft_track_record) {
+  const softMatch = entry.match(
+    /^soft[:\s]*([0-9]+:[0-9]+,[0-9]+,[0-9]+)$/i,
+  );
+
+  if (softMatch) {
+    soft_track_record = softMatch[1].trim();
+  }
+}
+
+if (!heavy_track_record) {
+  const heavyMatch = entry.match(
+    /^heavy[:\s]*([0-9]+:[0-9]+,[0-9]+,[0-9]+)$/i,
+  );
+
+  if (heavyMatch) {
+    heavy_track_record = heavyMatch[1].trim();
+  }
+}
+
+if (!synthetic_track_record) {
+  const syntheticMatch = entry.match(
+    /^synthetic[:\s]*([0-9]+:[0-9]+,[0-9]+,[0-9]+)$/i,
+  );
+
+  if (syntheticMatch) {
+    synthetic_track_record = syntheticMatch[1].trim();
+  }
+}
     }
 
     const decimalNumberLines = windowLines
@@ -530,17 +592,21 @@ runners.push({
         trainer_name,
         market_price,
         fixed_place_odds,
-        form_last_6,
-        track_form_last_6,
-        distance_form_last_6,
-        is_apprentice,
+form_last_6,
+track_form_last_6,
+distance_form_last_6,
+good_track_record,
+soft_track_record,
+heavy_track_record,
+synthetic_track_record,
+is_apprentice,
         apprentice_claim_kg,
                 prize_money,
         is_scratched,
       });
     }
 
-    i += 1;
+i = blockEnd;
   }
 
   const seen = new Set<string>();
@@ -1491,10 +1557,29 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
           {runner.track_form_last_6 ? (
             <Badge tone="amber">Track {runner.track_form_last_6}</Badge>
           ) : null}
-          {runner.distance_form_last_6 ? (
-            <Badge tone="green">Distance {runner.distance_form_last_6}</Badge>
-          ) : null}
-          {runner.is_scratched ? <Badge tone="red">Scratched</Badge> : null}
+{runner.distance_form_last_6 ? (
+  <Badge tone="green">Distance {runner.distance_form_last_6}</Badge>
+) : null}
+
+{runner.good_track_record ? (
+  <Badge tone="green">Good {runner.good_track_record}</Badge>
+) : null}
+
+{runner.soft_track_record ? (
+  <Badge tone="blue">Soft {runner.soft_track_record}</Badge>
+) : null}
+
+{runner.heavy_track_record ? (
+  <Badge tone="slate">Heavy {runner.heavy_track_record}</Badge>
+) : null}
+
+{runner.synthetic_track_record ? (
+  <Badge tone="violet">
+    Synthetic {runner.synthetic_track_record}
+  </Badge>
+) : null}
+
+{runner.is_scratched ? <Badge tone="red">Scratched</Badge> : null}
         </div>
 
         {isEditingPreviewRunner ? (
