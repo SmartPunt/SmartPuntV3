@@ -1148,17 +1148,36 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Live Picks is your front door. My Dashboard is your fast iPhone command centre for your bets, strike rate and today's meetings.
             </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/smartpunt-calculator-live-picks" className="rounded-2xl border border-amber-300/30 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/10">
-                Live Picks
-              </Link>
-              <Link href="/my-active-tips" className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10">
-                Active Tips
-              </Link>
-              <Link href="/my-resulted-tips" className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10">
-                Resulted Tips
-              </Link>
-            </div>
+         <div className="mt-5 flex flex-wrap gap-3">
+  <Link
+    href="/smartpunt-calculator-live-picks"
+    className="rounded-2xl border border-amber-300/30 px-4 py-3 text-sm font-black text-amber-200 transition hover:bg-amber-300/10"
+  >
+    Live Picks
+  </Link>
+
+  <Link
+    href="/my-active-tips"
+    className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10"
+  >
+    Active Tips
+  </Link>
+
+  <Link
+    href="/my-resulted-tips"
+    className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10"
+  >
+    Resulted Tips
+  </Link>
+
+  <Link
+    href="/long-term-bets"
+    className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10"
+  >
+    Watchlist / Get On Early
+    {watchEarlyCount > 0 ? ` (${watchEarlyCount})` : ""}
+  </Link>
+</div>
           </section>
         </main>
       </div>
