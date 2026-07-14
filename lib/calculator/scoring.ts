@@ -273,10 +273,11 @@ export function roundScore(value: number) {
 export function getConditionBucket(condition?: string | null) {
   const value = String(condition || "").toLowerCase();
 
-  if (value.startsWith("good")) return "Good";
-  if (value.startsWith("soft")) return "Soft";
-  if (value.startsWith("heavy")) return "Heavy";
-  return "Other";
+if (value.startsWith("good")) return "Good";
+if (value.startsWith("soft")) return "Soft";
+if (value.startsWith("heavy")) return "Heavy";
+if (value.startsWith("synthetic")) return "Synthetic";
+return "Other";
 }
 
 export function getDistanceBucket(distance?: number | null) {
@@ -678,16 +679,16 @@ function scoreConditionSuitability(
 
   const target = getConditionBucket(currentCondition);
 
-  const conditionRecord =
-    target === "Good"
-      ? horse?.good_track_record
-      : target === "Soft"
-        ? horse?.soft_track_record
-        : target === "Heavy"
-          ? horse?.heavy_track_record
-          : target === "Other"
-            ? horse?.synthetic_track_record
-            : null;
+const conditionRecord =
+  target === "Good"
+    ? horse?.good_track_record
+    : target === "Soft"
+      ? horse?.soft_track_record
+      : target === "Heavy"
+        ? horse?.heavy_track_record
+        : target === "Synthetic"
+          ? horse?.synthetic_track_record
+          : null;
 
 const importedStats = parseImportedStatRecord(conditionRecord);
 const importedScore = scoreImportedStatRecord(conditionRecord);
@@ -1303,13 +1304,13 @@ const conditionHistoryRuns = historyRuns.filter(
   (run) => getConditionBucket(run.meeting?.track_condition) === conditionBucket,
 );
 const conditionRecord =
-  conditionBucket === "Good"
+  target === "Good"
     ? horse?.good_track_record
-    : conditionBucket === "Soft"
+    : target === "Soft"
       ? horse?.soft_track_record
-      : conditionBucket === "Heavy"
+      : target === "Heavy"
         ? horse?.heavy_track_record
-        : conditionBucket === "Other"
+        : target === "Synthetic"
           ? horse?.synthetic_track_record
           : null;
 
@@ -1558,7 +1559,7 @@ const audit: RunnerScoringAudit = {
         `Track: ${raceMeeting?.meeting_name || "Unknown"}`,
         `Exact track history: ${trackStats.runs} runs, ${trackStats.wins} wins, ${trackStats.places} places (${trackStats.placeRate}% place rate)`,
         `Runner imported track record: ${runner.track_form_last_6 || "Not supplied"}`,
-        `Horse imported track record: ${horse?.track_form_last_6 || "Not supplied"}`,
+`Legacy horse track record: ${horse?.track_form_last_6 || "Not supplied"}`,
         `Imported track score shown for reference only: ${formatAuditScore(importedTrackScore)}`,
       ],
       decisionLog: [
@@ -1571,8 +1572,8 @@ const audit: RunnerScoringAudit = {
       label: "Condition",
       score: condition,
       fallbackUsed: conditionFallbackUsed,
-      summary: conditionFallbackUsed
-        ? `Used stored ${conditionBucket} condition record due to no exact condition history.`
+summary: conditionFallbackUsed
+        ? `Used today's imported ${conditionBucket} record because it contained more evidence than SmartPunt history.`
         : `Used exact ${conditionBucket} condition history.`,
       details: [
         `Score: ${formatAuditScore(condition)}`,
@@ -1583,7 +1584,9 @@ const audit: RunnerScoringAudit = {
         `Imported condition score: ${formatAuditScore(importedConditionScore)}`,
       ],
       decisionLog: [
-        conditionFallbackUsed ? "Stored record fallback used." : "Exact condition history used.",
+conditionFallbackUsed
+  ? "Today's imported condition record selected because it had the stronger evidence."
+  : "Exact SmartPunt condition history used.",
       ],
     }),
     barrier: buildAuditSection({
