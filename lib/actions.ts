@@ -4031,10 +4031,8 @@ const runnerNumberValue = runnerNumberRaw ? Number(runnerNumberRaw) : null;
           ? apprenticeClaimValue
           : null,
 form_last_6: horseMasterFormLast6,
-track_form_last_6:
-  trackFormLast6 || horseMasterTrackFormLast6 || null,
-distance_form_last_6:
-  distanceFormLast6 || horseMasterDistanceFormLast6 || null,
+track_form_last_6: trackFormLast6 || null,
+distance_form_last_6: distanceFormLast6 || null,
 scratched: false,
       created_by: profile.id,
       updated_at: new Date().toISOString(),
@@ -4455,13 +4453,9 @@ runner_number:
             : null,
 form_last_6: horse?.form_last_6 || null,
 track_form_last_6:
-  String(runner.track_form_last_6 || "").trim() ||
-  horse?.track_form_last_6 ||
-  null,
+  String(runner.track_form_last_6 || "").trim() || null,
 distance_form_last_6:
-  String(runner.distance_form_last_6 || "").trim() ||
-  horse?.distance_form_last_6 ||
-  null,
+  String(runner.distance_form_last_6 || "").trim() || null,
 scratched: runner.is_scratched === true,
         created_by: profile.id,
         updated_at: now,
