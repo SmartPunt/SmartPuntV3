@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v7";
+export const SMARTPUNT_SCORING_VERSION = "v7.1";
 
 export type Race = {
   id: number;
@@ -574,32 +574,55 @@ function scoreConsistency(historyRuns: HistoryRun[], importedForm?: string | nul
 function scoreDistanceSuitability(
   historyRuns: HistoryRun[],
   currentDistance: number | null | undefined,
+  importedRecord?: string | null,
 ) {
   if (!currentDistance) return 50;
 
   const targetBucket = getDistanceBucket(currentDistance);
+
   const matchingRuns = historyRuns.filter(
     (run) => getDistanceBucket(run.race?.distance_m) === targetBucket,
   );
 
-if (!matchingRuns.length) return 50;
+  const importedStats = parseImportedStatRecord(importedRecord);
+
+  if (importedStats.runs > matchingRuns.length) {
+    return scoreImportedStatRecord(importedRecord);
+  }
+
+  if (!matchingRuns.length) {
+    return importedStats.runs
+      ? scoreImportedStatRecord(importedRecord)
+      : 50;
+  }
 
   const places = matchingRuns.filter((run) => {
-    const pos = run.finishing_position;
-    return pos !== null && pos !== undefined && pos <= 3;
+    const position = run.finishing_position;
+
+    return (
+      position !== null &&
+      position !== undefined &&
+      position <= 3
+    );
   }).length;
 
-  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
+  const wins = matchingRuns.filter(
+    (run) => run.finishing_position === 1,
+  ).length;
+
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
-  const rawScore = Math.round(40 + placeRate * 35 + winRate * 20);
+  const rawScore = Math.round(
+    40 + placeRate * 35 + winRate * 20,
+  );
+
   return evidenceCap(rawScore, matchingRuns.length);
 }
-
 function scoreTrackSuitability(
   historyRuns: HistoryRun[],
   currentTrack: string | null | undefined,
+  importedRecord?: string | null,
 ) {
   if (!currentTrack) return 50;
 
@@ -607,22 +630,38 @@ function scoreTrackSuitability(
     (run) => run.meeting?.meeting_name === currentTrack,
   );
 
-  // Track suitability must be specific to today's track.
-  // No exact track history means unknown/neutral, not positive fallback.
+  const importedStats = parseImportedStatRecord(importedRecord);
+
+  if (importedStats.runs > matchingRuns.length) {
+    return scoreImportedStatRecord(importedRecord);
+  }
+
   if (!matchingRuns.length) {
-    return 50;
+    return importedStats.runs
+      ? scoreImportedStatRecord(importedRecord)
+      : 50;
   }
 
   const places = matchingRuns.filter((run) => {
-    const pos = run.finishing_position;
-    return pos !== null && pos !== undefined && pos <= 3;
+    const position = run.finishing_position;
+
+    return (
+      position !== null &&
+      position !== undefined &&
+      position <= 3
+    );
   }).length;
 
-  const wins = matchingRuns.filter((run) => run.finishing_position === 1).length;
+  const wins = matchingRuns.filter(
+    (run) => run.finishing_position === 1,
+  ).length;
+
   const placeRate = places / matchingRuns.length;
   const winRate = wins / matchingRuns.length;
 
-  const rawScore = Math.round(38 + placeRate * 38 + winRate * 24);
+  const rawScore = Math.round(
+    38 + placeRate * 38 + winRate * 24,
+  );
 
   return matchingRuns.length === 1
     ? clamp(rawScore, 48, 72)
@@ -650,15 +689,18 @@ function scoreConditionSuitability(
             ? horse?.synthetic_track_record
             : null;
 
-  const importedScore = scoreImportedStatRecord(conditionRecord);
+const importedStats = parseImportedStatRecord(conditionRecord);
+const importedScore = scoreImportedStatRecord(conditionRecord);
 
-  const matchingRuns = historyRuns.filter(
-    (run) => getConditionBucket(run.meeting?.track_condition) === target,
-  );
+const matchingRuns = historyRuns.filter(
+  (run) =>
+    getConditionBucket(run.meeting?.track_condition) === target,
+);
 
 if (!matchingRuns.length) {
-  if (!conditionRecord) return 50;
-  return clamp(importedScore, 45, 85);
+  return importedStats.runs
+    ? clamp(importedScore, 45, 85)
+    : 50;
 }
 
   const historyScore = (() => {
@@ -696,16 +738,11 @@ return clamp(rawScore, 46, upperCap);
     return clamp(rawScore, 25, 95);
   })();
 
-  if (!conditionRecord) return historyScore;
+if (importedStats.runs > matchingRuns.length) {
+  return clamp(importedScore, 25, 95);
+}
 
-const historyWeight = target === "Soft" || target === "Heavy" ? 0.8 : 0.65;
-const importedWeight = 1 - historyWeight;
-
-return clamp(
-  Math.round(historyScore * historyWeight + importedScore * importedWeight),
-  25,
-  95,
-);
+return historyScore;
 }
 function getEffectiveBarrier(runner: Runner, fieldWithScratchings: Runner[]) {
   if (runner.barrier === null || runner.barrier === undefined) return null;
@@ -1284,9 +1321,17 @@ const recentForm =
           (scoreImportedRecentForm(runner.form_last_6) * 0.65),
       );
 
-const distance = scoreDistanceSuitability(historyRuns, activeRace.distance_m);
+const distance = scoreDistanceSuitability(
+  historyRuns,
+  activeRace.distance_m,
+  runner.distance_form_last_6,
+);
 
-const track = scoreTrackSuitability(historyRuns, raceMeeting?.meeting_name);
+const track = scoreTrackSuitability(
+  historyRuns,
+  raceMeeting?.meeting_name,
+  runner.track_form_last_6,
+);
 const condition =
   scoreOverrides?.condition !== null &&
   scoreOverrides?.condition !== undefined &&
@@ -1380,29 +1425,68 @@ const jockeyProfile = jockeyProfiles.find(
   (item) =>
     item.normalised_name === String(runner.jockey_name || "").trim().toLowerCase(),
 ) || null;
-const importedRecentScore = scoreImportedRecentForm(runner.form_last_6);
-const importedDistanceScore = scoreImportedStatRecord(runner.distance_form_last_6);
-const importedTrackScore = scoreImportedStatRecord(runner.track_form_last_6);
-const importedConditionScore = scoreImportedStatRecord(conditionRecord);
-const recentFallbackUsed = recentHistoryRunCount < 3 && Boolean(runner.form_last_6);
-const distanceFallbackUsed = false;
-const trackFallbackUsed = false;
-const conditionFallbackUsed = !conditionHistoryRuns.length && Boolean(conditionRecord);
+const importedRecentScore = scoreImportedRecentForm(
+  runner.form_last_6,
+);
+
+const importedDistanceStats = parseImportedStatRecord(
+  runner.distance_form_last_6,
+);
+const importedTrackStats = parseImportedStatRecord(
+  runner.track_form_last_6,
+);
+const importedConditionStats = parseImportedStatRecord(
+  conditionRecord,
+);
+
+const importedDistanceScore = scoreImportedStatRecord(
+  runner.distance_form_last_6,
+);
+const importedTrackScore = scoreImportedStatRecord(
+  runner.track_form_last_6,
+);
+const importedConditionScore = scoreImportedStatRecord(
+  conditionRecord,
+);
+
+const distanceUsedImported =
+  importedDistanceStats.runs > distanceHistoryRuns.length;
+
+const trackUsedImported =
+  importedTrackStats.runs > trackHistoryRuns.length;
+
+const conditionUsedImported =
+  importedConditionStats.runs > conditionHistoryRuns.length;
+
+const recentFallbackUsed =
+  recentHistoryRunCount < 3 && Boolean(runner.form_last_6);
+
+const distanceFallbackUsed = distanceUsedImported;
+const trackFallbackUsed = trackUsedImported;
+const conditionFallbackUsed = conditionUsedImported;
 const powerRank = powerRankByRunnerId.get(Number(runner.id)) || null;
 
 const auditDecisionLog = [
   recentFallbackUsed
     ? "Recent form used imported form fallback because SmartPunt history sample was below 3 runs."
     : `Recent form used ${recentHistoryRunCount} SmartPunt historical run${recentHistoryRunCount === 1 ? "" : "s"}.`,
-  distanceHistoryRuns.length
-    ? `Distance used ${distanceHistoryRuns.length} exact ${distanceBucket} bucket run${distanceHistoryRuns.length === 1 ? "" : "s"}.`
-    : `Distance has no exact ${distanceBucket} bucket history. Neutral score applied.`,
-  trackHistoryRuns.length
-    ? `Track used ${trackHistoryRuns.length} exact ${raceMeeting?.meeting_name || "track"} run${trackHistoryRuns.length === 1 ? "" : "s"}.`
-    : `Track has no exact ${raceMeeting?.meeting_name || "track"} history. Neutral score applied.`,
-  conditionFallbackUsed
-    ? "Condition used stored condition record because exact condition history was unavailable."
-    : `Condition used ${conditionHistoryRuns.length} exact condition run${conditionHistoryRuns.length === 1 ? "" : "s"}.`,
+distanceUsedImported
+  ? `Distance used today's imported record with ${importedDistanceStats.runs} runs because it exceeded SmartPunt's ${distanceHistoryRuns.length} exact ${distanceBucket} run${distanceHistoryRuns.length === 1 ? "" : "s"}.`
+  : distanceHistoryRuns.length
+    ? `Distance used ${distanceHistoryRuns.length} SmartPunt exact ${distanceBucket} run${distanceHistoryRuns.length === 1 ? "" : "s"}.`
+    : "Distance had no usable evidence. Neutral score applied.",
+
+trackUsedImported
+  ? `Track used today's imported record with ${importedTrackStats.runs} runs because it exceeded SmartPunt's ${trackHistoryRuns.length} exact ${raceMeeting?.meeting_name || "track"} run${trackHistoryRuns.length === 1 ? "" : "s"}.`
+  : trackHistoryRuns.length
+    ? `Track used ${trackHistoryRuns.length} SmartPunt exact ${raceMeeting?.meeting_name || "track"} run${trackHistoryRuns.length === 1 ? "" : "s"}.`
+    : "Track had no usable evidence. Neutral score applied.",
+
+conditionUsedImported
+  ? `Condition used the imported ${conditionBucket} record with ${importedConditionStats.runs} runs because it exceeded SmartPunt's ${conditionHistoryRuns.length} matching run${conditionHistoryRuns.length === 1 ? "" : "s"}.`
+  : conditionHistoryRuns.length
+    ? `Condition used ${conditionHistoryRuns.length} SmartPunt exact condition run${conditionHistoryRuns.length === 1 ? "" : "s"}.`
+    : "Condition had no usable evidence. Neutral score applied.",
   standoutBonus ? `Applied standout bonus of ${standoutBonus}.` : "No standout bonus applied.",
   powerAdjustment ? `Applied power-rating adjustment of ${powerAdjustment}.` : "No power-rating adjustment applied.",
   score !== preDampenedScore
