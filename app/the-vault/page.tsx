@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import AppEntryLoader from "@/components/app-entry-loader";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import VaultHorseSearch from "@/components/vault-horse-search";
 
 export const dynamic = "force-dynamic";
 
@@ -193,15 +194,14 @@ export default async function TheVaultPage() {
                     alerts for the exact racing situations you want to follow.
                   </p>
 
-                  <div className="mt-6">
-                    <button
-                      type="button"
-                      disabled
-                      className="cursor-not-allowed rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-black opacity-65 shadow-lg shadow-amber-500/20"
-                    >
-                      Add To Vault — Next Stage
-                    </button>
-                  </div>
+<div className="mt-6">
+  <Link
+    href="#add-to-vault"
+    className="inline-flex rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110"
+  >
+    Add To Vault
+  </Link>
+</div>
                 </div>
               </div>
             </section>
@@ -229,9 +229,11 @@ export default async function TheVaultPage() {
                   icon="⚡"
                 />
               </div>
-            </section>
+</section>
 
-            <section className="overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
+<VaultHorseSearch />
+
+<section className="overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">
@@ -378,10 +380,10 @@ export default async function TheVaultPage() {
                       Your Vault is empty
                     </h3>
 
-                    <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-400">
-                      The next stage adds horse search and lets subscribers save
-                      their first personalised Vault alert.
-                    </p>
+                   <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-400">
+  Search above to add your first horse. Saved horses will
+  appear here and begin watching current and upcoming races.
+</p>
                   </div>
                 )}
               </div>
