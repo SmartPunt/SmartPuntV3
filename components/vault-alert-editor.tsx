@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import VaultPicker from "@/components/vault-picker";
 import {
   deleteVaultAlertAction,
   toggleVaultAlertAction,
@@ -26,17 +27,6 @@ const CONDITION_OPTIONS = [
   "Synthetic",
 ];
 
-function splitNames(value: string) {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function joinNames(values?: string[] | null) {
-  return Array.isArray(values) ? values.join(", ") : "";
-}
-
 export default function VaultAlertEditor({
   alert,
 }: {
@@ -46,27 +36,29 @@ export default function VaultAlertEditor({
 
   const [open, setOpen] = useState(false);
 
-  const [alertName, setAlertName] = useState(alert.alert_name);
-
-  const [trackNames, setTrackNames] = useState(
-    joinNames(alert.track_names),
+  const [alertName, setAlertName] = useState(
+    alert.alert_name,
   );
 
-  const [jockeyNames, setJockeyNames] = useState(
-    joinNames(alert.jockey_names),
+  const [trackNames, setTrackNames] = useState<string[]>(
+    alert.track_names || [],
   );
 
-  const [trainerNames, setTrainerNames] = useState(
-    joinNames(alert.trainer_names),
+  const [jockeyNames, setJockeyNames] = useState<string[]>(
+    alert.jockey_names || [],
   );
 
-  const [distanceBuckets, setDistanceBuckets] = useState<string[]>(
-    alert.distance_buckets || [],
-  );
+  const [trainerNames, setTrainerNames] = useState<
+    string[]
+  >(alert.trainer_names || []);
 
-  const [trackConditions, setTrackConditions] = useState<string[]>(
-    alert.track_conditions || [],
-  );
+  const [distanceBuckets, setDistanceBuckets] = useState<
+    string[]
+  >(alert.distance_buckets || []);
+
+  const [trackConditions, setTrackConditions] = useState<
+    string[]
+  >(alert.track_conditions || []);
 
   const [minBarrier, setMinBarrier] = useState(
     alert.min_effective_barrier?.toString() || "",
@@ -103,9 +95,9 @@ export default function VaultAlertEditor({
       const result = await updateVaultAlertRulesAction({
         alertId: alert.id,
         alertName,
-        trackNames: splitNames(trackNames),
-        jockeyNames: splitNames(jockeyNames),
-        trainerNames: splitNames(trainerNames),
+        trackNames,
+        jockeyNames,
+        trainerNames,
         distanceBuckets,
         trackConditions,
         minEffectiveBarrier: minBarrier
@@ -141,7 +133,8 @@ export default function VaultAlertEditor({
 
       if (!result.success) {
         setErrorMessage(
-          result.error || "Could not update this Vault alert.",
+          result.error ||
+            "Could not update this Vault alert.",
         );
         return;
       }
@@ -169,7 +162,8 @@ export default function VaultAlertEditor({
 
       if (!result.success) {
         setErrorMessage(
-          result.error || "Could not delete this Vault alert.",
+          result.error ||
+            "Could not delete this Vault alert.",
         );
         return;
       }
@@ -179,13 +173,13 @@ export default function VaultAlertEditor({
   }
 
   const customRuleCount =
-    alert.track_names.length +
-    alert.jockey_names.length +
-    alert.trainer_names.length +
-    alert.distance_buckets.length +
-    alert.track_conditions.length +
-    (alert.min_effective_barrier !== null ? 1 : 0) +
-    (alert.max_effective_barrier !== null ? 1 : 0);
+    trackNames.length +
+    jockeyNames.length +
+    trainerNames.length +
+    distanceBuckets.length +
+    trackConditions.length +
+    (minBarrier ? 1 : 0) +
+    (maxBarrier ? 1 : 0);
 
   return (
     <article className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-white/[0.055] shadow-lg shadow-black/20">
@@ -337,63 +331,30 @@ export default function VaultAlertEditor({
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                Tracks
-              </label>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <VaultPicker
+              label="Tracks"
+              pickerType="track"
+              values={trackNames}
+              onChange={setTrackNames}
+              placeholder="Search tracks..."
+            />
 
-              <input
-                value={trackNames}
-                onChange={(event) =>
-                  setTrackNames(event.target.value)
-                }
-                placeholder="Ballarat, Pakenham"
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.07] px-3 py-3 text-sm font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-amber-400"
-              />
+            <VaultPicker
+              label="Jockeys"
+              pickerType="jockey"
+              values={jockeyNames}
+              onChange={setJockeyNames}
+              placeholder="Search jockeys..."
+            />
 
-              <p className="mt-1 text-[11px] text-zinc-500">
-                Separate multiple tracks with commas.
-              </p>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                Jockeys
-              </label>
-
-              <input
-                value={jockeyNames}
-                onChange={(event) =>
-                  setJockeyNames(event.target.value)
-                }
-                placeholder="Zac Spain"
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.07] px-3 py-3 text-sm font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-amber-400"
-              />
-
-              <p className="mt-1 text-[11px] text-zinc-500">
-                Separate multiple jockeys with commas.
-              </p>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                Trainers
-              </label>
-
-              <input
-                value={trainerNames}
-                onChange={(event) =>
-                  setTrainerNames(event.target.value)
-                }
-                placeholder="Reece Goodwin"
-                className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.07] px-3 py-3 text-sm font-semibold text-white outline-none placeholder:text-zinc-500 focus:border-amber-400"
-              />
-
-              <p className="mt-1 text-[11px] text-zinc-500">
-                Separate multiple trainers with commas.
-              </p>
-            </div>
+            <VaultPicker
+              label="Trainers"
+              pickerType="trainer"
+              values={trainerNames}
+              onChange={setTrainerNames}
+              placeholder="Search trainers..."
+            />
 
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
