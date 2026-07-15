@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import AppEntryLoader from "@/components/app-entry-loader";
 import SubscriberDashboard from "@/components/subscriber-dashboard";
 import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
+import { syncVaultNotifications } from "@/lib/vault-matching";
 
 async function fetchAllRows<T>({
   pageSize = 1000,
@@ -118,6 +119,20 @@ export default async function SubscriberDashboardPage() {
       .order("published_date", { ascending: false }),
   ]);
 
+  const vaultState = await syncVaultNotifications({
+    userId: profile.id,
+    liveData: {
+      dayDates: {
+        today: livePicksData.dayDates.today,
+        tomorrow: livePicksData.dayDates.tomorrow,
+      },
+      currentMeetings: livePicksData.currentMeetings,
+      currentRaces: livePicksData.currentRaces,
+      currentRunners: livePicksData.currentRunners,
+      horses: livePicksData.horses,
+    },
+  });
+
   if (activeUserBetsQuery.error) {
     throw new Error(activeUserBetsQuery.error.message);
   }
@@ -165,7 +180,8 @@ export default async function SubscriberDashboardPage() {
         initialMeetings={livePicksData.meetings}
         initialJockeyProfiles={livePicksData.jockeyProfiles}
         initialResultedUserBets={resultedUserBetsQuery.data ?? []}
-        initialLiveFortuneFives={liveFortuneFivesQuery.data ?? []}
+initialLiveFortuneFives={liveFortuneFivesQuery.data ?? []}
+initialVaultMatchCount={vaultState.liveMatchCount}
       />
     </AppEntryLoader>
   );
