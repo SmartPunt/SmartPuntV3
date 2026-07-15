@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import AppEntryLoader from "@/components/app-entry-loader";
 import SubscriberDashboard from "@/components/subscriber-dashboard";
-import { loadSubscriberDashboardData } from "@/lib/subscriber-dashboard-data";
+import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
 import { syncVaultNotifications } from "@/lib/vault-matching";
 
 async function fetchAllRows<T>({
@@ -25,10 +25,7 @@ async function fetchAllRows<T>({
   while (true) {
     const to = from + pageSize - 1;
 
-    const { data, error } = await getPage(
-      from,
-      to,
-    );
+    const { data, error } = await getPage(from, to);
 
     if (error) {
       throw new Error(
@@ -72,14 +69,16 @@ export default async function SubscriberDashboardPage() {
   const supabase = await createClient();
 
   const [
-    dashboardData,
+    livePicksData,
     watchlistItems,
     longTermBets,
     activeUserBetsQuery,
     resultedUserBetsQuery,
     liveFortuneFivesQuery,
   ] = await Promise.all([
-    loadSubscriberDashboardData(),
+    loadSubscriberLivePicksData({
+      userId: profile.id,
+    }),
 
     fetchAllRows<any>({
       getPage: async (from, to) => {
@@ -170,17 +169,17 @@ export default async function SubscriberDashboardPage() {
       userId: profile.id,
       liveData: {
         dayDates: {
-          today: dashboardData.dayDates.today,
+          today: livePicksData.dayDates.today,
           tomorrow:
-            dashboardData.dayDates.tomorrow,
+            livePicksData.dayDates.tomorrow,
         },
         currentMeetings:
-          dashboardData.currentMeetings,
+          livePicksData.currentMeetings,
         currentRaces:
-          dashboardData.currentRaces,
+          livePicksData.currentRaces,
         currentRunners:
-          dashboardData.currentRunners,
-        horses: dashboardData.horses,
+          livePicksData.currentRunners,
+        horses: livePicksData.horses,
       },
     });
 
@@ -222,10 +221,10 @@ export default async function SubscriberDashboardPage() {
       <SubscriberDashboard
         currentUser={profile}
         initialSuggestedTips={
-          dashboardData.officialTips
+          livePicksData.officialTips
         }
         initialCalculatorTips={
-          dashboardData.calculatorTips
+          livePicksData.calculatorTips
         }
         initialWatchlistItems={
           watchlistItems
@@ -246,16 +245,25 @@ export default async function SubscriberDashboardPage() {
           activeUserBetCount
         }
         initialPublishedRaces={
-          dashboardData.currentRaces
+          livePicksData.currentRaces
         }
         initialPublishedRunners={
-          dashboardData.currentRunners
+          livePicksData.currentRunners
+        }
+        initialScoringRaces={
+          livePicksData.races
+        }
+        initialScoringRunners={
+          livePicksData.runners
         }
         initialHorses={
-          dashboardData.horses
+          livePicksData.horses
         }
         initialMeetings={
-          dashboardData.currentMeetings
+          livePicksData.meetings
+        }
+        initialJockeyProfiles={
+          livePicksData.jockeyProfiles
         }
         initialResultedUserBets={
           resultedUserBetsQuery.data ?? []
