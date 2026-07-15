@@ -684,22 +684,25 @@ export async function searchVaultPickerOptionsAction({
         throw new Error(currentError.message);
       }
 
+      const typedCurrentRows = (currentRows || []) as unknown as Array<
+        Record<string, unknown>
+      >;
+
       currentValues = new Set(
         uniquePickerValues(
-          (currentRows || []).map(
-            (row: Record<string, unknown>) => row[column],
-          ),
+          typedCurrentRows.map((row) => row[column]),
         ).map((value) => value.toLowerCase()),
       );
     }
   }
 
-  const values = uniquePickerValues(
-    (historyRows || []).map(
-      (row: Record<string, unknown>) => row[column],
-    ),
-  );
+  const typedHistoryRows = (historyRows || []) as unknown as Array<
+    Record<string, unknown>
+  >;
 
+  const values = uniquePickerValues(
+    typedHistoryRows.map((row) => row[column]),
+  );
   return rankPickerResults({
     values,
     currentValues,
