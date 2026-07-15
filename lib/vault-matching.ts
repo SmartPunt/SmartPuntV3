@@ -8,6 +8,13 @@ type VaultAlert = {
   horse_id: number | null;
   target_name: string;
   enabled: boolean;
+  jockey_names: string[];
+  trainer_names: string[];
+  track_names: string[];
+  distance_buckets: string[];
+  track_conditions: string[];
+  min_effective_barrier: number | null;
+  max_effective_barrier: number | null;
 };
 
 type VaultLiveData = {
@@ -57,7 +64,47 @@ function uniqueNumbers(values: unknown[]) {
     ),
   );
 }
+function normaliseText(value: unknown) {
+  return String(value || "").trim().toLowerCase();
+}
 
+function getDistanceBucket(distance: unknown) {
+  const value = Number(distance);
+
+  if (!Number.isFinite(value) || value <= 0) return null;
+  if (value < 1000) return "800–999m";
+  if (value <= 1200) return "1000–1200m";
+  if (value <= 1400) return "1201–1400m";
+  if (value <= 1600) return "1401–1600m";
+  if (value <= 1800) return "1601–1800m";
+  if (value <= 2200) return "1801–2200m";
+
+  return "2201m+";
+}
+
+function getConditionBucket(condition: unknown) {
+  const value = normaliseText(condition);
+
+  if (value.startsWith("good")) return "Good";
+  if (value.startsWith("soft")) return "Soft";
+  if (value.startsWith("heavy")) return "Heavy";
+  if (value.startsWith("synthetic")) return "Synthetic";
+
+  return null;
+}
+
+function matchesNamedRule(
+  selectedValues: string[] | null | undefined,
+  actualValue: unknown,
+) {
+  if (!selectedValues?.length) return true;
+
+  const actual = normaliseText(actualValue);
+
+  return selectedValues.some(
+    (value) => normaliseText(value) === actual,
+  );
+}
 function getEffectiveBarrier(runner: any, raceRunners: any[]) {
   const originalBarrier = Number(runner?.barrier);
 
@@ -91,9 +138,9 @@ export async function syncVaultNotifications({
 
   const { data: alertsData, error: alertsError } = await supabase
     .from("vault_alerts")
-    .select(
-      "id, user_id, alert_name, alert_type, horse_id, target_name, enabled",
-    )
+.select(
+  "id, user_id, alert_name, alert_type, horse_id, target_name, enabled, jockey_names, trainer_names, track_names, distance_buckets, track_conditions, min_effective_barrier, max_effective_barrier",
+)
     .eq("user_id", userId);
 
   if (alertsError) {
@@ -184,31 +231,152 @@ export async function syncVaultNotifications({
       const meeting = meetingMap.get(Number(race.meeting_id));
       if (!meeting) return;
 
-      const horse = horseMap.get(Number(runner.horse_id)) || null;
-      const raceRunners =
-        runnersByRaceId.get(Number(runner.race_id)) || [];
+const horse = horseMap.get(Number(runner.horse_id)) || null;
+const raceRunners =
+  runnersByRaceId.get(Number(runner.race_id)) || [];
 
-      liveMatches.push({
-        alert,
-        runner,
-        race,
-        meeting,
-        horse,
-        effectiveBarrier: getEffectiveBarrier(
-          runner,
-          raceRunners,
-        ),
-        matchedRules: [
-          {
-            type: "horse",
-            label: "Horse in your Vault",
-            value:
-              horse?.horse_name ||
-              alert.target_name ||
-              "Saved horse",
-          },
-        ],
-      });
+const effectiveBarrier = getEffectiveBarrier(
+  runner,
+  raceRunners,
+);
+
+const distanceBucket = getDistanceBucket(race.distance_m);
+const conditionBucket = getConditionBucket(
+  meeting.track_condition,
+);
+
+if (
+  !matchesNamedRule(
+    alert.track_names,
+    meeting.meeting_name,
+  )
+) {
+  return;
+}
+
+if (
+  !matchesNamedRule(
+    alert.jockey_names,
+    runner.jockey_name,
+  )
+) {
+  return;
+}
+
+if (
+  !matchesNamedRule(
+    alert.trainer_names,
+    runner.trainer_name,
+  )
+) {
+  return;
+}
+
+if (
+  alert.distance_buckets?.length &&
+  (!distanceBucket ||
+    !alert.distance_buckets.includes(distanceBucket))
+) {
+  return;
+}
+
+if (
+  alert.track_conditions?.length &&
+  (!conditionBucket ||
+    !alert.track_conditions.includes(conditionBucket))
+) {
+  return;
+}
+
+if (
+  alert.min_effective_barrier !== null &&
+  alert.min_effective_barrier !== undefined &&
+  (effectiveBarrier === null ||
+    effectiveBarrier < Number(alert.min_effective_barrier))
+) {
+  return;
+}
+
+if (
+  alert.max_effective_barrier !== null &&
+  alert.max_effective_barrier !== undefined &&
+  (effectiveBarrier === null ||
+    effectiveBarrier > Number(alert.max_effective_barrier))
+) {
+  return;
+}
+
+const matchedRules = [
+  {
+    type: "horse",
+    label: "Horse",
+    value:
+      horse?.horse_name ||
+      alert.target_name ||
+      "Saved horse",
+  },
+];
+
+if (alert.track_names?.length) {
+  matchedRules.push({
+    type: "track",
+    label: "Track",
+    value: meeting.meeting_name,
+  });
+}
+
+if (alert.distance_buckets?.length && distanceBucket) {
+  matchedRules.push({
+    type: "distance",
+    label: "Distance",
+    value: distanceBucket,
+  });
+}
+
+if (alert.track_conditions?.length && conditionBucket) {
+  matchedRules.push({
+    type: "condition",
+    label: "Condition",
+    value: conditionBucket,
+  });
+}
+
+if (alert.jockey_names?.length) {
+  matchedRules.push({
+    type: "jockey",
+    label: "Jockey",
+    value: runner.jockey_name || "Unknown",
+  });
+}
+
+if (alert.trainer_names?.length) {
+  matchedRules.push({
+    type: "trainer",
+    label: "Trainer",
+    value: runner.trainer_name || "Unknown",
+  });
+}
+
+if (
+  alert.min_effective_barrier !== null ||
+  alert.max_effective_barrier !== null
+) {
+  matchedRules.push({
+    type: "effective_barrier",
+    label: "Effective barrier",
+    value: String(effectiveBarrier),
+  });
+}
+
+liveMatches.push({
+  alert,
+  runner,
+  race,
+  meeting,
+  horse,
+  effectiveBarrier,
+  matchedRules,
+});
     });
   });
 
