@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { addUserBetAction, signOutAction } from "@/lib/actions";
 import { TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
+import { getSubscriberCalculatorPlays } from "@/lib/calculator/subscriber-calculator-plays";
 
 type Meeting = {
   id: number;
@@ -246,8 +247,11 @@ export default function SubscriberDashboard({
   initialActiveUserBetCount,
   initialPublishedRaces,
   initialPublishedRunners,
+  initialScoringRaces = [],
+  initialScoringRunners = [],
   initialHorses,
   initialMeetings,
+  initialJockeyProfiles = [],
   initialResultedUserBets = [],
 initialLiveFortuneFives = [],
 initialVaultMatchCount = 0,
@@ -263,8 +267,11 @@ initialVaultMatchCount = 0,
   initialActiveUserBetCount: number;
   initialPublishedRaces: Race[];
   initialPublishedRunners: Runner[];
+  initialScoringRaces?: Race[];
+  initialScoringRunners?: Runner[];
   initialHorses: Horse[];
   initialMeetings: Meeting[];
+  initialJockeyProfiles?: any[];
   initialResultedUserBets?: ResultedUserBet[];
 initialLiveFortuneFives?: LiveFortuneFive[];
 initialVaultMatchCount?: number;
@@ -388,39 +395,19 @@ initialVaultMatchCount?: number;
 
   const allCalculatorTips = useMemo(
     () =>
-      initialCalculatorTips.filter((tip) => {
-        if (tip.settled_at !== null) {
-          return false;
-        }
-
-        if (
-          tip.status &&
-          !["active", "published"].includes(
-            String(tip.status).toLowerCase(),
-          )
-        ) {
-          return false;
-        }
-
-        if (tip.race_id) {
-          const linkedRace = raceMap.get(
-            Number(tip.race_id),
-          );
-
-          const linkedMeeting = linkedRace
-            ? meetingMap.get(
-                Number(linkedRace.meeting_id),
-              )
-            : null;
-
-          if (
-            linkedMeeting?.meeting_date &&
-            linkedMeeting.meeting_date !== today
-          ) {
-            return false;
-          }
-        }
-
+      getSubscriberCalculatorPlays({
+        races: todayRaces,
+        scoringRaces: initialScoringRaces.length
+          ? initialScoringRaces
+          : initialPublishedRaces,
+        runners: initialPublishedRunners,
+        scoringRunners: initialScoringRunners.length
+          ? initialScoringRunners
+          : initialPublishedRunners,
+        horses: initialHorses,
+        meetings: initialMeetings,
+        jockeyProfiles: initialJockeyProfiles,
+      }).filter((tip) => {
         if (!tip.race_runner_id) {
           return true;
         }
@@ -436,14 +423,17 @@ initialVaultMatchCount?: number;
         return linkedRunner.scratched !== true;
       }),
     [
-      initialCalculatorTips,
-      meetingMap,
-      raceMap,
+      todayRaces,
+      initialPublishedRaces,
+      initialPublishedRunners,
+      initialScoringRaces,
+      initialScoringRunners,
+      initialHorses,
+      initialMeetings,
+      initialJockeyProfiles,
       runnerMap,
-      today,
     ],
   );
-
   const calculatorTips = useMemo(
     () =>
       allCalculatorTips.filter((tip) => {
