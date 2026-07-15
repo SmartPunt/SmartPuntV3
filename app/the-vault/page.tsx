@@ -4,6 +4,11 @@ import AppEntryLoader from "@/components/app-entry-loader";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import VaultHorseSearch from "@/components/vault-horse-search";
+import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
+import {
+  syncVaultNotifications,
+  type VaultLiveMatch,
+} from "@/lib/vault-matching";
 
 export const dynamic = "force-dynamic";
 
@@ -16,20 +21,6 @@ type VaultAlert = {
   enabled: boolean;
   created_at: string;
   updated_at: string;
-};
-
-type VaultNotification = {
-  id: number;
-  alert_id: number;
-  race_id: number;
-  race_runner_id: number;
-  horse_id: number | null;
-  meeting_date: string;
-  matched_rules: unknown;
-  seen: boolean;
-  clicked: boolean;
-  first_matched_at: string;
-  last_matched_at: string;
 };
 
 function StatCard({
@@ -87,47 +78,48 @@ export default async function TheVaultPage() {
     redirect("/");
   }
 
-  const supabase = await createClient();
+const supabase = await createClient();
 
-  const [alertsQuery, notificationsQuery] = await Promise.all([
-    supabase
-      .from("vault_alerts")
-      .select(
-        "id, alert_name, alert_type, target_name, horse_id, enabled, created_at, updated_at",
-      )
-      .eq("user_id", profile.id)
-      .order("created_at", { ascending: false }),
+const livePicksData = await loadSubscriberLivePicksData({
+  userId: profile.id,
+});
 
-    supabase
-      .from("vault_notifications")
-      .select(
-        "id, alert_id, race_id, race_runner_id, horse_id, meeting_date, matched_rules, seen, clicked, first_matched_at, last_matched_at",
-      )
-      .eq("seen", false)
-      .order("meeting_date", { ascending: true })
-      .order("first_matched_at", { ascending: false }),
-  ]);
+const vaultState = await syncVaultNotifications({
+  userId: profile.id,
+  liveData: {
+    dayDates: {
+      today: livePicksData.dayDates.today,
+      tomorrow: livePicksData.dayDates.tomorrow,
+    },
+    currentMeetings: livePicksData.currentMeetings,
+    currentRaces: livePicksData.currentRaces,
+    currentRunners: livePicksData.currentRunners,
+    horses: livePicksData.horses,
+  },
+});
 
-  if (alertsQuery.error) {
-    throw new Error(
-      alertsQuery.error.message || "Could not load Vault alerts.",
-    );
-  }
+const { data: alertsData, error: alertsError } =
+  await supabase
+    .from("vault_alerts")
+    .select(
+      "id, alert_name, alert_type, target_name, horse_id, enabled, created_at, updated_at",
+    )
+    .eq("user_id", profile.id)
+    .order("created_at", { ascending: false });
 
-  if (notificationsQuery.error) {
-    throw new Error(
-      notificationsQuery.error.message ||
-        "Could not load Vault notifications.",
-    );
-  }
+if (alertsError) {
+  throw new Error(
+    alertsError.message || "Could not load Vault alerts.",
+  );
+}
 
-  const alerts = (alertsQuery.data || []) as VaultAlert[];
-  const notifications =
-    (notificationsQuery.data || []) as VaultNotification[];
+const alerts = (alertsData || []) as VaultAlert[];
+const notifications =
+  vaultState.matches as VaultLiveMatch[];
 
-  const enabledAlertCount = alerts.filter(
-    (alert) => alert.enabled,
-  ).length;
+const enabledAlertCount = alerts.filter(
+  (alert) => alert.enabled,
+).length;
 
   return (
     <AppEntryLoader>
@@ -259,33 +251,89 @@ export default async function TheVaultPage() {
                 {notifications.length > 0 ? (
                   <div className="space-y-3">
                     {notifications.map((notification) => (
-                      <Link
-                        key={notification.id}
-                        href={`/smartpunt-calculator-live-picks?raceId=${notification.race_id}`}
-                        className="block rounded-[1.5rem] border border-amber-300/20 bg-[linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.025))] p-4 transition hover:border-amber-300/45 hover:bg-white/[0.08]"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
-                              Vault Match
-                            </p>
+                    <Link
+  key={notification.notificationId}
+  href={`/smartpunt-calculator-live-picks?raceId=${notification.raceId}`}
+  className="block rounded-[1.5rem] border border-amber-300/20 bg-[linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.025))] p-4 transition hover:border-amber-300/45 hover:bg-white/[0.08]"
+>
+  <div className="flex items-start justify-between gap-3">
+    <div className="min-w-0">
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
+        Vault Match
+      </p>
 
-                            <h3 className="mt-2 text-lg font-black text-white">
-                              Race notification
-                            </h3>
+      <div className="mt-2 flex items-center gap-2">
+        {notification.runnerNumber ? (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
+            {notification.runnerNumber}
+          </span>
+        ) : null}
 
-                            <p className="mt-1 text-sm text-zinc-400">
-                              Meeting date: {notification.meeting_date}
-                            </p>
-                          </div>
+        <h3 className="truncate text-xl font-black text-white">
+          {notification.horseName}
+        </h3>
+      </div>
 
-                          <span className="text-2xl">🔔</span>
-                        </div>
+      <p className="mt-2 text-sm font-bold text-amber-100">
+        {notification.meetingName} R
+        {notification.raceNumber}
+      </p>
 
-                        <p className="mt-4 border-t border-white/10 pt-3 text-xs font-black uppercase tracking-[0.14em] text-amber-200">
-                          Open Race →
-                        </p>
-                      </Link>
+      <p className="mt-1 text-sm text-zinc-400">
+        {notification.raceName}
+        {notification.distanceM
+          ? ` · ${notification.distanceM}m`
+          : ""}
+        {notification.trackCondition
+          ? ` · ${notification.trackCondition}`
+          : ""}
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {notification.jockeyName ? (
+          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold text-zinc-300">
+            J: {notification.jockeyName}
+          </span>
+        ) : null}
+
+        {notification.barrier ? (
+          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold text-zinc-300">
+            Barrier {notification.barrier}
+          </span>
+        ) : null}
+
+        {notification.effectiveBarrier ? (
+          <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[10px] font-bold text-amber-200">
+            Effective {notification.effectiveBarrier}
+          </span>
+        ) : null}
+      </div>
+    </div>
+
+    <span className="shrink-0 text-2xl">🔔</span>
+  </div>
+
+  <div className="mt-4 rounded-xl border border-emerald-300/20 bg-emerald-400/[0.07] px-3 py-2">
+    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-300">
+      Matched
+    </p>
+
+    {notification.matchedRules.map(
+      (rule, index) => (
+        <p
+          key={`${rule.type}-${index}`}
+          className="mt-1 text-xs font-semibold text-zinc-300"
+        >
+          ✓ {rule.label}: {rule.value}
+        </p>
+      ),
+    )}
+  </div>
+
+  <p className="mt-4 border-t border-white/10 pt-3 text-xs font-black uppercase tracking-[0.14em] text-amber-200">
+    Open Race →
+  </p>
+</Link>
                     ))}
                   </div>
                 ) : (
