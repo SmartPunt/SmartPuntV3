@@ -17,7 +17,21 @@ export type VaultActionResult = {
   error: string | null;
   message?: string;
 };
-
+export type VaultEditableAlert = {
+  id: number;
+  alert_name: string;
+  alert_type: string;
+  target_name: string;
+  horse_id: number | null;
+  enabled: boolean;
+  jockey_names: string[];
+  trainer_names: string[];
+  track_names: string[];
+  distance_buckets: string[];
+  track_conditions: string[];
+  min_effective_barrier: number | null;
+  max_effective_barrier: number | null;
+};
 async function requireVaultSubscriber() {
   const profile = await getCurrentProfile();
 
@@ -38,7 +52,33 @@ function cleanSearchTerm(value: string) {
     .replace(/[%_]/g, "")
     .slice(0, 80);
 }
+function cleanStringArray(values: unknown[]) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value || "").trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 50);
+}
 
+function cleanOptionalBarrier(value: number | null) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  if (
+    !Number.isInteger(numberValue) ||
+    numberValue < 1 ||
+    numberValue > 30
+  ) {
+    return null;
+  }
+
+  return numberValue;
+}
 export async function searchVaultHorsesAction(
   searchTerm: string,
 ): Promise<VaultHorseSearchResult[]> {
@@ -203,6 +243,204 @@ export async function addHorseToVaultAction({
         error instanceof Error
           ? error.message
           : "Could not add this horse to your Vault.",
+    };
+  }
+}
+export async function updateVaultAlertRulesAction({
+  alertId,
+  alertName,
+  trackNames,
+  jockeyNames,
+  trainerNames,
+  distanceBuckets,
+  trackConditions,
+  minEffectiveBarrier,
+  maxEffectiveBarrier,
+}: {
+  alertId: number;
+  alertName: string;
+  trackNames: string[];
+  jockeyNames: string[];
+  trainerNames: string[];
+  distanceBuckets: string[];
+  trackConditions: string[];
+  minEffectiveBarrier: number | null;
+  maxEffectiveBarrier: number | null;
+}): Promise<VaultActionResult> {
+  try {
+    const profile = await requireVaultSubscriber();
+    const supabase = await createClient();
+
+    const numericAlertId = Number(alertId);
+    const cleanedMinimum = cleanOptionalBarrier(
+      minEffectiveBarrier,
+    );
+    const cleanedMaximum = cleanOptionalBarrier(
+      maxEffectiveBarrier,
+    );
+
+    if (!numericAlertId || !Number.isFinite(numericAlertId)) {
+      return {
+        success: false,
+        error: "Invalid Vault alert.",
+      };
+    }
+
+    if (
+      cleanedMinimum !== null &&
+      cleanedMaximum !== null &&
+      cleanedMinimum > cleanedMaximum
+    ) {
+      return {
+        success: false,
+        error:
+          "Minimum effective barrier cannot exceed the maximum.",
+      };
+    }
+
+    const { error } = await supabase
+      .from("vault_alerts")
+      .update({
+        alert_name:
+          String(alertName || "").trim().slice(0, 120) ||
+          "Vault Alert",
+        track_names: cleanStringArray(trackNames),
+        jockey_names: cleanStringArray(jockeyNames),
+        trainer_names: cleanStringArray(trainerNames),
+        distance_buckets: cleanStringArray(distanceBuckets),
+        track_conditions: cleanStringArray(trackConditions),
+        min_effective_barrier: cleanedMinimum,
+        max_effective_barrier: cleanedMaximum,
+      })
+      .eq("id", numericAlertId)
+      .eq("user_id", profile.id);
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    revalidatePath("/the-vault");
+    revalidatePath("/subscriber-dashboard");
+
+    return {
+      success: true,
+      error: null,
+      message: "Vault rules saved.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not save Vault rules.",
+    };
+  }
+}
+
+export async function toggleVaultAlertAction({
+  alertId,
+  enabled,
+}: {
+  alertId: number;
+  enabled: boolean;
+}): Promise<VaultActionResult> {
+  try {
+    const profile = await requireVaultSubscriber();
+    const supabase = await createClient();
+
+    const numericAlertId = Number(alertId);
+
+    if (!numericAlertId || !Number.isFinite(numericAlertId)) {
+      return {
+        success: false,
+        error: "Invalid Vault alert.",
+      };
+    }
+
+    const { error } = await supabase
+      .from("vault_alerts")
+      .update({ enabled })
+      .eq("id", numericAlertId)
+      .eq("user_id", profile.id);
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    revalidatePath("/the-vault");
+    revalidatePath("/subscriber-dashboard");
+
+    return {
+      success: true,
+      error: null,
+      message: enabled
+        ? "Vault alert resumed."
+        : "Vault alert paused.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not update Vault alert.",
+    };
+  }
+}
+
+export async function deleteVaultAlertAction({
+  alertId,
+}: {
+  alertId: number;
+}): Promise<VaultActionResult> {
+  try {
+    const profile = await requireVaultSubscriber();
+    const supabase = await createClient();
+
+    const numericAlertId = Number(alertId);
+
+    if (!numericAlertId || !Number.isFinite(numericAlertId)) {
+      return {
+        success: false,
+        error: "Invalid Vault alert.",
+      };
+    }
+
+    const { error } = await supabase
+      .from("vault_alerts")
+      .delete()
+      .eq("id", numericAlertId)
+      .eq("user_id", profile.id);
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    revalidatePath("/the-vault");
+    revalidatePath("/subscriber-dashboard");
+
+    return {
+      success: true,
+      error: null,
+      message: "Vault alert deleted.",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not delete Vault alert.",
     };
   }
 }
