@@ -100,7 +100,7 @@ export default async function HomePage() {
     redirect("/current-races");
   }
   if (profile.role === "user") {
-    redirect("/smartpunt-calculator-live-picks");
+    redirect("/subscriber-dashboard");
   }
   const supabase = await createClient();
 
