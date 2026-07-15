@@ -4,6 +4,8 @@ import AppEntryLoader from "@/components/app-entry-loader";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import VaultHorseSearch from "@/components/vault-horse-search";
+import VaultAlertEditor from "@/components/vault-alert-editor";
+import type { VaultEditableAlert } from "@/lib/vault-actions";
 import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
 import {
   syncVaultNotifications,
@@ -11,17 +13,6 @@ import {
 } from "@/lib/vault-matching";
 
 export const dynamic = "force-dynamic";
-
-type VaultAlert = {
-  id: number;
-  alert_name: string;
-  alert_type: string;
-  target_name: string;
-  horse_id: number | null;
-  enabled: boolean;
-  created_at: string;
-  updated_at: string;
-};
 
 function StatCard({
   eyebrow,
@@ -101,9 +92,9 @@ const vaultState = await syncVaultNotifications({
 const { data: alertsData, error: alertsError } =
   await supabase
     .from("vault_alerts")
-    .select(
-      "id, alert_name, alert_type, target_name, horse_id, enabled, created_at, updated_at",
-    )
+.select(
+  "id, alert_name, alert_type, target_name, horse_id, enabled, jockey_names, trainer_names, track_names, distance_buckets, track_conditions, min_effective_barrier, max_effective_barrier",
+)
     .eq("user_id", profile.id)
     .order("created_at", { ascending: false });
 
@@ -113,7 +104,7 @@ if (alertsError) {
   );
 }
 
-const alerts = (alertsData || []) as VaultAlert[];
+const alerts = (alertsData || []) as VaultEditableAlert[];
 const notifications =
   vaultState.matches as VaultLiveMatch[];
 
@@ -379,44 +370,12 @@ const enabledAlertCount = alerts.filter(
               <div className="mt-5">
                 {alerts.length > 0 ? (
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {alerts.map((alert) => (
-                      <article
-                        key={alert.id}
-                        className="rounded-[1.5rem] border border-white/10 bg-white/[0.055] p-4 shadow-lg shadow-black/20"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
-                              {alert.alert_type}
-                            </p>
-
-                            <h3 className="mt-2 truncate text-xl font-black text-white">
-                              {alert.target_name}
-                            </h3>
-
-                            <p className="mt-1 truncate text-sm text-zinc-400">
-                              {alert.alert_name}
-                            </p>
-                          </div>
-
-                          <span
-                            className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
-                              alert.enabled
-                                ? "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"
-                                : "border-white/10 bg-white/5 text-zinc-400"
-                            }`}
-                          >
-                            {alert.enabled ? "Active" : "Paused"}
-                          </span>
-                        </div>
-
-                        <div className="mt-4 border-t border-white/10 pt-3">
-                          <p className="text-xs font-semibold text-zinc-500">
-                            Vault editing arrives in the next stage.
-                          </p>
-                        </div>
-                      </article>
-                    ))}
+{alerts.map((alert) => (
+  <VaultAlertEditor
+    key={alert.id}
+    alert={alert}
+  />
+))}
                   </div>
                 ) : (
                   <div className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/5 p-7 text-center">
