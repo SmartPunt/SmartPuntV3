@@ -253,7 +253,8 @@ export default function SubscriberDashboard({
   initialMeetings,
   initialJockeyProfiles = [],
   initialResultedUserBets = [],
-  initialLiveFortuneFives = [],
+initialLiveFortuneFives = [],
+initialVaultMatchCount = 0,
 }: {
   currentUser: any;
   initialSuggestedTips: SuggestedTip[];
@@ -272,7 +273,8 @@ export default function SubscriberDashboard({
   initialMeetings: Meeting[];
   initialJockeyProfiles?: any[];
   initialResultedUserBets?: ResultedUserBet[];
-  initialLiveFortuneFives?: LiveFortuneFive[];
+initialLiveFortuneFives?: LiveFortuneFive[];
+initialVaultMatchCount?: number;
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
   const [customRunnerId, setCustomRunnerId] = useState("");
@@ -1059,10 +1061,13 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 {renderStatCard({
   href: "/the-vault",
   eyebrow: "The Vault",
-  value: 0,
-  label: "Personal racing intelligence",
+  value: initialVaultMatchCount,
+  label:
+    initialVaultMatchCount === 1
+      ? "1 live Vault match"
+      : `${initialVaultMatchCount} live Vault matches`,
   cta: "Open",
-  icon: "🏦",
+  icon: initialVaultMatchCount > 0 ? "🔔" : "🏦",
 })}
           </section>
 
