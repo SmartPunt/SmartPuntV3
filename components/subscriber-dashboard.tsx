@@ -393,47 +393,75 @@ initialVaultMatchCount?: number;
     [activeTipIdSet, allTips, meetingMap, raceMap, runnerMap, today],
   );
 
-  const allCalculatorTips = useMemo(
-    () =>
+  const allCalculatorTips = useMemo(() => {
+    const calculationStartedAt =
+      performance.now();
+
+    const calculatedTips =
       getSubscriberCalculatorPlays({
         races: todayRaces,
-        scoringRaces: initialScoringRaces.length
-          ? initialScoringRaces
-          : initialPublishedRaces,
+        scoringRaces:
+          initialScoringRaces.length
+            ? initialScoringRaces
+            : initialPublishedRaces,
         runners: initialPublishedRunners,
-        scoringRunners: initialScoringRunners.length
-          ? initialScoringRunners
-          : initialPublishedRunners,
+        scoringRunners:
+          initialScoringRunners.length
+            ? initialScoringRunners
+            : initialPublishedRunners,
         horses: initialHorses,
         meetings: initialMeetings,
-        jockeyProfiles: initialJockeyProfiles,
+        jockeyProfiles:
+          initialJockeyProfiles,
       }).filter((tip) => {
         if (!tip.race_runner_id) {
           return true;
         }
 
-        const linkedRunner = runnerMap.get(
-          Number(tip.race_runner_id),
-        );
+        const linkedRunner =
+          runnerMap.get(
+            Number(tip.race_runner_id),
+          );
 
         if (!linkedRunner) {
           return true;
         }
 
-        return linkedRunner.scratched !== true;
-      }),
-    [
-      todayRaces,
-      initialPublishedRaces,
-      initialPublishedRunners,
-      initialScoringRaces,
-      initialScoringRunners,
-      initialHorses,
-      initialMeetings,
-      initialJockeyProfiles,
-      runnerMap,
-    ],
-  );
+        return (
+          linkedRunner.scratched !== true
+        );
+      });
+
+    console.info("[SmartPunt Performance]", {
+      area: "subscriber-dashboard-client",
+      stage:
+        "calculate subscriber calculator plays",
+      durationMs: Math.round(
+        performance.now() -
+          calculationStartedAt,
+      ),
+      todayRaceCount:
+        todayRaces.length,
+      scoringRaceCount:
+        initialScoringRaces.length,
+      scoringRunnerCount:
+        initialScoringRunners.length,
+      calculatedTipCount:
+        calculatedTips.length,
+    });
+
+    return calculatedTips;
+  }, [
+    todayRaces,
+    initialPublishedRaces,
+    initialPublishedRunners,
+    initialScoringRaces,
+    initialScoringRunners,
+    initialHorses,
+    initialMeetings,
+    initialJockeyProfiles,
+    runnerMap,
+  ]);
   const calculatorTips = useMemo(
     () =>
       allCalculatorTips.filter((tip) => {
