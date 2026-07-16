@@ -48,7 +48,32 @@ async function fetchAllRows<T>({
 }
 
 export default async function SubscriberDashboardPage() {
+  const totalStartedAt = Date.now();
+
+  function logStage(
+    stage: string,
+    startedAt: number,
+    details?: Record<string, unknown>,
+  ) {
+    console.info("[SmartPunt Performance]", {
+      area: "subscriber-dashboard-page",
+      stage,
+      durationMs: Date.now() - startedAt,
+      ...details,
+    });
+  }
+
+  const profileStartedAt = Date.now();
   const profile = await getCurrentProfile();
+
+  logStage(
+    "get current profile",
+    profileStartedAt,
+    {
+      hasProfile: Boolean(profile),
+      role: profile?.role || null,
+    },
+  );
 
   if (!profile) {
     redirect("/login");
@@ -66,7 +91,16 @@ export default async function SubscriberDashboardPage() {
     redirect("/");
   }
 
+  const clientStartedAt = Date.now();
   const supabase = await createClient();
+
+  logStage(
+    "create Supabase client",
+    clientStartedAt,
+  );
+
+  const parallelQueriesStartedAt =
+    Date.now();
 
   const [
     livePicksData,
@@ -146,6 +180,25 @@ export default async function SubscriberDashboardPage() {
       }),
   ]);
 
+  logStage(
+    "all parallel Dashboard queries",
+    parallelQueriesStartedAt,
+    {
+      watchlistCount:
+        watchlistItems.length,
+      longTermBetCount:
+        longTermBets.length,
+      activeUserBetCount:
+        activeUserBetsQuery.data?.length ?? 0,
+      resultedUserBetCount:
+        resultedUserBetsQuery.data?.length ??
+        0,
+      liveFortuneFiveCount:
+        liveFortuneFivesQuery.data?.length ??
+        0,
+    },
+  );
+
   if (activeUserBetsQuery.error) {
     throw new Error(
       activeUserBetsQuery.error.message,
@@ -164,12 +217,15 @@ export default async function SubscriberDashboardPage() {
     );
   }
 
+  const vaultSyncStartedAt = Date.now();
+
   const vaultState =
     await syncVaultNotifications({
       userId: profile.id,
       liveData: {
         dayDates: {
-          today: livePicksData.dayDates.today,
+          today:
+            livePicksData.dayDates.today,
           tomorrow:
             livePicksData.dayDates.tomorrow,
         },
@@ -182,6 +238,17 @@ export default async function SubscriberDashboardPage() {
         horses: livePicksData.horses,
       },
     });
+
+  logStage(
+    "Vault notification sync",
+    vaultSyncStartedAt,
+    {
+      liveMatchCount:
+        vaultState.liveMatchCount,
+    },
+  );
+
+  const transformStartedAt = Date.now();
 
   const activeTipIds = (
     activeUserBetsQuery.data || []
@@ -215,6 +282,34 @@ export default async function SubscriberDashboardPage() {
   const activeUserBetCount = (
     activeUserBetsQuery.data || []
   ).length;
+
+  logStage(
+    "prepare Dashboard props",
+    transformStartedAt,
+    {
+      activeTipIdCount:
+        activeTipIds.length,
+      activeCalculatorTipIdCount:
+        activeCalculatorTipIds.length,
+      activeCalculatorRunnerIdCount:
+        activeCalculatorRunnerIds.length,
+    },
+  );
+
+  logStage(
+    "TOTAL Dashboard server load",
+    totalStartedAt,
+    {
+      currentRaceCount:
+        livePicksData.currentRaces.length,
+      currentRunnerCount:
+        livePicksData.currentRunners.length,
+      scoringRunnerCount:
+        livePicksData.runners.length,
+      scoringRaceCount:
+        livePicksData.races.length,
+    },
+  );
 
   return (
     <AppEntryLoader>
