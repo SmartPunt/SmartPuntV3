@@ -732,7 +732,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               value={customRunnerId}
               onChange={(event) => setCustomRunnerId(event.target.value)}
               required
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/12 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
             >
 <option value="" className="bg-zinc-900 text-zinc-100">
   Choose horse
@@ -759,7 +759,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
             <select
               name="bet_type"
               required
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/12 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
             >
 <option value="Win" className="bg-zinc-900 text-zinc-100">
   Win
@@ -779,7 +779,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               step="0.01"
               required
               placeholder="e.g. 4.20"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-amber-400"
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/12 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-amber-400"
             />
           </label>
 
