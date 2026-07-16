@@ -711,15 +711,22 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               required
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
             >
-<option value="" className="bg-zinc-900 text-zinc-100">
+<option
+  value=""
+  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
+>
   Choose race
 </option>
               {todayRaces.map((race) => {
                 const meeting = meetingMap.get(Number(race.meeting_id)) || null;
                 return (
-                  <option key={race.id} value={race.id} className="bg-black text-white">
-{meeting?.meeting_name || "Meeting"} • Race {race.race_number}
-                  </option>
+<option
+  key={race.id}
+  value={race.id}
+  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
+>
+  {meeting?.meeting_name || "Meeting"} • Race {race.race_number}
+</option>
                 );
               })}
             </select>
@@ -734,7 +741,10 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               required
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/12 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
             >
-<option value="" className="bg-zinc-900 text-zinc-100">
+<option
+  value=""
+  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
+>
   Choose horse
 </option>
               {runners
@@ -742,10 +752,14 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                 .map((runner) => {
                   const horse = horseMap.get(Number(runner.horse_id));
                   return (
-                    <option key={runner.id} value={runner.id} className="bg-black text-white">
-{runner.runner_number ? `[${runner.runner_number}] ` : ""}
-{horse?.horse_name || `Runner ${runner.id}`}
-                    </option>
+<option
+  key={runner.id}
+  value={runner.id}
+  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
+>
+  {runner.runner_number ? `[${runner.runner_number}] ` : ""}
+  {horse?.horse_name || `Runner ${runner.id}`}
+</option>
                   );
                 })}
             </select>
@@ -761,10 +775,16 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               required
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/12 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
             >
-<option value="Win" className="bg-zinc-900 text-zinc-100">
+<option
+  value="Win"
+  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
+>
   Win
 </option>
-<option value="Place" className="bg-zinc-900 text-zinc-100">
+<option
+  value="Place"
+  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
+>
   Place
 </option>
             </select>
