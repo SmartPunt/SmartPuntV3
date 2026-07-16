@@ -234,40 +234,104 @@ export async function loadSubscriberLivePicksData({
 }: {
   userId: string;
 }): Promise<SubscriberLivePicksData> {
+  const totalStartedAt = Date.now();
+
+  function logStage(
+    stage: string,
+    startedAt: number,
+    details?: Record<string, unknown>,
+  ) {
+    console.info("[SmartPunt Performance]", {
+      area: "subscriber-live-picks-loader",
+      stage,
+      durationMs: Date.now() - startedAt,
+      ...details,
+    });
+  }
+
+  const clientStartedAt = Date.now();
   const supabase = await createClient();
+
+  logStage("create Supabase client", clientStartedAt);
+
+  const dateStartedAt = Date.now();
 
   const yesterday = getPerthDate(-1);
   const today = getPerthDate(0);
   const tomorrow = getPerthDate(1);
-  const loadedMeetingDates = [yesterday, today, tomorrow];
+  const loadedMeetingDates = [
+    yesterday,
+    today,
+    tomorrow,
+  ];
 
-  const { data: currentMeetingsData, error: meetingsError } = await supabase
+  logStage("build Perth dates", dateStartedAt, {
+    yesterday,
+    today,
+    tomorrow,
+  });
+
+  const currentMeetingsStartedAt = Date.now();
+
+  const {
+    data: currentMeetingsData,
+    error: meetingsError,
+  } = await supabase
     .from("meetings")
     .select("*")
     .in("meeting_date", loadedMeetingDates)
-    .order("meeting_date", { ascending: true })
-    .order("meeting_name", { ascending: true });
+    .order("meeting_date", {
+      ascending: true,
+    })
+    .order("meeting_name", {
+      ascending: true,
+    });
 
   if (meetingsError) {
     throw new Error(meetingsError.message);
   }
 
-  const currentMeetings = currentMeetingsData ?? [];
+  const currentMeetings =
+    currentMeetingsData ?? [];
+
   const currentMeetingIds = uniqueNumbers(
-    currentMeetings.map((meeting: any) => meeting.id),
+    currentMeetings.map(
+      (meeting: any) => meeting.id,
+    ),
   );
+
+  logStage(
+    "load current meetings",
+    currentMeetingsStartedAt,
+    {
+      rowCount: currentMeetings.length,
+      meetingIdCount:
+        currentMeetingIds.length,
+    },
+  );
+
+  const currentRacesStartedAt = Date.now();
 
   let currentRaces: any[] = [];
 
   if (currentMeetingIds.length) {
-    for (const meetingIdChunk of chunk(currentMeetingIds)) {
+    for (const meetingIdChunk of chunk(
+      currentMeetingIds,
+    )) {
       const { data, error } = await supabase
         .from("races")
         .select("*")
-        .in("status", ["published", "closed"])
+        .in("status", [
+          "published",
+          "closed",
+        ])
         .in("meeting_id", meetingIdChunk)
-        .order("meeting_id", { ascending: true })
-        .order("race_number", { ascending: true });
+        .order("meeting_id", {
+          ascending: true,
+        })
+        .order("race_number", {
+          ascending: true,
+        });
 
       if (error) {
         throw new Error(error.message);
@@ -277,25 +341,60 @@ export async function loadSubscriberLivePicksData({
     }
   }
 
-  const currentRaceIds = uniqueNumbers(currentRaces.map((race) => race.id));
+  const currentRaceIds = uniqueNumbers(
+    currentRaces.map((race) => race.id),
+  );
 
-  const currentRunners = currentRaceIds.length
-    ? await fetchRowsByNumberColumn<any>({
-        supabase,
-        table: "race_runners",
-        column: "race_id",
-        values: currentRaceIds,
-        orders: [
-          { column: "race_id", ascending: true },
-          { column: "barrier", ascending: true },
-          { column: "id", ascending: true },
-        ],
-      })
-    : [];
+  logStage(
+    "load current races",
+    currentRacesStartedAt,
+    {
+      rowCount: currentRaces.length,
+      raceIdCount: currentRaceIds.length,
+    },
+  );
+
+  const currentRunnersStartedAt = Date.now();
+
+  const currentRunners =
+    currentRaceIds.length
+      ? await fetchRowsByNumberColumn<any>({
+          supabase,
+          table: "race_runners",
+          column: "race_id",
+          values: currentRaceIds,
+          orders: [
+            {
+              column: "race_id",
+              ascending: true,
+            },
+            {
+              column: "barrier",
+              ascending: true,
+            },
+            {
+              column: "id",
+              ascending: true,
+            },
+          ],
+        })
+      : [];
+
+  logStage(
+    "load current runners",
+    currentRunnersStartedAt,
+    {
+      rowCount: currentRunners.length,
+    },
+  );
 
   const activeHorseIds = uniqueNumbers(
-    currentRunners.map((runner) => runner.horse_id),
+    currentRunners.map(
+      (runner) => runner.horse_id,
+    ),
   );
+
+  const horsesStartedAt = Date.now();
 
   const horses = await fetchRowsByIds<any>({
     supabase,
@@ -303,119 +402,322 @@ export async function loadSubscriberLivePicksData({
     ids: activeHorseIds,
   });
 
-  const resultedHistoricalRunners = activeHorseIds.length
-    ? await fetchRowsByNumberColumn<any>({
-        supabase,
-        table: "race_runners",
-        column: "horse_id",
-        values: activeHorseIds,
-        notNullColumns: ["finishing_position"],
-        orders: [{ column: "id", ascending: true }],
-      })
-    : [];
+  logStage(
+    "load active horses",
+    horsesStartedAt,
+    {
+      rowCount: horses.length,
+      horseIdCount: activeHorseIds.length,
+    },
+  );
+
+  const historicalRunnersStartedAt =
+    Date.now();
+
+  const resultedHistoricalRunners =
+    activeHorseIds.length
+      ? await fetchRowsByNumberColumn<any>({
+          supabase,
+          table: "race_runners",
+          column: "horse_id",
+          values: activeHorseIds,
+          notNullColumns: [
+            "finishing_position",
+          ],
+          orders: [
+            {
+              column: "id",
+              ascending: true,
+            },
+          ],
+        })
+      : [];
+
+  logStage(
+    "load historical resulted runners",
+    historicalRunnersStartedAt,
+    {
+      rowCount:
+        resultedHistoricalRunners.length,
+      horseIdCount: activeHorseIds.length,
+    },
+  );
+
+  const runnerMapStartedAt = Date.now();
 
   const runnerMap = new Map<number, any>();
 
-  [...resultedHistoricalRunners, ...currentRunners].forEach((runner) => {
-    runnerMap.set(Number(runner.id), runner);
+  [
+    ...resultedHistoricalRunners,
+    ...currentRunners,
+  ].forEach((runner) => {
+    runnerMap.set(
+      Number(runner.id),
+      runner,
+    );
   });
 
-  const runners = Array.from(runnerMap.values());
+  const runners = Array.from(
+    runnerMap.values(),
+  );
+
+  logStage(
+    "build combined runner map",
+    runnerMapStartedAt,
+    {
+      rowCount: runners.length,
+    },
+  );
 
   const requiredRaceIds = uniqueNumbers([
     ...currentRaceIds,
-    ...resultedHistoricalRunners.map((runner) => runner.race_id),
+    ...resultedHistoricalRunners.map(
+      (runner) => runner.race_id,
+    ),
   ]);
 
-  const historicalAndCurrentRaces = await fetchRowsByIds<any>({
-    supabase,
-    table: "races",
-    ids: requiredRaceIds,
-  });
+  const historicalRacesStartedAt =
+    Date.now();
+
+  const historicalAndCurrentRaces =
+    await fetchRowsByIds<any>({
+      supabase,
+      table: "races",
+      ids: requiredRaceIds,
+    });
+
+  logStage(
+    "load historical and current races",
+    historicalRacesStartedAt,
+    {
+      rowCount:
+        historicalAndCurrentRaces.length,
+      requiredRaceIdCount:
+        requiredRaceIds.length,
+    },
+  );
+
+  const raceMapStartedAt = Date.now();
 
   const raceMap = new Map<number, any>();
 
-  [...historicalAndCurrentRaces, ...currentRaces].forEach((race) => {
+  [
+    ...historicalAndCurrentRaces,
+    ...currentRaces,
+  ].forEach((race) => {
     raceMap.set(Number(race.id), race);
   });
 
-  const races = Array.from(raceMap.values());
+  const races = Array.from(
+    raceMap.values(),
+  );
 
-  const requiredMeetingIds = uniqueNumbers([
-    ...currentMeetingIds,
-    ...races.map((race) => race.meeting_id),
-  ]);
+  logStage(
+    "build combined race map",
+    raceMapStartedAt,
+    {
+      rowCount: races.length,
+    },
+  );
 
-  const historicalAndCurrentMeetings = await fetchRowsByIds<any>({
-    supabase,
-    table: "meetings",
-    ids: requiredMeetingIds,
-  });
+  const requiredMeetingIds =
+    uniqueNumbers([
+      ...currentMeetingIds,
+      ...races.map(
+        (race) => race.meeting_id,
+      ),
+    ]);
+
+  const historicalMeetingsStartedAt =
+    Date.now();
+
+  const historicalAndCurrentMeetings =
+    await fetchRowsByIds<any>({
+      supabase,
+      table: "meetings",
+      ids: requiredMeetingIds,
+    });
+
+  logStage(
+    "load historical and current meetings",
+    historicalMeetingsStartedAt,
+    {
+      rowCount:
+        historicalAndCurrentMeetings.length,
+      requiredMeetingIdCount:
+        requiredMeetingIds.length,
+    },
+  );
+
+  const meetingMapStartedAt = Date.now();
 
   const meetingMap = new Map<number, any>();
 
-  [...historicalAndCurrentMeetings, ...currentMeetings].forEach((meeting) => {
-    meetingMap.set(Number(meeting.id), meeting);
+  [
+    ...historicalAndCurrentMeetings,
+    ...currentMeetings,
+  ].forEach((meeting) => {
+    meetingMap.set(
+      Number(meeting.id),
+      meeting,
+    );
   });
 
-  const meetings = Array.from(meetingMap.values());
-
-  const activeJockeyNames = uniqueStrings(
-    currentRunners.map((runner) => runner.jockey_name),
+  const meetings = Array.from(
+    meetingMap.values(),
   );
+
+  logStage(
+    "build combined meeting map",
+    meetingMapStartedAt,
+    {
+      rowCount: meetings.length,
+    },
+  );
+
+  const activeJockeyNames =
+    uniqueStrings(
+      currentRunners.map(
+        (runner) => runner.jockey_name,
+      ),
+    );
+
+  const jockeyProfilesStartedAt =
+    Date.now();
 
   let jockeyProfiles: any[] = [];
 
   if (activeJockeyNames.length) {
-    for (const nameChunk of chunk(activeJockeyNames)) {
-      const { data, error } = await supabase
-        .from("jockey_profiles")
-        .select("*")
-        .in("jockey_name", nameChunk);
+    for (const nameChunk of chunk(
+      activeJockeyNames,
+    )) {
+      const { data, error } =
+        await supabase
+          .from("jockey_profiles")
+          .select("*")
+          .in("jockey_name", nameChunk);
 
       if (error) {
         throw new Error(error.message);
       }
 
-      jockeyProfiles.push(...(data ?? []));
+      jockeyProfiles.push(
+        ...(data ?? []),
+      );
     }
   }
 
-  const calculatorTips = currentRaceIds.length
-    ? await fetchServiceRoleRowsByRaceIds<any>({
-        table: "smartpunt_calculator_tips",
-        select: "*",
-        raceIds: currentRaceIds,
-        order: "published_at.desc",
-      })
-    : [];
+  logStage(
+    "load jockey profiles",
+    jockeyProfilesStartedAt,
+    {
+      rowCount: jockeyProfiles.length,
+      jockeyNameCount:
+        activeJockeyNames.length,
+    },
+  );
 
-  const officialTips = currentRaceIds.length
-    ? await fetchServiceRoleRowsByRaceIds<any>({
-        table: "suggested_tips",
-        select: "*",
-        raceIds: currentRaceIds,
-        order: "created_at.desc",
-      })
-    : [];
+  const calculatorTipsStartedAt =
+    Date.now();
 
-  const activeUserBets = currentRaceIds.length
-    ? await fetchServiceRoleRowsByRaceIds<any>({
-        table: "user_bets",
-        select: "*",
-        raceIds: currentRaceIds,
-        order: "created_at.desc",
-      }).then((rows) =>
-        rows.filter(
-          (row) =>
-            String(row.user_id || "") === String(userId || "") &&
-            !row.settled_at,
-        ),
-      )
-    : [];
+  const calculatorTips =
+    currentRaceIds.length
+      ? await fetchServiceRoleRowsByRaceIds<any>(
+          {
+            table:
+              "smartpunt_calculator_tips",
+            select: "*",
+            raceIds: currentRaceIds,
+            order: "published_at.desc",
+          },
+        )
+      : [];
+
+  logStage(
+    "load calculator tips",
+    calculatorTipsStartedAt,
+    {
+      rowCount: calculatorTips.length,
+    },
+  );
+
+  const officialTipsStartedAt =
+    Date.now();
+
+  const officialTips =
+    currentRaceIds.length
+      ? await fetchServiceRoleRowsByRaceIds<any>(
+          {
+            table: "suggested_tips",
+            select: "*",
+            raceIds: currentRaceIds,
+            order: "created_at.desc",
+          },
+        )
+      : [];
+
+  logStage(
+    "load official tips",
+    officialTipsStartedAt,
+    {
+      rowCount: officialTips.length,
+    },
+  );
+
+  const activeUserBetsStartedAt =
+    Date.now();
+
+  const activeUserBets =
+    currentRaceIds.length
+      ? await fetchServiceRoleRowsByRaceIds<any>(
+          {
+            table: "user_bets",
+            select: "*",
+            raceIds: currentRaceIds,
+            order: "created_at.desc",
+          },
+        ).then((rows) =>
+          rows.filter(
+            (row) =>
+              String(row.user_id || "") ===
+                String(userId || "") &&
+              !row.settled_at,
+          ),
+        )
+      : [];
+
+  logStage(
+    "load and filter active user bets",
+    activeUserBetsStartedAt,
+    {
+      rowCount: activeUserBets.length,
+    },
+  );
+
+  logStage(
+    "TOTAL live picks data loader",
+    totalStartedAt,
+    {
+      currentMeetingCount:
+        currentMeetings.length,
+      currentRaceCount:
+        currentRaces.length,
+      currentRunnerCount:
+        currentRunners.length,
+      historicalRunnerCount:
+        resultedHistoricalRunners.length,
+      combinedRaceCount: races.length,
+      combinedMeetingCount:
+        meetings.length,
+    },
+  );
 
   return {
-    dayDates: { yesterday, today, tomorrow },
+    dayDates: {
+      yesterday,
+      today,
+      tomorrow,
+    },
     currentMeetings,
     currentRaces,
     currentRaceIds,
