@@ -711,7 +711,9 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               required
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
             >
-              <option value="">Choose race</option>
+<option value="" className="bg-zinc-900 text-zinc-100">
+  Choose race
+</option>
               {todayRaces.map((race) => {
                 const meeting = meetingMap.get(Number(race.meeting_id)) || null;
                 return (
@@ -732,7 +734,9 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               required
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
             >
-              <option value="">Choose horse</option>
+<option value="" className="bg-zinc-900 text-zinc-100">
+  Choose horse
+</option>
               {runners
                 .filter((runner) => runner.scratched !== true)
                 .map((runner) => {
@@ -757,8 +761,12 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               required
               className="mt-2 w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
             >
-              <option value="Win" className="bg-black text-white">Win</option>
-              <option value="Place" className="bg-black text-white">Place</option>
+<option value="Win" className="bg-zinc-900 text-zinc-100">
+  Win
+</option>
+<option value="Place" className="bg-zinc-900 text-zinc-100">
+  Place
+</option>
             </select>
           </label>
 
