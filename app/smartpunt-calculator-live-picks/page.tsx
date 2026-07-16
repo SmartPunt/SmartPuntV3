@@ -4,6 +4,7 @@ import SubscriberCalculatorLivePicks from "@/components/subscriber-calculator-li
 import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
 
 export const dynamic = "force-dynamic";
+export const preferredRegion = "hnd1";
 
 export default async function Page({
   searchParams,
