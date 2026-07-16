@@ -701,7 +701,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 
           <label className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
             Race
-            <select
+                       <select
               name="race_id"
               value={customRaceId}
               onChange={(event) => {
@@ -709,24 +709,25 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                 setCustomRunnerId("");
               }}
               required
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
+              className="mt-2 w-full rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-950 outline-none focus:border-amber-400"
+              style={{
+                colorScheme: "light",
+                backgroundColor: "#f4f4f5",
+                color: "#18181b",
+                WebkitTextFillColor: "#18181b",
+              }}
             >
-<option
-  value=""
-  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
->
-  Choose race
-</option>
+              <option value="">Choose race</option>
+
               {todayRaces.map((race) => {
-                const meeting = meetingMap.get(Number(race.meeting_id)) || null;
+                const meeting =
+                  meetingMap.get(Number(race.meeting_id)) || null;
+
                 return (
-<option
-  key={race.id}
-  value={race.id}
-  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
->
-  {meeting?.meeting_name || "Meeting"} • Race {race.race_number}
-</option>
+                  <option key={race.id} value={race.id}>
+                    {meeting?.meeting_name || "Meeting"} • Race{" "}
+                    {race.race_number}
+                  </option>
                 );
               })}
             </select>
@@ -734,32 +735,37 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 
           <label className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
             Horse
-            <select
+                        <select
               name="race_runner_id"
               value={customRunnerId}
-              onChange={(event) => setCustomRunnerId(event.target.value)}
+              onChange={(event) =>
+                setCustomRunnerId(event.target.value)
+              }
               required
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/12 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
+              className="mt-2 w-full rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-950 outline-none focus:border-amber-400"
+              style={{
+                colorScheme: "light",
+                backgroundColor: "#f4f4f5",
+                color: "#18181b",
+                WebkitTextFillColor: "#18181b",
+              }}
             >
-<option
-  value=""
-  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
->
-  Choose horse
-</option>
+              <option value="">Choose horse</option>
+
               {runners
                 .filter((runner) => runner.scratched !== true)
                 .map((runner) => {
-                  const horse = horseMap.get(Number(runner.horse_id));
+                  const horse = horseMap.get(
+                    Number(runner.horse_id),
+                  );
+
                   return (
-<option
-  key={runner.id}
-  value={runner.id}
-  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
->
-  {runner.runner_number ? `[${runner.runner_number}] ` : ""}
-  {horse?.horse_name || `Runner ${runner.id}`}
-</option>
+                    <option key={runner.id} value={runner.id}>
+                      {runner.runner_number
+                        ? `[${runner.runner_number}] `
+                        : ""}
+                      {horse?.horse_name || `Runner ${runner.id}`}
+                    </option>
                   );
                 })}
             </select>
@@ -770,23 +776,19 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 
           <label className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
             Bet type
-            <select
+               <select
               name="bet_type"
               required
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/12 px-4 py-3 text-sm text-white outline-none focus:border-amber-400"
+              className="mt-2 w-full rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-950 outline-none focus:border-amber-400"
+              style={{
+                colorScheme: "light",
+                backgroundColor: "#f4f4f5",
+                color: "#18181b",
+                WebkitTextFillColor: "#18181b",
+              }}
             >
-<option
-  value="Win"
-  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
->
-  Win
-</option>
-<option
-  value="Place"
-  style={{ backgroundColor: "#ffffff", color: "#18181b" }}
->
-  Place
-</option>
+              <option value="Win">Win</option>
+              <option value="Place">Place</option>
             </select>
           </label>
 
