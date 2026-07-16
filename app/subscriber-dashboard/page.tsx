@@ -6,7 +6,6 @@ import SubscriberDashboard from "@/components/subscriber-dashboard";
 import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
 import { syncVaultNotifications } from "@/lib/vault-matching";
 
-export const preferredRegion = "hnd1";
 
 async function fetchAllRows<T>({
   pageSize = 1000,
