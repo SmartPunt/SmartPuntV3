@@ -1,6 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import {
   useEffect,
   useRef,
@@ -12,9 +15,11 @@ import {
   searchVaultHorsesAction,
   type VaultHorseSearchResult,
 } from "@/lib/vault-actions";
+import VaultDoorIcon from "@/components/vault-door-icon";
 
 export default function VaultHorseSearch() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<VaultHorseSearchResult[]>([]);
@@ -28,6 +33,46 @@ export default function VaultHorseSearch() {
   const [isSaving, startSaveTransition] = useTransition();
 
   const searchRequestId = useRef(0);
+  const preselectedHorseHandled = useRef(false);
+
+  useEffect(() => {
+    if (preselectedHorseHandled.current) {
+      return;
+    }
+
+    const horseIdValue = searchParams.get("horseId");
+    const horseNameValue = searchParams
+      .get("horseName")
+      ?.trim();
+
+    if (!horseIdValue || !horseNameValue) {
+      return;
+    }
+
+    const horseId = Number(horseIdValue);
+
+    if (!Number.isFinite(horseId) || horseId <= 0) {
+      return;
+    }
+
+    preselectedHorseHandled.current = true;
+
+    chooseHorse({
+      id: horseId,
+      horse_name: horseNameValue,
+      age: null,
+      sex: null,
+    } as VaultHorseSearchResult);
+
+    window.setTimeout(() => {
+      document
+        .getElementById("add-to-vault")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    }, 100);
+  }, [searchParams]);
 
   useEffect(() => {
     const cleanedSearch = search.trim();
@@ -120,6 +165,7 @@ export default function VaultHorseSearch() {
       setSelectedHorse(null);
       setAlertName("");
 
+      router.replace("/the-vault#add-to-vault");
       router.refresh();
     });
   }
@@ -260,9 +306,15 @@ export default function VaultHorseSearch() {
         type="button"
         onClick={saveHorse}
         disabled={!selectedHorse || isSaving}
-        className="mt-5 w-full rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-5 py-3 text-sm font-black uppercase tracking-[0.12em] text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-5 py-3 text-sm font-black uppercase tracking-[0.12em] text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
       >
-        {isSaving ? "Adding To Vault..." : "Add Horse To Vault"}
+        <VaultDoorIcon className="h-6 w-6 shrink-0" />
+
+        <span>
+          {isSaving
+            ? "Adding To Vault..."
+            : "Add Horse To Vault"}
+        </span>
       </button>
 
       {message ? (
