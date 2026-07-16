@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { addUserBetAction } from "@/lib/actions";
+import VaultDoorIcon from "@/components/vault-door-icon";
 import {
   buildHorseHistory,
   calculateRaceConfidence,
@@ -1757,6 +1758,9 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                           <th className="px-3 py-3 font-black">Win</th>
                           <th className="px-3 py-3 font-black">Place</th>
                           <th className="px-3 py-3 font-black">Verdict</th>
+                          <th className="px-3 py-3 font-black text-center">
+                            Vault
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10 bg-black/35">
@@ -1863,6 +1867,21 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                                       ? qualifiedTip?.type
                                       : "No Bet"}
                                 </span>
+                              </td>
+
+                              <td className="px-3 py-3 text-center">
+                                <Link
+                                  href={`/the-vault?horseId=${encodeURIComponent(
+                                    String(runner.horse_id),
+                                  )}&horseName=${encodeURIComponent(
+                                    runner.horse_name,
+                                  )}#add-to-vault`}
+                                  title={`Add ${runner.horse_name} to The Vault`}
+                                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/45 bg-amber-400/10 px-2.5 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20"
+                                >
+                                  <VaultDoorIcon className="h-5 w-5 shrink-0" />
+                                  <span>Vault</span>
+                                </Link>
                               </td>
                             </tr>
                           );
