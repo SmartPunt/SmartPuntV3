@@ -4,7 +4,7 @@ import AppEntryLoader from "@/components/app-entry-loader";
 import { getCurrentProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import VaultHorseSearch from "@/components/vault-horse-search";
-import VaultAlertEditor from "@/components/vault-alert-editor";
+import VaultSavedAlertsPanel from "@/components/vault-saved-alerts-panel";
 import type { VaultEditableAlert } from "@/lib/vault-actions";
 import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
 import {
@@ -346,55 +346,7 @@ const enabledAlertCount = alerts.filter(
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">
-                    My Vault
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-black tracking-tight text-white">
-                    Saved Alerts
-                  </h2>
-
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Your saved horses and personalised racing rules.
-                  </p>
-                </div>
-
-                <span className="flex h-11 min-w-11 items-center justify-center rounded-full border border-amber-300/35 bg-amber-300/10 px-3 text-sm font-black text-amber-200">
-                  {alerts.length}
-                </span>
-              </div>
-
-              <div className="mt-5">
-                {alerts.length > 0 ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-{alerts.map((alert) => (
-  <VaultAlertEditor
-    key={alert.id}
-    alert={alert}
-  />
-))}
-                  </div>
-                ) : (
-                  <div className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/5 p-7 text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-2xl">
-                      🔐
-                    </div>
-
-                    <h3 className="mt-4 text-lg font-black text-white">
-                      Your Vault is empty
-                    </h3>
-
-                   <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-400">
-  Search above to add your first horse. Saved horses will
-  appear here and begin watching current and upcoming races.
-</p>
-                  </div>
-                )}
-              </div>
-            </section>
+              <VaultSavedAlertsPanel alerts={alerts} />
 
             <section className="rounded-[2rem] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.92),rgba(24,24,27,0.95))] p-5 shadow-2xl shadow-black/30">
               <p className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-300">
