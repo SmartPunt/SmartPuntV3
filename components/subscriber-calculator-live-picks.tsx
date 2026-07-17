@@ -62,6 +62,11 @@ type UserBet = {
   race?: string | null;
   bet_type?: string | null;
   odds_taken?: number | string | null;
+  stake_points?: number | string | null;
+  win_odds_taken?: number | string | null;
+  place_odds_taken?: number | string | null;
+  win_stake_points?: number | string | null;
+  place_stake_points?: number | string | null;
   settled_at?: string | null;
 };
 
@@ -252,16 +257,51 @@ function TipAcceptanceControl({
   buttonLabel?: string;
 }) {
   const isOpen = activeKey === tipKey;
+  const betType = String(hiddenFields.bet_type || "Win")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+
+  const isEachWay =
+    betType === "each way" ||
+    betType === "eachway" ||
+    betType.includes("each way");
 
   if (activeBet) {
+    const activeBetType = String(activeBet.bet_type || "").toLowerCase();
+    const activeIsEachWay =
+      activeBetType === "each way" ||
+      activeBetType === "eachway" ||
+      activeBetType.includes("each way");
+
     return (
       <div className="mt-3 rounded-2xl border border-emerald-300/30 bg-emerald-500/15 px-3 py-2">
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
           🟢 On My Tips
         </p>
-        <p className="mt-1 text-[11px] font-semibold text-emerald-50/85">
-          Odds taken: {formatOdds(activeBet.odds_taken)}
-        </p>
+
+        {activeIsEachWay ? (
+          <div className="mt-2 space-y-1 text-[11px] font-semibold text-emerald-50/85">
+            <p>
+              Win: {formatOdds(activeBet.win_odds_taken)} odds · $
+              {Number(activeBet.win_stake_points || 0).toFixed(2)}
+            </p>
+            <p>
+              Place: {formatOdds(activeBet.place_odds_taken)} odds · $
+              {Number(activeBet.place_stake_points || 0).toFixed(2)}
+            </p>
+            <p className="font-black text-emerald-100">
+              Total stake: ${Number(activeBet.stake_points || 0).toFixed(2)}
+            </p>
+          </div>
+        ) : (
+          <div className="mt-2 space-y-1 text-[11px] font-semibold text-emerald-50/85">
+            <p>Odds taken: {formatOdds(activeBet.odds_taken)}</p>
+            <p>
+              Stake: ${Number(activeBet.stake_points || 0).toFixed(2)}
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -284,21 +324,107 @@ function TipAcceptanceControl({
       className="mt-3 rounded-2xl border border-emerald-300/25 bg-black/45 p-3"
     >
       {Object.entries(hiddenFields).map(([name, value]) => (
-        <input key={name} type="hidden" name={name} value={hiddenValue(value)} />
+        <input
+          key={name}
+          type="hidden"
+          name={name}
+          value={hiddenValue(value)}
+        />
       ))}
 
-      <label className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100/85">
-        Odds taken
-        <input
-          type="number"
-          name="odds_taken"
-          min="1.01"
-          step="0.01"
-          required
-          placeholder="e.g. 3.40"
-          className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-black text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
-        />
-      </label>
+      {isEachWay ? (
+        <>
+          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100">
+            Each Way Bet
+          </p>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <label className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              Win odds
+              <input
+                type="number"
+                name="win_odds_taken"
+                min="1.01"
+                step="0.01"
+                required
+                placeholder="e.g. 5.00"
+                className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-black text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
+              />
+            </label>
+
+            <label className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              Win stake
+              <input
+                type="number"
+                name="win_stake_points"
+                min="0.01"
+                step="0.01"
+                required
+                placeholder="e.g. 10"
+                className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-black text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
+              />
+            </label>
+
+            <label className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              Place odds
+              <input
+                type="number"
+                name="place_odds_taken"
+                min="1.01"
+                step="0.01"
+                required
+                placeholder="e.g. 2.00"
+                className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-black text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
+              />
+            </label>
+
+            <label className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
+              Place stake
+              <input
+                type="number"
+                name="place_stake_points"
+                min="0.01"
+                step="0.01"
+                required
+                placeholder="e.g. 10"
+                className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-black text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
+              />
+            </label>
+          </div>
+
+          <p className="mt-2 text-[9px] font-semibold leading-4 text-zinc-400">
+            Total stake will be the Win stake plus the Place stake.
+          </p>
+        </>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100/85">
+            Odds taken
+            <input
+              type="number"
+              name="odds_taken"
+              min="1.01"
+              step="0.01"
+              required
+              placeholder="e.g. 3.40"
+              className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-black text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
+            />
+          </label>
+
+          <label className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100/85">
+            Stake
+            <input
+              type="number"
+              name="stake_points"
+              min="0.01"
+              step="0.01"
+              required
+              placeholder="e.g. 10"
+              className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-black text-white outline-none placeholder:text-white/35 focus:border-emerald-300"
+            />
+          </label>
+        </div>
+      )}
 
       <div className="mt-3 flex gap-2">
         <button
@@ -308,6 +434,7 @@ function TipAcceptanceControl({
         >
           {isSaving ? "Saving..." : "Save Tip"}
         </button>
+
         <button
           type="button"
           onClick={() => setActiveKey(null)}
