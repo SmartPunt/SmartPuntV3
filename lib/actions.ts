@@ -162,7 +162,126 @@ async function serviceRoleSelect(path: string) {
     },
   });
 }
+export async function getCalculatorSuccessStatsAction({
+  from,
+  to,
+}: {
+  from: string;
+  to: string;
+}) {
+  try {
+    const profile = await getCurrentProfile();
 
+    if (!profile || profile.status !== "active") {
+      return {
+        success: false,
+        error: "Unauthorized",
+        total: 0,
+        successful: 0,
+        percentage: 0,
+      };
+    }
+
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (
+      !datePattern.test(from) ||
+      !datePattern.test(to)
+    ) {
+      return {
+        success: false,
+        error: "A valid date range is required.",
+        total: 0,
+        successful: 0,
+        percentage: 0,
+      };
+    }
+
+    const rows = (await serviceRoleSelect(
+      `calculator_predictions?select=id,smartpunt_tip_type,won,placed,finishing_position,settled_at,is_smartpunt_tip&is_smartpunt_tip=eq.true&smartpunt_tip_type=in.(Win,Place)&settled_at=not.is.null`,
+    )) as Array<{
+      id: number;
+      smartpunt_tip_type: string | null;
+      won: boolean | null;
+      placed: boolean | null;
+      finishing_position: number | null;
+      settled_at: string | null;
+      is_smartpunt_tip: boolean | null;
+    }> | null;
+
+    function getPerthDateKey(
+      value: string | null | undefined,
+    ) {
+      if (!value) return null;
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Australia/Perth",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+    }
+
+    const rangeRows = (rows || []).filter((row) => {
+      const settledDate =
+        getPerthDateKey(row.settled_at);
+
+      if (!settledDate) return false;
+
+      return (
+        settledDate >= from &&
+        settledDate <= to
+      );
+    });
+
+    const successful = rangeRows.filter((row) => {
+      const betType = String(
+        row.smartpunt_tip_type || "",
+      )
+        .trim()
+        .toLowerCase();
+
+      if (betType === "place") {
+        return row.placed === true;
+      }
+
+      return (
+        row.won === true ||
+        Number(row.finishing_position || 0) === 1
+      );
+    }).length;
+
+    const total = rangeRows.length;
+
+    return {
+      success: true,
+      error: null,
+      total,
+      successful,
+      percentage:
+        total > 0
+          ? (successful / total) * 100
+          : 0,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to load Calculator success statistics.",
+      total: 0,
+      successful: 0,
+      percentage: 0,
+    };
+  }
+}
 async function serviceRolePatch(path: string, body: Record<string, unknown>) {
   await serviceRoleFetch(path, {
     method: "PATCH",
