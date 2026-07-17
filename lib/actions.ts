@@ -5139,12 +5139,101 @@ export async function settleRaceRunnersAction(
       });
     }
 
-    if (!updates.length) {
-      return { success: false, error: "No runner results were submitted." };
-    }
+if (!updates.length) {
+  return {
+    success: false,
+    error: "No runner results were submitted.",
+  };
+}
 
+const submittedRunnerIds = new Set(
+  updates.map((update) => update.id),
+);
 
-    const rpcResults = updates.map((update) => ({
+const raceRunnerIds = new Set(
+  (raceRunners || []).map(
+    (runner: any) => Number(runner.id),
+  ),
+);
+
+const unknownRunner = updates.find(
+  (update) => !raceRunnerIds.has(update.id),
+);
+
+if (unknownRunner) {
+  return {
+    success: false,
+    error:
+      "One or more submitted runners do not belong to this race.",
+  };
+}
+
+const activeRaceRunners = (raceRunners || []).filter(
+  (runner: any) => runner.scratched !== true,
+);
+
+const activeRunnerCount = activeRaceRunners.length;
+
+const missingActiveRunner = activeRaceRunners.find(
+  (runner: any) =>
+    !submittedRunnerIds.has(Number(runner.id)),
+);
+
+if (missingActiveRunner) {
+  return {
+    success: false,
+    error:
+      "Every active runner must have a submitted result.",
+  };
+}
+
+const activeUpdates = updates.filter(
+  (update) => scratchedMap.get(update.id) !== true,
+);
+
+const invalidFinish = activeUpdates.find(
+  (update) =>
+    update.finishing_position === null ||
+    !Number.isInteger(update.finishing_position) ||
+    update.finishing_position < 1 ||
+    update.finishing_position > activeRunnerCount,
+);
+
+if (invalidFinish) {
+  return {
+    success: false,
+    error: `Finishing positions must be whole numbers from 1 to ${activeRunnerCount}.`,
+  };
+}
+
+const hasWinner = activeUpdates.some(
+  (update) => update.finishing_position === 1,
+);
+
+if (!hasWinner) {
+  return {
+    success: false,
+    error:
+      "At least one runner must be entered as finishing position 1.",
+  };
+}
+
+const invalidStartingPrice = activeUpdates.find(
+  (update) =>
+    update.starting_price === null ||
+    !Number.isFinite(update.starting_price) ||
+    update.starting_price <= 1,
+);
+
+if (invalidStartingPrice) {
+  return {
+    success: false,
+    error:
+      "Every active runner must have a starting price greater than 1.00.",
+  };
+}
+
+const rpcResults = updates.map((update) => ({
       runner_id: update.id,
       finishing_position: update.finishing_position,
       starting_price: update.starting_price,
