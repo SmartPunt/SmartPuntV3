@@ -21,6 +21,7 @@ export default async function Page({
 
   const livePicksData = await loadSubscriberLivePicksData({
     userId: profile.id,
+    includeCalculatorPredictions: true,
   });
 
   return (
