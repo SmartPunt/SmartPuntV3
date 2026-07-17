@@ -278,6 +278,9 @@ initialVaultMatchCount?: number;
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
   const [customRunnerId, setCustomRunnerId] = useState("");
+  const [customBetType, setCustomBetType] = useState<
+    "Win" | "Place" | "Each Way"
+  >("Win");
   const [customBetMessage, setCustomBetMessage] = useState("");
   const [customBetError, setCustomBetError] = useState("");
   const router = useRouter();
@@ -593,58 +596,155 @@ initialVaultMatchCount?: number;
     if (result.success) {
       setCustomRaceId("");
       setCustomRunnerId("");
+      setCustomBetType("Win");
       setCustomBetMessage("Added to My Bets.");
+      router.refresh();
       return;
     }
 
     setCustomBetError(result.error || "Could not add this pick.");
   }
 
-  function renderOddsInput(dark = true) {
+  function renderBetInputs(betType: string, dark = true) {
+    const normalisedBetType = String(betType || "Win")
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, " ");
+
+    const isEachWay =
+      normalisedBetType === "each way" ||
+      normalisedBetType === "eachway" ||
+      normalisedBetType.includes("each way");
+
+    const inputClasses = dark
+      ? "border-white/15 bg-white/8 text-white placeholder:text-zinc-500"
+      : "border-zinc-300 bg-white text-zinc-950 placeholder:text-zinc-400";
+
+    if (isEachWay) {
+      return (
+        <div className="grid w-full grid-cols-2 gap-2">
+          <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+            Win odds
+            <input
+              type="number"
+              name="win_odds_taken"
+              min="1.01"
+              step="0.01"
+              required
+              placeholder="5.00"
+              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+            />
+          </label>
+
+          <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+            Win stake
+            <input
+              type="number"
+              name="win_stake_points"
+              min="0.01"
+              step="0.01"
+              required
+              placeholder="10"
+              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+            />
+          </label>
+
+          <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+            Place odds
+            <input
+              type="number"
+              name="place_odds_taken"
+              min="1.01"
+              step="0.01"
+              required
+              placeholder="2.00"
+              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+            />
+          </label>
+
+          <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+            Place stake
+            <input
+              type="number"
+              name="place_stake_points"
+              min="0.01"
+              step="0.01"
+              required
+              placeholder="10"
+              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+            />
+          </label>
+        </div>
+      );
+    }
+
     return (
-      <label className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
-        Odds taken
-        <input
-          type="number"
-          name="odds_taken"
-          min="1.01"
-          step="0.01"
-          required
-          placeholder="e.g. 3.40"
-          className={`mt-2 w-28 rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${
-            dark
-              ? "border-white/15 bg-white/8 text-white placeholder:text-zinc-500"
-              : "border-zinc-300 bg-white text-zinc-950 placeholder:text-zinc-400"
-          }`}
-        />
-      </label>
+      <div className="grid w-full grid-cols-2 gap-2">
+        <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+          Odds taken
+          <input
+            type="number"
+            name="odds_taken"
+            min="1.01"
+            step="0.01"
+            required
+            placeholder="3.40"
+            className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+          />
+        </label>
+
+        <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+          Stake
+          <input
+            type="number"
+            name="stake_points"
+            min="0.01"
+            step="0.01"
+            required
+            placeholder="10"
+            className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+          />
+        </label>
+      </div>
     );
   }
 
 function renderHeadTipperBetForm(tip: SuggestedTip) {
   return (
-    <form action={addUserBetFormAction} className="mt-4 flex flex-wrap items-end gap-3">
+    <form
+      action={addUserBetFormAction}
+      className="mt-4 grid gap-3"
+    >
       <input type="hidden" name="source" value="head_tipper" />
       <input type="hidden" name="suggested_tip_id" value={tip.id} />
       <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
-      <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
+      <input
+        type="hidden"
+        name="race_runner_id"
+        value={tip.race_runner_id ?? ""}
+      />
       <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
       <input type="hidden" name="horse" value={tip.horse} />
       <input type="hidden" name="race" value={tip.race} />
       <input type="hidden" name="bet_type" value={tip.type} />
 
-      {renderOddsInput(true)}
+      {renderBetInputs(tip.type, true)}
 
-      <button className="rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-3 py-2 text-xs font-black text-black shadow-md shadow-amber-500/20 transition hover:brightness-110">
-        Add
+      <button className="w-full rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-3 py-2.5 text-xs font-black text-black shadow-md shadow-amber-500/20 transition hover:brightness-110">
+        Add To My Tips
       </button>
     </form>
   );
 }
 
   function renderCalculatorBetForm(tip: CalculatorTip) {
+    const betType = tip.bet_type || "Win";
+
     return (
-      <form action={addUserBetFormAction} className="mt-4 flex flex-wrap items-end gap-3">
+      <form
+        action={addUserBetFormAction}
+        className="mt-4 grid gap-3"
+      >
         <input type="hidden" name="source" value="calculator" />
         <input
           type="hidden"
@@ -652,16 +752,20 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
           value={tip.calculator_tip_id ?? ""}
         />
         <input type="hidden" name="race_id" value={tip.race_id ?? ""} />
-        <input type="hidden" name="race_runner_id" value={tip.race_runner_id ?? ""} />
+        <input
+          type="hidden"
+          name="race_runner_id"
+          value={tip.race_runner_id ?? ""}
+        />
         <input type="hidden" name="horse_id" value={tip.horse_id ?? ""} />
         <input type="hidden" name="horse" value={tip.horse || ""} />
         <input type="hidden" name="race" value={tip.race || ""} />
-        <input type="hidden" name="bet_type" value={tip.bet_type || "Win"} />
+        <input type="hidden" name="bet_type" value={betType} />
 
-        {renderOddsInput(true)}
+        {renderBetInputs(betType, true)}
 
-        <button className="rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-3 py-2 text-xs font-black text-black shadow-md shadow-amber-500/20 transition hover:brightness-110">
-          Add
+        <button className="w-full rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-3 py-2.5 text-xs font-black text-black shadow-md shadow-amber-500/20 transition hover:brightness-110">
+          Add To My Tips
         </button>
       </form>
     );
@@ -776,8 +880,14 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 
           <label className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
             Bet type
-               <select
+            <select
               name="bet_type"
+              value={customBetType}
+              onChange={(event) =>
+                setCustomBetType(
+                  event.target.value as "Win" | "Place" | "Each Way",
+                )
+              }
               required
               className="mt-2 w-full rounded-2xl border border-zinc-300 bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-950 outline-none focus:border-amber-400"
               style={{
@@ -789,21 +899,13 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
             >
               <option value="Win">Win</option>
               <option value="Place">Place</option>
+              <option value="Each Way">Each Way</option>
             </select>
           </label>
 
-          <label className="text-[11px] font-black uppercase tracking-[0.16em] text-zinc-400">
-            Odds taken
-            <input
-              type="number"
-              name="odds_taken"
-              min="1.01"
-              step="0.01"
-              required
-              placeholder="e.g. 4.20"
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-white/12 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-500 focus:border-amber-400"
-            />
-          </label>
+          <div className="sm:col-span-2 xl:col-span-1">
+            {renderBetInputs(customBetType, true)}
+          </div>
 
           <button
             type="submit"
