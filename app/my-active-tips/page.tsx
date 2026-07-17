@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { Badge, Panel } from "@/components/ui";
 
 type UserBet = {
   id: number;
@@ -17,6 +16,10 @@ type UserBet = {
   bet_type: string | null;
   odds_taken: number | string | null;
   stake_points: number | string | null;
+  win_odds_taken: number | string | null;
+  place_odds_taken: number | string | null;
+  win_stake_points: number | string | null;
+  place_stake_points: number | string | null;
   finishing_position: number | null;
   won: boolean | null;
   placed: boolean | null;
@@ -24,12 +27,23 @@ type UserBet = {
   created_at: string | null;
 };
 
+type ActiveUserBet = UserBet & {
+  race_runner?: {
+    id: number;
+    scratched: boolean | null;
+  } | null;
+};
+
 const PERTH_TIMEZONE = "Australia/Perth";
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
+
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
 
   return new Intl.DateTimeFormat("en-AU", {
     timeZone: PERTH_TIMEZONE,
@@ -43,26 +57,167 @@ function formatDateTime(value?: string | null) {
 }
 
 function toNumber(value: number | string | null | undefined) {
-  const number = Number(value ?? 0);
-  return Number.isFinite(number) ? number : 0;
+  const parsed = Number(value ?? 0);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatOdds(value: number | string | null | undefined) {
+  const parsed = toNumber(value);
+
+  if (parsed <= 0) {
+    return "—";
+  }
+
+  return parsed.toFixed(2).replace(/\.00$/, "");
+}
+
+function normaliseBetType(value: string | null | undefined) {
+  const cleaned = String(value || "Win")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+
+  if (
+    cleaned === "each way" ||
+    cleaned === "eachway" ||
+    cleaned.includes("each way")
+  ) {
+    return "Each Way";
+  }
+
+  if (cleaned.includes("place")) {
+    return "Place";
+  }
+
+  return "Win";
 }
 
 function sourceLabel(source: string | null | undefined) {
-  if (source === "calculator") return "SmartPunt Calculator";
-  if (source === "subscriber") return "My Pick";
+  if (source === "calculator") return "Calculator";
+  if (source === "subscriber") return "Build My Own";
   return "Head Tipper";
 }
 
-function sourceTone(source: string | null | undefined): "amber" | "blue" | "green" | "slate" {
-  if (source === "calculator") return "blue";
-  if (source === "subscriber") return "green";
-  return "amber";
+function sourceDescription(source: string | null | undefined) {
+  if (source === "calculator") {
+    return "SmartPunt Calculator selection";
+  }
+
+  if (source === "subscriber") {
+    return "Your own selection";
+  }
+
+  return "Official Head Tipper selection";
 }
 
-function sourceDescription(source: string | null | undefined) {
-  if (source === "calculator") return "Model Signal";
-  if (source === "subscriber") return "Your own selection";
-  return "Published head tipper selection";
+function sourceClasses(source: string | null | undefined) {
+  if (source === "calculator") {
+    return "border-sky-300/40 bg-sky-400/15 text-sky-100";
+  }
+
+  if (source === "subscriber") {
+    return "border-emerald-300/40 bg-emerald-400/15 text-emerald-100";
+  }
+
+  return "border-amber-300/40 bg-amber-400/15 text-amber-100";
+}
+
+function betTypeClasses(value: string | null | undefined) {
+  const betType = normaliseBetType(value);
+
+  if (betType === "Place") {
+    return "border-sky-300/40 bg-sky-400/15 text-sky-100";
+  }
+
+  if (betType === "Each Way") {
+    return "border-violet-300/40 bg-violet-400/15 text-violet-100";
+  }
+
+  return "border-emerald-300/40 bg-emerald-400/15 text-emerald-100";
+}
+
+function getTotalStake(bet: UserBet) {
+  const betType = normaliseBetType(bet.bet_type);
+
+  if (betType === "Each Way") {
+    const winStake = toNumber(bet.win_stake_points);
+    const placeStake = toNumber(bet.place_stake_points);
+    const calculatedTotal = winStake + placeStake;
+
+    if (calculatedTotal > 0) {
+      return calculatedTotal;
+    }
+  }
+
+  return toNumber(bet.stake_points);
+}
+
+function getPotentialReturn(bet: UserBet) {
+  const betType = normaliseBetType(bet.bet_type);
+
+  if (betType === "Each Way") {
+    const winReturn =
+      toNumber(bet.win_stake_points) *
+      toNumber(bet.win_odds_taken);
+
+    const placeReturn =
+      toNumber(bet.place_stake_points) *
+      toNumber(bet.place_odds_taken);
+
+    return winReturn + placeReturn;
+  }
+
+  return (
+    toNumber(bet.stake_points) *
+    toNumber(bet.odds_taken)
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  detail,
+  tone = "gold",
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "gold" | "green" | "blue";
+}) {
+  const toneClasses = {
+    gold: "border-amber-300/30 bg-amber-400/10 text-amber-200",
+    green:
+      "border-emerald-300/30 bg-emerald-400/10 text-emerald-200",
+    blue: "border-sky-300/30 bg-sky-400/10 text-sky-200",
+  }[tone];
+
+  return (
+    <div
+      className={`rounded-[22px] border p-4 shadow-[0_16px_36px_rgba(0,0,0,0.28)] ${toneClasses}`}
+    >
+      <p className="text-[9px] font-black uppercase tracking-[0.18em] opacity-80">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-black tracking-tight text-white">
+        {value}
+      </p>
+
+      <p className="mt-1 text-[10px] font-semibold leading-4 opacity-75">
+        {detail}
+      </p>
+    </div>
+  );
 }
 
 export default async function Page() {
@@ -74,180 +229,374 @@ export default async function Page() {
 
   const supabase = await createClient();
 
-const { data, error } = await supabase
-  .from("user_bets")
-  .select(
-    `
-    *,
-    race_runner:race_runners!user_bets_race_runner_id_fkey (
-      id,
-      scratched
+  const { data, error } = await supabase
+    .from("user_bets")
+    .select(
+      `
+      *,
+      race_runner:race_runners!user_bets_race_runner_id_fkey (
+        id,
+        scratched
+      )
+    `,
     )
-  `,
-  )
-  .eq("user_id", profile.id)
-  .is("settled_at", null)
-  .order("created_at", { ascending: false });
+    .eq("user_id", profile.id)
+    .is("settled_at", null)
+    .order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
 
-const activeBets = ((data || []) as Array<
-  UserBet & {
-    race_runner?: {
-      id: number;
-      scratched: boolean | null;
-    } | null;
-  }
->).filter((bet) => bet.race_runner?.scratched !== true);
+  const activeBets = ((data || []) as ActiveUserBet[]).filter(
+    (bet) => bet.race_runner?.scratched !== true,
+  );
+
   const totalStake = activeBets.reduce(
-    (sum, bet) => sum + (toNumber(bet.stake_points) || 1),
+    (sum, bet) => sum + getTotalStake(bet),
     0,
   );
-  const headTipperCount = activeBets.filter((bet) => bet.source === "head_tipper").length;
-  const calculatorCount = activeBets.filter((bet) => bet.source === "calculator").length;
-  const subscriberCount = activeBets.filter((bet) => bet.source === "subscriber").length;
+
+  const totalPotentialReturn = activeBets.reduce(
+    (sum, bet) => sum + getPotentialReturn(bet),
+    0,
+  );
+
+  const headTipperCount = activeBets.filter(
+    (bet) => bet.source === "head_tipper",
+  ).length;
+
+  const calculatorCount = activeBets.filter(
+    (bet) => bet.source === "calculator",
+  ).length;
+
+  const subscriberCount = activeBets.filter(
+    (bet) => bet.source === "subscriber",
+  ).length;
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
-      <div className="relative overflow-hidden border-b border-white/10 bg-black">
-        <img
-          src="/header-logo.png"
-          alt="SmartPunt"
-          className="pointer-events-none absolute left-1/2 top-1/2 w-[320px] -translate-x-1/2 -translate-y-1/2 opacity-20 sm:w-[500px] lg:w-[900px]"
-        />
-
-        <div className="relative z-10 flex items-center justify-between px-4 py-4 lg:px-8">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-            My Active Bets
-          </h1>
-
-          <Link
-href="/subscriber-dashboard"
-            className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur transition hover:bg-white/20"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-7xl p-4 lg:p-8">
-        <div className="grid gap-4 md:grid-cols-5">
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Active Bets</p>
-              <p className="mt-2 text-2xl font-semibold">{activeBets.length}</p>
-            </div>
-          </Panel>
-
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Stake Points</p>
-              <p className="mt-2 text-2xl font-semibold text-amber-700">
-                {totalStake.toFixed(1)}
-              </p>
-            </div>
-          </Panel>
-
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Head Tipper</p>
-              <p className="mt-2 text-2xl font-semibold text-amber-700">
-                {headTipperCount}
-              </p>
-            </div>
-          </Panel>
-
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Calculator</p>
-              <p className="mt-2 text-2xl font-semibold text-blue-700">
-                {calculatorCount}
-              </p>
-            </div>
-          </Panel>
-
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">My Picks</p>
-              <p className="mt-2 text-2xl font-semibold text-emerald-700">
-                {subscriberCount}
-              </p>
-            </div>
-          </Panel>
-        </div>
-
-        <div className="mt-6">
-          <Panel className="bg-white/95">
-            <div className="space-y-5 p-6 text-zinc-950">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold">Active betting ledger</h2>
-                  <p className="text-sm text-zinc-500">
-                    These are your accepted bets waiting to be resulted. ROI will be calculated from your odds once the race is settled.
-                  </p>
-                </div>
-                <Badge tone="amber">{activeBets.length}</Badge>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_12%_0%,rgba(245,158,11,0.18),transparent_30%),radial-gradient(circle_at_88%_8%,rgba(14,165,233,0.10),transparent_26%),linear-gradient(180deg,#030303_0%,#09090b_48%,#020617_100%)] text-white">
+      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-5 lg:px-8">
+        <header className="sticky top-2 z-20 rounded-[26px] border border-amber-300/20 bg-black/85 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black shadow-[0_0_24px_rgba(245,158,11,0.25)]">
+                <img
+                  src="/smartpunt-icon-512.png"
+                  alt="SmartPunt"
+                  className="h-full w-full object-cover"
+                />
               </div>
 
-              {activeBets.length > 0 ? (
-                <div className="grid gap-5 lg:grid-cols-2">
-                  {activeBets.map((bet) => {
-                    const stake = toNumber(bet.stake_points) || 1;
-                    const odds = toNumber(bet.odds_taken);
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-[0.28em] text-amber-300">
+                  SmartPunt
+                </p>
 
-                    return (
-                      <div
-                        key={bet.id}
-                        className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-sm text-zinc-500">{bet.race || "Race"}</p>
-                            <h3 className="mt-1 text-xl font-bold text-zinc-950">
-                              {bet.horse || "Unnamed horse"}
-                            </h3>
+                <h1 className="truncate text-xl font-black tracking-tight">
+                  My Active Tips
+                </h1>
+              </div>
+            </div>
+
+            <Link
+              href="/subscriber-dashboard"
+              className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-white transition hover:bg-white/15"
+            >
+              Dashboard
+            </Link>
+          </div>
+        </header>
+
+        <main className="mt-4 space-y-4 pb-10">
+          <section className="overflow-hidden rounded-[30px] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.98),rgba(24,24,27,0.96),rgba(120,53,15,0.32))] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.55)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
+              Personal Betting Ledger
+            </p>
+
+            <h2 className="mt-3 text-3xl font-black tracking-tight">
+              Your live exposure
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-zinc-300">
+              See what you have staked, your maximum potential return and
+              exactly where every active selection came from.
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <SummaryCard
+                label="Total Staked"
+                value={formatMoney(totalStake)}
+                detail={`${activeBets.length} active ${
+                  activeBets.length === 1 ? "tip" : "tips"
+                }`}
+                tone="gold"
+              />
+
+              <SummaryCard
+                label="Potential Return"
+                value={formatMoney(totalPotentialReturn)}
+                detail="Maximum return if every live leg succeeds"
+                tone="green"
+              />
+            </div>
+          </section>
+
+          <section className="grid grid-cols-3 gap-2">
+            <SummaryCard
+              label="Head Tipper"
+              value={String(headTipperCount)}
+              detail="Official tips"
+              tone="gold"
+            />
+
+            <SummaryCard
+              label="Calculator"
+              value={String(calculatorCount)}
+              detail="Model tips"
+              tone="blue"
+            />
+
+            <SummaryCard
+              label="My Picks"
+              value={String(subscriberCount)}
+              detail="Built by you"
+              tone="green"
+            />
+          </section>
+
+          {activeBets.length > 0 ? (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-3 px-1">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+                    Active Tips
+                  </p>
+
+                  <p className="mt-1 text-xs font-semibold text-zinc-400">
+                    Waiting to be settled
+                  </p>
+                </div>
+
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black text-zinc-200">
+                  {activeBets.length}
+                </span>
+              </div>
+
+              {activeBets.map((bet) => {
+                const betType = normaliseBetType(bet.bet_type);
+                const totalBetStake = getTotalStake(bet);
+                const potentialReturn = getPotentialReturn(bet);
+                const isEachWay = betType === "Each Way";
+
+                return (
+                  <article
+                    key={bet.id}
+                    className="overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(145deg,rgba(9,9,11,0.98),rgba(2,6,23,0.96))] shadow-[0_20px_50px_rgba(0,0,0,0.42)]"
+                  >
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-amber-300/80">
+                            {bet.race || "Race"}
+                          </p>
+
+                          <h3 className="mt-1 truncate text-2xl font-black leading-tight text-white">
+                            {bet.horse || "Unnamed horse"}
+                          </h3>
+                        </div>
+
+                        <span
+                          className={`shrink-0 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses(
+                            bet.source,
+                          )}`}
+                        >
+                          {sourceLabel(bet.source)}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] ${betTypeClasses(
+                            bet.bet_type,
+                          )}`}
+                        >
+                          {betType}
+                        </span>
+
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] text-zinc-300">
+                          Active
+                        </span>
+                      </div>
+
+                      {isEachWay ? (
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-200">
+                              Win Leg
+                            </p>
+
+                            <p className="mt-2 text-xl font-black text-white">
+                              {formatMoney(
+                                toNumber(bet.win_stake_points),
+                              )}
+                            </p>
+
+                            <p className="mt-1 text-[11px] font-semibold text-emerald-100/80">
+                              at {formatOdds(bet.win_odds_taken)}
+                            </p>
+
+                            <p className="mt-2 text-[10px] font-black text-emerald-200">
+                              Return{" "}
+                              {formatMoney(
+                                toNumber(bet.win_stake_points) *
+                                  toNumber(bet.win_odds_taken),
+                              )}
+                            </p>
                           </div>
 
-                          <Badge tone={sourceTone(bet.source)}>{sourceLabel(bet.source)}</Badge>
-                        </div>
+                          <div className="rounded-2xl border border-sky-300/20 bg-sky-400/10 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-sky-200">
+                              Place Leg
+                            </p>
 
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Badge tone="blue">{bet.bet_type || "Win"}</Badge>
-                          <Badge tone="green">Odds {odds.toFixed(2)}</Badge>
-                          <Badge tone="amber">Stake {stake.toFixed(1)} pt</Badge>
-                          <Badge tone="slate">Active</Badge>
-                        </div>
+                            <p className="mt-2 text-xl font-black text-white">
+                              {formatMoney(
+                                toNumber(bet.place_stake_points),
+                              )}
+                            </p>
 
-                        <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                            Source
-                          </p>
-                          <p className="mt-2 text-sm text-zinc-700">
+                            <p className="mt-1 text-[11px] font-semibold text-sky-100/80">
+                              at {formatOdds(bet.place_odds_taken)}
+                            </p>
+
+                            <p className="mt-2 text-[10px] font-black text-sky-200">
+                              Return{" "}
+                              {formatMoney(
+                                toNumber(bet.place_stake_points) *
+                                  toNumber(bet.place_odds_taken),
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                              Odds
+                            </p>
+
+                            <p className="mt-2 text-lg font-black text-white">
+                              {formatOdds(bet.odds_taken)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                              Stake
+                            </p>
+
+                            <p className="mt-2 text-lg font-black text-white">
+                              {formatMoney(totalBetStake)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-3">
+                            <p className="text-[8px] font-black uppercase tracking-[0.12em] text-emerald-200">
+                              Return
+                            </p>
+
+                            <p className="mt-2 text-lg font-black text-white">
+                              {formatMoney(potentialReturn)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-black/35 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                              Total stake
+                            </p>
+
+                            <p className="mt-1 text-lg font-black text-white">
+                              {formatMoney(totalBetStake)}
+                            </p>
+                          </div>
+
+                          <div className="text-right">
+                            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-300">
+                              Potential return
+                            </p>
+
+                            <p className="mt-1 text-lg font-black text-emerald-200">
+                              {formatMoney(potentialReturn)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-white/10 bg-black/35 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-black text-zinc-300">
                             {sourceDescription(bet.source)}
                           </p>
-                          <p className="mt-2 text-xs text-zinc-500">
+
+                          <p className="mt-1 text-[9px] font-semibold text-zinc-500">
                             Added {formatDateTime(bet.created_at)}
                           </p>
                         </div>
+
+                        {bet.race_id ? (
+                          <Link
+                            href={`/smartpunt-calculator-live-picks?raceId=${bet.race_id}`}
+                            className="shrink-0 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200"
+                          >
+                            View Race
+                          </Link>
+                        ) : null}
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-8 text-center">
-                  <p className="text-lg font-semibold text-zinc-900">
-                    No active bets yet.
-                  </p>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    Add a Head Tipper tip, Calculator signal, or your own pick from the dashboard.
-                  </p>
-                </div>
-              )}
-            </div>
-          </Panel>
-        </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+          ) : (
+            <section className="rounded-[28px] border border-dashed border-white/15 bg-white/[0.04] p-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-2xl">
+                🎯
+              </div>
+
+              <h2 className="mt-4 text-2xl font-black text-white">
+                No active tips
+              </h2>
+
+              <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-6 text-zinc-400">
+                Accept a Head Tipper tip, Calculator selection or build your own
+                pick from the Dashboard.
+              </p>
+
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <Link
+                  href="/smartpunt-calculator-live-picks"
+                  className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-black"
+                >
+                  Live Picks
+                </Link>
+
+                <Link
+                  href="/subscriber-dashboard"
+                  className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-white"
+                >
+                  Dashboard
+                </Link>
+              </div>
+            </section>
+          )}
+        </main>
       </div>
     </div>
   );
