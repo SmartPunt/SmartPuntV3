@@ -1114,11 +1114,9 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
           confidenceTier,
           sortGroup: isConsensus ? 0 : 1,
         });
-
-        return;
       }
 
-      if (raceQualifiedTip?.runner) {
+      if (raceQualifiedTip?.runner && !isConsensus) {
         items.push({
           raceId: Number(race.id),
           raceNumber: Number(race.race_number || 0),
