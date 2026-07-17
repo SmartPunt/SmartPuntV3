@@ -43,12 +43,11 @@ type SuggestedTipResult = {
 
 type CalculatorTipResult = {
   id: number;
-  bet_type: string | null;
+  smartpunt_tip_type: string | null;
+  is_smartpunt_tip: boolean | null;
   won: boolean | null;
   placed: boolean | null;
   finishing_position: number | null;
-  status: string | null;
-  voided: boolean | null;
   settled_at: string | null;
 };
 
@@ -368,22 +367,19 @@ function isHeadTipperResultSuccessful(tip: SuggestedTipResult) {
 function isCalculatorResultSuccessful(
   tip: CalculatorTipResult,
 ) {
-  if (
-    tip.voided === true ||
-    String(tip.status || "").toLowerCase() === "voided"
-  ) {
-    return false;
-  }
-
-  const betType = normaliseBetType(tip.bet_type);
+  const betType = normaliseBetType(
+    tip.smartpunt_tip_type,
+  );
 
   if (betType === "Place") {
     return tip.placed === true;
   }
 
-  return tip.won === true || tip.finishing_position === 1;
+  return (
+    tip.won === true ||
+    tip.finishing_position === 1
+  );
 }
-
 function buildSuccessStats<T>(
   items: T[],
   successful: (item: T) => boolean,
@@ -627,19 +623,20 @@ export default async function Page({
       .lt("settled_at", rangeEndExclusiveIso),
 
     supabase
-      .from("smartpunt_calculator_tips")
+      .from("calculator_predictions")
       .select(
         `
         id,
-        bet_type,
+        smartpunt_tip_type,
+        is_smartpunt_tip,
         won,
         placed,
         finishing_position,
-        status,
-        voided,
         settled_at
       `,
       )
+      .eq("is_smartpunt_tip", true)
+      .in("smartpunt_tip_type", ["Win", "Place"])
       .not("settled_at", "is", null)
       .gte("settled_at", rangeStartIso)
       .lt("settled_at", rangeEndExclusiveIso),
@@ -716,13 +713,8 @@ export default async function Page({
   const headTipperTips =
     (headTipperResults.data || []) as SuggestedTipResult[];
 
-  const calculatorTips = (
-    (calculatorResults.data || []) as CalculatorTipResult[]
-  ).filter(
-    (tip) =>
-      tip.voided !== true &&
-      String(tip.status || "").toLowerCase() !== "voided",
-  );
+  const calculatorTips =
+    (calculatorResults.data || []) as CalculatorTipResult[];
 
   const headTipperSuccess = buildSuccessStats(
     headTipperTips,
