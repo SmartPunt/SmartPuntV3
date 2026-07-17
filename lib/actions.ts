@@ -5220,16 +5220,16 @@ if (!hasWinner) {
 
 const invalidStartingPrice = activeUpdates.find(
   (update) =>
-    update.starting_price === null ||
-    !Number.isFinite(update.starting_price) ||
-    update.starting_price <= 1,
+    update.starting_price !== null &&
+    (!Number.isFinite(update.starting_price) ||
+      update.starting_price <= 1),
 );
 
 if (invalidStartingPrice) {
   return {
     success: false,
     error:
-      "Every active runner must have a starting price greater than 1.00.",
+      "Any entered starting price must be greater than 1.00.",
   };
 }
 
