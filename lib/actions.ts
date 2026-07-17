@@ -2814,17 +2814,18 @@ export async function addUserBetAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
-const profile = await getCurrentProfile();
+    const profile = await getCurrentProfile();
 
-if (!profile || profile.status !== "active") {
-  return {
-    success: false,
-    error: "Unauthorized",
-  };
-}
+    if (!profile || profile.status !== "active") {
+      return {
+        success: false,
+        error: "Unauthorized",
+      };
+    }
+
     const supabase = await createClient();
 
-    const source = String(formData.get("source") ?? "");
+    const source = String(formData.get("source") ?? "").trim();
     const suggestedTipIdRaw = formData.get("suggested_tip_id");
     const calculatorTipIdRaw = formData.get("calculator_tip_id");
 
@@ -2833,23 +2834,50 @@ if (!profile || profile.status !== "active") {
       Number(formData.get("race_runner_id") || 0) || null;
     const horseId = Number(formData.get("horse_id") || 0) || null;
 
-    const horse = String(formData.get("horse") ?? "");
-    const race = String(formData.get("race") ?? "");
+    const horse = String(formData.get("horse") ?? "").trim();
+    const race = String(formData.get("race") ?? "").trim();
 
-const rawBetType = String(
-  formData.get("bet_type") ?? "Win",
-).toLowerCase();
+    const rawBetType = String(
+      formData.get("bet_type") ?? "Win",
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, " ");
 
-const betType =
-  rawBetType.includes("place") || rawBetType.includes("each")
-    ? "Place"
-    : rawBetType.includes("strong win")
-      ? "Strong Win"
-      : rawBetType.includes("strong place")
-        ? "Strong Place"
-        : "Win";
+    let betType: "Win" | "Place" | "Each Way" | "Strong Win" | "Strong Place";
+
+    if (
+      rawBetType === "each way" ||
+      rawBetType === "eachway" ||
+      rawBetType.includes("each way")
+    ) {
+      betType = "Each Way";
+    } else if (rawBetType.includes("strong place")) {
+      betType = "Strong Place";
+    } else if (rawBetType.includes("strong win")) {
+      betType = "Strong Win";
+    } else if (rawBetType.includes("place")) {
+      betType = "Place";
+    } else {
+      betType = "Win";
+    }
 
     const oddsTaken = Number(formData.get("odds_taken") || 0);
+    const stakePoints = Number(formData.get("stake_points") || 1);
+
+    const winOddsTaken = Number(
+      formData.get("win_odds_taken") || 0,
+    );
+    const placeOddsTaken = Number(
+      formData.get("place_odds_taken") || 0,
+    );
+
+    const winStakePoints = Number(
+      formData.get("win_stake_points") || 0,
+    );
+    const placeStakePoints = Number(
+      formData.get("place_stake_points") || 0,
+    );
 
     if (!source) {
       return {
@@ -2865,12 +2893,78 @@ const betType =
       };
     }
 
-    if (!oddsTaken || Number.isNaN(oddsTaken) || oddsTaken <= 1) {
-      return {
-        success: false,
-        error: "Valid odds are required.",
-      };
+    const isEachWay = betType === "Each Way";
+
+    if (isEachWay) {
+      if (
+        !Number.isFinite(winOddsTaken) ||
+        winOddsTaken <= 1
+      ) {
+        return {
+          success: false,
+          error: "Valid win odds are required for an Each Way bet.",
+        };
+      }
+
+      if (
+        !Number.isFinite(placeOddsTaken) ||
+        placeOddsTaken <= 1
+      ) {
+        return {
+          success: false,
+          error: "Valid place odds are required for an Each Way bet.",
+        };
+      }
+
+      if (
+        !Number.isFinite(winStakePoints) ||
+        winStakePoints <= 0
+      ) {
+        return {
+          success: false,
+          error: "A valid win stake is required for an Each Way bet.",
+        };
+      }
+
+      if (
+        !Number.isFinite(placeStakePoints) ||
+        placeStakePoints <= 0
+      ) {
+        return {
+          success: false,
+          error: "A valid place stake is required for an Each Way bet.",
+        };
+      }
+    } else {
+      if (
+        !Number.isFinite(oddsTaken) ||
+        oddsTaken <= 1
+      ) {
+        return {
+          success: false,
+          error: "Valid odds are required.",
+        };
+      }
+
+      if (
+        !Number.isFinite(stakePoints) ||
+        stakePoints <= 0
+      ) {
+        return {
+          success: false,
+          error: "A valid stake is required.",
+        };
+      }
     }
+
+    const totalStakePoints = isEachWay
+      ? Number(
+          (
+            winStakePoints +
+            placeStakePoints
+          ).toFixed(2),
+        )
+      : Number(stakePoints.toFixed(2));
 
     const payload = {
       user_id: profile.id,
@@ -2894,8 +2988,27 @@ const betType =
 
       bet_type: betType,
 
-      odds_taken: oddsTaken,
-      stake_points: 1,
+      odds_taken: isEachWay
+        ? Number(winOddsTaken.toFixed(2))
+        : Number(oddsTaken.toFixed(2)),
+
+      stake_points: totalStakePoints,
+
+      win_odds_taken: isEachWay
+        ? Number(winOddsTaken.toFixed(2))
+        : null,
+
+      place_odds_taken: isEachWay
+        ? Number(placeOddsTaken.toFixed(2))
+        : null,
+
+      win_stake_points: isEachWay
+        ? Number(winStakePoints.toFixed(2))
+        : null,
+
+      place_stake_points: isEachWay
+        ? Number(placeStakePoints.toFixed(2))
+        : null,
 
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -2913,13 +3026,15 @@ const betType =
     }
 
     revalidatePath("/");
+    revalidatePath("/subscriber-dashboard");
+    revalidatePath("/smartpunt-calculator-live-picks");
     revalidatePath("/my-active-tips");
     revalidatePath("/my-resulted-tips");
 
-return {
-  success: true,
-  error: null,
-};
+    return {
+      success: true,
+      error: null,
+    };
   } catch (error) {
     return {
       success: false,
