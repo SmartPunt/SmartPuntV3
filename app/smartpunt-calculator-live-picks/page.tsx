@@ -32,6 +32,7 @@ export default async function Page({
   meetings={livePicksData.meetings}
   jockeyProfiles={livePicksData.jockeyProfiles}
   calculatorTips={livePicksData.calculatorTips}
+  calculatorPredictions={livePicksData.calculatorPredictions}
   officialTips={livePicksData.officialTips}
   activeUserBets={livePicksData.activeUserBets}
   dayDates={livePicksData.dayDates}
