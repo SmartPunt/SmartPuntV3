@@ -290,7 +290,18 @@ initialVaultMatchCount?: number;
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
 
-  const today = getPerthDate(0);
+const today = getPerthDate(0);
+const tomorrow = getPerthDate(1);
+
+const [selectedDay, setSelectedDay] = useState<
+  "today" | "tomorrow"
+>("today");
+
+const selectedDate =
+  selectedDay === "today" ? today : tomorrow;
+
+const selectedDayLabel =
+  selectedDay === "today" ? "Today" : "Tomorrow";
 
   const meetingMap = useMemo(
     () => new Map(initialMeetings.map((meeting) => [Number(meeting.id), meeting])),
@@ -323,78 +334,172 @@ initialVaultMatchCount?: number;
     [initialActiveCalculatorRunnerIds],
   );
 
-  const todayRaces = useMemo(
-    () =>
-      initialPublishedRaces
-        .filter((race) => {
-          const meeting = meetingMap.get(Number(race.meeting_id));
-          return meeting?.meeting_date === today;
-        })
-        .sort((a, b) => {
-          const meetingA = meetingMap.get(Number(a.meeting_id))?.meeting_name || "";
-          const meetingB = meetingMap.get(Number(b.meeting_id))?.meeting_name || "";
-          const meetingSort = meetingA.localeCompare(meetingB);
-          if (meetingSort !== 0) return meetingSort;
-          return Number(a.race_number || 0) - Number(b.race_number || 0);
-        }),
-    [initialPublishedRaces, meetingMap, today],
-  );
+const selectedDayRaces = useMemo(
+  () =>
+    initialPublishedRaces
+      .filter((race) => {
+        const meeting = meetingMap.get(
+          Number(race.meeting_id),
+        );
 
-  const allTodaySuggestedTips = useMemo(
-    () =>
-      allTips.filter((tip) => {
-        if (tip.settled_at !== null) return false;
+        return meeting?.meeting_date === selectedDate;
+      })
+      .sort((a, b) => {
+        const meetingA =
+          meetingMap.get(Number(a.meeting_id))
+            ?.meeting_name || "";
 
-        if (tip.race_start_at) {
-          const tipDate = getDateOnlyInTimezone(tip.race_start_at, tip.race_timezone || "Australia/Perth");
-          if (tipDate && tipDate !== today) return false;
+        const meetingB =
+          meetingMap.get(Number(b.meeting_id))
+            ?.meeting_name || "";
+
+        const meetingSort =
+          meetingA.localeCompare(meetingB);
+
+        if (meetingSort !== 0) {
+          return meetingSort;
         }
 
-        if (tip.race_id) {
-          const race = raceMap.get(Number(tip.race_id));
-          const meeting = race ? meetingMap.get(Number(race.meeting_id)) : null;
-          if (meeting?.meeting_date && meeting.meeting_date !== today) return false;
-        }
-
-        if (!tip.race_runner_id) return true;
-
-        const linkedRunner = runnerMap.get(Number(tip.race_runner_id));
-
-        if (!linkedRunner) return true;
-
-        return linkedRunner.scratched !== true;
+        return (
+          Number(a.race_number || 0) -
+          Number(b.race_number || 0)
+        );
       }),
-    [allTips, meetingMap, raceMap, runnerMap, today],
-  );
+  [
+    initialPublishedRaces,
+    meetingMap,
+    selectedDate,
+  ],
+);
 
-  const suggestedTips = useMemo(
-    () =>
-      allTips.filter((tip) => {
-        if (tip.settled_at !== null) return false;
+const allSelectedDaySuggestedTips = useMemo(
+  () =>
+    allTips.filter((tip) => {
+      if (tip.settled_at !== null) return false;
 
-        if (activeTipIdSet.has(tip.id)) return false;
+      if (tip.race_start_at) {
+        const tipDate = getDateOnlyInTimezone(
+          tip.race_start_at,
+          tip.race_timezone || "Australia/Perth",
+        );
 
-        if (tip.race_start_at) {
-          const tipDate = getDateOnlyInTimezone(tip.race_start_at, tip.race_timezone || "Australia/Perth");
-          if (tipDate && tipDate !== today) return false;
+        if (
+          tipDate &&
+          tipDate !== selectedDate
+        ) {
+          return false;
         }
+      }
 
-        if (tip.race_id) {
-          const race = raceMap.get(Number(tip.race_id));
-          const meeting = race ? meetingMap.get(Number(race.meeting_id)) : null;
-          if (meeting?.meeting_date && meeting.meeting_date !== today) return false;
+      if (tip.race_id) {
+        const race = raceMap.get(
+          Number(tip.race_id),
+        );
+
+        const meeting = race
+          ? meetingMap.get(
+              Number(race.meeting_id),
+            )
+          : null;
+
+        if (
+          meeting?.meeting_date &&
+          meeting.meeting_date !== selectedDate
+        ) {
+          return false;
         }
+      }
 
-        if (!tip.race_runner_id) return true;
+      if (!tip.race_runner_id) {
+        return true;
+      }
 
-        const linkedRunner = runnerMap.get(Number(tip.race_runner_id));
+      const linkedRunner = runnerMap.get(
+        Number(tip.race_runner_id),
+      );
 
-        if (!linkedRunner) return true;
+      if (!linkedRunner) {
+        return true;
+      }
 
-        return linkedRunner.scratched !== true;
-      }),
-    [activeTipIdSet, allTips, meetingMap, raceMap, runnerMap, today],
-  );
+      return linkedRunner.scratched !== true;
+    }),
+  [
+    allTips,
+    meetingMap,
+    raceMap,
+    runnerMap,
+    selectedDate,
+  ],
+);
+
+const suggestedTips = useMemo(
+  () =>
+    allTips.filter((tip) => {
+      if (tip.settled_at !== null) {
+        return false;
+      }
+
+      if (activeTipIdSet.has(tip.id)) {
+        return false;
+      }
+
+      if (tip.race_start_at) {
+        const tipDate = getDateOnlyInTimezone(
+          tip.race_start_at,
+          tip.race_timezone || "Australia/Perth",
+        );
+
+        if (
+          tipDate &&
+          tipDate !== selectedDate
+        ) {
+          return false;
+        }
+      }
+
+      if (tip.race_id) {
+        const race = raceMap.get(
+          Number(tip.race_id),
+        );
+
+        const meeting = race
+          ? meetingMap.get(
+              Number(race.meeting_id),
+            )
+          : null;
+
+        if (
+          meeting?.meeting_date &&
+          meeting.meeting_date !== selectedDate
+        ) {
+          return false;
+        }
+      }
+
+      if (!tip.race_runner_id) {
+        return true;
+      }
+
+      const linkedRunner = runnerMap.get(
+        Number(tip.race_runner_id),
+      );
+
+      if (!linkedRunner) {
+        return true;
+      }
+
+      return linkedRunner.scratched !== true;
+    }),
+  [
+    activeTipIdSet,
+    allTips,
+    meetingMap,
+    raceMap,
+    runnerMap,
+    selectedDate,
+  ],
+);
 
   const allCalculatorTips = useMemo(() => {
     const calculationStartedAt =
@@ -402,7 +507,7 @@ initialVaultMatchCount?: number;
 
     const calculatedTips =
       getSubscriberCalculatorPlays({
-        races: todayRaces,
+races: selectedDayRaces,
         scoringRaces:
           initialScoringRaces.length
             ? initialScoringRaces
@@ -443,8 +548,8 @@ initialVaultMatchCount?: number;
         performance.now() -
           calculationStartedAt,
       ),
-      todayRaceCount:
-        todayRaces.length,
+selectedDayRaceCount:
+  selectedDayRaces.length,
       scoringRaceCount:
         initialScoringRaces.length,
       scoringRunnerCount:
@@ -455,7 +560,7 @@ initialVaultMatchCount?: number;
 
     return calculatedTips;
   }, [
-    todayRaces,
+selectedDayRaces,
     initialPublishedRaces,
     initialPublishedRunners,
     initialScoringRaces,
@@ -537,25 +642,43 @@ initialVaultMatchCount?: number;
 [calculatorTips, runnerMap],
   );
 
-  const meetingSummary = useMemo(() => {
-    const byMeeting = new Map<number, { meeting: Meeting; raceCount: number }>();
+const meetingSummary = useMemo(() => {
+  const byMeeting = new Map<
+    number,
+    {
+      meeting: Meeting;
+      raceCount: number;
+    }
+  >();
 
-    todayRaces.forEach((race) => {
-      const meeting = meetingMap.get(Number(race.meeting_id));
-      if (!meeting) return;
-
-      const existing = byMeeting.get(Number(meeting.id));
-      if (existing) {
-        existing.raceCount += 1;
-      } else {
-        byMeeting.set(Number(meeting.id), { meeting, raceCount: 1 });
-      }
-    });
-
-    return Array.from(byMeeting.values()).sort((a, b) =>
-      a.meeting.meeting_name.localeCompare(b.meeting.meeting_name),
+  selectedDayRaces.forEach((race) => {
+    const meeting = meetingMap.get(
+      Number(race.meeting_id),
     );
-  }, [meetingMap, todayRaces]);
+
+    if (!meeting) return;
+
+    const existing = byMeeting.get(
+      Number(meeting.id),
+    );
+
+    if (existing) {
+      existing.raceCount += 1;
+    } else {
+      byMeeting.set(Number(meeting.id), {
+        meeting,
+        raceCount: 1,
+      });
+    }
+  });
+
+  return Array.from(byMeeting.values()).sort(
+    (a, b) =>
+      a.meeting.meeting_name.localeCompare(
+        b.meeting.meeting_name,
+      ),
+  );
+}, [meetingMap, selectedDayRaces]);
 
   const activeSuccessCount = initialResultedUserBets.filter((bet) => {
     const betType = String(bet.bet_type || "").toLowerCase();
@@ -569,7 +692,9 @@ initialVaultMatchCount?: number;
     ? Math.round((activeSuccessCount / resultedTotal) * 100)
     : 0;
 
-  const livePicksCount = allTodaySuggestedTips.length + allCalculatorTips.length;
+const livePicksCount =
+  allSelectedDaySuggestedTips.length +
+  allCalculatorTips.length;
   const watchEarlyCount = watchlistItems.length + longTermBets.length;
   const displayName = currentUser.full_name || currentUser.email || "SmartPunt member";
 
@@ -1237,14 +1362,42 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 })}
           </section>
 
-          {renderCustomBetBuilder()}
+{renderCustomBetBuilder()}
+
+<section className="rounded-[1.75rem] border border-amber-300/20 bg-black/82 p-2 shadow-xl shadow-black/30">
+  <div className="grid grid-cols-2 gap-2">
+    <button
+      type="button"
+      onClick={() => setSelectedDay("today")}
+      className={`rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-[0.16em] transition ${
+        selectedDay === "today"
+          ? "bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 text-black shadow-lg shadow-amber-500/20"
+          : "border border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
+      }`}
+    >
+      Today
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setSelectedDay("tomorrow")}
+      className={`rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-[0.16em] transition ${
+        selectedDay === "tomorrow"
+          ? "bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 text-black shadow-lg shadow-amber-500/20"
+          : "border border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
+      }`}
+    >
+      Tomorrow
+    </button>
+  </div>
+</section>
 
 <section className="grid min-w-0 gap-4 overflow-hidden lg:grid-cols-2">
             <section className="min-w-0 overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-black uppercase tracking-tight text-white">⭐ Top Head Tipper Plays</h2>
-                  <p className="mt-1 text-sm text-zinc-400">Today's strongest head tipper opportunities.</p>
+                  <p className="mt-1 text-sm text-zinc-400">{selectedDayLabel}'s strongest head tipper opportunities.</p>
                 </div>
                 <Link href="/smartpunt-calculator-live-picks" className="rounded-xl border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-300/10">All</Link>
               </div>
@@ -1254,7 +1407,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                   topHeadTipperPlays.map((tip, index) => renderHeadTipperCard(tip, index))
                 ) : (
                   <p className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/5 p-6 text-center text-sm text-zinc-400">
-                    No Head Tipper plays live for today.
+                    No Head Tipper plays live for {selectedDayLabel.toLowerCase()}.
                   </p>
                 )}
               </div>
@@ -1264,7 +1417,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-black uppercase tracking-tight text-white">🔥 Best Calculator Plays</h2>
-                  <p className="mt-1 text-sm text-zinc-400">The model's strongest current signals.</p>
+                  <p className="mt-1 text-sm text-zinc-400">The model's strongest signals for {selectedDayLabel.toLowerCase()}.</p>
                 </div>
                 <Link href="/smartpunt-calculator-live-picks" className="rounded-xl border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-300/10">All</Link>
               </div>
@@ -1274,7 +1427,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                   topCalculatorPlays.map((tip, index) => renderCalculatorCard(tip, index))
                 ) : (
                   <p className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/5 p-6 text-center text-sm text-zinc-400">
-                    No Calculator plays live for today.
+                   No Calculator plays live for {selectedDayLabel.toLowerCase()}.
                   </p>
                 )}
               </div>
@@ -1283,11 +1436,19 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 
           <section className="min-w-0 overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-black uppercase tracking-tight text-white">Upcoming Meetings</h2>
-                <p className="mt-1 text-sm text-zinc-400">Today's published meetings and race counts.</p>
-              </div>
-              {smallPill(`${todayRaces.length} races`, "gold")}
+<div>
+  <h2 className="text-xl font-black uppercase tracking-tight text-white">
+    Upcoming Meetings
+  </h2>
+  <p className="mt-1 text-sm text-zinc-400">
+    {selectedDayLabel}'s published meetings and race counts.
+  </p>
+</div>
+
+{smallPill(
+  `${selectedDayRaces.length} races`,
+  "gold",
+)}
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -1307,7 +1468,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                 ))
               ) : (
                 <p className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/5 p-6 text-center text-sm text-zinc-400 sm:col-span-2">
-                  No meetings published for today.
+No meetings published for {selectedDayLabel.toLowerCase()}.
                 </p>
               )}
             </div>
