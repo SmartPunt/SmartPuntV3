@@ -232,6 +232,18 @@ function formatOdds(value?: number | string | null) {
   return numberValue.toFixed(2).replace(/\.00$/, "");
 }
 
+function formatFinishingPosition(value?: number | null) {
+  const position = Number(value || 0);
+
+  if (!position) return null;
+
+  if (position === 1) return "1st";
+  if (position === 2) return "2nd";
+  if (position === 3) return "3rd";
+
+  return `${position}th`;
+}
+
 function hiddenValue(value: unknown) {
   if (value === null || value === undefined) return "";
   return String(value);
@@ -1618,11 +1630,17 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
 
                       const isWinTip = isTip && qualifiedTip.type === "Win";
                       const isPlaceTip = isTip && qualifiedTip.type === "Place";
-                      const calculatorTipType = isWinTip
-                        ? "Win"
-                        : isPlaceTip
-                          ? "Place"
-                          : "";
+const calculatorTipType = isWinTip
+  ? "Win"
+  : isPlaceTip
+    ? "Place"
+    : "";
+
+const finishingPosition = formatFinishingPosition(
+  (runner as any).finishing_position,
+);
+
+const isResulted = finishingPosition !== null;
 
                       return (
                         <div
@@ -1654,6 +1672,21 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                           <p className="mt-5 text-[15px] font-black leading-tight text-white">
                             {runner.horse_name}
                           </p>
+                          {isResulted ? (
+  <div
+    className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
+      Number((runner as any).finishing_position) === 1
+        ? "border-amber-300/60 bg-amber-400/20 text-amber-100"
+        : Number((runner as any).finishing_position) <= 3
+          ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
+          : "border-white/15 bg-white/10 text-zinc-300"
+    }`}
+  >
+    {Number((runner as any).finishing_position) === 1
+      ? `🏆 Finished ${finishingPosition}`
+      : `Finished ${finishingPosition}`}
+  </div>
+) : null}
                           <p className="mt-2 text-[10px] font-bold text-zinc-300">
                             Score {roundScore(runner.score)} · Win{" "}
                             {runner.winPercent}% · Rank #{runner.rank}
@@ -1864,9 +1897,10 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                     <table className="min-w-[980px] divide-y divide-white/10 text-left text-[11px]">
                       <thead className="bg-white/[0.06] text-[9px] uppercase tracking-[0.14em] text-zinc-400">
                         <tr>
-                          <th className="px-3 py-3 font-black">Rank</th>
-                          <th className="px-3 py-3 font-black">Runner</th>
-                          <th className="px-3 py-3 font-black">Jockey</th>
+<th className="px-3 py-3 font-black">Rank</th>
+<th className="px-3 py-3 font-black">Result</th>
+<th className="px-3 py-3 font-black">Runner</th>
+<th className="px-3 py-3 font-black">Jockey</th>
                           <th className="px-3 py-3 font-black text-center">
                             Form
                           </th>
@@ -1910,10 +1944,35 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                                     : "hover:bg-white/[0.04]"
                               }
                             >
-                              <td className="px-3 py-3 font-black text-amber-200">
-                                #{runner.rank}
-                              </td>
-                              <td className="px-3 py-3">
+<td className="px-3 py-3 font-black text-amber-200">
+  #{runner.rank}
+</td>
+
+<td className="px-3 py-3">
+  {(runner as any).finishing_position ? (
+    <span
+      className={`inline-flex min-w-[48px] items-center justify-center rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] ${
+        Number((runner as any).finishing_position) === 1
+          ? "border-amber-300/60 bg-amber-400/20 text-amber-100"
+          : Number((runner as any).finishing_position) <= 3
+            ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
+            : "border-white/10 bg-white/10 text-zinc-300"
+      }`}
+    >
+      {Number((runner as any).finishing_position) === 1
+        ? `🏆 ${formatFinishingPosition(
+            (runner as any).finishing_position,
+          )}`
+        : formatFinishingPosition(
+            (runner as any).finishing_position,
+          )}
+    </span>
+  ) : (
+    <span className="text-zinc-600">—</span>
+  )}
+</td>
+
+<td className="px-3 py-3">
 <div className="flex items-center gap-2">
   {runner.runner_number ? (
     <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-200 to-amber-500 text-xs font-black text-black">
