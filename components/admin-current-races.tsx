@@ -710,35 +710,21 @@ function validateRaceResults(raceId: number) {
     };
   }
 
-  const missingStartingPrices = previewRows.filter(
-    (row) => !row.startingPriceRaw,
-  );
+const invalidStartingPrices = previewRows.filter(
+  (row) =>
+    row.startingPriceRaw !== "" &&
+    (!Number.isFinite(row.startingPrice) || row.startingPrice <= 1),
+);
 
-  if (missingStartingPrices.length > 0) {
-    return {
-      valid: false,
-      error: `Enter a starting price for: ${missingStartingPrices
-        .map((row) => row.horseName)
-        .join(", ")}.`,
-      rows: previewRows,
-    };
-  }
-
-  const invalidStartingPrices = previewRows.filter(
-    (row) =>
-      !Number.isFinite(row.startingPrice) ||
-      row.startingPrice <= 1,
-  );
-
-  if (invalidStartingPrices.length > 0) {
-    return {
-      valid: false,
-      error: `Starting prices must be greater than 1.00. Check: ${invalidStartingPrices
-        .map((row) => row.horseName)
-        .join(", ")}.`,
-      rows: previewRows,
-    };
-  }
+if (invalidStartingPrices.length > 0) {
+  return {
+    valid: false,
+    error: `Any entered starting price must be greater than 1.00. Check: ${invalidStartingPrices
+      .map((row) => row.horseName)
+      .join(", ")}.`,
+    rows: previewRows,
+  };
+}
 
   return {
     valid: true,
