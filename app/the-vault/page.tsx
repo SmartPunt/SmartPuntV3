@@ -73,6 +73,12 @@ const supabase = await createClient();
 
 const livePicksData = await loadSubscriberLivePicksData({
   userId: profile.id,
+  includeScoringHistory: false,
+  includeJockeyProfiles: false,
+  includeCalculatorTips: false,
+  includeCalculatorPredictions: false,
+  includeOfficialTips: false,
+  includeActiveUserBets: false,
 });
 
 const vaultState = await syncVaultNotifications({
