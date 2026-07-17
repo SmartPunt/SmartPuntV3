@@ -371,7 +371,43 @@ const selectedDayRaces = useMemo(
     selectedDate,
   ],
 );
+const todayRaces = useMemo(
+  () =>
+    initialPublishedRaces
+      .filter((race) => {
+        const meeting = meetingMap.get(
+          Number(race.meeting_id),
+        );
 
+        return meeting?.meeting_date === today;
+      })
+      .sort((a, b) => {
+        const meetingA =
+          meetingMap.get(Number(a.meeting_id))
+            ?.meeting_name || "";
+
+        const meetingB =
+          meetingMap.get(Number(b.meeting_id))
+            ?.meeting_name || "";
+
+        const meetingSort =
+          meetingA.localeCompare(meetingB);
+
+        if (meetingSort !== 0) {
+          return meetingSort;
+        }
+
+        return (
+          Number(a.race_number || 0) -
+          Number(b.race_number || 0)
+        );
+      }),
+  [
+    initialPublishedRaces,
+    meetingMap,
+    today,
+  ],
+);
 const allSelectedDaySuggestedTips = useMemo(
   () =>
     allTips.filter((tip) => {
