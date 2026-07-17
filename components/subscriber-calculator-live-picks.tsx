@@ -338,7 +338,7 @@ function TipAcceptanceControl({
             Each Way Bet
           </p>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+<div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
               Win odds
               <input
@@ -397,7 +397,7 @@ function TipAcceptanceControl({
           </p>
         </>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-100/85">
             Odds taken
             <input
@@ -1610,7 +1610,7 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                     </span>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-3 gap-2">
+<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
                     {calculatorTopThree.map((runner, index) => {
                       const isTip =
                         qualifiedTip &&
