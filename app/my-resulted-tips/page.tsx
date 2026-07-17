@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { getCalculatorSuccessStatsAction } from "@/lib/actions";
 
 type UserBet = {
   id: number;
@@ -37,16 +38,6 @@ type SuggestedTipResult = {
   id: number;
   type: string | null;
   successful: boolean | null;
-  finishing_position: number | null;
-  settled_at: string | null;
-};
-
-type CalculatorTipResult = {
-  id: number;
-  smartpunt_tip_type: string | null;
-  is_smartpunt_tip: boolean | null;
-  won: boolean | null;
-  placed: boolean | null;
   finishing_position: number | null;
   settled_at: string | null;
 };
@@ -364,22 +355,6 @@ function isHeadTipperResultSuccessful(tip: SuggestedTipResult) {
   return tip.successful === true;
 }
 
-function isCalculatorResultSuccessful(
-  tip: CalculatorTipResult,
-) {
-  const betType = normaliseBetType(
-    tip.smartpunt_tip_type,
-  );
-
-  if (betType === "Place") {
-    return tip.placed === true;
-  }
-
-  return (
-    tip.won === true ||
-    tip.finishing_position === 1
-  );
-}
 function buildSuccessStats<T>(
   items: T[],
   successful: (item: T) => boolean,
@@ -598,7 +573,7 @@ export default async function Page({
   const [
     userBetsResult,
     headTipperResults,
-    calculatorResults,
+    calculatorSuccessResult,
   ] = await Promise.all([
     supabase
       .from("user_bets")
@@ -622,24 +597,10 @@ export default async function Page({
       .gte("settled_at", rangeStartIso)
       .lt("settled_at", rangeEndExclusiveIso),
 
-    supabase
-      .from("calculator_predictions")
-      .select(
-        `
-        id,
-        smartpunt_tip_type,
-        is_smartpunt_tip,
-        won,
-        placed,
-        finishing_position,
-        settled_at
-      `,
-      )
-      .eq("is_smartpunt_tip", true)
-      .in("smartpunt_tip_type", ["Win", "Place"])
-      .not("settled_at", "is", null)
-      .gte("settled_at", rangeStartIso)
-      .lt("settled_at", rangeEndExclusiveIso),
+    getCalculatorSuccessStatsAction({
+      from: rangeFrom,
+      to: rangeTo,
+    }),
   ]);
 
   if (userBetsResult.error) {
@@ -650,8 +611,11 @@ export default async function Page({
     throw new Error(headTipperResults.error.message);
   }
 
-  if (calculatorResults.error) {
-    throw new Error(calculatorResults.error.message);
+  if (!calculatorSuccessResult.success) {
+    throw new Error(
+      calculatorSuccessResult.error ||
+        "Failed to load Calculator success statistics.",
+    );
   }
 
   const bets =
@@ -713,18 +677,18 @@ export default async function Page({
   const headTipperTips =
     (headTipperResults.data || []) as SuggestedTipResult[];
 
-  const calculatorTips =
-    (calculatorResults.data || []) as CalculatorTipResult[];
-
   const headTipperSuccess = buildSuccessStats(
     headTipperTips,
     isHeadTipperResultSuccessful,
   );
 
-  const calculatorSuccess = buildSuccessStats(
-    calculatorTips,
-    isCalculatorResultSuccessful,
-  );
+  const calculatorSuccess = {
+    total: calculatorSuccessResult.total,
+    successful:
+      calculatorSuccessResult.successful,
+    percentage:
+      calculatorSuccessResult.percentage,
+  };
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,rgba(245,158,11,0.18),transparent_30%),radial-gradient(circle_at_90%_8%,rgba(14,165,233,0.10),transparent_26%),linear-gradient(180deg,#030303_0%,#09090b_48%,#020617_100%)] text-white">
