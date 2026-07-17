@@ -16,6 +16,7 @@ export type SubscriberLivePicksData = {
   meetings: any[];
   jockeyProfiles: any[];
   calculatorTips: any[];
+  calculatorPredictions: any[];
   officialTips: any[];
   activeUserBets: any[];
 };
@@ -641,6 +642,76 @@ export async function loadSubscriberLivePicksData({
     },
   );
 
+  const calculatorPredictionsStartedAt =
+    Date.now();
+
+  const allCalculatorPredictions =
+    currentRaceIds.length
+      ? await fetchServiceRoleRowsByRaceIds<any>({
+          table: "calculator_predictions",
+          select: "*",
+          raceIds: currentRaceIds,
+          order: "predicted_at.desc",
+        })
+      : [];
+
+  const latestPredictionByRunner =
+    new Map<string, any>();
+
+  allCalculatorPredictions.forEach(
+    (prediction) => {
+      const key = `${Number(
+        prediction.race_id,
+      )}-${Number(prediction.runner_id)}`;
+
+      const existing =
+        latestPredictionByRunner.get(key);
+
+      if (!existing) {
+        latestPredictionByRunner.set(
+          key,
+          prediction,
+        );
+        return;
+      }
+
+      const existingTime = new Date(
+        existing.predicted_at ||
+          existing.settled_at ||
+          0,
+      ).getTime();
+
+      const predictionTime = new Date(
+        prediction.predicted_at ||
+          prediction.settled_at ||
+          0,
+      ).getTime();
+
+      if (predictionTime >= existingTime) {
+        latestPredictionByRunner.set(
+          key,
+          prediction,
+        );
+      }
+    },
+  );
+
+  const calculatorPredictions =
+    Array.from(
+      latestPredictionByRunner.values(),
+    );
+
+  logStage(
+    "load calculator prediction snapshots",
+    calculatorPredictionsStartedAt,
+    {
+      loadedVersionCount:
+        allCalculatorPredictions.length,
+      latestSnapshotCount:
+        calculatorPredictions.length,
+    },
+  );
+
   const officialTipsStartedAt =
     Date.now();
 
@@ -709,6 +780,8 @@ export async function loadSubscriberLivePicksData({
       combinedRaceCount: races.length,
       combinedMeetingCount:
         meetings.length,
+      calculatorPredictionCount:
+        calculatorPredictions.length,
     },
   );
 
@@ -728,6 +801,7 @@ export async function loadSubscriberLivePicksData({
     meetings,
     jockeyProfiles,
     calculatorTips,
+    calculatorPredictions,
     officialTips,
     activeUserBets,
   };
