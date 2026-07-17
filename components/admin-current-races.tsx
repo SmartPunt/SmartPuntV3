@@ -2400,6 +2400,9 @@ function handleScratchMissingResults(raceId: number) {
                                                             e.target.value,
                                                           )
                                                         }
+  onWheel={(event) => {
+  event.currentTarget.blur();
+}}
                                                         placeholder="1"
                                                         className="mt-2 w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                                                       />
