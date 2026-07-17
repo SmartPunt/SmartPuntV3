@@ -1795,9 +1795,15 @@ function handleScratchMissingResults(raceId: number) {
                     ) : null}
                   </div>
 
-                  <Badge tone="green">
-                    SP ${row.startingPriceRaw}
-                  </Badge>
+{row.startingPriceRaw ? (
+  <Badge tone="green">
+    SP ${row.startingPriceRaw}
+  </Badge>
+) : (
+  <Badge tone="slate">
+    SP not entered
+  </Badge>
+)}
                 </div>
               );
             })}
