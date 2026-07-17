@@ -386,7 +386,10 @@ export default function CurrentRacesPage({
   const [editingMeetingIds, setEditingMeetingIds] = useState<number[]>([]);
   const [editingRaceIds, setEditingRaceIds] = useState<number[]>([]);
   const [statusTone, setStatusTone] = useState<"success" | "error">("success");
-  const [closedRaceIds, setClosedRaceIds] = useState<number[]>([]);
+const [closedRaceIds, setClosedRaceIds] = useState<number[]>([]);
+const [resultPreviewRaceId, setResultPreviewRaceId] = useState<number | null>(
+  null,
+);
 
   const [raceResultState, setRaceResultState] = useState<
     Record<number, Record<number, { finishingPosition: string; startingPrice: string }>>
@@ -483,31 +486,31 @@ function isRaceOpen(raceId: number) {
       : getExistingStartingPrice(runnerId);
   }
 
-  function handleRaceResultChange(
-    raceId: number,
-    runnerId: number,
-    field: "finishingPosition" | "startingPrice",
-    value: string,
-  ) {
-    setRaceResultState((prev) => ({
-      ...prev,
-      [raceId]: {
-        ...(prev[raceId] || {}),
-        [runnerId]: {
-          finishingPosition:
-            field === "finishingPosition"
-              ? value
-              : prev[raceId]?.[runnerId]?.finishingPosition ||
-                getExistingFinishingPosition(runnerId),
-          startingPrice:
-            field === "startingPrice"
-              ? value
-              : prev[raceId]?.[runnerId]?.startingPrice ||
-                getExistingStartingPrice(runnerId),
-        },
+function handleRaceResultChange(
+  raceId: number,
+  runnerId: number,
+  field: "finishingPosition" | "startingPrice",
+  value: string,
+) {
+  setRaceResultState((prev) => ({
+    ...prev,
+    [raceId]: {
+      ...(prev[raceId] || {}),
+      [runnerId]: {
+        finishingPosition:
+          field === "finishingPosition"
+            ? value
+            : (prev[raceId]?.[runnerId]?.finishingPosition ??
+              getExistingFinishingPosition(runnerId)),
+        startingPrice:
+          field === "startingPrice"
+            ? value
+            : (prev[raceId]?.[runnerId]?.startingPrice ??
+              getExistingStartingPrice(runnerId)),
       },
-    }));
-  }
+    },
+  }));
+}
 
   function handleUpdateTrackCondition(meetingId: number, value: string) {
   startTransition(async () => {
@@ -616,38 +619,214 @@ function isRaceOpen(raceId: number) {
     });
   }
 
-  function handleSaveResultsAndCloseRace(raceId: number) {
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.set("race_id", String(raceId));
+function getRaceResultPreview(raceId: number) {
+  return runnersForRace(raceId)
+    .filter((runner) => !runner.scratched)
+    .map((runner) => {
+      const finishingPositionRaw = getRaceResultValue(
+        raceId,
+        runner.id,
+        "finishingPosition",
+      ).trim();
 
-      const runners = initialRunners.filter((runner) => runner.race_id === raceId);
+      const startingPriceRaw = getRaceResultValue(
+        raceId,
+        runner.id,
+        "startingPrice",
+      ).trim();
 
-      runners.forEach((runner) => {
-        formData.set(
-          `finishing_position_${runner.id}`,
-          getRaceResultValue(raceId, runner.id, "finishingPosition"),
-        );
-        formData.set(
-          `starting_price_${runner.id}`,
-          getRaceResultValue(raceId, runner.id, "startingPrice"),
-        );
-      });
+      return {
+        runner,
+        horseName: findHorseName(runner.horse_id),
+        finishingPositionRaw,
+        finishingPosition: Number(finishingPositionRaw),
+        startingPriceRaw,
+        startingPrice: Number(startingPriceRaw),
+      };
+    })
+    .sort((a, b) => {
+      const positionGap = a.finishingPosition - b.finishingPosition;
 
-      const settleResult = await settleRaceRunnersAction(formData);
-
-      if (!settleResult.success) {
-        setError(settleResult.error || "Failed to settle race.");
-        return;
+      if (positionGap !== 0) {
+        return positionGap;
       }
 
-setClosedRaceIds((current) =>
-  current.includes(raceId) ? current : [...current, raceId],
-);
-setSuccess("Race settled and moved to archive.");
-router.refresh();
+      return a.horseName.localeCompare(b.horseName);
     });
+}
+
+function validateRaceResults(raceId: number) {
+  const previewRows = getRaceResultPreview(raceId);
+  const activeRunnerCount = previewRows.length;
+
+  if (activeRunnerCount === 0) {
+    return {
+      valid: false,
+      error: "This race has no active runners to result.",
+      rows: previewRows,
+    };
   }
+
+  const missingFinishes = previewRows.filter(
+    (row) => !row.finishingPositionRaw,
+  );
+
+  if (missingFinishes.length > 0) {
+    return {
+      valid: false,
+      error: `Enter a finishing position for: ${missingFinishes
+        .map((row) => row.horseName)
+        .join(", ")}.`,
+      rows: previewRows,
+    };
+  }
+
+  const invalidFinishes = previewRows.filter(
+    (row) =>
+      !Number.isInteger(row.finishingPosition) ||
+      row.finishingPosition < 1 ||
+      row.finishingPosition > activeRunnerCount,
+  );
+
+  if (invalidFinishes.length > 0) {
+    return {
+      valid: false,
+      error: `Finishing positions must be whole numbers from 1 to ${activeRunnerCount}. Check: ${invalidFinishes
+        .map((row) => row.horseName)
+        .join(", ")}.`,
+      rows: previewRows,
+    };
+  }
+
+  const firstPlaceRows = previewRows.filter(
+    (row) => row.finishingPosition === 1,
+  );
+
+  if (firstPlaceRows.length === 0) {
+    return {
+      valid: false,
+      error: "At least one runner must be entered as finishing position 1.",
+      rows: previewRows,
+    };
+  }
+
+  const missingStartingPrices = previewRows.filter(
+    (row) => !row.startingPriceRaw,
+  );
+
+  if (missingStartingPrices.length > 0) {
+    return {
+      valid: false,
+      error: `Enter a starting price for: ${missingStartingPrices
+        .map((row) => row.horseName)
+        .join(", ")}.`,
+      rows: previewRows,
+    };
+  }
+
+  const invalidStartingPrices = previewRows.filter(
+    (row) =>
+      !Number.isFinite(row.startingPrice) ||
+      row.startingPrice <= 1,
+  );
+
+  if (invalidStartingPrices.length > 0) {
+    return {
+      valid: false,
+      error: `Starting prices must be greater than 1.00. Check: ${invalidStartingPrices
+        .map((row) => row.horseName)
+        .join(", ")}.`,
+      rows: previewRows,
+    };
+  }
+
+  return {
+    valid: true,
+    error: null,
+    rows: previewRows,
+  };
+}
+
+function handlePreviewResults(raceId: number) {
+  const validation = validateRaceResults(raceId);
+
+  if (!validation.valid) {
+    setResultPreviewRaceId(null);
+    setError(
+      validation.error ||
+        "Check the race results before previewing.",
+    );
+    return;
+  }
+
+  setResultPreviewRaceId(raceId);
+  setSuccess(
+    "Results preview ready. Nothing has been saved or closed yet.",
+  );
+}
+
+function handleSaveResultsAndCloseRace(raceId: number) {
+  const validation = validateRaceResults(raceId);
+
+  if (!validation.valid) {
+    setResultPreviewRaceId(null);
+    setError(
+      validation.error ||
+        "Check the race results before saving.",
+    );
+    return;
+  }
+
+  startTransition(async () => {
+    const formData = new FormData();
+    formData.set("race_id", String(raceId));
+
+    const runners = initialRunners.filter(
+      (runner) => runner.race_id === raceId,
+    );
+
+    runners.forEach((runner) => {
+      formData.set(
+        `finishing_position_${runner.id}`,
+        getRaceResultValue(
+          raceId,
+          runner.id,
+          "finishingPosition",
+        ),
+      );
+
+      formData.set(
+        `starting_price_${runner.id}`,
+        getRaceResultValue(
+          raceId,
+          runner.id,
+          "startingPrice",
+        ),
+      );
+    });
+
+    const settleResult = await settleRaceRunnersAction(formData);
+
+    if (!settleResult.success) {
+      setError(
+        settleResult.error ||
+          "Failed to settle race.",
+      );
+      return;
+    }
+
+    setResultPreviewRaceId(null);
+
+    setClosedRaceIds((current) =>
+      current.includes(raceId)
+        ? current
+        : [...current, raceId],
+    );
+
+    setSuccess("Race settled and moved to archive.");
+    router.refresh();
+  });
+}
   function handleAbandonRace(raceId: number) {
     const confirmed = window.confirm(
       "Abandon this race only? This will close the race, void linked calculator tips/user bets, and leave the rest of the meeting active.",
@@ -1544,7 +1723,7 @@ function handleScratchMissingResults(raceId: number) {
 
 {raceIsOpen ? (
   <>
-    {isAdmin ? (
+{isAdmin ? (
   <div className="mt-4 flex flex-wrap gap-2">
     <button
       type="button"
@@ -1557,13 +1736,14 @@ function handleScratchMissingResults(raceId: number) {
 
     <button
       type="button"
-      onClick={() => handleSaveResultsAndCloseRace(race.id)}
+      onClick={() => handlePreviewResults(race.id)}
       disabled={isPending}
       className="rounded-2xl bg-black px-4 py-2 text-xs font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
     >
-      {isPending ? "Saving..." : "Save Results + Close Race"}
+      Preview Results
     </button>
-        <button
+
+    <button
       type="button"
       onClick={() => handleAbandonRace(race.id)}
       disabled={isPending}
@@ -1573,6 +1753,97 @@ function handleScratchMissingResults(raceId: number) {
     </button>
   </div>
 ) : null}
+
+{isAdmin && resultPreviewRaceId === race.id
+  ? (() => {
+      const validation = validateRaceResults(race.id);
+
+      const positionCounts = new Map<number, number>();
+
+      validation.rows.forEach((row) => {
+        positionCounts.set(
+          row.finishingPosition,
+          (positionCounts.get(row.finishingPosition) || 0) + 1,
+        );
+      });
+
+      return (
+        <div className="mt-4 rounded-[20px] border border-emerald-300 bg-emerald-50 p-4 text-zinc-900">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 className="text-base font-black uppercase tracking-[0.12em] text-emerald-900">
+                Results Preview — Not Saved
+              </h4>
+
+              <p className="mt-1 text-sm text-emerald-800">
+                Check every runner below. Tied finishing
+                positions are allowed for dead heats.
+              </p>
+            </div>
+
+            <Badge tone="amber">
+              No database changes yet
+            </Badge>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {validation.rows.map((row) => {
+              const isDeadHeat =
+                (positionCounts.get(row.finishingPosition) || 0) >
+                1;
+
+              return (
+                <div
+                  key={`preview-${race.id}-${row.runner.id}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-white px-4 py-3"
+                >
+                  <div>
+                    <p className="font-bold text-zinc-950">
+                      {row.finishingPosition}. {row.horseName}
+                    </p>
+
+                    {isDeadHeat ? (
+                      <p className="mt-1 text-xs font-semibold text-blue-700">
+                        Dead heat / tied placing
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <Badge tone="green">
+                    SP ${row.startingPriceRaw}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-3 border-t border-emerald-200 pt-4">
+            <button
+              type="button"
+              onClick={() =>
+                handleSaveResultsAndCloseRace(race.id)
+              }
+              disabled={isPending}
+              className="rounded-2xl bg-emerald-700 px-4 py-3 text-sm font-black text-white transition hover:bg-emerald-600 disabled:opacity-60"
+            >
+              {isPending
+                ? "Saving..."
+                : "Confirm + Save Results + Close Race"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setResultPreviewRaceId(null)}
+              disabled={isPending}
+              className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60"
+            >
+              Back to Editing
+            </button>
+          </div>
+        </div>
+      );
+    })()
+  : null}
                                   <div className="mt-4 rounded-[20px] border border-blue-200/40 bg-blue-50 p-4 text-sm text-zinc-700">
                                     {isAdmin
                                       ? "Live admin lane: edit the runner, scratch it if needed, then result the race when the field is official."
@@ -2119,9 +2390,12 @@ function handleScratchMissingResults(raceId: number) {
                                                       <label className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
                                                         Finishing position
                                                       </label>
-                                                      <input
-                                                        type="number"
-                                                        value={getRaceResultValue(
+<input
+  type="number"
+  min="1"
+  max={activeRunnerCount}
+  step="1"
+  value={getRaceResultValue(
                                                           race.id,
                                                           runner.id,
                                                           "finishingPosition",
