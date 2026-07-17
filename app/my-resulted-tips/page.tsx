@@ -2,62 +2,156 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { Badge, Panel } from "@/components/ui";
 
 type UserBet = {
   id: number;
   source: "head_tipper" | "calculator" | "subscriber" | string;
+  race_id: number | null;
   race: string | null;
   horse: string | null;
   bet_type: string | null;
+
   odds_taken: number | string | null;
   stake_points: number | string | null;
+
+  win_odds_taken: number | string | null;
+  place_odds_taken: number | string | null;
+  win_stake_points: number | string | null;
+  place_stake_points: number | string | null;
+
   finishing_position: number | null;
   won: boolean | null;
   placed: boolean | null;
+
   return_points: number | string | null;
   profit_loss_points: number | string | null;
+
+  voided: boolean | null;
+  void_reason: string | null;
+
   settled_at: string | null;
   created_at: string | null;
+};
+
+type SuggestedTipResult = {
+  id: number;
+  type: string | null;
+  successful: boolean | null;
+  finishing_position: number | null;
+  settled_at: string | null;
+};
+
+type CalculatorTipResult = {
+  id: number;
+  bet_type: string | null;
+  won: boolean | null;
+  placed: boolean | null;
+  finishing_position: number | null;
+  status: string | null;
+  voided: boolean | null;
+  settled_at: string | null;
+};
+
+type PageSearchParams = {
+  from?: string;
+  to?: string;
+};
+
+type PersonalStats = {
+  total: number;
+  successful: number;
+  stake: number;
+  returns: number;
+  profitLoss: number;
+  strikeRate: number;
+  roi: number;
 };
 
 const PERTH_TIMEZONE = "Australia/Perth";
 
 function toNumber(value: number | string | null | undefined) {
-  const number = Number(value ?? 0);
-  return Number.isFinite(number) ? number : 0;
+  const parsed = Number(value ?? 0);
+
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function roundMoney(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "AUD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatSignedMoney(value: number) {
+  return `${value > 0 ? "+" : ""}${formatMoney(value)}`;
+}
+
+function formatPercentage(value: number) {
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+}
+
+function formatOdds(value: number | string | null | undefined) {
+  const parsed = toNumber(value);
+
+  if (parsed <= 0) {
+    return "—";
+  }
+
+  return parsed.toFixed(2).replace(/\.00$/, "");
 }
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
+
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
 
   return new Intl.DateTimeFormat("en-AU", {
     timeZone: PERTH_TIMEZONE,
+    weekday: "short",
     day: "numeric",
     month: "short",
     year: "numeric",
   }).format(date);
 }
 
-function formatShortDate(value?: string | null) {
+function formatDateTime(value?: string | null) {
   if (!value) return "—";
+
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
 
   return new Intl.DateTimeFormat("en-AU", {
     timeZone: PERTH_TIMEZONE,
+    weekday: "short",
     day: "numeric",
     month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
   }).format(date);
 }
 
-function getPerthDayKey(value?: string | null) {
+function getPerthDateKey(value?: string | null) {
   if (!value) return null;
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
 
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: PERTH_TIMEZONE,
@@ -67,7 +161,7 @@ function getPerthDayKey(value?: string | null) {
   }).format(date);
 }
 
-function getTodayPerthKey() {
+function getPerthTodayKey() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: PERTH_TIMEZONE,
     year: "numeric",
@@ -76,376 +170,1069 @@ function getTodayPerthKey() {
   }).format(new Date());
 }
 
-function getDaysAgoPerthKey(daysAgo: number) {
-  const now = new Date();
-  const perthNow = new Date(
-    now.toLocaleString("en-US", { timeZone: PERTH_TIMEZONE }),
+function shiftDateKey(dateKey: string, offsetDays: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day + offsetDays, 12),
   );
 
-  perthNow.setHours(0, 0, 0, 0);
-  perthNow.setDate(perthNow.getDate() - daysAgo);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
 
-  const year = perthNow.getFullYear();
-  const month = String(perthNow.getMonth() + 1).padStart(2, "0");
-  const day = String(perthNow.getDate()).padStart(2, "0");
+function isValidDateKey(value: string | undefined) {
+  if (!value) return false;
 
-  return `${year}-${month}-${day}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function normaliseBetType(value: string | null | undefined) {
+  const cleaned = String(value || "Win")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+
+  if (
+    cleaned === "each way" ||
+    cleaned === "eachway" ||
+    cleaned.includes("each way")
+  ) {
+    return "Each Way";
+  }
+
+  if (cleaned.includes("place")) {
+    return "Place";
+  }
+
+  return "Win";
 }
 
 function sourceLabel(source: string | null | undefined) {
-  if (source === "calculator") return "SmartPunt Calculator";
-  if (source === "subscriber") return "My Pick";
+  if (source === "calculator") return "Calculator";
+  if (source === "subscriber") return "Build My Own";
   return "Head Tipper";
 }
 
-function sourceTone(source: string | null | undefined): "amber" | "blue" | "green" | "slate" {
-  if (source === "calculator") return "blue";
-  if (source === "subscriber") return "green";
-  return "amber";
+function sourceDescription(source: string | null | undefined) {
+  if (source === "calculator") {
+    return "SmartPunt Calculator selection";
+  }
+
+  if (source === "subscriber") {
+    return "Selection built by you";
+  }
+
+  return "Official Head Tipper selection";
 }
 
-function isSuccessful(bet: UserBet) {
-  const type = String(bet.bet_type || "").toLowerCase();
+function sourceClasses(source: string | null | undefined) {
+  if (source === "calculator") {
+    return "border-sky-300/40 bg-sky-400/15 text-sky-100";
+  }
 
-  if (type.includes("place")) {
+  if (source === "subscriber") {
+    return "border-emerald-300/40 bg-emerald-400/15 text-emerald-100";
+  }
+
+  return "border-amber-300/40 bg-amber-400/15 text-amber-100";
+}
+
+function betTypeClasses(value: string | null | undefined) {
+  const betType = normaliseBetType(value);
+
+  if (betType === "Place") {
+    return "border-sky-300/40 bg-sky-400/15 text-sky-100";
+  }
+
+  if (betType === "Each Way") {
+    return "border-violet-300/40 bg-violet-400/15 text-violet-100";
+  }
+
+  return "border-emerald-300/40 bg-emerald-400/15 text-emerald-100";
+}
+
+function getTotalStake(bet: UserBet) {
+  if (normaliseBetType(bet.bet_type) === "Each Way") {
+    const legTotal =
+      toNumber(bet.win_stake_points) +
+      toNumber(bet.place_stake_points);
+
+    if (legTotal > 0) {
+      return roundMoney(legTotal);
+    }
+  }
+
+  return roundMoney(toNumber(bet.stake_points));
+}
+
+function getStoredReturn(bet: UserBet) {
+  return roundMoney(toNumber(bet.return_points));
+}
+
+function getProfitLoss(bet: UserBet) {
+  if (
+    bet.profit_loss_points !== null &&
+    bet.profit_loss_points !== undefined
+  ) {
+    return roundMoney(toNumber(bet.profit_loss_points));
+  }
+
+  return roundMoney(getStoredReturn(bet) - getTotalStake(bet));
+}
+
+function isPersonalBetSuccessful(bet: UserBet) {
+  if (bet.voided === true) {
+    return false;
+  }
+
+  if (getStoredReturn(bet) > 0) {
+    return true;
+  }
+
+  const betType = normaliseBetType(bet.bet_type);
+
+  if (betType === "Win") {
+    return bet.won === true || bet.finishing_position === 1;
+  }
+
+  if (betType === "Place") {
     return bet.placed === true;
   }
 
-  return bet.won === true || bet.finishing_position === 1;
+  return bet.won === true || bet.placed === true;
 }
 
-function calculatedReturn(bet: UserBet) {
-  const storedReturn = bet.return_points;
+function buildPersonalStats(bets: UserBet[]): PersonalStats {
+  const validBets = bets.filter((bet) => bet.voided !== true);
 
-  if (storedReturn !== null && storedReturn !== undefined) {
-    return toNumber(storedReturn);
+  const total = validBets.length;
+
+  const successful = validBets.filter(
+    isPersonalBetSuccessful,
+  ).length;
+
+  const stake = roundMoney(
+    validBets.reduce(
+      (sum, bet) => sum + getTotalStake(bet),
+      0,
+    ),
+  );
+
+  const returns = roundMoney(
+    validBets.reduce(
+      (sum, bet) => sum + getStoredReturn(bet),
+      0,
+    ),
+  );
+
+  const profitLoss = roundMoney(returns - stake);
+
+  const strikeRate =
+    total > 0 ? (successful / total) * 100 : 0;
+
+  const roi =
+    stake > 0 ? (profitLoss / stake) * 100 : 0;
+
+  return {
+    total,
+    successful,
+    stake,
+    returns,
+    profitLoss,
+    strikeRate,
+    roi,
+  };
+}
+
+function isWithinRange(
+  value: string | null | undefined,
+  from: string,
+  to: string,
+) {
+  const dateKey = getPerthDateKey(value);
+
+  if (!dateKey) return false;
+
+  return dateKey >= from && dateKey <= to;
+}
+
+function isHeadTipperResultSuccessful(tip: SuggestedTipResult) {
+  return tip.successful === true;
+}
+
+function isCalculatorResultSuccessful(
+  tip: CalculatorTipResult,
+) {
+  if (
+    tip.voided === true ||
+    String(tip.status || "").toLowerCase() === "voided"
+  ) {
+    return false;
   }
 
-  const stake = toNumber(bet.stake_points) || 1;
-  const odds = toNumber(bet.odds_taken);
+  const betType = normaliseBetType(tip.bet_type);
 
-  return isSuccessful(bet) ? stake * odds : 0;
-}
-
-function calculatedProfitLoss(bet: UserBet) {
-  const storedProfit = bet.profit_loss_points;
-
-  if (storedProfit !== null && storedProfit !== undefined) {
-    return toNumber(storedProfit);
+  if (betType === "Place") {
+    return tip.placed === true;
   }
 
-  const stake = toNumber(bet.stake_points) || 1;
-  return calculatedReturn(bet) - stake;
+  return tip.won === true || tip.finishing_position === 1;
 }
 
-function buildStats(bets: UserBet[]) {
-  const total = bets.length;
-  const wins = bets.filter(isSuccessful).length;
-  const stake = bets.reduce((sum, bet) => sum + (toNumber(bet.stake_points) || 1), 0);
-  const returns = bets.reduce((sum, bet) => sum + calculatedReturn(bet), 0);
-  const profitLoss = returns - stake;
-  const strikeRate = total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0";
-  const roi = stake > 0 ? ((profitLoss / stake) * 100).toFixed(1) : "0.0";
+function buildSuccessStats<T>(
+  items: T[],
+  successful: (item: T) => boolean,
+) {
+  const total = items.length;
+  const successCount = items.filter(successful).length;
 
-  return { total, wins, stake, returns, profitLoss, strikeRate, roi };
+  return {
+    total,
+    successful: successCount,
+    percentage:
+      total > 0 ? (successCount / total) * 100 : 0,
+  };
 }
 
-function groupBets(bets: UserBet[]) {
-  const todayKey = getTodayPerthKey();
-  const lastMonthCutoffKey = getDaysAgoPerthKey(30);
-
-  const todaysBets: UserBet[] = [];
-  const lastMonthsBets: UserBet[] = [];
-  const olderBets: UserBet[] = [];
-
-  for (const bet of bets) {
-    const settledKey = getPerthDayKey(bet.settled_at);
-
-    if (!settledKey) {
-      olderBets.push(bet);
-      continue;
-    }
-
-    if (settledKey === todayKey) {
-      todaysBets.push(bet);
-      continue;
-    }
-
-    if (settledKey >= lastMonthCutoffKey) {
-      lastMonthsBets.push(bet);
-      continue;
-    }
-
-    olderBets.push(bet);
-  }
-
-  return { todaysBets, lastMonthsBets, olderBets };
-}
-
-function Section({
-  title,
-  bets,
-  defaultOpen = true,
+function ROINumber({
+  value,
+  className = "",
 }: {
-  title: string;
-  bets: UserBet[];
-  defaultOpen?: boolean;
+  value: number;
+  className?: string;
 }) {
+  const valueClasses =
+    value > 0
+      ? "text-emerald-200"
+      : value < 0
+        ? "text-rose-200"
+        : "text-zinc-200";
+
   return (
-    <Panel className="bg-white/95">
-      <details open={defaultOpen} className="group">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-zinc-950 sm:p-5">
-          <div>
-            <h2 className="text-lg font-semibold sm:text-xl">{title}</h2>
-            <p className="mt-1 text-sm text-zinc-500">
-              {bets.length} {bets.length === 1 ? "bet" : "bets"}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Badge tone="blue">{bets.length}</Badge>
-            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500 group-open:hidden">
-              Expand
-            </span>
-            <span className="hidden text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500 group-open:inline">
-              Collapse
-            </span>
-          </div>
-        </summary>
-
-        <div className="border-t border-zinc-200 px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
-          {bets.length > 0 ? (
-            <div className="space-y-3">
-              {bets.map((bet) => {
-                const successful = isSuccessful(bet);
-                const stake = toNumber(bet.stake_points) || 1;
-                const odds = toNumber(bet.odds_taken);
-                const profitLoss = calculatedProfitLoss(bet);
-
-                return (
-                  <details
-                    key={bet.id}
-                    className="group overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50"
-                  >
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-zinc-950">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-medium uppercase tracking-[0.12em] text-zinc-500">
-                          {bet.race || "Race"}
-                        </p>
-                        <h3 className="truncate text-base font-semibold">
-                          {bet.horse || "Unnamed horse"}
-                        </h3>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Badge tone={successful ? "green" : "rose"}>
-                            {successful ? "Successful" : "Unsuccessful"}
-                          </Badge>
-                          <Badge tone={sourceTone(bet.source)}>{sourceLabel(bet.source)}</Badge>
-                          {bet.bet_type ? <Badge tone="blue">{bet.bet_type}</Badge> : null}
-                          {bet.finishing_position ? (
-                            <Badge tone="slate">Fin: {bet.finishing_position}</Badge>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="shrink-0 text-right">
-                        <p className="text-xs text-zinc-500">{formatShortDate(bet.settled_at)}</p>
-                        <p className={`mt-1 text-sm font-bold ${profitLoss >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                          {profitLoss >= 0 ? "+" : ""}{profitLoss.toFixed(2)} pts
-                        </p>
-                      </div>
-                    </summary>
-
-                    <div className="border-t border-zinc-200 bg-white px-4 py-4 text-zinc-950">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge tone={successful ? "green" : "rose"}>
-                          {successful ? "Successful" : "Unsuccessful"}
-                        </Badge>
-                        <Badge tone={sourceTone(bet.source)}>{sourceLabel(bet.source)}</Badge>
-                        {bet.bet_type ? <Badge tone="blue">{bet.bet_type}</Badge> : null}
-                        <Badge tone="green">Odds {odds.toFixed(2)}</Badge>
-                        <Badge tone="amber">Stake {stake.toFixed(1)} pt</Badge>
-                        {bet.finishing_position ? (
-                          <Badge tone="slate">Finishing position: {bet.finishing_position}</Badge>
-                        ) : null}
-                        <Badge tone="slate">{formatDate(bet.settled_at)}</Badge>
-                      </div>
-
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                            Return
-                          </p>
-                          <p className="mt-2 text-lg font-bold text-zinc-950">
-                            {calculatedReturn(bet).toFixed(2)} pts
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                            Profit / Loss
-                          </p>
-                          <p className={`mt-2 text-lg font-bold ${profitLoss >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                            {profitLoss >= 0 ? "+" : ""}{profitLoss.toFixed(2)} pts
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">
-                            Source
-                          </p>
-                          <p className="mt-2 text-lg font-bold text-zinc-950">
-                            {sourceLabel(bet.source)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </details>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-center text-sm text-zinc-500">
-              No bets in this section yet.
-            </div>
-          )}
-        </div>
-      </details>
-    </Panel>
+    <p
+      className={`font-black tracking-tight ${valueClasses} ${className}`}
+    >
+      {formatPercentage(value)}
+    </p>
   );
 }
 
-export default async function Page() {
+function SummaryCard({
+  label,
+  stats,
+  detail,
+  tone = "gold",
+}: {
+  label: string;
+  stats: PersonalStats;
+  detail: string;
+  tone?: "gold" | "green" | "blue";
+}) {
+  const toneClasses = {
+    gold: "border-amber-300/30 bg-amber-400/10",
+    green: "border-emerald-300/30 bg-emerald-400/10",
+    blue: "border-sky-300/30 bg-sky-400/10",
+  }[tone];
+
+  return (
+    <div
+      className={`rounded-[22px] border p-4 shadow-[0_16px_36px_rgba(0,0,0,0.28)] ${toneClasses}`}
+    >
+      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-300">
+        {label}
+      </p>
+
+      <ROINumber
+        value={stats.roi}
+        className="mt-2 text-3xl"
+      />
+
+      <p
+        className={`mt-2 text-sm font-black ${
+          stats.profitLoss >= 0
+            ? "text-emerald-200"
+            : "text-rose-200"
+        }`}
+      >
+        {formatSignedMoney(stats.profitLoss)}
+      </p>
+
+      <p className="mt-1 text-[10px] font-semibold leading-4 text-zinc-400">
+        {detail}
+      </p>
+    </div>
+  );
+}
+
+function SourceROICard({
+  label,
+  stats,
+  tone,
+}: {
+  label: string;
+  stats: PersonalStats;
+  tone: "gold" | "blue" | "green";
+}) {
+  const toneClasses = {
+    gold: "border-amber-300/25 bg-amber-400/10",
+    blue: "border-sky-300/25 bg-sky-400/10",
+    green: "border-emerald-300/25 bg-emerald-400/10",
+  }[tone];
+
+  return (
+    <div className={`rounded-2xl border p-3 ${toneClasses}`}>
+      <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-300">
+        {label}
+      </p>
+
+      <ROINumber
+        value={stats.roi}
+        className="mt-2 text-xl"
+      />
+
+      <p
+        className={`mt-1 text-[10px] font-black ${
+          stats.profitLoss >= 0
+            ? "text-emerald-200"
+            : "text-rose-200"
+        }`}
+      >
+        {formatSignedMoney(stats.profitLoss)}
+      </p>
+
+      <p className="mt-1 text-[9px] font-semibold text-zinc-500">
+        {stats.total} accepted
+      </p>
+    </div>
+  );
+}
+
+function SuccessCard({
+  label,
+  successful,
+  total,
+  percentage,
+  tone,
+  description,
+}: {
+  label: string;
+  successful: number;
+  total: number;
+  percentage: number;
+  tone: "gold" | "blue";
+  description: string;
+}) {
+  const toneClasses = {
+    gold: "border-amber-300/30 bg-amber-400/10",
+    blue: "border-sky-300/30 bg-sky-400/10",
+  }[tone];
+
+  const numberClasses = {
+    gold: "text-amber-200",
+    blue: "text-sky-200",
+  }[tone];
+
+  return (
+    <div className={`rounded-[22px] border p-4 ${toneClasses}`}>
+      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-300">
+        {label}
+      </p>
+
+      <p className={`mt-2 text-4xl font-black ${numberClasses}`}>
+        {total > 0 ? `${percentage.toFixed(1)}%` : "—"}
+      </p>
+
+      <p className="mt-2 text-xs font-black text-white">
+        {successful}/{total} successful
+      </p>
+
+      <p className="mt-1 text-[10px] font-semibold leading-4 text-zinc-400">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<PageSearchParams>;
+}) {
   const profile = await getCurrentProfile();
 
   if (!profile) {
     redirect("/login");
   }
 
-  const supabase = await createClient();
+  const resolvedSearchParams =
+    (await searchParams) || {};
 
-  const { data, error } = await supabase
-    .from("user_bets")
-    .select("*")
-    .eq("user_id", profile.id)
-    .not("settled_at", "is", null)
-    .order("settled_at", { ascending: false });
+  const today = getPerthTodayKey();
+  const defaultFrom = shiftDateKey(today, -29);
 
-  if (error) {
-    throw new Error(error.message);
+  let rangeFrom = isValidDateKey(
+    resolvedSearchParams.from,
+  )
+    ? String(resolvedSearchParams.from)
+    : defaultFrom;
+
+  let rangeTo = isValidDateKey(
+    resolvedSearchParams.to,
+  )
+    ? String(resolvedSearchParams.to)
+    : today;
+
+  if (rangeFrom > rangeTo) {
+    [rangeFrom, rangeTo] = [rangeTo, rangeFrom];
   }
 
-  const bets = (data || []) as UserBet[];
-  const overallStats = buildStats(bets);
-  const headTipperStats = buildStats(bets.filter((bet) => bet.source === "head_tipper"));
-  const calculatorStats = buildStats(bets.filter((bet) => bet.source === "calculator"));
-  const subscriberStats = buildStats(bets.filter((bet) => bet.source === "subscriber"));
-  const { todaysBets, lastMonthsBets, olderBets } = groupBets(bets);
+  const rangeStartIso = `${rangeFrom}T00:00:00+08:00`;
+  const rangeEndExclusiveIso = `${shiftDateKey(
+    rangeTo,
+    1,
+  )}T00:00:00+08:00`;
+
+  const supabase = await createClient();
+
+  const [
+    userBetsResult,
+    headTipperResults,
+    calculatorResults,
+  ] = await Promise.all([
+    supabase
+      .from("user_bets")
+      .select("*")
+      .eq("user_id", profile.id)
+      .not("settled_at", "is", null)
+      .order("settled_at", { ascending: false }),
+
+    supabase
+      .from("suggested_tips")
+      .select(
+        `
+        id,
+        type,
+        successful,
+        finishing_position,
+        settled_at
+      `,
+      )
+      .not("settled_at", "is", null)
+      .gte("settled_at", rangeStartIso)
+      .lt("settled_at", rangeEndExclusiveIso),
+
+    supabase
+      .from("smartpunt_calculator_tips")
+      .select(
+        `
+        id,
+        bet_type,
+        won,
+        placed,
+        finishing_position,
+        status,
+        voided,
+        settled_at
+      `,
+      )
+      .not("settled_at", "is", null)
+      .gte("settled_at", rangeStartIso)
+      .lt("settled_at", rangeEndExclusiveIso),
+  ]);
+
+  if (userBetsResult.error) {
+    throw new Error(userBetsResult.error.message);
+  }
+
+  if (headTipperResults.error) {
+    throw new Error(headTipperResults.error.message);
+  }
+
+  if (calculatorResults.error) {
+    throw new Error(calculatorResults.error.message);
+  }
+
+  const bets =
+    (userBetsResult.data || []) as UserBet[];
+
+  const nonVoidedBets = bets.filter(
+    (bet) => bet.voided !== true,
+  );
+
+  const todayBets = nonVoidedBets.filter(
+    (bet) => getPerthDateKey(bet.settled_at) === today,
+  );
+
+  const selectedRangeBets = nonVoidedBets.filter(
+    (bet) =>
+      isWithinRange(
+        bet.settled_at,
+        rangeFrom,
+        rangeTo,
+      ),
+  );
+
+  const selectedRangeDisplayBets = bets.filter(
+    (bet) =>
+      isWithinRange(
+        bet.settled_at,
+        rangeFrom,
+        rangeTo,
+      ),
+  );
+
+  const allTimeStats =
+    buildPersonalStats(nonVoidedBets);
+
+  const todayStats =
+    buildPersonalStats(todayBets);
+
+  const selectedRangeStats =
+    buildPersonalStats(selectedRangeBets);
+
+  const selectedHeadTipperStats = buildPersonalStats(
+    selectedRangeBets.filter(
+      (bet) => bet.source === "head_tipper",
+    ),
+  );
+
+  const selectedCalculatorStats = buildPersonalStats(
+    selectedRangeBets.filter(
+      (bet) => bet.source === "calculator",
+    ),
+  );
+
+  const selectedSubscriberStats = buildPersonalStats(
+    selectedRangeBets.filter(
+      (bet) => bet.source === "subscriber",
+    ),
+  );
+
+  const headTipperTips =
+    (headTipperResults.data || []) as SuggestedTipResult[];
+
+  const calculatorTips = (
+    (calculatorResults.data || []) as CalculatorTipResult[]
+  ).filter(
+    (tip) =>
+      tip.voided !== true &&
+      String(tip.status || "").toLowerCase() !== "voided",
+  );
+
+  const headTipperSuccess = buildSuccessStats(
+    headTipperTips,
+    isHeadTipperResultSuccessful,
+  );
+
+  const calculatorSuccess = buildSuccessStats(
+    calculatorTips,
+    isCalculatorResultSuccessful,
+  );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
-      <div className="relative overflow-hidden border-b border-white/10 bg-black">
-        <img
-          src="/header-logo.png"
-          alt="SmartPunt"
-          className="pointer-events-none absolute left-1/2 top-1/2 w-[320px] -translate-x-1/2 -translate-y-1/2 opacity-20 sm:w-[500px] lg:w-[900px]"
-        />
+    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,rgba(245,158,11,0.18),transparent_30%),radial-gradient(circle_at_90%_8%,rgba(14,165,233,0.10),transparent_26%),linear-gradient(180deg,#030303_0%,#09090b_48%,#020617_100%)] text-white">
+      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-5 lg:px-8">
+        <header className="sticky top-2 z-20 rounded-[26px] border border-amber-300/20 bg-black/85 p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black shadow-[0_0_24px_rgba(245,158,11,0.25)]">
+                <img
+                  src="/smartpunt-icon-512.png"
+                  alt="SmartPunt"
+                  className="h-full w-full object-cover"
+                />
+              </div>
 
-        <div className="relative z-10 flex items-center justify-between px-4 py-4 lg:px-8">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-            My Resulted Bets
-          </h1>
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-[0.28em] text-amber-300">
+                  SmartPunt
+                </p>
 
-          <Link
-href="/subscriber-dashboard"
-            className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur transition hover:bg-white/20"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
-      </div>
+                <h1 className="truncate text-xl font-black tracking-tight">
+                  My Resulted Tips
+                </h1>
+              </div>
+            </div>
 
-      <div className="mx-auto max-w-7xl p-4 lg:p-8">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">My Strike Rate</p>
-              <p className="mt-2 text-2xl font-semibold text-amber-700">
-                {overallStats.strikeRate}%
+            <Link
+              href="/subscriber-dashboard"
+              className="shrink-0 rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-white transition hover:bg-white/15"
+            >
+              Dashboard
+            </Link>
+          </div>
+        </header>
+
+        <main className="mt-4 space-y-4 pb-10">
+          <section className="overflow-hidden rounded-[30px] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.98),rgba(24,24,27,0.96),rgba(120,53,15,0.32))] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.55)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
+              Personal Performance
+            </p>
+
+            <h2 className="mt-3 text-3xl font-black tracking-tight">
+              Your betting results
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-zinc-300">
+              Track your personal return on investment and compare how
+              different SmartPunt sources performed.
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <SummaryCard
+                label="All-Time ROI"
+                stats={allTimeStats}
+                detail={`${allTimeStats.successful}/${allTimeStats.total} successful · ${formatMoney(allTimeStats.stake)} staked`}
+                tone="gold"
+              />
+
+              <SummaryCard
+                label="Today ROI"
+                stats={todayStats}
+                detail={`${todayStats.successful}/${todayStats.total} successful today`}
+                tone="green"
+              />
+            </div>
+          </section>
+
+          <section className="rounded-[26px] border border-white/10 bg-black/70 p-4 shadow-[0_18px_48px_rgba(0,0,0,0.35)]">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+                Date Range
               </p>
-              <p className="mt-2 text-xs font-medium text-zinc-500">
-                {overallStats.wins}/{overallStats.total} successful
+
+              <p className="mt-1 text-xs font-semibold text-zinc-400">
+                Personal ROI and SmartPunt success figures below use this
+                selected period.
               </p>
             </div>
-          </Panel>
 
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">ROI</p>
-              <p className={`mt-2 text-2xl font-semibold ${Number(overallStats.roi) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                {overallStats.roi}%
-              </p>
-              <p className="mt-2 text-xs font-medium text-zinc-500">
-                {overallStats.profitLoss >= 0 ? "+" : ""}{overallStats.profitLoss.toFixed(2)} pts P/L
-              </p>
+            <form
+              method="get"
+              className="mt-4 grid grid-cols-2 gap-2"
+            >
+              <label className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">
+                From
+                <input
+                  type="date"
+                  name="from"
+                  defaultValue={rangeFrom}
+                  max={rangeTo}
+                  className="mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2.5 text-sm font-black text-zinc-950 outline-none focus:border-amber-400"
+                  style={{
+                    colorScheme: "light",
+                  }}
+                />
+              </label>
+
+              <label className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">
+                To
+                <input
+                  type="date"
+                  name="to"
+                  defaultValue={rangeTo}
+                  min={rangeFrom}
+                  max={today}
+                  className="mt-2 w-full rounded-xl border border-zinc-300 bg-zinc-100 px-3 py-2.5 text-sm font-black text-zinc-950 outline-none focus:border-amber-400"
+                  style={{
+                    colorScheme: "light",
+                  }}
+                />
+              </label>
+
+              <button
+                type="submit"
+                className="col-span-2 rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110"
+              >
+                Apply Date Range
+              </button>
+            </form>
+
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <Link
+                href={`/my-resulted-tips?from=${today}&to=${today}`}
+                className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-center text-[9px] font-black uppercase tracking-[0.1em] text-zinc-300"
+              >
+                Today
+              </Link>
+
+              <Link
+                href={`/my-resulted-tips?from=${shiftDateKey(
+                  today,
+                  -6,
+                )}&to=${today}`}
+                className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-center text-[9px] font-black uppercase tracking-[0.1em] text-zinc-300"
+              >
+                7 Days
+              </Link>
+
+              <Link
+                href={`/my-resulted-tips?from=${defaultFrom}&to=${today}`}
+                className="rounded-xl border border-white/10 bg-white/5 px-2 py-2 text-center text-[9px] font-black uppercase tracking-[0.1em] text-zinc-300"
+              >
+                30 Days
+              </Link>
             </div>
-          </Panel>
+          </section>
 
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Head Tipper Bets</p>
-              <p className="mt-2 text-2xl font-semibold text-amber-700">
-                {headTipperStats.strikeRate}%
-              </p>
-              <p className="mt-2 text-xs font-medium text-zinc-500">
-                {headTipperStats.wins}/{headTipperStats.total} successful
-              </p>
+          <section className="rounded-[28px] border border-amber-300/25 bg-[linear-gradient(145deg,rgba(9,9,11,0.98),rgba(2,6,23,0.96))] p-4 shadow-[0_20px_55px_rgba(0,0,0,0.42)]">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-300">
+                  Selected Range ROI
+                </p>
+
+                <ROINumber
+                  value={selectedRangeStats.roi}
+                  className="mt-2 text-4xl"
+                />
+              </div>
+
+              <div className="text-right">
+                <p
+                  className={`text-lg font-black ${
+                    selectedRangeStats.profitLoss >= 0
+                      ? "text-emerald-200"
+                      : "text-rose-200"
+                  }`}
+                >
+                  {formatSignedMoney(
+                    selectedRangeStats.profitLoss,
+                  )}
+                </p>
+
+                <p className="mt-1 text-[10px] font-semibold text-zinc-500">
+                  {formatMoney(selectedRangeStats.stake)} staked
+                </p>
+              </div>
             </div>
-          </Panel>
 
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Calculator Bets</p>
-              <p className="mt-2 text-2xl font-semibold text-blue-700">
-                {calculatorStats.strikeRate}%
-              </p>
-              <p className="mt-2 text-xs font-medium text-zinc-500">
-                {calculatorStats.wins}/{calculatorStats.total} successful
-              </p>
+            <p className="mt-3 text-xs font-semibold text-zinc-400">
+              {formatDate(`${rangeFrom}T12:00:00+08:00`)} to{" "}
+              {formatDate(`${rangeTo}T12:00:00+08:00`)} ·{" "}
+              {selectedRangeStats.successful}/
+              {selectedRangeStats.total} successful
+            </p>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <SourceROICard
+                label="Head Tipper"
+                stats={selectedHeadTipperStats}
+                tone="gold"
+              />
+
+              <SourceROICard
+                label="Calculator"
+                stats={selectedCalculatorStats}
+                tone="blue"
+              />
+
+              <SourceROICard
+                label="My Picks"
+                stats={selectedSubscriberStats}
+                tone="green"
+              />
             </div>
-          </Panel>
-        </div>
+          </section>
 
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">My Own Picks</p>
-              <p className="mt-2 text-2xl font-semibold text-emerald-700">
-                {subscriberStats.strikeRate}%
-              </p>
-              <p className="mt-2 text-xs font-medium text-zinc-500">
-                {subscriberStats.wins}/{subscriberStats.total} successful
-              </p>
+          <section className="grid grid-cols-2 gap-3">
+            <SuccessCard
+              label="Head Tipper Success"
+              successful={headTipperSuccess.successful}
+              total={headTipperSuccess.total}
+              percentage={headTipperSuccess.percentage}
+              tone="gold"
+              description="All resulted Head Tipper tips in this period"
+            />
+
+            <SuccessCard
+              label="Calculator Success"
+              successful={calculatorSuccess.successful}
+              total={calculatorSuccess.total}
+              percentage={calculatorSuccess.percentage}
+              tone="blue"
+              description="All resulted Calculator tips in this period"
+            />
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+                  Resulted Tips
+                </p>
+
+                <p className="mt-1 text-xs font-semibold text-zinc-400">
+                  Your personal bets in the selected range
+                </p>
+              </div>
+
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black text-zinc-200">
+                {selectedRangeDisplayBets.length}
+              </span>
             </div>
-          </Panel>
 
-          <Panel className="bg-white/95">
-            <div className="p-4 text-zinc-950">
-              <p className="text-sm text-zinc-500">Total Staked</p>
-              <p className="mt-2 text-2xl font-semibold text-zinc-900">
-                {overallStats.stake.toFixed(2)} pts
-              </p>
-              <p className="mt-2 text-xs font-medium text-zinc-500">
-                Returns: {overallStats.returns.toFixed(2)} pts
-              </p>
-            </div>
-          </Panel>
-        </div>
+            {selectedRangeDisplayBets.length > 0 ? (
+              selectedRangeDisplayBets.map((bet) => {
+                const betType = normaliseBetType(
+                  bet.bet_type,
+                );
 
-        <div className="mt-6 space-y-4">
-          <Section title="Today’s Bets" bets={todaysBets} defaultOpen />
-          <Section title="Last Month’s Bets" bets={lastMonthsBets} defaultOpen />
-          <Section title="Older Bets" bets={olderBets} />
-        </div>
+                const isEachWay =
+                  betType === "Each Way";
+
+                const successful =
+                  isPersonalBetSuccessful(bet);
+
+                const totalStake =
+                  getTotalStake(bet);
+
+                const totalReturn =
+                  getStoredReturn(bet);
+
+                const profitLoss =
+                  getProfitLoss(bet);
+
+                return (
+                  <article
+                    key={bet.id}
+                    className="overflow-hidden rounded-[26px] border border-white/10 bg-[linear-gradient(145deg,rgba(9,9,11,0.98),rgba(2,6,23,0.96))] shadow-[0_20px_50px_rgba(0,0,0,0.42)]"
+                  >
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-amber-300/80">
+                            {bet.race || "Race"}
+                          </p>
+
+                          <h3 className="mt-1 truncate text-2xl font-black leading-tight text-white">
+                            {bet.horse || "Unnamed horse"}
+                          </h3>
+                        </div>
+
+                        <div className="shrink-0 text-right">
+                          <p
+                            className={`text-xl font-black ${
+                              profitLoss >= 0
+                                ? "text-emerald-200"
+                                : "text-rose-200"
+                            }`}
+                          >
+                            {formatSignedMoney(profitLoss)}
+                          </p>
+
+                          <p className="mt-1 text-[9px] font-semibold text-zinc-500">
+                            {formatDateTime(bet.settled_at)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses(
+                            bet.source,
+                          )}`}
+                        >
+                          {sourceLabel(bet.source)}
+                        </span>
+
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] ${betTypeClasses(
+                            bet.bet_type,
+                          )}`}
+                        >
+                          {betType}
+                        </span>
+
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] ${
+                            bet.voided
+                              ? "border-zinc-400/30 bg-zinc-400/10 text-zinc-200"
+                              : successful
+                                ? "border-emerald-300/40 bg-emerald-400/15 text-emerald-100"
+                                : "border-rose-300/40 bg-rose-400/15 text-rose-100"
+                          }`}
+                        >
+                          {bet.voided
+                            ? "Void"
+                            : successful
+                              ? "Successful"
+                              : "Unsuccessful"}
+                        </span>
+
+                        {bet.finishing_position ? (
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-zinc-300">
+                            Finished {bet.finishing_position}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {isEachWay ? (
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-3">
+                            <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-200">
+                              Win Leg
+                            </p>
+
+                            <p className="mt-2 text-lg font-black text-white">
+                              {formatMoney(
+                                toNumber(
+                                  bet.win_stake_points,
+                                ),
+                              )}
+                            </p>
+
+                            <p className="mt-1 text-[10px] font-semibold text-emerald-100/80">
+                              at{" "}
+                              {formatOdds(
+                                bet.win_odds_taken,
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-sky-300/20 bg-sky-400/10 p-3">
+                            <p className="text-[8px] font-black uppercase tracking-[0.14em] text-sky-200">
+                              Place Leg
+                            </p>
+
+                            <p className="mt-2 text-lg font-black text-white">
+                              {formatMoney(
+                                toNumber(
+                                  bet.place_stake_points,
+                                ),
+                              )}
+                            </p>
+
+                            <p className="mt-1 text-[10px] font-semibold text-sky-100/80">
+                              at{" "}
+                              {formatOdds(
+                                bet.place_odds_taken,
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                              Odds Taken
+                            </p>
+
+                            <p className="mt-2 text-xl font-black text-white">
+                              {formatOdds(bet.odds_taken)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                              Stake
+                            </p>
+
+                            <p className="mt-2 text-xl font-black text-white">
+                              {formatMoney(totalStake)}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        <div className="rounded-2xl border border-white/10 bg-black/35 p-3">
+                          <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                            Total Stake
+                          </p>
+
+                          <p className="mt-2 text-base font-black text-white">
+                            {formatMoney(totalStake)}
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-sky-300/20 bg-sky-400/10 p-3">
+                          <p className="text-[8px] font-black uppercase tracking-[0.12em] text-sky-200">
+                            Return
+                          </p>
+
+                          <p className="mt-2 text-base font-black text-white">
+                            {formatMoney(totalReturn)}
+                          </p>
+                        </div>
+
+                        <div
+                          className={`rounded-2xl border p-3 ${
+                            profitLoss >= 0
+                              ? "border-emerald-300/20 bg-emerald-400/10"
+                              : "border-rose-300/20 bg-rose-400/10"
+                          }`}
+                        >
+                          <p
+                            className={`text-[8px] font-black uppercase tracking-[0.12em] ${
+                              profitLoss >= 0
+                                ? "text-emerald-200"
+                                : "text-rose-200"
+                            }`}
+                          >
+                            Profit / Loss
+                          </p>
+
+                          <p
+                            className={`mt-2 text-base font-black ${
+                              profitLoss >= 0
+                                ? "text-emerald-100"
+                                : "text-rose-100"
+                            }`}
+                          >
+                            {formatSignedMoney(profitLoss)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {bet.voided && bet.void_reason ? (
+                        <div className="mt-3 rounded-2xl border border-zinc-400/20 bg-zinc-400/10 p-3">
+                          <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-300">
+                            Void Reason
+                          </p>
+
+                          <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-400">
+                            {bet.void_reason}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="border-t border-white/10 bg-black/35 px-4 py-3">
+                      <p className="text-[10px] font-black text-zinc-300">
+                        {sourceDescription(bet.source)}
+                      </p>
+
+                      <p className="mt-1 text-[9px] font-semibold text-zinc-500">
+                        Settled {formatDateTime(bet.settled_at)}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="rounded-[28px] border border-dashed border-white/15 bg-white/[0.04] p-8 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-2xl">
+                  📈
+                </div>
+
+                <h2 className="mt-4 text-2xl font-black">
+                  No resulted tips
+                </h2>
+
+                <p className="mx-auto mt-2 max-w-sm text-sm font-semibold leading-6 text-zinc-400">
+                  You have no personal bets settled within the selected
+                  date range.
+                </p>
+              </div>
+            )}
+          </section>
+        </main>
       </div>
     </div>
   );
