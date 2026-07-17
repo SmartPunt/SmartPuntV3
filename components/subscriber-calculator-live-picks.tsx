@@ -29,6 +29,36 @@ type CalculatorTip = {
   published_at: string | null;
 };
 
+type CalculatorPrediction = {
+  id: number;
+  race_id: number;
+  runner_id: number;
+  horse_id: number;
+  scoring_version?: string | null;
+  score: number | string;
+  rank: number;
+  win_percent: number | string;
+  place_percent: number | string;
+  recent_form_score: number | string;
+  distance_score: number | string;
+  track_score: number | string;
+  condition_score: number | string;
+  barrier_score: number | string;
+  weight_score: number | string;
+  jockey_score: number | string;
+  trainer_score: number | string;
+  predicted_at?: string | null;
+  finishing_position?: number | null;
+  won?: boolean | null;
+  placed?: boolean | null;
+  settled_at?: string | null;
+  is_smartpunt_tip?: boolean | null;
+  smartpunt_tip_type?: string | null;
+  race_confidence_percent?: number | string | null;
+  race_confidence_tier?: string | null;
+  suggested_bet?: string | null;
+};
+
 type OfficialTip = {
   id: number;
   meeting_id?: number | null;
@@ -716,7 +746,150 @@ function matchesRaceDay(meeting: Meeting | undefined, raceDayFilter: RaceDayFilt
   if (!meeting?.meeting_date) return false;
   return meeting.meeting_date === dayDates[raceDayFilter];
 }
+function buildSnapshotScoredRunners({
+  race,
+  meeting,
+  predictions,
+  runners,
+  horses,
+}: {
+  race: Race;
+  meeting: Meeting | undefined;
+  predictions: CalculatorPrediction[];
+  runners: Runner[];
+  horses: Horse[];
+}): ReturnType<typeof calculateRaceScores> {
+  return [...predictions]
+    .sort(
+      (a, b) =>
+        Number(a.rank || 0) -
+        Number(b.rank || 0),
+    )
+    .flatMap((prediction) => {
+      const runner = runners.find(
+        (item) =>
+          Number(item.id) ===
+          Number(prediction.runner_id),
+      );
 
+      if (!runner) return [];
+
+      const horse = horses.find(
+        (item) =>
+          Number(item.id) ===
+          Number(
+            prediction.horse_id ||
+              runner.horse_id,
+          ),
+      );
+
+      const listedWeight =
+        runner.weight_kg === null ||
+        runner.weight_kg === undefined
+          ? null
+          : Number(runner.weight_kg);
+
+      const apprenticeClaim =
+        runner.apprentice_claim_kg === null ||
+        runner.apprentice_claim_kg ===
+          undefined
+          ? 0
+          : Number(
+              runner.apprentice_claim_kg,
+            );
+
+      const effectiveWeight =
+        listedWeight === null
+          ? null
+          : Math.max(
+              0,
+              listedWeight - apprenticeClaim,
+            );
+
+      const score = Number(
+        prediction.score || 0,
+      );
+
+      return [
+        {
+          ...runner,
+          finishing_position:
+            prediction.finishing_position ??
+            runner.finishing_position ??
+            null,
+          horse_name:
+            horse?.horse_name ||
+            "Unknown horse",
+          smartpunt_power_rating:
+            horse?.smartpunt_power_rating ??
+            null,
+          meeting_name:
+            meeting?.meeting_name ||
+            "Unknown meeting",
+          meeting_date:
+            meeting?.meeting_date || "",
+          track_condition:
+            meeting?.track_condition || null,
+          race_name: race.race_name,
+          race_number: race.race_number,
+          distance_m: race.distance_m,
+          effectiveWeight,
+          score,
+          winPercent: Number(
+            prediction.win_percent || 0,
+          ),
+          placePercent: Number(
+            prediction.place_percent || 0,
+          ),
+          verdict:
+            prediction.is_smartpunt_tip
+              ? prediction.smartpunt_tip_type ||
+                "Tip"
+              : "Snapshot",
+          rank: Number(
+            prediction.rank || 0,
+          ),
+          components: {
+            recentForm: Number(
+              prediction.recent_form_score ||
+                0,
+            ),
+            distance: Number(
+              prediction.distance_score || 0,
+            ),
+            track: Number(
+              prediction.track_score || 0,
+            ),
+            condition: Number(
+              prediction.condition_score ||
+                0,
+            ),
+            barrier: Number(
+              prediction.barrier_score || 0,
+            ),
+            weight: Number(
+              prediction.weight_score || 0,
+            ),
+            jockey: Number(
+              prediction.jockey_score || 0,
+            ),
+            trainer: Number(
+              prediction.trainer_score || 0,
+            ),
+            consistency: 50,
+            powerRating: Number(
+              horse?.smartpunt_power_rating ||
+                0,
+            ),
+            powerAdjustment: 0,
+          },
+          audit: undefined as any,
+        },
+      ];
+    }) as ReturnType<
+      typeof calculateRaceScores
+    >;
+}
 export default function SubscriberCalculatorLivePicks({
   races,
   runners,
@@ -724,6 +897,7 @@ export default function SubscriberCalculatorLivePicks({
   meetings,
   jockeyProfiles,
   calculatorTips = [],
+  calculatorPredictions = [],
   officialTips = [],
   activeUserBets = [],
   dayDates,
@@ -736,6 +910,7 @@ export default function SubscriberCalculatorLivePicks({
   meetings: Meeting[];
   jockeyProfiles: JockeyProfile[];
   calculatorTips?: CalculatorTip[];
+  calculatorPredictions?: CalculatorPrediction[];
   officialTips?: OfficialTip[];
   activeUserBets?: UserBet[];
   initialRaceId?: string;
@@ -827,21 +1002,69 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
   }, [orderedPublishedRaces, selectedRaceId]);
 
   const activeMeeting = activeRace
-    ? meetings.find((item) => item.id === activeRace.meeting_id)
+    ? meetings.find(
+        (item) =>
+          item.id === activeRace.meeting_id,
+      )
     : undefined;
 
-  const scoredRunners = useMemo(
-    () =>
-      calculateRaceScores({
-        activeRace,
-        races,
+  const isClosedRace =
+    String(activeRace?.status || "")
+      .trim()
+      .toLowerCase() === "closed";
+
+  const activeSnapshotRows = useMemo(() => {
+    if (!activeRace || !isClosedRace) {
+      return [];
+    }
+
+    return calculatorPredictions.filter(
+      (prediction) =>
+        Number(prediction.race_id) ===
+        Number(activeRace.id),
+    );
+  }, [
+    activeRace,
+    calculatorPredictions,
+    isClosedRace,
+  ]);
+
+  const scoredRunners = useMemo(() => {
+    if (!activeRace) return [];
+
+    if (isClosedRace) {
+      return buildSnapshotScoredRunners({
+        race: activeRace,
+        meeting: activeMeeting,
+        predictions: activeSnapshotRows,
         runners,
         horses,
-        meetings,
-        jockeyProfiles,
-      }),
-    [activeRace, horses, jockeyProfiles, meetings, races, runners],
-  );
+      });
+    }
+
+    return calculateRaceScores({
+      activeRace,
+      races,
+      runners,
+      horses,
+      meetings,
+      jockeyProfiles,
+    });
+  }, [
+    activeMeeting,
+    activeRace,
+    activeSnapshotRows,
+    horses,
+    isClosedRace,
+    jockeyProfiles,
+    meetings,
+    races,
+    runners,
+  ]);
+
+  const closedRaceSnapshotMissing =
+    isClosedRace &&
+    activeSnapshotRows.length === 0;
 
   const topWinChance = scoredRunners[0] || null;
   const calculatorTopThree = scoredRunners.slice(0, 3);
@@ -868,26 +1091,89 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
       : roundScore(Number(activeTopPlaceChance.score || 0));
   }, [activeTopPlaceChance, scoredRunners]);
 
-  const raceConfidence = useMemo(
-    () =>
-      scoredRunners.length
-        ? calculateRaceConfidence(scoredRunners, {
-            trackCondition: topWinChance?.track_condition || null,
-            raceName: activeRace?.race_name || "",
-            placeTerms: activeRace?.place_terms || "top_3",
-          })
-        : null,
-    [
-      activeRace?.place_terms,
-      activeRace?.race_name,
-      scoredRunners,
-      topWinChance?.track_condition,
-    ],
-  );
+  const raceConfidence = useMemo(() => {
+    if (!scoredRunners.length) return null;
+
+    const calculatedConfidence =
+      calculateRaceConfidence(scoredRunners, {
+        trackCondition:
+          topWinChance?.track_condition ||
+          null,
+        raceName:
+          activeRace?.race_name || "",
+        placeTerms:
+          activeRace?.place_terms ||
+          "top_3",
+      });
+
+    if (!isClosedRace) {
+      return calculatedConfidence;
+    }
+
+    const storedConfidence =
+      activeSnapshotRows.find(
+        (prediction) =>
+          prediction
+            .race_confidence_percent !==
+          null &&
+          prediction
+            .race_confidence_percent !==
+          undefined,
+      ) || activeSnapshotRows[0];
+
+    const storedTier = String(
+      storedConfidence
+        ?.race_confidence_tier || "",
+    );
+
+    const tier:
+      | "Low"
+      | "Medium"
+      | "High"
+      | "Elite" =
+      storedTier === "Elite" ||
+      storedTier === "High" ||
+      storedTier === "Medium" ||
+      storedTier === "Low"
+        ? storedTier
+        : calculatedConfidence.tier;
+
+    return {
+      ...calculatedConfidence,
+      confidencePercent:
+        storedConfidence
+          ?.race_confidence_percent !==
+          null &&
+        storedConfidence
+          ?.race_confidence_percent !==
+          undefined
+          ? Number(
+              storedConfidence
+                .race_confidence_percent,
+            )
+          : calculatedConfidence
+              .confidencePercent,
+      tier,
+      suggestedBet:
+        storedConfidence
+          ?.smartpunt_tip_type ||
+        storedConfidence?.suggested_bet ||
+        calculatedConfidence.suggestedBet,
+      summary:
+        "Frozen final prediction snapshot showing the calculator position and confidence recorded when this race was finalised.",
+    };
+  }, [
+    activeRace?.place_terms,
+    activeRace?.race_name,
+    activeSnapshotRows,
+    isClosedRace,
+    scoredRunners,
+    topWinChance?.track_condition,
+  ]);
 
 const tipThresholds = useMemo(
   () =>
-    raceConfidence
+    raceConfidence && !isClosedRace
       ? getCalculatorTipThresholds(raceConfidence, {
           trackCondition: topWinChance?.track_condition || null,
           placeTerms: activeRace?.place_terms || "top_3",
@@ -897,27 +1183,103 @@ const tipThresholds = useMemo(
   [
     activeMeeting?.meeting_date,
     activeRace?.place_terms,
+    isClosedRace,
     raceConfidence,
     topWinChance?.track_condition,
   ],
 );
 
-const qualifiedTip = useMemo(
-  () =>
-    getQualifiedCalculatorTip(scoredRunners, {
-      trackCondition: topWinChance?.track_condition || null,
-      raceName: activeRace?.race_name || "",
-      placeTerms: activeRace?.place_terms || "top_3",
-      meetingDate: activeMeeting?.meeting_date || null,
-    }),
-  [
-    activeMeeting?.meeting_date,
-    activeRace?.place_terms,
-    activeRace?.race_name,
+const qualifiedTip = useMemo(() => {
+  if (!raceConfidence) return null;
+
+  if (isClosedRace) {
+    const storedTip =
+      activeSnapshotRows.find(
+        (prediction) =>
+          prediction.is_smartpunt_tip ===
+          true,
+      );
+
+    if (!storedTip) return null;
+
+    const storedTipRunner =
+      scoredRunners.find(
+        (runner) =>
+          Number(runner.id) ===
+          Number(storedTip.runner_id),
+      );
+
+    if (!storedTipRunner) return null;
+
+    const rawTipType = String(
+      storedTip.smartpunt_tip_type ||
+        storedTip.suggested_bet ||
+        "",
+    ).toLowerCase();
+
+    const type: "Win" | "Place" =
+      rawTipType.includes("place")
+        ? "Place"
+        : "Win";
+
+    const secondRunner =
+      scoredRunners.find(
+        (runner) =>
+          Number(runner.id) !==
+          Number(storedTipRunner.id),
+      ) || null;
+
+    const gap = secondRunner
+      ? roundScore(
+          Number(
+            storedTipRunner.score || 0,
+          ) -
+            Number(
+              secondRunner.score || 0,
+            ),
+        )
+      : roundScore(
+          Number(
+            storedTipRunner.score || 0,
+          ),
+        );
+
+    return {
+      runner: storedTipRunner,
+      type,
+      gap,
+      raceConfidence,
+      qualifiesAsStrongWin: false,
+      qualifiesAsStrongPlace: false,
+    };
+  }
+
+  return getQualifiedCalculatorTip(
     scoredRunners,
-    topWinChance?.track_condition,
-  ],
-);
+    {
+      trackCondition:
+        topWinChance?.track_condition ||
+        null,
+      raceName:
+        activeRace?.race_name || "",
+      placeTerms:
+        activeRace?.place_terms ||
+        "top_3",
+      meetingDate:
+        activeMeeting?.meeting_date ||
+        null,
+    },
+  );
+}, [
+  activeMeeting?.meeting_date,
+  activeRace?.place_terms,
+  activeRace?.race_name,
+  activeSnapshotRows,
+  isClosedRace,
+  raceConfidence,
+  scoredRunners,
+  topWinChance?.track_condition,
+]);
 
   const activeRaceIndex = activeRace
     ? orderedPublishedRaces.findIndex(
@@ -1160,9 +1522,21 @@ const qualifiedTip = useMemo(
 
     orderedPublishedRaces.forEach((race) => {
       const meeting = meetings.find(
-        (item) => Number(item.id) === Number(race.meeting_id),
+        (item) =>
+          Number(item.id) ===
+          Number(race.meeting_id),
       );
-      const raceScoredRunners = calculateRaceScores({
+
+      if (
+        String(race.status || "")
+          .trim()
+          .toLowerCase() === "closed"
+      ) {
+        return;
+      }
+
+      const raceScoredRunners =
+        calculateRaceScores({
         activeRace: race,
         races,
         runners,
@@ -1518,7 +1892,16 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                     </button>
                   </div>
                 </div>
-
+                {closedRaceSnapshotMissing ? (
+                  <div className="rounded-[20px] border border-rose-300/45 bg-rose-950/70 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-200">
+                      Historical Snapshot Unavailable
+                    </p>
+                    <p className="mt-2 text-sm font-semibold leading-6 text-rose-50">
+                      This race is finalised, but no saved calculator prediction snapshot was found. SmartPunt will not recalculate the race using updated post-race information.
+                    </p>
+                  </div>
+                ) : null}
                 {officialRaceTip ? (
                   <div className="rounded-[20px] border border-emerald-300/45 bg-[linear-gradient(135deg,rgba(6,78,59,0.55)_0%,rgba(2,6,23,0.96)_55%,rgba(0,0,0,0.98)_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
                     <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1554,27 +1937,45 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                       </div>
 
                       <div className="min-w-[132px]">
-                        <TipAcceptanceControl
-                          tipKey={`head-${officialRaceTip.id}`}
-                          activeKey={acceptingTipKey}
-                          setActiveKey={setAcceptingTipKey}
-                          activeBet={activeHeadTipperUserBet}
-                          isSaving={isSavingTip}
-                          formAction={addUserBetFormAction}
-                          buttonLabel="Accept Tip"
-                          hiddenFields={{
-                            source: "head_tipper",
-                            suggested_tip_id: officialRaceTip.id,
-                            race_id: officialRaceTip.race_id || activeRace?.id || "",
-                            race_runner_id:
-                              officialRaceTip.race_runner_id || officialRaceTipRunner?.id || "",
-                            horse_id:
-                              officialRaceTip.horse_id || officialRaceTipRunner?.horse_id || "",
-                            horse: officialTipSelection,
-                            race: officialRaceTip.race || activeRaceLabel,
-                            bet_type: officialTipType,
-                          }}
-                        />
+                        {!isClosedRace ? (
+                          <TipAcceptanceControl
+                            tipKey={`head-${officialRaceTip.id}`}
+                            activeKey={acceptingTipKey}
+                            setActiveKey={setAcceptingTipKey}
+                            activeBet={activeHeadTipperUserBet}
+                            isSaving={isSavingTip}
+                            formAction={addUserBetFormAction}
+                            buttonLabel="Accept Tip"
+                            hiddenFields={{
+                              source: "head_tipper",
+                              suggested_tip_id:
+                                officialRaceTip.id,
+                              race_id:
+                                officialRaceTip.race_id ||
+                                activeRace?.id ||
+                                "",
+                              race_runner_id:
+                                officialRaceTip.race_runner_id ||
+                                officialRaceTipRunner?.id ||
+                                "",
+                              horse_id:
+                                officialRaceTip.horse_id ||
+                                officialRaceTipRunner?.horse_id ||
+                                "",
+                              horse:
+                                officialTipSelection,
+                              race:
+                                officialRaceTip.race ||
+                                activeRaceLabel,
+                              bet_type:
+                                officialTipType,
+                            }}
+                          />
+                        ) : (
+                          <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
+                            Race Finalised
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1614,7 +2015,9 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                         🏆 SmartPunt Calculator Top 3
                       </p>
                       <p className="mt-1 text-[10px] font-semibold text-zinc-300">
-                        Ranked by the live calculator score for this race.
+                        {isClosedRace
+                          ? "Frozen calculator ranking recorded when this race was finalised."
+                          : "Ranked by the live calculator score for this race."}
                       </p>
                     </div>
                     <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
@@ -1707,7 +2110,7 @@ const isResulted = finishingPosition !== null;
                                 : "⊘ No Bet"}
                           </div>
 
-                          {calculatorTipType ? (
+                          {calculatorTipType && !isClosedRace ? (
                             <TipAcceptanceControl
                               tipKey={`calculator-${activeRace?.id}-${runner.id}`}
                               activeKey={acceptingTipKey}
@@ -1885,7 +2288,9 @@ const isResulted = finishingPosition !== null;
                         📊 Full Field Breakdown
                       </p>
                       <p className="mt-1 text-[11px] font-semibold text-zinc-400">
-                        Live calculator ranking for every runner in this race.
+                        {isClosedRace
+                          ? "Final prediction snapshot with finishing positions."
+                          : "Live calculator ranking for every runner in this race."}
                       </p>
                     </div>
                     <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-200">
