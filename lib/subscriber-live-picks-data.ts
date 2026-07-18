@@ -960,7 +960,7 @@ export async function loadSubscriberLivePicksData({
     const officialTipsStartedAt =
       Date.now();
 
-    officialTips =
+    const loadedOfficialTips =
       currentRaceIds.length
         ? await fetchServiceRoleRowsByRaceIds<any>(
             {
@@ -975,11 +975,85 @@ export async function loadSubscriberLivePicksData({
           )
         : [];
 
+    const currentRunnerById =
+      new Map<number, any>();
+
+    const currentRunnerByRaceAndHorse =
+      new Map<string, any>();
+
+    currentRunners.forEach((runner) => {
+      currentRunnerById.set(
+        Number(runner.id),
+        runner,
+      );
+
+      if (
+        runner.race_id &&
+        runner.horse_id
+      ) {
+        currentRunnerByRaceAndHorse.set(
+          `${Number(
+            runner.race_id,
+          )}-${Number(
+            runner.horse_id,
+          )}`,
+          runner,
+        );
+      }
+    });
+
+    officialTips =
+      loadedOfficialTips.filter((tip) => {
+        if (tip.race_runner_id) {
+          const linkedRunner =
+            currentRunnerById.get(
+              Number(
+                tip.race_runner_id,
+              ),
+            );
+
+          if (
+            linkedRunner?.scratched ===
+            true
+          ) {
+            return false;
+          }
+        }
+
+        if (
+          tip.race_id &&
+          tip.horse_id
+        ) {
+          const linkedRunner =
+            currentRunnerByRaceAndHorse.get(
+              `${Number(
+                tip.race_id,
+              )}-${Number(
+                tip.horse_id,
+              )}`,
+            );
+
+          if (
+            linkedRunner?.scratched ===
+            true
+          ) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
     logStage(
       "load official tips",
       officialTipsStartedAt,
       {
-        rowCount:
+        loadedRowCount:
+          loadedOfficialTips.length,
+        visibleRowCount:
+          officialTips.length,
+        scratchedTipCount:
+          loadedOfficialTips.length -
           officialTips.length,
       },
     );
