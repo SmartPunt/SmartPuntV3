@@ -506,8 +506,14 @@ async function updateHorseTrackStat({
     throw new Error(upsertError.message);
   }
 }
-function getDistanceBucket(distance: number | null | undefined) {
-  const value = Number(distance || 0);
+function getDistanceBucket(
+  distance: number | null | undefined,
+): string | null {
+  const value = Number(distance);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
 
   if (value >= 1000 && value <= 1200) return "1000-1200";
   if (value <= 1400) return "1201-1400";
@@ -531,11 +537,15 @@ async function updateHorseDistanceStat({
   finishingPosition: number;
   now: string;
 }) {
-  const distanceBucket = getDistanceBucket(distance);
+const distanceBucket = getDistanceBucket(distance);
 
-  if (!horseId || !Number.isFinite(finishingPosition)) {
-    return;
-  }
+if (
+  !horseId ||
+  !distanceBucket ||
+  !Number.isFinite(finishingPosition)
+) {
+  return;
+}
 
   const { data: existing, error: existingError } = await supabase
     .from("horse_distance_stats")
