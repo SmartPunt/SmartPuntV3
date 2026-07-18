@@ -777,9 +777,9 @@ const livePicksCount =
       normalisedBetType === "eachway" ||
       normalisedBetType.includes("each way");
 
-    const inputClasses = dark
-      ? "border-white/15 bg-white/8 text-white placeholder:text-zinc-500"
-      : "border-zinc-300 bg-white text-zinc-950 placeholder:text-zinc-400";
+const inputClasses = dark
+  ? "border-white/15 bg-zinc-950 text-white placeholder:text-zinc-500"
+  : "border-zinc-300 bg-white text-zinc-950 placeholder:text-zinc-400";
 
     if (isEachWay) {
       return (
@@ -793,8 +793,25 @@ const livePicksCount =
               step="0.01"
               required
               placeholder="5.00"
-              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
-            />
+className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+style={
+  dark
+    ? {
+        colorScheme: "dark",
+        backgroundColor: "#09090b",
+        color: "#ffffff",
+        WebkitTextFillColor: "#ffffff",
+        opacity: 1,
+      }
+    : {
+        colorScheme: "light",
+        backgroundColor: "#ffffff",
+        color: "#18181b",
+        WebkitTextFillColor: "#18181b",
+        opacity: 1,
+      }
+}
+/>
           </label>
 
           <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
@@ -806,8 +823,25 @@ const livePicksCount =
               step="0.01"
               required
               placeholder="10"
-              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
-            />
+className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+style={
+  dark
+    ? {
+        colorScheme: "dark",
+        backgroundColor: "#09090b",
+        color: "#ffffff",
+        WebkitTextFillColor: "#ffffff",
+        opacity: 1,
+      }
+    : {
+        colorScheme: "light",
+        backgroundColor: "#ffffff",
+        color: "#18181b",
+        WebkitTextFillColor: "#18181b",
+        opacity: 1,
+      }
+}
+/>
           </label>
 
           <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
@@ -819,8 +853,25 @@ const livePicksCount =
               step="0.01"
               required
               placeholder="2.00"
-              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
-            />
+className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+style={
+  dark
+    ? {
+        colorScheme: "dark",
+        backgroundColor: "#09090b",
+        color: "#ffffff",
+        WebkitTextFillColor: "#ffffff",
+        opacity: 1,
+      }
+    : {
+        colorScheme: "light",
+        backgroundColor: "#ffffff",
+        color: "#18181b",
+        WebkitTextFillColor: "#18181b",
+        opacity: 1,
+      }
+}
+/>
           </label>
 
           <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
@@ -832,8 +883,25 @@ const livePicksCount =
               step="0.01"
               required
               placeholder="10"
-              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
-            />
+className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+style={
+  dark
+    ? {
+        colorScheme: "dark",
+        backgroundColor: "#09090b",
+        color: "#ffffff",
+        WebkitTextFillColor: "#ffffff",
+        opacity: 1,
+      }
+    : {
+        colorScheme: "light",
+        backgroundColor: "#ffffff",
+        color: "#18181b",
+        WebkitTextFillColor: "#18181b",
+        opacity: 1,
+      }
+}
+/>
           </label>
         </div>
       );
@@ -850,8 +918,25 @@ const livePicksCount =
             step="0.01"
             required
             placeholder="3.40"
-            className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
-          />
+className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+style={
+  dark
+    ? {
+        colorScheme: "dark",
+        backgroundColor: "#09090b",
+        color: "#ffffff",
+        WebkitTextFillColor: "#ffffff",
+        opacity: 1,
+      }
+    : {
+        colorScheme: "light",
+        backgroundColor: "#ffffff",
+        color: "#18181b",
+        WebkitTextFillColor: "#18181b",
+        opacity: 1,
+      }
+}
+/>
         </label>
 
         <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
@@ -863,8 +948,25 @@ const livePicksCount =
             step="0.01"
             required
             placeholder="10"
-            className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
-          />
+className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm font-semibold outline-none transition focus:border-amber-400 ${inputClasses}`}
+style={
+  dark
+    ? {
+        colorScheme: "dark",
+        backgroundColor: "#09090b",
+        color: "#ffffff",
+        WebkitTextFillColor: "#ffffff",
+        opacity: 1,
+      }
+    : {
+        colorScheme: "light",
+        backgroundColor: "#ffffff",
+        color: "#18181b",
+        WebkitTextFillColor: "#18181b",
+        opacity: 1,
+      }
+}
+/>
         </label>
       </div>
     );
