@@ -4606,6 +4606,74 @@ career_prize_money:
     }
   }),
 );
+
+    await Promise.all(
+      cleanedRunners.map(async (runner) => {
+        const horse = horsesByNormalisedName.get(runner.normalised_name);
+
+        if (!horse?.id) return;
+
+        const importedFormLast6 = String(
+          runner.form_last_6 || "",
+        ).trim();
+
+        const importedTrackFormLast6 = String(
+          runner.track_form_last_6 || "",
+        ).trim();
+
+        const importedDistanceFormLast6 = String(
+          runner.distance_form_last_6 || "",
+        ).trim();
+
+        const formUpdates: Record<string, string> = {};
+
+        if (importedFormLast6) {
+          formUpdates.form_last_6 =
+            normaliseImportedForm(importedFormLast6);
+        }
+
+        if (importedTrackFormLast6) {
+          formUpdates.track_form_last_6 =
+            importedTrackFormLast6;
+        }
+
+        if (importedDistanceFormLast6) {
+          formUpdates.distance_form_last_6 =
+            importedDistanceFormLast6;
+        }
+
+        if (!Object.keys(formUpdates).length) {
+          return;
+        }
+
+        const { error: formUpdateError } = await supabase
+          .from("horses")
+          .update({
+            ...formUpdates,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", horse.id);
+
+        if (formUpdateError) {
+          throw new Error(formUpdateError.message);
+        }
+
+        if (formUpdates.form_last_6) {
+          horse.form_last_6 = formUpdates.form_last_6;
+        }
+
+        if (formUpdates.track_form_last_6) {
+          horse.track_form_last_6 =
+            formUpdates.track_form_last_6;
+        }
+
+        if (formUpdates.distance_form_last_6) {
+          horse.distance_form_last_6 =
+            formUpdates.distance_form_last_6;
+        }
+      }),
+    );
+
     const horseIds = cleanedRunners
       .map((runner) => horsesByNormalisedName.get(runner.normalised_name)?.id)
       .filter((id): id is number => Boolean(id));
@@ -5312,7 +5380,9 @@ const { data: raceConditionRows, error: raceConditionError } =
   raceIdsForCondition.length > 0
     ? await supabase
         .from("races")
-.select("id, meeting_id, meetings(meeting_name, track_condition)")
+.select(
+  "id, meeting_id, distance_m, meetings(meeting_name, track_condition)",
+)
         .in("id", raceIdsForCondition)
     : { data: [], error: null };
 
