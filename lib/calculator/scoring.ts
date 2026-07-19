@@ -1433,6 +1433,15 @@ const importedRecentScore = scoreImportedRecentForm(
 const importedDistanceStats = parseImportedStatRecord(
   runner.distance_form_last_6,
 );
+    console.log("=== IMPORTED RUNNER DATA ===");
+console.log("Horse:", horse?.horse_name);
+console.log("Recent:", runner.form_last_6);
+console.log("Distance:", runner.distance_form_last_6);
+console.log("Track:", runner.track_form_last_6);
+console.log("Good:", horse?.good_track_record);
+console.log("Soft:", horse?.soft_track_record);
+console.log("Heavy:", horse?.heavy_track_record);
+console.log("Synthetic:", horse?.synthetic_track_record);
 const importedTrackStats = parseImportedStatRecord(
   runner.track_form_last_6,
 );
