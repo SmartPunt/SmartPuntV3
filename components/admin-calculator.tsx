@@ -2618,10 +2618,117 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
                 ) : null}
               </div>
 
+              <div className="rounded-[28px] border border-sky-300/25 bg-sky-500/10 p-5">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-sky-300">
+                    1. Raw Stored Input Data
+                  </p>
+                  <h3 className="mt-2 text-lg font-black text-white">
+                    Values available before evidence selection
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-zinc-300">
+                    These are the runner and horse-master values stored before
+                    the calculator chooses which evidence to use.
+                  </p>
+                </div>
+
+                <div className="mt-5">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+                    Current Race Runner
+                  </p>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    {[
+                      [
+                        "Recent Form",
+                        selectedAuditRunner.audit.rawStoredData.runnerRecentForm,
+                      ],
+                      [
+                        "Distance Record",
+                        selectedAuditRunner.audit.rawStoredData
+                          .runnerDistanceRecord,
+                      ],
+                      [
+                        "Track Record",
+                        selectedAuditRunner.audit.rawStoredData
+                          .runnerTrackRecord,
+                      ],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="rounded-2xl border border-white/10 bg-black/40 p-4"
+                      >
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-zinc-400">
+                          {label}
+                        </p>
+                        <p className="mt-2 break-words text-sm font-bold text-white">
+                          {value || "Not supplied"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-5 border-t border-white/10 pt-5">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+                    Horse Master Record
+                  </p>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {[
+                      [
+                        "Recent Form",
+                        selectedAuditRunner.audit.rawStoredData.horseRecentForm,
+                      ],
+                      [
+                        "Distance Record",
+                        selectedAuditRunner.audit.rawStoredData
+                          .horseDistanceRecord,
+                      ],
+                      [
+                        "Track Record",
+                        selectedAuditRunner.audit.rawStoredData.horseTrackRecord,
+                      ],
+                      [
+                        "Good Record",
+                        selectedAuditRunner.audit.rawStoredData.goodRecord,
+                      ],
+                      [
+                        "Soft Record",
+                        selectedAuditRunner.audit.rawStoredData.softRecord,
+                      ],
+                      [
+                        "Heavy Record",
+                        selectedAuditRunner.audit.rawStoredData.heavyRecord,
+                      ],
+                      [
+                        "Synthetic Record",
+                        selectedAuditRunner.audit.rawStoredData.syntheticRecord,
+                      ],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="rounded-2xl border border-white/10 bg-black/40 p-4"
+                      >
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-zinc-400">
+                          {label}
+                        </p>
+                        <p className="mt-2 break-words text-sm font-bold text-white">
+                          {value || "Not supplied"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-black text-white">
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
+                      2. Score Calculation
+                    </p>
+                    <h3 className="mt-2 text-lg font-black text-white">
                       Component Breakdown
                     </h3>
                     <p className="text-sm text-zinc-400">
