@@ -1353,6 +1353,20 @@ const allHistoryRuns = buildAllHistoryRuns(
   meetings,
   activeRace.id,
 );
+
+const horseHistoryRunsByHorseId = new Map<number, HistoryRun[]>();
+
+allHistoryRuns.forEach((historyRun) => {
+  const horseId = Number(historyRun.horse_id);
+  const existingRuns = horseHistoryRunsByHorseId.get(horseId);
+
+  if (existingRuns) {
+    existingRuns.push(historyRun);
+  } else {
+    horseHistoryRunsByHorseId.set(horseId, [historyRun]);
+  }
+});
+
 const powerRankedField = field
   .map((runner) => {
     const horse = horses.find(
@@ -1386,13 +1400,8 @@ powerRankedField.forEach((item, index) => {
 });
   const baseScored = field.map((runner) => {
     const horse = horses.find((item) => Number(item.id) === Number(runner.horse_id));
-    const historyRuns = buildHorseHistory(
-      runner.horse_id,
-      runners,
-      races,
-      meetings,
-      activeRace.id,
-    );
+    const historyRuns =
+      horseHistoryRunsByHorseId.get(Number(runner.horse_id)) || [];
 
 const recentHistoryRunCount = historyRuns.length;
 const distanceBucket = getDistanceBucket(activeRace.distance_m);
