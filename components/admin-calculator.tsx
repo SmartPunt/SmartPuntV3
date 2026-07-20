@@ -3165,16 +3165,29 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
                   })}
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-black/35 px-4 py-3">
-                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">
-                    Imported
-                  </p>
-                  <p className="mt-2 text-sm font-bold text-white">
-                    {formatImportedAt(
-                      selectedAuditRunner.audit.originalImportedData.importedAt,
-                    )}
-                  </p>
-                </div>
+<div className="mt-4 grid gap-3 sm:grid-cols-2">
+  <div className="rounded-2xl border border-emerald-300/20 bg-black/35 px-4 py-3">
+    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">
+      Imported
+    </p>
+    <p className="mt-2 text-sm font-bold text-white">
+      {formatImportedAt(
+        selectedAuditRunner.audit.originalImportedData.importedAt,
+      )}
+    </p>
+  </div>
+
+  <div className="rounded-2xl border border-emerald-300/20 bg-black/35 px-4 py-3">
+    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">
+      Imported By
+    </p>
+    <p className="mt-2 text-sm font-bold text-white">
+      👤{" "}
+      {selectedAuditRunner.audit.originalImportedData.importedBy ||
+        "Not recorded"}
+    </p>
+  </div>
+</div>
 
                 <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.1em]">
                   <span className="rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-1.5 text-emerald-200">
