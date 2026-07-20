@@ -1355,21 +1355,52 @@ allHistoryRuns.forEach((historyRun) => {
 });
 
 const trainerHistoryRunsByName = new Map<string, HistoryRun[]>();
+const jockeyHistoryRunsByName = new Map<string, HistoryRun[]>();
 
 allHistoryRuns.forEach((historyRun) => {
   const trainerName = String(historyRun.trainer_name || "")
     .trim()
     .toLowerCase();
 
-  if (!trainerName) return;
+  if (trainerName) {
+    const existingTrainerRuns =
+      trainerHistoryRunsByName.get(trainerName);
 
-  const existingRuns = trainerHistoryRunsByName.get(trainerName);
-
-  if (existingRuns) {
-    existingRuns.push(historyRun);
-  } else {
-    trainerHistoryRunsByName.set(trainerName, [historyRun]);
+    if (existingTrainerRuns) {
+      existingTrainerRuns.push(historyRun);
+    } else {
+      trainerHistoryRunsByName.set(trainerName, [historyRun]);
+    }
   }
+
+  const jockeyName = String(historyRun.jockey_name || "")
+    .trim()
+    .toLowerCase();
+
+  if (jockeyName) {
+    const existingJockeyRuns =
+      jockeyHistoryRunsByName.get(jockeyName);
+
+    if (existingJockeyRuns) {
+      existingJockeyRuns.push(historyRun);
+    } else {
+      jockeyHistoryRunsByName.set(jockeyName, [historyRun]);
+    }
+  }
+});
+
+const jockeyProfileByName = new Map<string, JockeyProfile>();
+
+jockeyProfiles.forEach((profile) => {
+  const jockeyName = String(
+    profile.normalised_name || profile.jockey_name || "",
+  )
+    .trim()
+    .toLowerCase();
+
+  if (!jockeyName) return;
+
+  jockeyProfileByName.set(jockeyName, profile);
 });
 
 const powerRankedField = field
@@ -1465,11 +1496,23 @@ const barrier = scoreBarrier(
   raceMeeting?.meeting_name,
 );
     const weight = scoreWeight(runner, fieldEffectiveWeights);
+const jockeyName = String(runner.jockey_name || "")
+  .trim()
+  .toLowerCase();
+
+const jockeyRuns = jockeyName
+  ? jockeyHistoryRunsByName.get(jockeyName) || []
+  : [];
+
+const jockeyProfile = jockeyName
+  ? jockeyProfileByName.get(jockeyName) || null
+  : null;
+
 const jockey = scoreJockey(
   runner,
   historyRuns,
-  allHistoryRuns,
-  jockeyProfiles,
+  jockeyRuns,
+  jockeyProfile,
 );
 
 const trainerName = String(runner.trainer_name || "")
@@ -1540,13 +1583,9 @@ const trainerStats = getRunStatsForAudit(trainerRuns);
 const horseJockeyRuns = historyRuns.filter(
   (run) =>
     String(run.jockey_name || "").trim().toLowerCase() ===
-    String(runner.jockey_name || "").trim().toLowerCase(),
+    jockeyName,
 );
 const jockeyStats = getRunStatsForAudit(horseJockeyRuns);
-const jockeyProfile = jockeyProfiles.find(
-  (item) =>
-    item.normalised_name === String(runner.jockey_name || "").trim().toLowerCase(),
-) || null;
 const importedRecentScore = scoreImportedRecentForm(
   runner.form_last_6,
 );
