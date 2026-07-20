@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v7.1";
+export const SMARTPUNT_SCORING_VERSION = "v7.2";
 
 export type Race = {
   id: number;
@@ -507,6 +507,88 @@ function scoreImportedStatRecord(record?: string | null) {
   return evidenceCap(rawScore, stats.runs);
 }
 
+const SMARTPUNT_EVIDENCE_MATURITY = 6;
+const STORED_EVIDENCE_ADVANTAGE_MARGIN = 3;
+
+type EvidenceSource = "smartpunt" | "stored" | "none";
+
+type EvidenceDecision = {
+  source: EvidenceSource;
+  smartPuntRuns: number;
+  storedRuns: number;
+  reason: string;
+};
+
+function chooseEvidence({
+  smartPuntRuns,
+  storedRuns,
+}: {
+  smartPuntRuns: number;
+  storedRuns: number;
+}): EvidenceDecision {
+  const safeSmartPuntRuns = Math.max(0, Number(smartPuntRuns) || 0);
+  const safeStoredRuns = Math.max(0, Number(storedRuns) || 0);
+
+  if (!safeSmartPuntRuns && !safeStoredRuns) {
+    return {
+      source: "none",
+      smartPuntRuns: safeSmartPuntRuns,
+      storedRuns: safeStoredRuns,
+      reason:
+        "Neither SmartPunt history nor a usable stored record was available.",
+    };
+  }
+
+  if (!safeSmartPuntRuns) {
+    return {
+      source: "stored",
+      smartPuntRuns: safeSmartPuntRuns,
+      storedRuns: safeStoredRuns,
+      reason:
+        "Stored evidence was selected because no matching SmartPunt history was available.",
+    };
+  }
+
+  if (!safeStoredRuns) {
+    return {
+      source: "smartpunt",
+      smartPuntRuns: safeSmartPuntRuns,
+      storedRuns: safeStoredRuns,
+      reason:
+        "SmartPunt history was selected because no usable stored record was available.",
+    };
+  }
+
+  if (safeSmartPuntRuns >= SMARTPUNT_EVIDENCE_MATURITY) {
+    return {
+      source: "smartpunt",
+      smartPuntRuns: safeSmartPuntRuns,
+      storedRuns: safeStoredRuns,
+      reason: `SmartPunt history was selected because it has reached the ${SMARTPUNT_EVIDENCE_MATURITY}-run evidence maturity threshold.`,
+    };
+  }
+
+  if (
+    safeStoredRuns >=
+    safeSmartPuntRuns + STORED_EVIDENCE_ADVANTAGE_MARGIN
+  ) {
+    return {
+      source: "stored",
+      smartPuntRuns: safeSmartPuntRuns,
+      storedRuns: safeStoredRuns,
+      reason: `Stored evidence was selected because it contained at least ${STORED_EVIDENCE_ADVANTAGE_MARGIN} more runs than the developing SmartPunt sample.`,
+    };
+  }
+
+  return {
+    source: "smartpunt",
+    smartPuntRuns: safeSmartPuntRuns,
+    storedRuns: safeStoredRuns,
+    reason:
+      "SmartPunt history was selected because the stored sample did not have a large enough evidence advantage.",
+  };
+}
+
 function scoreRecentForm(historyRuns: HistoryRun[]) {
   const recent = historyRuns.slice(0, 5);
   if (!recent.length) return 50;
@@ -599,14 +681,17 @@ function scoreDistanceSuitability(
 
   const importedStats = parseImportedStatRecord(importedRecord);
 
-  if (importedStats.runs > matchingRuns.length) {
+  const evidenceDecision = chooseEvidence({
+    smartPuntRuns: matchingRuns.length,
+    storedRuns: importedStats.runs,
+  });
+
+  if (evidenceDecision.source === "stored") {
     return scoreImportedStatRecord(importedRecord);
   }
 
-  if (!matchingRuns.length) {
-    return importedStats.runs
-      ? scoreImportedStatRecord(importedRecord)
-      : 50;
+  if (evidenceDecision.source === "none") {
+    return 50;
   }
 
   const places = matchingRuns.filter((run) => {
@@ -645,14 +730,17 @@ function scoreTrackSuitability(
 
   const importedStats = parseImportedStatRecord(importedRecord);
 
-  if (importedStats.runs > matchingRuns.length) {
+  const evidenceDecision = chooseEvidence({
+    smartPuntRuns: matchingRuns.length,
+    storedRuns: importedStats.runs,
+  });
+
+  if (evidenceDecision.source === "stored") {
     return scoreImportedStatRecord(importedRecord);
   }
 
-  if (!matchingRuns.length) {
-    return importedStats.runs
-      ? scoreImportedStatRecord(importedRecord)
-      : 50;
+  if (evidenceDecision.source === "none") {
+    return 50;
   }
 
   const places = matchingRuns.filter((run) => {
@@ -710,10 +798,17 @@ const matchingRuns = historyRuns.filter(
     getConditionBucket(run.meeting?.track_condition) === target,
 );
 
-if (!matchingRuns.length) {
-  return importedStats.runs
-    ? clamp(importedScore, 45, 85)
-    : 50;
+const evidenceDecision = chooseEvidence({
+  smartPuntRuns: matchingRuns.length,
+  storedRuns: importedStats.runs,
+});
+
+if (evidenceDecision.source === "stored") {
+  return clamp(importedScore, 25, 95);
+}
+
+if (evidenceDecision.source === "none") {
+  return 50;
 }
 
   const historyScore = (() => {
@@ -750,10 +845,6 @@ return clamp(rawScore, 46, upperCap);
 
     return clamp(rawScore, 25, 95);
   })();
-
-if (importedStats.runs > matchingRuns.length) {
-  return clamp(importedScore, 25, 95);
-}
 
 return historyScore;
 }
@@ -1471,14 +1562,29 @@ const importedConditionScore = scoreImportedStatRecord(
   conditionRecord,
 );
 
+const distanceEvidenceDecision = chooseEvidence({
+  smartPuntRuns: distanceHistoryRuns.length,
+  storedRuns: importedDistanceStats.runs,
+});
+
+const trackEvidenceDecision = chooseEvidence({
+  smartPuntRuns: trackHistoryRuns.length,
+  storedRuns: importedTrackStats.runs,
+});
+
+const conditionEvidenceDecision = chooseEvidence({
+  smartPuntRuns: conditionHistoryRuns.length,
+  storedRuns: importedConditionStats.runs,
+});
+
 const distanceUsedImported =
-  importedDistanceStats.runs > distanceHistoryRuns.length;
+  distanceEvidenceDecision.source === "stored";
 
 const trackUsedImported =
-  importedTrackStats.runs > trackHistoryRuns.length;
+  trackEvidenceDecision.source === "stored";
 
 const conditionUsedImported =
-  importedConditionStats.runs > conditionHistoryRuns.length;
+  conditionEvidenceDecision.source === "stored";
 
 const recentFallbackUsed =
   recentHistoryRunCount < 3 && Boolean(runner.form_last_6);
@@ -1492,22 +1598,22 @@ const auditDecisionLog = [
   recentFallbackUsed
     ? "Recent form used imported form fallback because SmartPunt history sample was below 3 runs."
     : `Recent form used ${recentHistoryRunCount} SmartPunt historical run${recentHistoryRunCount === 1 ? "" : "s"}.`,
-distanceUsedImported
-  ? `Distance used today's imported record with ${importedDistanceStats.runs} runs because it exceeded SmartPunt's ${distanceHistoryRuns.length} exact ${distanceBucket} run${distanceHistoryRuns.length === 1 ? "" : "s"}.`
-  : distanceHistoryRuns.length
-    ? `Distance used ${distanceHistoryRuns.length} SmartPunt exact ${distanceBucket} run${distanceHistoryRuns.length === 1 ? "" : "s"}.`
+distanceEvidenceDecision.source === "stored"
+  ? `Distance selected the stored record: ${distanceEvidenceDecision.storedRuns} stored runs versus ${distanceEvidenceDecision.smartPuntRuns} SmartPunt runs. ${distanceEvidenceDecision.reason}`
+  : distanceEvidenceDecision.source === "smartpunt"
+    ? `Distance selected SmartPunt history: ${distanceEvidenceDecision.smartPuntRuns} SmartPunt runs versus ${distanceEvidenceDecision.storedRuns} stored runs. ${distanceEvidenceDecision.reason}`
     : "Distance had no usable evidence. Neutral score applied.",
 
-trackUsedImported
-  ? `Track used today's imported record with ${importedTrackStats.runs} runs because it exceeded SmartPunt's ${trackHistoryRuns.length} exact ${raceMeeting?.meeting_name || "track"} run${trackHistoryRuns.length === 1 ? "" : "s"}.`
-  : trackHistoryRuns.length
-    ? `Track used ${trackHistoryRuns.length} SmartPunt exact ${raceMeeting?.meeting_name || "track"} run${trackHistoryRuns.length === 1 ? "" : "s"}.`
+trackEvidenceDecision.source === "stored"
+  ? `Track selected the stored record: ${trackEvidenceDecision.storedRuns} stored runs versus ${trackEvidenceDecision.smartPuntRuns} SmartPunt runs. ${trackEvidenceDecision.reason}`
+  : trackEvidenceDecision.source === "smartpunt"
+    ? `Track selected SmartPunt history: ${trackEvidenceDecision.smartPuntRuns} SmartPunt runs versus ${trackEvidenceDecision.storedRuns} stored runs. ${trackEvidenceDecision.reason}`
     : "Track had no usable evidence. Neutral score applied.",
 
-conditionUsedImported
-  ? `Condition used the imported ${conditionBucket} record with ${importedConditionStats.runs} runs because it exceeded SmartPunt's ${conditionHistoryRuns.length} matching run${conditionHistoryRuns.length === 1 ? "" : "s"}.`
-  : conditionHistoryRuns.length
-    ? `Condition used ${conditionHistoryRuns.length} SmartPunt exact condition run${conditionHistoryRuns.length === 1 ? "" : "s"}.`
+conditionEvidenceDecision.source === "stored"
+  ? `Condition selected the stored ${conditionBucket} record: ${conditionEvidenceDecision.storedRuns} stored runs versus ${conditionEvidenceDecision.smartPuntRuns} SmartPunt runs. ${conditionEvidenceDecision.reason}`
+  : conditionEvidenceDecision.source === "smartpunt"
+    ? `Condition selected SmartPunt ${conditionBucket} history: ${conditionEvidenceDecision.smartPuntRuns} SmartPunt runs versus ${conditionEvidenceDecision.storedRuns} stored runs. ${conditionEvidenceDecision.reason}`
     : "Condition had no usable evidence. Neutral score applied.",
   standoutBonus ? `Applied standout bonus of ${standoutBonus}.` : "No standout bonus applied.",
   powerAdjustment ? `Applied power-rating adjustment of ${powerAdjustment}.` : "No power-rating adjustment applied.",
@@ -1562,65 +1668,83 @@ const audit: RunnerScoringAudit = {
     distance: buildAuditSection({
       label: "Distance",
       score: distance,
-      fallbackUsed: false,
-      summary: distanceHistoryRuns.length
-        ? `Used exact ${distanceBucket} distance bucket history.`
-        : `No exact ${distanceBucket} distance history. Neutral score applied.`,
+      fallbackUsed: distanceFallbackUsed,
+      summary:
+        distanceEvidenceDecision.source === "stored"
+          ? "Stored distance evidence was selected by the SmartPunt Evidence Engine."
+          : distanceEvidenceDecision.source === "smartpunt"
+            ? `SmartPunt exact ${distanceBucket} distance history was selected by the SmartPunt Evidence Engine.`
+            : `No usable ${distanceBucket} distance evidence was available. Neutral score applied.`,
       details: [
         `Score: ${formatAuditScore(distance)}`,
         `Race distance: ${activeRace.distance_m || "Unknown"}m`,
         `Bucket: ${distanceBucket}`,
-        `Exact bucket history: ${distanceStats.runs} runs, ${distanceStats.wins} wins, ${distanceStats.places} places (${distanceStats.placeRate}% place rate)`,
-        `Imported runner distance record: ${runner.distance_form_last_6 || "Not supplied"}`,
-        `Imported distance score shown for reference only: ${formatAuditScore(importedDistanceScore)}`,
+        `SmartPunt exact bucket history: ${distanceStats.runs} runs, ${distanceStats.wins} wins, ${distanceStats.places} places (${distanceStats.placeRate}% place rate)`,
+        `Stored runner distance record: ${runner.distance_form_last_6 || "Not supplied"}`,
+        `Stored distance score: ${formatAuditScore(importedDistanceScore)}`,
+        `Selected source: ${
+          distanceEvidenceDecision.source === "stored"
+            ? "Stored record"
+            : distanceEvidenceDecision.source === "smartpunt"
+              ? "SmartPunt history"
+              : "None"
+        }`,
       ],
-      decisionLog: [
-        distanceHistoryRuns.length
-          ? "Exact distance bucket history used."
-          : "No exact distance bucket evidence. Imported fallback ignored.",
-      ],
+      decisionLog: [distanceEvidenceDecision.reason],
     }),
     track: buildAuditSection({
       label: "Track",
       score: track,
-      fallbackUsed: false,
-      summary: trackHistoryRuns.length
-        ? `Used exact ${raceMeeting?.meeting_name || "track"} history.`
-        : `No exact ${raceMeeting?.meeting_name || "track"} history. Neutral score applied.`,
+      fallbackUsed: trackFallbackUsed,
+      summary:
+        trackEvidenceDecision.source === "stored"
+          ? "Stored track evidence was selected by the SmartPunt Evidence Engine."
+          : trackEvidenceDecision.source === "smartpunt"
+            ? `SmartPunt exact ${raceMeeting?.meeting_name || "track"} history was selected by the SmartPunt Evidence Engine.`
+            : `No usable ${raceMeeting?.meeting_name || "track"} evidence was available. Neutral score applied.`,
       details: [
         `Score: ${formatAuditScore(track)}`,
         `Track: ${raceMeeting?.meeting_name || "Unknown"}`,
-        `Exact track history: ${trackStats.runs} runs, ${trackStats.wins} wins, ${trackStats.places} places (${trackStats.placeRate}% place rate)`,
-        `Runner imported track record: ${runner.track_form_last_6 || "Not supplied"}`,
-`Legacy horse track record: ${horse?.track_form_last_6 || "Not supplied"}`,
-        `Imported track score shown for reference only: ${formatAuditScore(importedTrackScore)}`,
+        `SmartPunt exact track history: ${trackStats.runs} runs, ${trackStats.wins} wins, ${trackStats.places} places (${trackStats.placeRate}% place rate)`,
+        `Stored runner track record: ${runner.track_form_last_6 || "Not supplied"}`,
+        `Horse master track record: ${horse?.track_form_last_6 || "Not supplied"}`,
+        `Stored track score: ${formatAuditScore(importedTrackScore)}`,
+        `Selected source: ${
+          trackEvidenceDecision.source === "stored"
+            ? "Stored record"
+            : trackEvidenceDecision.source === "smartpunt"
+              ? "SmartPunt history"
+              : "None"
+        }`,
       ],
-      decisionLog: [
-        trackHistoryRuns.length
-          ? "Exact track history used."
-          : "No exact track evidence. Imported fallback ignored.",
-      ],
+      decisionLog: [trackEvidenceDecision.reason],
     }),
     condition: buildAuditSection({
       label: "Condition",
       score: condition,
       fallbackUsed: conditionFallbackUsed,
-summary: conditionFallbackUsed
-        ? `Used today's imported ${conditionBucket} record because it contained more evidence than SmartPunt history.`
-        : `Used exact ${conditionBucket} condition history.`,
+      summary:
+        conditionEvidenceDecision.source === "stored"
+          ? `Stored ${conditionBucket} evidence was selected by the SmartPunt Evidence Engine.`
+          : conditionEvidenceDecision.source === "smartpunt"
+            ? `SmartPunt exact ${conditionBucket} history was selected by the SmartPunt Evidence Engine.`
+            : `No usable ${conditionBucket} evidence was available. Neutral score applied.`,
       details: [
         `Score: ${formatAuditScore(condition)}`,
         `Track condition: ${raceMeeting?.track_condition || "Unknown"}`,
         `Condition bucket: ${conditionBucket}`,
-        `Exact condition history: ${conditionStats.runs} runs, ${conditionStats.wins} wins, ${conditionStats.places} places (${conditionStats.placeRate}% place rate)`,
+        `SmartPunt exact condition history: ${conditionStats.runs} runs, ${conditionStats.wins} wins, ${conditionStats.places} places (${conditionStats.placeRate}% place rate)`,
         `Stored condition record: ${conditionRecord || "Not supplied"}`,
-        `Imported condition score: ${formatAuditScore(importedConditionScore)}`,
+        `Stored condition score: ${formatAuditScore(importedConditionScore)}`,
+        `Selected source: ${
+          conditionEvidenceDecision.source === "stored"
+            ? "Stored record"
+            : conditionEvidenceDecision.source === "smartpunt"
+              ? "SmartPunt history"
+              : "None"
+        }`,
       ],
-      decisionLog: [
-conditionFallbackUsed
-  ? "Today's imported condition record selected because it had the stronger evidence."
-  : "Exact SmartPunt condition history used.",
-      ],
+      decisionLog: [conditionEvidenceDecision.reason],
     }),
     barrier: buildAuditSection({
       label: "Barrier",
