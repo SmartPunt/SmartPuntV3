@@ -1049,14 +1049,7 @@ if (profileScore !== null) {
   return 55;
 }
 
-function scoreTrainer(runner: Runner, allHistoryRuns: HistoryRun[]) {
-  const trainer = String(runner.trainer_name || "").trim().toLowerCase();
-  if (!trainer) return 50;
-
-  const trainerRuns = allHistoryRuns.filter(
-    (run) => String(run.trainer_name || "").trim().toLowerCase() === trainer,
-  );
-
+function scoreTrainer(trainerRuns: HistoryRun[]) {
   if (!trainerRuns.length) return 50;
 
   const places = trainerRuns.filter((run) => {
@@ -1064,14 +1057,19 @@ function scoreTrainer(runner: Runner, allHistoryRuns: HistoryRun[]) {
     return pos !== null && pos !== undefined && pos <= 3;
   }).length;
 
-  const wins = trainerRuns.filter((run) => run.finishing_position === 1).length;
+  const wins = trainerRuns.filter(
+    (run) => run.finishing_position === 1,
+  ).length;
 
   const rawScore = Math.round(
-    43 + (places / trainerRuns.length) * 24 + (wins / trainerRuns.length) * 14,
+    43 +
+      (places / trainerRuns.length) * 24 +
+      (wins / trainerRuns.length) * 14,
   );
 
   if (trainerRuns.length === 1) return clamp(rawScore, 35, 65);
   if (trainerRuns.length === 2) return clamp(rawScore, 35, 74);
+
   return clamp(rawScore, 35, 82);
 }
 function scorePowerRatingInfluence({
@@ -1367,6 +1365,24 @@ allHistoryRuns.forEach((historyRun) => {
   }
 });
 
+const trainerHistoryRunsByName = new Map<string, HistoryRun[]>();
+
+allHistoryRuns.forEach((historyRun) => {
+  const trainerName = String(historyRun.trainer_name || "")
+    .trim()
+    .toLowerCase();
+
+  if (!trainerName) return;
+
+  const existingRuns = trainerHistoryRunsByName.get(trainerName);
+
+  if (existingRuns) {
+    existingRuns.push(historyRun);
+  } else {
+    trainerHistoryRunsByName.set(trainerName, [historyRun]);
+  }
+});
+
 const powerRankedField = field
   .map((runner) => {
     const horse = horses.find(
@@ -1466,7 +1482,16 @@ const jockey = scoreJockey(
   allHistoryRuns,
   jockeyProfiles,
 );
-    const trainer = scoreTrainer(runner, allHistoryRuns);
+
+const trainerName = String(runner.trainer_name || "")
+  .trim()
+  .toLowerCase();
+
+const trainerRuns = trainerName
+  ? trainerHistoryRunsByName.get(trainerName) || []
+  : [];
+
+const trainer = scoreTrainer(trainerRuns);
 const consistency = scoreConsistency(historyRuns, runner.form_last_6);
 
 const baseScore = clamp(
@@ -1522,11 +1547,6 @@ const distanceStats = getRunStatsForAudit(distanceHistoryRuns);
 const trackStats = getRunStatsForAudit(trackHistoryRuns);
 const conditionStats = getRunStatsForAudit(conditionHistoryRuns);
 const recentStats = getRunStatsForAudit(historyRuns.slice(0, 5));
-const trainerRuns = allHistoryRuns.filter(
-  (run) =>
-    String(run.trainer_name || "").trim().toLowerCase() ===
-    String(runner.trainer_name || "").trim().toLowerCase(),
-);
 const trainerStats = getRunStatsForAudit(trainerRuns);
 const horseJockeyRuns = historyRuns.filter(
   (run) =>
