@@ -40,7 +40,20 @@ function uniqueStrings(values: unknown[]) {
     ),
   );
 }
+function getProfileDisplayName(profile: any) {
+  const firstName = String(profile?.first_name || "").trim();
+  const lastName = String(profile?.last_name || "").trim();
+  const combinedName = [firstName, lastName].filter(Boolean).join(" ");
 
+  return (
+    String(profile?.display_name || "").trim() ||
+    String(profile?.full_name || "").trim() ||
+    String(profile?.name || "").trim() ||
+    combinedName ||
+    String(profile?.email || "").trim() ||
+    "Unknown staff member"
+  );
+}
 function chunk<T>(items: T[], size = 200) {
   const chunks: T[][] = [];
 
@@ -301,15 +314,49 @@ export default async function Page() {
       })
     : [];
 
-  const runnerMap = new Map<number, any>();
+const runnerMap = new Map<number, any>();
 
-  [...resultedHistoricalRunners, ...currentRunners].forEach((runner) => {
-    runnerMap.set(Number(runner.id), runner);
-  });
+[...resultedHistoricalRunners, ...currentRunners].forEach((runner) => {
+  runnerMap.set(Number(runner.id), runner);
+});
 
-  const runners = Array.from(runnerMap.values());
+const rawRunners = Array.from(runnerMap.values());
 
-  const requiredRaceIds = uniqueNumbers([
+const runnerCreatorIds = uniqueStrings(
+  rawRunners.map((runner) => runner.created_by),
+);
+
+let runnerCreatorProfiles: any[] = [];
+
+for (const creatorIdChunk of chunk(runnerCreatorIds)) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .in("id", creatorIdChunk);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  runnerCreatorProfiles.push(...(data ?? []));
+}
+
+const runnerCreatorNameById = new Map(
+  runnerCreatorProfiles.map((creatorProfile) => [
+    String(creatorProfile.id),
+    getProfileDisplayName(creatorProfile),
+  ]),
+);
+
+const runners = rawRunners.map((runner) => ({
+  ...runner,
+  created_by_name: runner.created_by
+    ? runnerCreatorNameById.get(String(runner.created_by)) ||
+      "Unknown staff member"
+    : null,
+}));
+
+const requiredRaceIds = uniqueNumbers([
     ...currentRaceIds,
     ...resultedHistoricalRunners.map((runner) => runner.race_id),
   ]);
