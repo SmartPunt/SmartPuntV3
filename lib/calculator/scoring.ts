@@ -43,6 +43,7 @@ distance_form_last_6?: string | null;
   settled_at?: string | null;
   scratched?: boolean | null;
   created_by: string | null;
+  created_by_name?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -145,6 +146,7 @@ export type RunnerScoringAudit = {
     heavyRecord: string | null;
     syntheticRecord: string | null;
     importedAt: string | null;
+    importedBy: string | null;
   };
   overall: {
     score: number;
@@ -1736,6 +1738,7 @@ const audit: RunnerScoringAudit = {
     heavyRecord: runner.import_heavy_record ?? null,
     syntheticRecord: runner.import_synthetic_record ?? null,
     importedAt: runner.created_at ?? null,
+    importedBy: runner.created_by_name ?? null,
   },
   overall: {
     score,
