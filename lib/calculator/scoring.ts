@@ -113,6 +113,18 @@ export type RunnerScoringAudit = {
   raceId: number;
   horseId: number;
   horseName: string;
+  rawStoredData: {
+    runnerRecentForm: string | null;
+    runnerDistanceRecord: string | null;
+    runnerTrackRecord: string | null;
+    horseRecentForm: string | null;
+    horseDistanceRecord: string | null;
+    horseTrackRecord: string | null;
+    goodRecord: string | null;
+    softRecord: string | null;
+    heavyRecord: string | null;
+    syntheticRecord: string | null;
+  };
   overall: {
     score: number;
     baseScore: number;
@@ -1509,6 +1521,18 @@ const audit: RunnerScoringAudit = {
   raceId: Number(activeRace.id),
   horseId: Number(runner.horse_id),
   horseName: horse?.horse_name || "Unknown horse",
+  rawStoredData: {
+    runnerRecentForm: runner.form_last_6 ?? null,
+    runnerDistanceRecord: runner.distance_form_last_6 ?? null,
+    runnerTrackRecord: runner.track_form_last_6 ?? null,
+    horseRecentForm: horse?.form_last_6 ?? null,
+    horseDistanceRecord: horse?.distance_form_last_6 ?? null,
+    horseTrackRecord: horse?.track_form_last_6 ?? null,
+    goodRecord: horse?.good_track_record ?? null,
+    softRecord: horse?.soft_track_record ?? null,
+    heavyRecord: horse?.heavy_track_record ?? null,
+    syntheticRecord: horse?.synthetic_track_record ?? null,
+  },
   overall: {
     score,
     baseScore,
