@@ -30,6 +30,12 @@ form_last_3?: string | null;
 form_last_6?: string | null;
 track_form_last_6?: string | null;
 distance_form_last_6?: string | null;
+
+  import_good_record?: string | null;
+  import_soft_record?: string | null;
+  import_heavy_record?: string | null;
+  import_synthetic_record?: string | null;
+
   finishing_position?: number | null;
   starting_price?: number | null;
   won?: boolean | null;
@@ -124,6 +130,21 @@ export type RunnerScoringAudit = {
     softRecord: string | null;
     heavyRecord: string | null;
     syntheticRecord: string | null;
+  };
+  originalImportedData: {
+    runnerNumber: number | null;
+    horseName: string;
+    barrier: number | null;
+    weightKg: number | null;
+    marketPrice: number | null;
+    recentForm: string | null;
+    trackRecord: string | null;
+    distanceRecord: string | null;
+    goodRecord: string | null;
+    softRecord: string | null;
+    heavyRecord: string | null;
+    syntheticRecord: string | null;
+    importedAt: string | null;
   };
   overall: {
     score: number;
@@ -1593,15 +1614,7 @@ const importedRecentScore = scoreImportedRecentForm(
 const importedDistanceStats = parseImportedStatRecord(
   runner.distance_form_last_6,
 );
-    console.log("=== IMPORTED RUNNER DATA ===");
-console.log("Horse:", horse?.horse_name);
-console.log("Recent:", runner.form_last_6);
-console.log("Distance:", runner.distance_form_last_6);
-console.log("Track:", runner.track_form_last_6);
-console.log("Good:", horse?.good_track_record);
-console.log("Soft:", horse?.soft_track_record);
-console.log("Heavy:", horse?.heavy_track_record);
-console.log("Synthetic:", horse?.synthetic_track_record);
+
 const importedTrackStats = parseImportedStatRecord(
   runner.track_form_last_6,
 );
@@ -1684,7 +1697,7 @@ const audit: RunnerScoringAudit = {
   raceId: Number(activeRace.id),
   horseId: Number(runner.horse_id),
   horseName: horse?.horse_name || "Unknown horse",
-  rawStoredData: {
+   rawStoredData: {
     runnerRecentForm: runner.form_last_6 ?? null,
     runnerDistanceRecord: runner.distance_form_last_6 ?? null,
     runnerTrackRecord: runner.track_form_last_6 ?? null,
@@ -1695,6 +1708,34 @@ const audit: RunnerScoringAudit = {
     softRecord: horse?.soft_track_record ?? null,
     heavyRecord: horse?.heavy_track_record ?? null,
     syntheticRecord: horse?.synthetic_track_record ?? null,
+  },
+  originalImportedData: {
+    runnerNumber:
+      runner.runner_number !== null &&
+      runner.runner_number !== undefined
+        ? Number(runner.runner_number)
+        : null,
+    horseName: horse?.horse_name || "Unknown horse",
+    barrier:
+      runner.barrier !== null && runner.barrier !== undefined
+        ? Number(runner.barrier)
+        : null,
+    weightKg:
+      runner.weight_kg !== null && runner.weight_kg !== undefined
+        ? Number(runner.weight_kg)
+        : null,
+    marketPrice:
+      runner.market_price !== null && runner.market_price !== undefined
+        ? Number(runner.market_price)
+        : null,
+    recentForm: runner.form_last_6 ?? null,
+    trackRecord: runner.track_form_last_6 ?? null,
+    distanceRecord: runner.distance_form_last_6 ?? null,
+    goodRecord: runner.import_good_record ?? null,
+    softRecord: runner.import_soft_record ?? null,
+    heavyRecord: runner.import_heavy_record ?? null,
+    syntheticRecord: runner.import_synthetic_record ?? null,
+    importedAt: runner.created_at ?? null,
   },
   overall: {
     score,
