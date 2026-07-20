@@ -494,17 +494,53 @@ export default function AdminCalculator({
     return horseRace || orderedPublishedRaces[0] || null;
   }, [horseRace, orderedPublishedRaces, selectedRaceId]);
 
+  const scoredRunnersByRaceId = useMemo(() => {
+    const racesToScore = new Map<number, Race>();
+
+    dayPublishedRaces.forEach((race) => {
+      racesToScore.set(Number(race.id), race);
+    });
+
+    if (activeRace) {
+      racesToScore.set(Number(activeRace.id), activeRace);
+    }
+
+    const scoredByRaceId = new Map<
+      number,
+      ReturnType<typeof calculateRaceScores>
+    >();
+
+    racesToScore.forEach((race, raceId) => {
+      scoredByRaceId.set(
+        raceId,
+        calculateRaceScores({
+          activeRace: race,
+          races,
+          runners,
+          horses,
+          meetings,
+          jockeyProfiles,
+        }),
+      );
+    });
+
+    return scoredByRaceId;
+  }, [
+    activeRace,
+    dayPublishedRaces,
+    horses,
+    jockeyProfiles,
+    meetings,
+    races,
+    runners,
+  ]);
+
   const scoredRunners = useMemo(
     () =>
-      calculateRaceScores({
-        activeRace,
-        races,
-        runners,
-        horses,
-        meetings,
-        jockeyProfiles,
-      }),
-    [activeRace, horses, jockeyProfiles, meetings, races, runners],
+      activeRace
+        ? scoredRunnersByRaceId.get(Number(activeRace.id)) || []
+        : [],
+    [activeRace, scoredRunnersByRaceId],
   );
 
   const selectedAuditRunner = useMemo(() => {
@@ -674,14 +710,8 @@ const qualifiedTip = useMemo(
       .map((race) => {
         const meeting = meetings.find((item) => item.id === race.meeting_id);
 
-        const scored = calculateRaceScores({
-          activeRace: race,
-          races,
-          runners,
-          horses,
-          meetings,
-          jockeyProfiles,
-        });
+        const scored =
+          scoredRunnersByRaceId.get(Number(race.id)) || [];
 
         const confidence = scored.length
           ? calculateRaceConfidence(scored, {
@@ -731,7 +761,14 @@ const qualifiedTip = getQualifiedCalculatorTip(scored, {
           Number(b.confidence?.confidencePercent || 0) -
           Number(a.confidence?.confidencePercent || 0),
       );
-  }, [horses, jockeyProfiles, meetings, dayPublishedRaces, races, runners]);
+  }, [
+    dayPublishedRaces,
+    horses,
+    meetings,
+    races,
+    runners,
+    scoredRunnersByRaceId,
+  ]);
 
   const filteredRaceConfidenceBoard = useMemo(() => {
     const confidenceFloor =
@@ -760,14 +797,8 @@ const qualifiedTip = getQualifiedCalculatorTip(scored, {
   const strongestBets = useMemo(() => {
     return dayPublishedRaces
       .map((race) => {
-        const scored = calculateRaceScores({
-          activeRace: race,
-          races,
-          runners,
-          horses,
-          meetings,
-          jockeyProfiles,
-        });
+        const scored =
+          scoredRunnersByRaceId.get(Number(race.id)) || [];
 
         if (!scored.length) return null;
 
@@ -821,14 +852,11 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
         return bStrength - aStrength;
       });
   }, [
-    horses,
-    jockeyProfiles,
-    meetings,
-    dayPublishedRaces,
-    races,
-    runners,
-    strongestBetMode,
     calculatorTips,
+    dayPublishedRaces,
+    meetings,
+    scoredRunnersByRaceId,
+    strongestBetMode,
   ]);
 
   const alertCandidates = useMemo(() => {
