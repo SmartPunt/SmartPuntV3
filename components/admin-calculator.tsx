@@ -855,9 +855,11 @@ const importHealthBoard = useMemo(() => {
   scoredRunnersByRaceId,
 ]);
 
-const importHealthWarningCount = importHealthBoard.filter(
+const importHealthWarnings = importHealthBoard.filter(
   (item) => item.allRunnersMissingImportedFormData,
-).length;
+);
+
+const importHealthWarningCount = importHealthWarnings.length;
   const strongestBets = useMemo(() => {
     return dayPublishedRaces
       .map((race) => {
@@ -1806,32 +1808,21 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
     </div>
 
     <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {importHealthBoard.map((item) => {
-        const requiresCheck =
-          item.allRunnersMissingImportedFormData;
+{importHealthWarnings.map((item) => {
+
 
         return (
           <button
             key={item.race.id}
             type="button"
             onClick={() => setSelectedRaceId(String(item.race.id))}
-            className={`rounded-[22px] border p-4 text-left transition ${
-              requiresCheck
-                ? "border-rose-300 bg-rose-50 hover:border-rose-500 hover:bg-rose-100"
-                : "border-emerald-200 bg-emerald-50 hover:border-emerald-400 hover:bg-emerald-100"
-            }`}
+className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transition hover:border-rose-500 hover:bg-rose-100"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p
-                  className={`text-xs font-black uppercase tracking-[0.16em] ${
-                    requiresCheck
-                      ? "text-rose-700"
-                      : "text-emerald-700"
-                  }`}
-                >
-                  {requiresCheck ? "🔴 Check Import" : "🟢 Healthy"}
-                </p>
+<p className="text-xs font-black uppercase tracking-[0.16em] text-rose-700">
+  🔴 Check Import
+</p>
 
                 <h3 className="mt-2 font-black text-zinc-950">
                   {item.meeting?.meeting_name || "Meeting"} · R
@@ -1849,31 +1840,30 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
               </span>
             </div>
 
-            {requiresCheck ? (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-white/70 px-3 py-3">
-                <p className="text-sm font-black text-rose-800">
-                  No Track, Distance or Condition records detected
-                </p>
-                <p className="mt-1 text-xs leading-5 text-rose-700">
-                  Every runner in this race is missing the imported evidence
-                  used by these calculator factors.
-                </p>
-              </div>
-            ) : (
-              <p className="mt-4 text-xs font-semibold leading-5 text-emerald-800">
-                Imported Track, Distance or Condition evidence was detected.
-              </p>
-            )}
+<div className="mt-4 rounded-2xl border border-rose-200 bg-white/70 px-3 py-3">
+  <p className="text-sm font-black text-rose-800">
+    No Track, Distance or Condition records detected
+  </p>
+  <p className="mt-1 text-xs leading-5 text-rose-700">
+    Every runner in this race is missing the imported evidence used by
+    these calculator factors.
+  </p>
+</div>
           </button>
         );
       })}
     </div>
 
-    {importHealthBoard.length === 0 ? (
-      <div className="mt-5 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-6 text-center text-sm font-semibold text-zinc-500">
-        No published races are available for this day.
-      </div>
-    ) : null}
+{importHealthWarnings.length === 0 ? (
+  <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-5 text-center">
+    <p className="font-black text-emerald-800">
+      ✓ No import issues detected
+    </p>
+    <p className="mt-1 text-sm text-emerald-700">
+      All published races for this day contain relevant imported evidence.
+    </p>
+  </div>
+) : null}
 
     <p className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-semibold leading-5 text-sky-800">
       A healthy result means relevant imported evidence exists somewhere in the
