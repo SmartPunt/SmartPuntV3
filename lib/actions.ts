@@ -4773,7 +4773,8 @@ scratched: runner.is_scratched === true,
         updated_at: now,
       };
     });
-
+console.log("=== RUNNER ROWS TO INSERT ===");
+console.log(JSON.stringify(runnerRows, null, 2));
     const { error: insertRunnersError } = await supabase
       .from("race_runners")
       .insert(runnerRows);
