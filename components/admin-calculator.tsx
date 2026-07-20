@@ -813,7 +813,51 @@ const qualifiedTip = getQualifiedCalculatorTip(scored, {
     showSpecialistsOnly,
     showTipsOnly,
   ]);
+const importHealthBoard = useMemo(() => {
+  return orderedPublishedRaces.map((race) => {
+    const meeting = meetings.find(
+      (item) => Number(item.id) === Number(race.meeting_id),
+    );
 
+    const scored =
+      scoredRunnersByRaceId.get(Number(race.id)) || [];
+
+    const runnersWithAudit = scored.filter(
+      (runner) => runner.audit?.originalImportedData,
+    );
+
+    const allRunnersMissingImportedFormData =
+      runnersWithAudit.length > 0 &&
+      runnersWithAudit.every((runner) => {
+        const imported = runner.audit?.originalImportedData;
+
+        return ![
+          imported?.trackRecord,
+          imported?.distanceRecord,
+          imported?.goodRecord,
+          imported?.softRecord,
+          imported?.heavyRecord,
+          imported?.syntheticRecord,
+        ].some((value) => String(value || "").trim());
+      });
+
+    return {
+      race,
+      meeting,
+      runnerCount: scored.length,
+      auditRunnerCount: runnersWithAudit.length,
+      allRunnersMissingImportedFormData,
+    };
+  });
+}, [
+  meetings,
+  orderedPublishedRaces,
+  scoredRunnersByRaceId,
+]);
+
+const importHealthWarningCount = importHealthBoard.filter(
+  (item) => item.allRunnersMissingImportedFormData,
+).length;
   const strongestBets = useMemo(() => {
     return dayPublishedRaces
       .map((race) => {
@@ -1735,6 +1779,109 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
             </div>
           </Panel>
         </div>
+        <Panel className="mt-6 bg-white/95">
+  <div className="p-6 text-zinc-950">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-700">
+          Data Safeguard
+        </p>
+        <h2 className="mt-1 text-xl font-semibold">Import Health</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Checks whether each race contains imported Track, Distance or
+          Condition evidence.
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Click a race to load it into the Calculator Lab.
+        </p>
+      </div>
+
+      <Badge tone={importHealthWarningCount > 0 ? "rose" : "green"}>
+        {importHealthWarningCount > 0
+          ? `${importHealthWarningCount} race${
+              importHealthWarningCount === 1 ? "" : "s"
+            } to check`
+          : "All races healthy"}
+      </Badge>
+    </div>
+
+    <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {importHealthBoard.map((item) => {
+        const requiresCheck =
+          item.allRunnersMissingImportedFormData;
+
+        return (
+          <button
+            key={item.race.id}
+            type="button"
+            onClick={() => setSelectedRaceId(String(item.race.id))}
+            className={`rounded-[22px] border p-4 text-left transition ${
+              requiresCheck
+                ? "border-rose-300 bg-rose-50 hover:border-rose-500 hover:bg-rose-100"
+                : "border-emerald-200 bg-emerald-50 hover:border-emerald-400 hover:bg-emerald-100"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p
+                  className={`text-xs font-black uppercase tracking-[0.16em] ${
+                    requiresCheck
+                      ? "text-rose-700"
+                      : "text-emerald-700"
+                  }`}
+                >
+                  {requiresCheck ? "🔴 Check Import" : "🟢 Healthy"}
+                </p>
+
+                <h3 className="mt-2 font-black text-zinc-950">
+                  {item.meeting?.meeting_name || "Meeting"} · R
+                  {item.race.race_number}
+                </h3>
+
+                <p className="mt-1 text-sm font-semibold text-zinc-700">
+                  {item.race.race_name}
+                </p>
+              </div>
+
+              <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-bold text-zinc-600">
+                {item.runnerCount} runner
+                {item.runnerCount === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            {requiresCheck ? (
+              <div className="mt-4 rounded-2xl border border-rose-200 bg-white/70 px-3 py-3">
+                <p className="text-sm font-black text-rose-800">
+                  No Track, Distance or Condition records detected
+                </p>
+                <p className="mt-1 text-xs leading-5 text-rose-700">
+                  Every runner in this race is missing the imported evidence
+                  used by these calculator factors.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 text-xs font-semibold leading-5 text-emerald-800">
+                Imported Track, Distance or Condition evidence was detected.
+              </p>
+            )}
+          </button>
+        );
+      })}
+    </div>
+
+    {importHealthBoard.length === 0 ? (
+      <div className="mt-5 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-6 text-center text-sm font-semibold text-zinc-500">
+        No published races are available for this day.
+      </div>
+    ) : null}
+
+    <p className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-semibold leading-5 text-sky-800">
+      A healthy result means relevant imported evidence exists somewhere in the
+      field. Individual horses may still have limited records and can be checked
+      through the scoring audit.
+    </p>
+  </div>
+</Panel>
         <Panel className="mt-6 bg-white/95">
           <div className="p-6 text-zinc-950">
             <div className="flex flex-wrap items-center justify-between gap-3">
