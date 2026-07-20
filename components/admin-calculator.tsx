@@ -362,6 +362,26 @@ function getAuditDotClass(status?: string | null) {
   return "bg-zinc-400";
 }
 
+function formatImportedAt(value?: string | null) {
+  if (!value) return "Not recorded";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not recorded";
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Perth",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
 export default function AdminCalculator({
   races,
   runners,
@@ -2839,6 +2859,196 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
                       No audit decisions were recorded for this runner.
                     </p>
                   )}
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-emerald-300/25 bg-emerald-500/10 p-5">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-300">
+                    3. Original Imported Data
+                  </p>
+                  <h3 className="mt-2 text-lg font-black text-white">
+                    Frozen import source
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-zinc-300">
+                    These values belong to this exact race entry and do not
+                    change when the horse-master record is updated later.
+                  </p>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {[
+                    [
+                      "Runner Number",
+                      selectedAuditRunner.audit.originalImportedData
+                        .runnerNumber,
+                      "available",
+                    ],
+                    [
+                      "Horse",
+                      selectedAuditRunner.audit.originalImportedData.horseName,
+                      "available",
+                    ],
+                    [
+                      "Barrier",
+                      selectedAuditRunner.audit.originalImportedData.barrier,
+                      "available",
+                    ],
+                    [
+                      "Weight",
+                      selectedAuditRunner.audit.originalImportedData.weightKg !==
+                      null
+                        ? `${selectedAuditRunner.audit.originalImportedData.weightKg}kg`
+                        : null,
+                      "available",
+                    ],
+                    [
+                      "Market",
+                      selectedAuditRunner.audit.originalImportedData
+                        .marketPrice !== null
+                        ? `$${Number(
+                            selectedAuditRunner.audit.originalImportedData
+                              .marketPrice,
+                          ).toFixed(2)}`
+                        : null,
+                      "available",
+                    ],
+                    [
+                      "Form",
+                      selectedAuditRunner.audit.originalImportedData.recentForm,
+                      selectedAuditRunner.audit.sections.recentForm.status ===
+                      "fallback"
+                        ? "used"
+                        : "available",
+                    ],
+                    [
+                      "Track",
+                      selectedAuditRunner.audit.originalImportedData.trackRecord,
+                      selectedAuditRunner.audit.sections.track.status ===
+                      "fallback"
+                        ? "used"
+                        : "available",
+                    ],
+                    [
+                      "Distance",
+                      selectedAuditRunner.audit.originalImportedData
+                        .distanceRecord,
+                      selectedAuditRunner.audit.sections.distance.status ===
+                      "fallback"
+                        ? "used"
+                        : "available",
+                    ],
+                    [
+                      "Good",
+                      selectedAuditRunner.audit.originalImportedData.goodRecord,
+                      selectedAuditRunner.track_condition?.toLowerCase().startsWith(
+                        "good",
+                      ) &&
+                      selectedAuditRunner.audit.sections.condition.status ===
+                        "fallback"
+                        ? "used"
+                        : "available",
+                    ],
+                    [
+                      "Soft",
+                      selectedAuditRunner.audit.originalImportedData.softRecord,
+                      selectedAuditRunner.track_condition?.toLowerCase().startsWith(
+                        "soft",
+                      ) &&
+                      selectedAuditRunner.audit.sections.condition.status ===
+                        "fallback"
+                        ? "used"
+                        : "available",
+                    ],
+                    [
+                      "Heavy",
+                      selectedAuditRunner.audit.originalImportedData.heavyRecord,
+                      selectedAuditRunner.track_condition?.toLowerCase().startsWith(
+                        "heavy",
+                      ) &&
+                      selectedAuditRunner.audit.sections.condition.status ===
+                        "fallback"
+                        ? "used"
+                        : "available",
+                    ],
+                    [
+                      "Synthetic",
+                      selectedAuditRunner.audit.originalImportedData
+                        .syntheticRecord,
+                      selectedAuditRunner.track_condition
+                        ?.toLowerCase()
+                        .startsWith("synthetic") &&
+                      selectedAuditRunner.audit.sections.condition.status ===
+                        "fallback"
+                        ? "used"
+                        : "available",
+                    ],
+                  ].map(([label, rawValue, status]) => {
+                    const value =
+                      rawValue !== null &&
+                      rawValue !== undefined &&
+                      String(rawValue).trim() !== ""
+                        ? String(rawValue)
+                        : null;
+
+                    const displayStatus = value ? status : "missing";
+
+                    return (
+                      <div
+                        key={String(label)}
+                        className="rounded-2xl border border-white/10 bg-black/40 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-zinc-400">
+                            {label}
+                          </p>
+
+                          <span
+                            className={`rounded-full border px-2 py-1 text-[9px] font-black uppercase tracking-[0.1em] ${
+                              displayStatus === "used"
+                                ? "border-emerald-300/35 bg-emerald-500/15 text-emerald-200"
+                                : displayStatus === "missing"
+                                  ? "border-red-300/35 bg-red-500/15 text-red-200"
+                                  : "border-zinc-400/25 bg-zinc-500/10 text-zinc-300"
+                            }`}
+                          >
+                            {displayStatus === "used"
+                              ? "Used"
+                              : displayStatus === "missing"
+                                ? "Missing"
+                                : "Available"}
+                          </span>
+                        </div>
+
+                        <p className="mt-2 break-words text-sm font-bold text-white">
+                          {value || "Not supplied"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-black/35 px-4 py-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-emerald-300">
+                    Imported
+                  </p>
+                  <p className="mt-2 text-sm font-bold text-white">
+                    {formatImportedAt(
+                      selectedAuditRunner.audit.originalImportedData.importedAt,
+                    )}
+                  </p>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-[0.1em]">
+                  <span className="rounded-full border border-emerald-300/35 bg-emerald-500/15 px-3 py-1.5 text-emerald-200">
+                    Green — used in this score
+                  </span>
+                  <span className="rounded-full border border-zinc-400/25 bg-zinc-500/10 px-3 py-1.5 text-zinc-300">
+                    Grey — imported but not selected
+                  </span>
+                  <span className="rounded-full border border-red-300/35 bg-red-500/15 px-3 py-1.5 text-red-200">
+                    Red — not supplied
+                  </span>
                 </div>
               </div>
             </div>
