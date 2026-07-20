@@ -4763,18 +4763,26 @@ runner_number:
           apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
             ? apprenticeClaimValue
             : null,
-form_last_6: horse?.form_last_6 || null,
-track_form_last_6:
-  String(runner.track_form_last_6 || "").trim() || null,
-distance_form_last_6:
-  String(runner.distance_form_last_6 || "").trim() || null,
-scratched: runner.is_scratched === true,
+        form_last_6: horse?.form_last_6 || null,
+        track_form_last_6:
+          String(runner.track_form_last_6 || "").trim() || null,
+        distance_form_last_6:
+          String(runner.distance_form_last_6 || "").trim() || null,
+
+        import_good_record:
+          String(runner.good_track_record || "").trim() || null,
+        import_soft_record:
+          String(runner.soft_track_record || "").trim() || null,
+        import_heavy_record:
+          String(runner.heavy_track_record || "").trim() || null,
+        import_synthetic_record:
+          String(runner.synthetic_track_record || "").trim() || null,
+
+        scratched: runner.is_scratched === true,
         created_by: profile.id,
         updated_at: now,
       };
     });
-console.log("=== RUNNER ROWS TO INSERT ===");
-console.log(JSON.stringify(runnerRows, null, 2));
     const { error: insertRunnersError } = await supabase
       .from("race_runners")
       .insert(runnerRows);
