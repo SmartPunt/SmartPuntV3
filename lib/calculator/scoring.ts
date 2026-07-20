@@ -947,8 +947,8 @@ function scoreWeight(
 function scoreJockey(
   runner: Runner,
   horseHistoryRuns: HistoryRun[],
-  allHistoryRuns: HistoryRun[],
-  jockeyProfiles: JockeyProfile[],
+  jockeyRuns: HistoryRun[],
+  profile: JockeyProfile | null,
 ) {
   const jockey = String(runner.jockey_name || "").trim().toLowerCase();
 
@@ -979,11 +979,6 @@ return clamp(rawScore, 45, horseJockeyRuns.length >= 5 ? 86 : 70);
   }
 
   // SMARTPUNT JOCKEY HISTORY
-  const jockeyRuns = allHistoryRuns.filter(
-    (run) =>
-      String(run.jockey_name || "").trim().toLowerCase() === jockey,
-  );
-
   let smartPuntScore: number | null = null;
 
   if (jockeyRuns.length >= 3) {
@@ -1008,12 +1003,6 @@ return clamp(rawScore, 45, horseJockeyRuns.length >= 5 ? 86 : 70);
   }
 
   // IMPORTED / MANUAL PROFILE
-  const profile =
-    jockeyProfiles.find(
-      (item) =>
-        item.normalised_name === jockey,
-    ) || null;
-
   let profileScore: number | null = null;
 
   if (profile) {
