@@ -233,10 +233,13 @@ function parseApprentice(jockeyLine: string) {
 function isNoiseLine(line: string) {
   const lower = line.toLowerCase();
 
-  const exactNoise = new Set([
-    "my bets",
-    "new",
-    "bet slip",
+const exactNoise = new Set([
+  "my bets",
+  "new",
+  "read more",
+  "... read more",
+  "… read more",
+  "bet slip",
     "tips",
     "stewards comments",
     "fixed flucs",
@@ -267,6 +270,7 @@ function isNoiseLine(line: string) {
   ]);
 
   if (exactNoise.has(lower)) return true;
+  if (/^(?:\.\.\.|…)?\s*read more$/i.test(line)) return true;
   if (lower.startsWith("colour ")) return true;
   if (lower.startsWith("career ")) return true;
   if (lower.startsWith("prize ")) return true;
@@ -1504,9 +1508,12 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-semibold text-zinc-950">
-              {index + 1}. {runner.horse_name || "Unnamed runner"}
-            </p>
+<p className="font-semibold text-zinc-950">
+  {runner.runner_number
+    ? `${runner.runner_number}. `
+    : `${index + 1}. `}
+  {runner.horse_name || "Unnamed runner"}
+</p>
             <p className="mt-1 text-sm text-zinc-500">
               Jockey: {runner.jockey_name || "—"}
               {runner.is_apprentice
@@ -1585,17 +1592,27 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
         {isEditingPreviewRunner ? (
           <>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <Field label="Horse name">
-                <TextInput
-                  value={runner.horse_name}
-                  onChange={(value) =>
-                    updatePreviewRunner(index, "horse_name", value)
-                  }
-                  placeholder="Horse name"
-                />
-              </Field>
+<Field label="Runner number">
+  <TextInput
+    value={runner.runner_number}
+    onChange={(value) =>
+      updatePreviewRunner(index, "runner_number", value)
+    }
+    placeholder="7"
+  />
+</Field>
 
-              <Field label="Barrier">
+<Field label="Horse name">
+  <TextInput
+    value={runner.horse_name}
+    onChange={(value) =>
+      updatePreviewRunner(index, "horse_name", value)
+    }
+    placeholder="Horse name"
+  />
+</Field>
+
+<Field label="Barrier">
                 <TextInput
                   value={runner.barrier}
                   onChange={(value) =>
