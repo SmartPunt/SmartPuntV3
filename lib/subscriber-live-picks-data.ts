@@ -108,22 +108,24 @@ async function fetchRowsByIds<T>({
   table: string;
   ids: number[];
 }) {
-  const rows: T[] = [];
+  const idChunks = chunk(uniqueNumbers(ids));
 
-  for (const idChunk of chunk(uniqueNumbers(ids))) {
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .in("id", idChunk);
+  const chunkRows = await Promise.all(
+    idChunks.map(async (idChunk) => {
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .in("id", idChunk);
 
-    if (error) {
-      throw new Error(error.message);
-    }
+      if (error) {
+        throw new Error(error.message);
+      }
 
-    rows.push(...((data ?? []) as T[]));
-  }
+      return (data ?? []) as T[];
+    }),
+  );
 
-  return rows;
+  return chunkRows.flat();
 }
 
 async function fetchRowsByNumberColumn<T>({
@@ -146,59 +148,65 @@ async function fetchRowsByNumberColumn<T>({
   }[];
   notNullColumns?: string[];
 }) {
-  const rows: T[] = [];
   const pageSize = 1000;
 
-  for (const valueChunk of chunk(
+  const valueChunks = chunk(
     uniqueNumbers(values),
-  )) {
-    let from = 0;
+  );
 
-    while (true) {
-      let query: any = supabase
-        .from(table)
-        .select("*")
-        .in(column, valueChunk);
+  const chunkRows = await Promise.all(
+    valueChunks.map(async (valueChunk) => {
+      const rows: T[] = [];
+      let from = 0;
 
-      notNullColumns.forEach(
-        (notNullColumn) => {
-          query = query.not(
-            notNullColumn,
-            "is",
-            null,
-          );
-        },
-      );
+      while (true) {
+        let query: any = supabase
+          .from(table)
+          .select("*")
+          .in(column, valueChunk);
 
-      orders.forEach((order) => {
-        query = query.order(order.column, {
-          ascending: order.ascending,
-        });
-      });
-
-      const { data, error } =
-        await query.range(
-          from,
-          from + pageSize - 1,
+        notNullColumns.forEach(
+          (notNullColumn) => {
+            query = query.not(
+              notNullColumn,
+              "is",
+              null,
+            );
+          },
         );
 
-      if (error) {
-        throw new Error(error.message);
+        orders.forEach((order) => {
+          query = query.order(order.column, {
+            ascending: order.ascending,
+          });
+        });
+
+        const { data, error } =
+          await query.range(
+            from,
+            from + pageSize - 1,
+          );
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const pageRows = (data ?? []) as T[];
+
+        rows.push(...pageRows);
+
+        if (pageRows.length < pageSize) {
+          break;
+        }
+
+        from += pageSize;
       }
 
-      const pageRows = (data ?? []) as T[];
+      return rows;
+    }),
+  );
 
-      rows.push(...pageRows);
-
-      if (pageRows.length < pageSize) {
-        break;
-      }
-
-      from += pageSize;
-    }
-  }
-
-  return rows;
+  return chunkRows.flat();
 }
 
 function getServiceRoleConfig() {
@@ -288,25 +296,25 @@ async function fetchServiceRoleRowsByRaceIds<T>({
   raceIds: number[];
   order?: string;
 }) {
-  const rows: T[] = [];
-
-  for (const raceIdChunk of chunk(
+  const raceIdChunks = chunk(
     uniqueNumbers(raceIds),
-  )) {
-    const orderQuery = order
-      ? `&order=${order}`
-      : "";
+  );
 
-    rows.push(
-      ...(await fetchServiceRoleRows<T>(
+  const chunkRows = await Promise.all(
+    raceIdChunks.map(async (raceIdChunk) => {
+      const orderQuery = order
+        ? `&order=${order}`
+        : "";
+
+      return fetchServiceRoleRows<T>(
         `${table}?select=${select}` +
           `&race_id=in.(${raceIdChunk.join(",")})` +
           orderQuery,
-      )),
-    );
-  }
+      );
+    }),
+  );
 
-  return rows;
+  return chunkRows.flat();
 }
 
 export async function loadSubscriberLivePicksData({
