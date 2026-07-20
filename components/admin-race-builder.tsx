@@ -167,7 +167,13 @@ function formatFormString(positions: Array<number | null | undefined>) {
 
   return usable.join("-");
 }
-
+type ImportValidationResult = {
+  hasWarnings: boolean;
+  missingAllFormData: boolean;
+  parsedRunnerCount: number;
+  highestRunnerNumber: number | null;
+  missingRunnerNumbers: number[];
+};
 type ImportedRunner = {
   horse_name: string;
   runner_number: string;
@@ -196,6 +202,61 @@ function cleanImportedValue(value: string) {
     .replace(/[‘’`´]/g, "'")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function validateImportedRunners(
+  runners: ImportedRunner[],
+): ImportValidationResult {
+  const missingAllFormData =
+    runners.length > 0 &&
+    runners.every((runner) => {
+      return ![
+        runner.track_form_last_6,
+        runner.distance_form_last_6,
+        runner.good_track_record,
+        runner.soft_track_record,
+        runner.heavy_track_record,
+        runner.synthetic_track_record,
+      ].some((value) => String(value || "").trim());
+    });
+
+  const runnerNumbers = runners
+    .map((runner) => Number(runner.runner_number))
+    .filter(
+      (runnerNumber) =>
+        Number.isInteger(runnerNumber) && runnerNumber > 0,
+    );
+
+  const highestRunnerNumber = runnerNumbers.length
+    ? Math.max(...runnerNumbers)
+    : null;
+
+  const runnerNumberSet = new Set(runnerNumbers);
+
+  const missingRunnerNumbers =
+    highestRunnerNumber === null
+      ? []
+      : Array.from(
+          { length: highestRunnerNumber },
+          (_, index) => index + 1,
+        ).filter((runnerNumber) => !runnerNumberSet.has(runnerNumber));
+
+  const parsedRunnerCount = runners.length;
+
+  const runnerCountMismatch =
+    highestRunnerNumber !== null &&
+    highestRunnerNumber !== parsedRunnerCount;
+
+  return {
+    hasWarnings:
+      missingAllFormData ||
+      runnerCountMismatch ||
+      missingRunnerNumbers.length > 0,
+    missingAllFormData,
+    parsedRunnerCount,
+    highestRunnerNumber,
+    missingRunnerNumbers,
+  };
 }
 
 function stripHorseSuffixes(value: string) {
@@ -671,10 +732,19 @@ const [racePlaceTerms, setRacePlaceTerms] = useState("top_3");
   const [trackFormLast6, setTrackFormLast6] = useState("");
   const [distanceFormLast6, setDistanceFormLast6] = useState("");
   const [importText, setImportText] = useState("");
-const [parsedImportRunners, setParsedImportRunners] = useState<ImportedRunner[]>([]);
-const [editingPreviewRunnerIndexes, setEditingPreviewRunnerIndexes] = useState<number[]>([]);
+const [parsedImportRunners, setParsedImportRunners] = useState<
+  ImportedRunner[]
+>([]);
+const [
+  editingPreviewRunnerIndexes,
+  setEditingPreviewRunnerIndexes,
+] = useState<number[]>([]);
 const [importingRunners, setImportingRunners] = useState(false);
-
+const [importValidation, setImportValidation] =
+  useState<ImportValidationResult | null>(null);
+const [pendingParsedImportRunners, setPendingParsedImportRunners] = useState<
+  ImportedRunner[]
+>([]);
   useEffect(() => {
     setMeetings(initialMeetings);
   }, [initialMeetings]);
@@ -921,23 +991,58 @@ setRacePlaceTerms("top_3");
     setStatusMessage(message);
   }
 
-  function handlePreviewImport() {
-    const parsed = parseRaceImportText(importText);
-    setParsedImportRunners(parsed);
+function handlePreviewImport() {
+  const parsed = parseRaceImportText(importText);
 
-    if (!parsed.length) {
-      setError("No runners could be parsed from the pasted text.");
-      return;
-    }
-
-    setSuccess(`Parsed ${parsed.length} runners. Check the preview below, then import.`);
-  }
-
-  function clearImportPanel() {
-    setImportText("");
+  if (!parsed.length) {
     setParsedImportRunners([]);
-    setEditingPreviewRunnerIndexes([]);
+    setPendingParsedImportRunners([]);
+    setImportValidation(null);
+    setError("No runners could be parsed from the pasted text.");
+    return;
   }
+
+  const validation = validateImportedRunners(parsed);
+
+  if (validation.hasWarnings) {
+    setPendingParsedImportRunners(parsed);
+    setImportValidation(validation);
+    setStatusMessage("");
+    return;
+  }
+
+  setParsedImportRunners(parsed);
+  setPendingParsedImportRunners([]);
+  setImportValidation(null);
+  setSuccess(
+    `Parsed ${parsed.length} runners. Check the preview below, then import.`,
+  );
+}
+
+function cancelImportValidation() {
+  setPendingParsedImportRunners([]);
+  setImportValidation(null);
+  setStatusMessage("");
+}
+
+function continueImportValidation() {
+  const parsed = pendingParsedImportRunners;
+
+  setParsedImportRunners(parsed);
+  setPendingParsedImportRunners([]);
+  setImportValidation(null);
+  setSuccess(
+    `Parsed ${parsed.length} runners with validation warnings. Check the preview carefully before importing.`,
+  );
+}
+
+function clearImportPanel() {
+  setImportText("");
+  setParsedImportRunners([]);
+  setEditingPreviewRunnerIndexes([]);
+  setPendingParsedImportRunners([]);
+  setImportValidation(null);
+}
   function updatePreviewRunner(
     index: number,
     field: keyof ImportedRunner,
@@ -2617,6 +2722,111 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
           </Panel>
         </div>
       </div>
+      {importValidation ? (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+    <button
+      type="button"
+      aria-label="Close import validation"
+      onClick={cancelImportValidation}
+      className="absolute inset-0 cursor-default"
+    />
+
+    <div className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-amber-300/35 bg-zinc-950 text-white shadow-2xl shadow-black/60">
+      <div className="border-b border-amber-300/20 bg-gradient-to-r from-amber-500/15 to-transparent px-5 py-5">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-300">
+          Import Validation
+        </p>
+        <h2 className="mt-2 text-2xl font-black text-white">
+          Please check this race import
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-zinc-300">
+          SmartPunt detected possible issues in the pasted race data.
+        </p>
+      </div>
+
+      <div className="space-y-3 p-5">
+        {importValidation.missingAllFormData ? (
+          <div className="rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4">
+            <p className="font-black text-rose-200">
+              ⚠ No Track, Distance or Condition records found
+            </p>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              No imported Track, Distance or Track Condition records were
+              detected for any runner. This may reduce the accuracy of
+              SmartPunt analysis.
+            </p>
+          </div>
+        ) : null}
+
+        {importValidation.highestRunnerNumber !== null &&
+        importValidation.highestRunnerNumber !==
+          importValidation.parsedRunnerCount ? (
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+            <p className="font-black text-amber-200">
+              ⚠ Runner count requires checking
+            </p>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              Highest runner number detected:{" "}
+              <strong className="text-white">
+                {importValidation.highestRunnerNumber}
+              </strong>
+              .
+            </p>
+            <p className="text-sm leading-6 text-zinc-300">
+              Parsed runners:{" "}
+              <strong className="text-white">
+                {importValidation.parsedRunnerCount}
+              </strong>
+              .
+            </p>
+          </div>
+        ) : null}
+
+        {importValidation.missingRunnerNumbers.length > 0 ? (
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+            <p className="font-black text-amber-200">
+              ⚠ Missing runner number
+              {importValidation.missingRunnerNumbers.length === 1 ? "" : "s"}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-zinc-300">
+              SmartPunt could not detect runner{" "}
+              {importValidation.missingRunnerNumbers.length === 1
+                ? "number"
+                : "numbers"}{" "}
+              <strong className="text-white">
+                {importValidation.missingRunnerNumbers.join(", ")}
+              </strong>
+              .
+            </p>
+          </div>
+        ) : null}
+
+        <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-zinc-300">
+          You may continue to the preview, but the imported information should
+          be checked carefully before the runners are saved.
+        </p>
+      </div>
+
+      <div className="grid gap-3 border-t border-white/10 bg-black/35 p-5 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={cancelImportValidation}
+          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-black text-zinc-200 transition hover:bg-white/10"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          onClick={continueImportValidation}
+          className="rounded-2xl bg-amber-400 px-4 py-3 text-sm font-black text-black transition hover:bg-amber-300"
+        >
+          Continue Anyway
+        </button>
+      </div>
+    </div>
+  </div>
+) : null}
     </div>
   );
 }
