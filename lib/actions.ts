@@ -3022,12 +3022,17 @@ export async function addUserBetAction(
       };
     }
 
+    const normalisedSource = source
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
     const requiresRaceRunnerLink = [
       "calculator",
-      "head_tipper",
-      "build_my_own",
-      "subscriber",
-    ].includes(source.toLowerCase());
+      "head tipper",
+      "build my own",
+    ].includes(normalisedSource);
 
     if (
       requiresRaceRunnerLink &&
@@ -3036,7 +3041,7 @@ export async function addUserBetAction(
       return {
         success: false,
         error:
-          "This tip could not be linked to its race runner. Refresh the page and try again.",
+          "This bet could not be linked to its race runner. Refresh the page and try again.",
       };
     }
 
@@ -3044,7 +3049,7 @@ export async function addUserBetAction(
       const { data: matchingRunner, error: runnerLookupError } =
         await supabase
           .from("race_runners")
-          .select("id, race_id, horse_id")
+          .select("id")
           .eq("id", raceRunnerId)
           .eq("race_id", raceId)
           .eq("horse_id", horseId)
@@ -3061,7 +3066,7 @@ export async function addUserBetAction(
         return {
           success: false,
           error:
-            "This tip no longer matches the current race runner. Refresh the page and try again.",
+            "This bet no longer matches the current race runner. Refresh the page and try again.",
         };
       }
     }
