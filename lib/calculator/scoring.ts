@@ -1342,10 +1342,28 @@ jockeyProfiles: JockeyProfile[];
   scoringProfile?: CalculatorScoringProfileInput;
 }): ScoredRunner[] {
   if (!activeRace) return [];
-const scoringProfile = resolveScoringProfile(scoringProfileInput);
- const raceMeeting = meetings.find(
-  (meeting) => Number(meeting.id) === Number(activeRace.meeting_id),
-) || null;
+
+  const scoringProfile =
+    resolveScoringProfile(scoringProfileInput);
+
+  const meetingById = new Map(
+    meetings.map((meeting) => [
+      Number(meeting.id),
+      meeting,
+    ]),
+  );
+
+  const horseById = new Map(
+    horses.map((horse) => [
+      Number(horse.id),
+      horse,
+    ]),
+  );
+
+  const raceMeeting =
+    meetingById.get(
+      Number(activeRace.meeting_id),
+    ) || null;
 
 const fieldWithScratchings = runners.filter(
   (runner) => Number(runner.race_id) === Number(activeRace.id),
@@ -1428,14 +1446,17 @@ jockeyProfiles.forEach((profile) => {
 
 const powerRankedField = field
   .map((runner) => {
-    const horse = horses.find(
-      (item) => Number(item.id) === Number(runner.horse_id),
-    );
+    const horse =
+      horseById.get(
+        Number(runner.horse_id),
+      ) || null;
 
     return {
       runnerId: Number(runner.id),
-      powerRating: horse?.smartpunt_power_rating ?? null,
-      horseName: horse?.horse_name || "",
+      powerRating:
+        horse?.smartpunt_power_rating ?? null,
+      horseName:
+        horse?.horse_name || "",
     };
   })
   .filter(
@@ -1458,9 +1479,15 @@ powerRankedField.forEach((item, index) => {
   powerRankByRunnerId.set(item.runnerId, index + 1);
 });
   const baseScored = field.map((runner) => {
-    const horse = horses.find((item) => Number(item.id) === Number(runner.horse_id));
+    const horse =
+      horseById.get(
+        Number(runner.horse_id),
+      ) || null;
+
     const historyRuns =
-      horseHistoryRunsByHorseId.get(Number(runner.horse_id)) || [];
+      horseHistoryRunsByHorseId.get(
+        Number(runner.horse_id),
+      ) || [];
 
 const recentHistoryRunCount = historyRuns.length;
 const distanceBucket = getDistanceBucket(activeRace.distance_m);
