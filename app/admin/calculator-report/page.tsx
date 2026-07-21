@@ -1049,13 +1049,40 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
           winners.length,
       )
     : "—";
-  const strongestWinner =
-    [...winners].sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] ||
-    null;
+  const bestTopRatedWinner =
+    [...topRatedRows]
+      .filter((row) => row.finishing_position === 1)
+      .sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
+
+  const successfulCalculatorTips = calculatorGeneratedTips.filter((tip) => {
+    const tipType = String(tip.smartPuntSuggestedBet || "")
+      .trim()
+      .toLowerCase();
+
+    if (tipType.includes("place")) {
+      return isPlacedForRace(
+        tip.finishing_position,
+        tip.race?.place_terms,
+      );
+    }
+
+    return tip.won === true || tip.finishing_position === 1;
+  });
+
+  const bestSuccessfulCalculatorTip =
+    [...successfulCalculatorTips].sort(
+      (a, b) => toNumber(b.score) - toNumber(a.score),
+    )[0] || null;
+
   const biggestMiss =
     [...topRatedRows]
       .filter(
-        (row) => row.finishing_position !== null && row.finishing_position > 3,
+        (row) =>
+          row.finishing_position !== null &&
+          !isPlacedForRace(
+            row.finishing_position,
+            row.race?.place_terms,
+          ),
       )
       .sort((a, b) => toNumber(b.score) - toNumber(a.score))[0] || null;
 
@@ -1717,30 +1744,107 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
           </Panel>
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <div className="mt-6 grid gap-6 xl:grid-cols-3">
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
-              <h2 className="text-xl font-semibold">Best calculator result</h2>
-              {strongestWinner ? (
+              <h2 className="text-xl font-semibold">
+                Best top-rated winner
+              </h2>
+
+              {bestTopRatedWinner ? (
                 <div className="mt-4 rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
                   <p className="text-sm text-zinc-600">
-                    {raceLabel(strongestWinner)}
+                    {raceLabel(bestTopRatedWinner)}
                   </p>
+
                   <h3 className="mt-1 text-2xl font-bold">
-                    {getHorseName(strongestWinner)}
+                    {getHorseName(bestTopRatedWinner)}
                   </h3>
+
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="green">Won</Badge>
-                    <Badge tone="amber">Rank #{strongestWinner.rank}</Badge>
+                    <Badge tone="amber">Rank #1</Badge>
                     <Badge tone="blue">
-                      Score {Math.round(toNumber(strongestWinner.score))}
+                      Score{" "}
+                      {Math.round(
+                        toNumber(bestTopRatedWinner.score),
+                      )}
                     </Badge>
                   </div>
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-zinc-500">
-                  No winning prediction data yet.
-                </p>
+                <div className="mt-4 rounded-[24px] border border-zinc-200 bg-zinc-50 p-5">
+                  <p className="font-semibold text-zinc-900">
+                    No top-rated winner in this range.
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    None of the calculator’s rank #1 runners won.
+                  </p>
+                </div>
+              )}
+            </div>
+          </Panel>
+
+          <Panel className="bg-white/95">
+            <div className="p-6 text-zinc-950">
+              <h2 className="text-xl font-semibold">
+                Best SmartPunt tip
+              </h2>
+
+              {bestSuccessfulCalculatorTip ? (
+                <div className="mt-4 rounded-[24px] border border-blue-200 bg-blue-50 p-5">
+                  <p className="text-sm text-zinc-600">
+                    {raceLabel(bestSuccessfulCalculatorTip)}
+                  </p>
+
+                  <h3 className="mt-1 text-2xl font-bold">
+                    {getHorseName(bestSuccessfulCalculatorTip)}
+                  </h3>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Badge
+                      tone={
+                        String(
+                          bestSuccessfulCalculatorTip.smartPuntSuggestedBet ||
+                            "",
+                        )
+                          .toLowerCase()
+                          .includes("place")
+                          ? "blue"
+                          : "green"
+                      }
+                    >
+                      {bestSuccessfulCalculatorTip.smartPuntSuggestedBet}
+                    </Badge>
+
+                    <Badge tone="green">
+                      {bestSuccessfulCalculatorTip.finishing_position === 1
+                        ? "Won"
+                        : "Placed"}
+                    </Badge>
+
+                    <Badge tone="amber">
+                      Rank #{bestSuccessfulCalculatorTip.rank}
+                    </Badge>
+
+                    <Badge tone="blue">
+                      Score{" "}
+                      {Math.round(
+                        toNumber(bestSuccessfulCalculatorTip.score),
+                      )}
+                    </Badge>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-[24px] border border-zinc-200 bg-zinc-50 p-5">
+                  <p className="font-semibold text-zinc-900">
+                    No successful SmartPunt tips in this range.
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    No stored Win or Place opportunity produced a successful
+                    result.
+                  </p>
+                </div>
               )}
             </div>
           </Panel>
@@ -1748,33 +1852,45 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
           <Panel className="bg-white/95">
             <div className="p-6 text-zinc-950">
               <h2 className="text-xl font-semibold">Biggest miss</h2>
+
               {biggestMiss ? (
                 <div className="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-5">
                   <p className="text-sm text-zinc-600">
                     {raceLabel(biggestMiss)}
                   </p>
+
                   <h3 className="mt-1 text-2xl font-bold">
                     {getHorseName(biggestMiss)}
                   </h3>
+
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge tone="rose">
                       Finished {biggestMiss.finishing_position}
                     </Badge>
-                    <Badge tone="amber">Rank #{biggestMiss.rank}</Badge>
+
+                    <Badge tone="amber">
+                      Rank #{biggestMiss.rank}
+                    </Badge>
+
                     <Badge tone="blue">
                       Score {Math.round(toNumber(biggestMiss.score))}
                     </Badge>
                   </div>
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-zinc-500">
-                  No major misses recorded yet.
-                </p>
+                <div className="mt-4 rounded-[24px] border border-zinc-200 bg-zinc-50 p-5">
+                  <p className="font-semibold text-zinc-900">
+                    No major top-rated misses in this range.
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Every available rank #1 runner finished within the
+                    applicable place terms.
+                  </p>
+                </div>
               )}
             </div>
           </Panel>
         </div>
-
         <Panel className="mt-6 bg-white/95">
           <div className="p-6 text-zinc-950">
             <div className="flex flex-wrap items-center justify-between gap-3">
