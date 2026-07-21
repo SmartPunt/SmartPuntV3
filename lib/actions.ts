@@ -2867,10 +2867,62 @@ export async function upsertSuggestedTip(formData: FormData): Promise<void> {
   ).trim();
   const successfulRaw = String(formData.get("successful") ?? "").trim();
 
-  const successful =
-    successfulRaw === "true" ? true : successfulRaw === "false" ? false : null;
+const successful =
+  successfulRaw === "true"
+    ? true
+    : successfulRaw === "false"
+      ? false
+      : null;
 
-  const payload = {
+const meetingId = meetingIdRaw ? Number(meetingIdRaw) : null;
+const raceId = raceIdRaw ? Number(raceIdRaw) : null;
+const horseId = horseIdRaw ? Number(horseIdRaw) : null;
+const raceRunnerId = raceRunnerIdRaw
+  ? Number(raceRunnerIdRaw)
+  : null;
+
+if (
+  !meetingId ||
+  !raceId ||
+  !horseId ||
+  !raceRunnerId
+) {
+  throw new Error(
+    "A Head Tipper tip must be linked to a published meeting, race, and runner.",
+  );
+}
+
+const supabase = await createClient();
+
+const { data: linkedRunner, error: linkedRunnerError } =
+  await supabase
+    .from("race_runners")
+    .select(`
+      id,
+      race_id,
+      horse_id,
+      races!inner (
+        id,
+        meeting_id
+      )
+    `)
+    .eq("id", raceRunnerId)
+    .eq("race_id", raceId)
+    .eq("horse_id", horseId)
+    .eq("races.meeting_id", meetingId)
+    .maybeSingle();
+
+if (linkedRunnerError) {
+  throw new Error(linkedRunnerError.message);
+}
+
+if (!linkedRunner) {
+  throw new Error(
+    "The selected runner does not match the selected meeting, race, and horse. Refresh the page and try again.",
+  );
+}
+
+const payload = {
     meeting_id: meetingIdRaw ? Number(meetingIdRaw) : null,
     race_id: raceIdRaw ? Number(raceIdRaw) : null,
     horse_id: horseIdRaw ? Number(horseIdRaw) : null,
