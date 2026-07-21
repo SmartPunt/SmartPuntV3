@@ -1206,7 +1206,7 @@ const powerTopFiveHitRaces = raceGroups.filter((race) => {
                     formAction={loadCalculatorReportResultsAction}
                     className="w-full rounded-2xl bg-amber-500 px-5 py-3 text-sm font-black text-black transition hover:bg-amber-400"
                   >
-                    Repair Results
+                    Sync Results
                   </button>
                 </div>
               </form>
