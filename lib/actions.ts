@@ -2923,10 +2923,10 @@ if (!linkedRunner) {
 }
 
 const payload = {
-    meeting_id: meetingIdRaw ? Number(meetingIdRaw) : null,
-    race_id: raceIdRaw ? Number(raceIdRaw) : null,
-    horse_id: horseIdRaw ? Number(horseIdRaw) : null,
-    race_runner_id: raceRunnerIdRaw ? Number(raceRunnerIdRaw) : null,
+meeting_id: meetingId,
+race_id: raceId,
+horse_id: horseId,
+race_runner_id: raceRunnerId,
     race: String(formData.get("race") ?? ""),
     horse: String(formData.get("horse") ?? ""),
     type: String(formData.get("type") ?? "Win"),
@@ -2946,8 +2946,6 @@ const payload = {
     created_by: profile.id,
     updated_at: new Date().toISOString(),
   };
-
-  const supabase = await createClient();
 
   if (id) {
     const { error } = await supabase
