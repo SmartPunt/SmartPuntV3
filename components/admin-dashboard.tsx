@@ -272,6 +272,7 @@ const [getOnEarlyEdit, setGetOnEarlyEdit] = useState<any | null>(null);
 
 const [liveTipsOpen, setLiveTipsOpen] = useState(false);
 const [subscriberAlertsOpen, setSubscriberAlertsOpen] = useState(false);
+const [openTipIds, setOpenTipIds] = useState<Record<string, boolean>>({});
 
   const [selectedPublishedRaceId, setSelectedPublishedRaceId] = useState("");
   const [selectedRunnerId, setSelectedRunnerId] = useState("");
@@ -1205,90 +1206,115 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
 
                     {liveTipsOpen ? (
                       <div className="mt-4 space-y-4 border-t border-zinc-200 pt-4">
-                        {liveSuggestedTips.map((tip: any) => (
-                          <div
-                            key={tip.id}
-                            className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
-                              tip.type,
-                            )}`}
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <p className="text-sm text-zinc-500">
-                                  {tip.race}
-                                </p>
+                        {liveSuggestedTips.map((tip: any) => {
+                          const tipKey = String(tip.id);
+                          const tipOpen = openTipIds[tipKey] === true;
 
-                                <p className="mt-1 text-lg font-semibold text-zinc-950">
-                                  {tip.horse}
-                                </p>
-                              </div>
-
-                              <TipPill type={tip.type} />
-                            </div>
-
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {tip.confidence ? (
-                                <Badge tone="blue">
-                                  {tip.confidence}
-                                </Badge>
-                              ) : null}
-
-                              {tip.note ? (
-                                <Badge tone="amber">{tip.note}</Badge>
-                              ) : null}
-
-                              {tip.tip_angle ? (
-                                <Badge tone="slate">
-                                  {tip.tip_angle}
-                                </Badge>
-                              ) : null}
-
-                              {tip.race_runner_id ? (
-                                <Badge tone="green">Linked</Badge>
-                              ) : (
-                                <Badge tone="rose">Legacy</Badge>
-                              )}
-                            </div>
-
-                            <p className="mt-3 text-sm leading-6 text-zinc-700">
-                              {tip.commentary || ""}
-                            </p>
-
-                            {tip.result_comment ? (
-                              <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                                  Post-race analysis
-                                </p>
-
-                                <p className="mt-2 text-sm leading-6 text-zinc-700">
-                                  {tip.result_comment}
-                                </p>
-                              </div>
-                            ) : null}
-
-                            <div className="mt-4 flex gap-2">
+                          return (
+                            <div
+                              key={tip.id}
+                              className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
+                                tip.type,
+                              )}`}
+                            >
                               <button
                                 type="button"
-                                onClick={() => loadTipIntoForm(tip)}
-                                className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                                onClick={() =>
+                                  setOpenTipIds((current) => ({
+                                    ...current,
+                                    [tipKey]: !tipOpen,
+                                  }))
+                                }
+                                className="flex w-full items-start justify-between gap-4 text-left"
+                                aria-expanded={tipOpen}
                               >
-                                Edit Tip
+                                <div>
+                                  <p className="text-sm text-zinc-500">
+                                    {tip.race}
+                                  </p>
+
+                                  <p className="mt-1 text-lg font-semibold text-zinc-950">
+                                    {tip.horse}
+                                  </p>
+
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <TipPill type={tip.type} />
+
+                                    {tip.confidence ? (
+                                      <Badge tone="blue">
+                                        {tip.confidence}
+                                      </Badge>
+                                    ) : null}
+
+                                    {tip.note ? (
+                                      <Badge tone="amber">{tip.note}</Badge>
+                                    ) : null}
+                                  </div>
+                                </div>
+
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white text-lg font-bold">
+                                  {tipOpen ? "−" : "+"}
+                                </span>
                               </button>
 
-                              <form action={deleteSuggestedTipAction}>
-                                <input
-                                  type="hidden"
-                                  name="id"
-                                  value={tip.id}
-                                />
+                              {tipOpen ? (
+                                <div className="mt-4 border-t border-zinc-200 pt-4">
+                                  <div className="flex flex-wrap gap-2">
+                                    {tip.tip_angle ? (
+                                      <Badge tone="slate">
+                                        {tip.tip_angle}
+                                      </Badge>
+                                    ) : null}
 
-                                <button className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500">
-                                  Delete
-                                </button>
-                              </form>
+                                    {tip.race_runner_id ? (
+                                      <Badge tone="green">Linked</Badge>
+                                    ) : (
+                                      <Badge tone="rose">Legacy</Badge>
+                                    )}
+                                  </div>
+
+                                  <p className="mt-3 text-sm leading-6 text-zinc-700">
+                                    {tip.commentary || ""}
+                                  </p>
+
+                                  {tip.result_comment ? (
+                                    <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
+                                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                                        Post-race analysis
+                                      </p>
+
+                                      <p className="mt-2 text-sm leading-6 text-zinc-700">
+                                        {tip.result_comment}
+                                      </p>
+                                    </div>
+                                  ) : null}
+
+                                  <div className="mt-4 flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => loadTipIntoForm(tip)}
+                                      className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                                    >
+                                      Edit Tip
+                                    </button>
+
+                                    <form action={deleteSuggestedTipAction}>
+                                      <input
+                                        type="hidden"
+                                        name="id"
+                                        value={tip.id}
+                                      />
+
+                                      <button className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500">
+                                        Delete
+                                      </button>
+                                    </form>
+                                  </div>
+                                </div>
+                              ) : null}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>
