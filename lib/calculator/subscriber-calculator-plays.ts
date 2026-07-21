@@ -76,20 +76,35 @@ export function getSubscriberCalculatorPlays({
   const typedMeetings = asMeetings(meetings || []);
   const typedJockeyProfiles = asJockeyProfiles(jockeyProfiles || []);
 
+  const meetingMap = new Map(
+    typedMeetings.map((meeting) => [
+      Number(meeting.id),
+      meeting,
+    ]),
+  );
+
   return typedRaces
     .filter((race) => race.status === "published" || race.status === "closed")
     .sort((a, b) => {
       const meetingA =
-        typedMeetings.find((meeting) => Number(meeting.id) === Number(a.meeting_id))
+        meetingMap.get(Number(a.meeting_id))
           ?.meeting_name || "";
+
       const meetingB =
-        typedMeetings.find((meeting) => Number(meeting.id) === Number(b.meeting_id))
+        meetingMap.get(Number(b.meeting_id))
           ?.meeting_name || "";
 
-      const meetingCompare = meetingA.localeCompare(meetingB);
-      if (meetingCompare !== 0) return meetingCompare;
+      const meetingCompare =
+        meetingA.localeCompare(meetingB);
 
-      return Number(a.race_number || 0) - Number(b.race_number || 0);
+      if (meetingCompare !== 0) {
+        return meetingCompare;
+      }
+
+      return (
+        Number(a.race_number || 0) -
+        Number(b.race_number || 0)
+      );
     })
     .map((race) => {
       const scoredRunners = calculateRaceScores({
@@ -113,9 +128,11 @@ export function getSubscriberCalculatorPlays({
       if (!qualifiedTip) return null;
 
       const runner = qualifiedTip.runner;
+
       const meeting =
-        typedMeetings.find((item) => Number(item.id) === Number(race.meeting_id)) ||
-        null;
+        meetingMap.get(
+          Number(race.meeting_id),
+        ) || null;
 
       return {
         id: Number(race.id) * 100000 + Number(runner.id),
