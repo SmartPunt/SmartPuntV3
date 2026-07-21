@@ -2088,20 +2088,11 @@ export async function loadCalculatorReportResultsAction(
     );
 
     for (const raceId of resultedRaceIds) {
-try {
-  console.log("Repairing calculator predictions for race", raceId);
-
-  await saveCalculatorPredictionsForRace(Number(raceId), {
-    excludeScratched: true,
-  });
-
-  console.log("Finished calculator predictions for race", raceId);
-} catch (error) {
-  console.error("FAILED rebuilding race", raceId, error);
-}
-
       const predictionUpdates = resultedRunners
-        .filter((runner: any) => Number(runner.race_id) === Number(raceId))
+        .filter(
+          (runner: any) =>
+            Number(runner.race_id) === Number(raceId),
+        )
         .map((runner: any) => ({
           id: Number(runner.id),
           finishing_position: runner.finishing_position,
