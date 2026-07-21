@@ -220,9 +220,51 @@ export default function AdminDashboard({
   initialMeetings: Meeting[];
   initialSubscriberProfiles: any[];
 }) {
-  const suggestedTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
-  const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
-  const getOnEarlyItems = useRealtimeTable("long_term_bets", initialLongTermBets);
+const suggestedTips = useRealtimeTable(
+  "suggested_tips",
+  initialSuggestedTips,
+);
+
+const watchlistItems = useRealtimeTable(
+  "watchlist_items",
+  initialWatchlistItems,
+);
+
+const getOnEarlyItems = useRealtimeTable(
+  "long_term_bets",
+  initialLongTermBets,
+);
+
+const publishedRunnerMap = useMemo(
+  () =>
+    new Map(
+      initialPublishedRunners.map((runner) => [
+        Number(runner.id),
+        runner,
+      ]),
+    ),
+  [initialPublishedRunners],
+);
+
+const liveSuggestedTips = useMemo(
+  () =>
+    suggestedTips.filter((tip: any) => {
+      if (!tip.race_runner_id) {
+        return true;
+      }
+
+      const linkedRunner = publishedRunnerMap.get(
+        Number(tip.race_runner_id),
+      );
+
+      if (!linkedRunner) {
+        return true;
+      }
+
+      return linkedRunner.scratched !== true;
+    }),
+  [publishedRunnerMap, suggestedTips],
+);
 
   const [tipEdit, setTipEdit] = useState<any | null>(null);
   const [watchEdit, setWatchEdit] = useState<any | null>(null);
@@ -442,7 +484,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <Badge tone="green">{suggestedTips.length} live tips</Badge>
+                <Badge tone="green">{liveSuggestedTips.length} live tips</Badge>
                 <Badge tone="blue">{initialPublishedRaces.length} published races</Badge>
                 <Badge tone="amber">{watchlistItems.length} watchlist items</Badge>
                 <Badge tone="rose">{getOnEarlyItems.length} Get On Early</Badge>
@@ -484,7 +526,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                     Live tips
                   </p>
-                  <p className="mt-2 text-3xl font-bold">{suggestedTips.length}</p>
+                  <p className="mt-2 text-3xl font-bold">{liveSuggestedTips.length}</p>
                   <p className="mt-2 text-sm text-zinc-500">
                     Active tips still live and unsettled.
                   </p>
@@ -763,7 +805,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     </div>
                     <div className="flex items-center gap-2">
                       {tipEdit ? <Badge tone="blue">Editing</Badge> : null}
-                      <Badge tone="green">{suggestedTips.length} live</Badge>
+                      <Badge tone="green">{liveSuggestedTips.length} live</Badge>
                     </div>
                   </div>
 
@@ -1084,7 +1126,7 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                   <div>
                     <h4 className="text-sm font-semibold text-zinc-900">Live tips</h4>
                     <div className="mt-4 space-y-4">
-                      {suggestedTips.map((tip: any) => (
+{liveSuggestedTips.map((tip: any) => (
                         <div
                           key={tip.id}
                           className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
