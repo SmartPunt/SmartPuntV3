@@ -1369,16 +1369,11 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              <Link href="/smartpunt-calculator-live-picks" className="rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-3 py-2 text-[11px] font-black text-black shadow-lg shadow-amber-500/20 transition hover:brightness-110">
-                Live Picks
-              </Link>
-              <form action={signOutAction}>
-                <button className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-white/10">
-                  Log out
-                </button>
-              </form>
-            </div>
+<form action={signOutAction} className="shrink-0">
+  <button className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-white/10">
+    Log out
+  </button>
+</form>
           </div>
         </header>
 
