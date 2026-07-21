@@ -3022,6 +3022,50 @@ export async function addUserBetAction(
       };
     }
 
+    const requiresRaceRunnerLink = [
+      "calculator",
+      "head_tipper",
+      "build_my_own",
+      "subscriber",
+    ].includes(source.toLowerCase());
+
+    if (
+      requiresRaceRunnerLink &&
+      (!raceId || !raceRunnerId || !horseId)
+    ) {
+      return {
+        success: false,
+        error:
+          "This tip could not be linked to its race runner. Refresh the page and try again.",
+      };
+    }
+
+    if (requiresRaceRunnerLink) {
+      const { data: matchingRunner, error: runnerLookupError } =
+        await supabase
+          .from("race_runners")
+          .select("id, race_id, horse_id")
+          .eq("id", raceRunnerId)
+          .eq("race_id", raceId)
+          .eq("horse_id", horseId)
+          .maybeSingle();
+
+      if (runnerLookupError) {
+        return {
+          success: false,
+          error: runnerLookupError.message,
+        };
+      }
+
+      if (!matchingRunner) {
+        return {
+          success: false,
+          error:
+            "This tip no longer matches the current race runner. Refresh the page and try again.",
+        };
+      }
+    }
+
     const isEachWay = betType === "Each Way";
 
     if (isEachWay) {
@@ -5347,6 +5391,142 @@ try {
       return { success: false, error: rpcError.message };
     }
 
+    const { data: orphanedUserBets, error: orphanedUserBetsError } =
+      await supabase
+        .from("user_bets")
+        .select(
+          `
+            id,
+            race_id,
+            race_runner_id,
+            horse_id,
+            bet_type,
+            odds_taken,
+            stake_points,
+            win_odds_taken,
+            place_odds_taken,
+            win_stake_points,
+            place_stake_points
+          `,
+        )
+        .eq("race_id", raceId)
+        .is("settled_at", null)
+        .is("race_runner_id", null);
+
+    if (orphanedUserBetsError) {
+      return {
+        success: false,
+        error: orphanedUserBetsError.message,
+      };
+    }
+
+    for (const userBet of orphanedUserBets || []) {
+      const matchingUpdate = updates.find((update) => {
+        const matchingRunner = runnersById.get(update.id);
+
+        return (
+          Number(matchingRunner?.race_id) === Number(userBet.race_id) &&
+          Number(matchingRunner?.horse_id) === Number(userBet.horse_id)
+        );
+      });
+
+      if (!matchingUpdate) {
+        continue;
+      }
+
+      const matchingRunner = runnersById.get(matchingUpdate.id);
+
+      if (
+        !matchingRunner ||
+        matchingUpdate.finishing_position === null ||
+        matchingUpdate.finishing_position === undefined
+      ) {
+        continue;
+      }
+
+      const finishingPosition = Number(
+        matchingUpdate.finishing_position,
+      );
+
+      const rawBetType = String(userBet.bet_type || "")
+        .trim()
+        .toLowerCase();
+
+      const isEachWay = rawBetType.includes("each way");
+      const isPlaceBet = rawBetType.includes("place");
+      const isWinBet = !isEachWay && !isPlaceBet;
+
+      const won = finishingPosition === 1;
+      const placed = finishingPosition <= 3;
+
+      const stakePoints = Number(userBet.stake_points || 0);
+      const oddsTaken = Number(userBet.odds_taken || 0);
+
+      const winOddsTaken = Number(
+        userBet.win_odds_taken || oddsTaken || 0,
+      );
+      const placeOddsTaken = Number(
+        userBet.place_odds_taken || 0,
+      );
+
+      const winStakePoints = Number(
+        userBet.win_stake_points || 0,
+      );
+      const placeStakePoints = Number(
+        userBet.place_stake_points || 0,
+      );
+
+      let returnPoints = 0;
+
+      if (isEachWay) {
+        const winReturn = won
+          ? winOddsTaken * winStakePoints
+          : 0;
+
+        const placeReturn = placed
+          ? placeOddsTaken * placeStakePoints
+          : 0;
+
+        returnPoints = winReturn + placeReturn;
+      } else if (isPlaceBet) {
+        returnPoints = placed
+          ? oddsTaken * stakePoints
+          : 0;
+      } else if (isWinBet) {
+        returnPoints = won
+          ? oddsTaken * stakePoints
+          : 0;
+      }
+
+      returnPoints = Number(returnPoints.toFixed(2));
+
+      const profitLossPoints = Number(
+        (returnPoints - stakePoints).toFixed(2),
+      );
+
+      const { error: orphanedUserBetUpdateError } =
+        await supabase
+          .from("user_bets")
+          .update({
+            race_runner_id: Number(matchingUpdate.id),
+            finishing_position: finishingPosition,
+            won,
+            placed,
+            return_points: returnPoints,
+            profit_loss_points: profitLossPoints,
+            settled_at: now,
+            updated_at: now,
+          })
+          .eq("id", Number(userBet.id))
+          .is("settled_at", null);
+
+      if (orphanedUserBetUpdateError) {
+        return {
+          success: false,
+          error: orphanedUserBetUpdateError.message,
+        };
+      }
+    }
 
     const horseIds = Array.from(
       new Set(
