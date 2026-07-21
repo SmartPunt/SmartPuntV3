@@ -268,7 +268,10 @@ const liveSuggestedTips = useMemo(
 
   const [tipEdit, setTipEdit] = useState<any | null>(null);
   const [watchEdit, setWatchEdit] = useState<any | null>(null);
-  const [getOnEarlyEdit, setGetOnEarlyEdit] = useState<any | null>(null);
+const [getOnEarlyEdit, setGetOnEarlyEdit] = useState<any | null>(null);
+
+const [liveTipsOpen, setLiveTipsOpen] = useState(false);
+const [subscriberAlertsOpen, setSubscriberAlertsOpen] = useState(false);
 
   const [selectedPublishedRaceId, setSelectedPublishedRaceId] = useState("");
   const [selectedRunnerId, setSelectedRunnerId] = useState("");
@@ -667,80 +670,114 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
 </Panel>
 
               <div className="space-y-6">
-                <Panel className="bg-white/95">
+                                <Panel className="bg-white/95">
                   <div className="p-6 text-zinc-950">
-                    <div className="flex items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSubscriberAlertsOpen((current) => !current)
+                      }
+                      className="flex w-full items-center justify-between gap-4 text-left"
+                      aria-expanded={subscriberAlertsOpen}
+                    >
                       <div>
-                        <h3 className="text-xl font-semibold">Subscriber Email Alerts</h3>
+                        <h3 className="text-xl font-semibold">
+                          Subscriber Email Alerts
+                        </h3>
+
                         <p className="text-sm text-zinc-500">
                           Turn subscriber email alerts on or off for each active subscriber.
                         </p>
                       </div>
-                      <Badge tone="amber">Alerts</Badge>
-                    </div>
 
-                    <div className="mt-5 space-y-3">
-                      {initialSubscriberProfiles.length > 0 ? (
-                        initialSubscriberProfiles.map((subscriber: any) => {
-                          const alertsEnabled = subscriber.email_alerts_enabled !== false;
+                      <div className="flex shrink-0 items-center gap-3">
+                        <Badge tone="amber">Alerts</Badge>
 
-                          return (
-                            <div
-                              key={subscriber.id}
-                              className="rounded-[24px] border border-amber-200/30 bg-white p-4 shadow-sm"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div>
-                                  <p className="font-semibold text-zinc-950">
-                                    {subscriber.full_name || subscriber.email || "Subscriber"}
-                                  </p>
-                                  <p className="mt-1 text-sm text-zinc-500">
-                                    {subscriber.email || "No email on profile"}
-                                  </p>
-                                </div>
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-white text-lg font-bold">
+                          {subscriberAlertsOpen ? "−" : "+"}
+                        </span>
+                      </div>
+                    </button>
 
-                                <div className="flex items-center gap-3">
-                                  <Badge tone={alertsEnabled ? "green" : "rose"}>
-                                    {alertsEnabled ? "Alerts On" : "Alerts Off"}
-                                  </Badge>
+                    {subscriberAlertsOpen ? (
+                      <div className="mt-5 space-y-3 border-t border-zinc-200 pt-5">
+                        {initialSubscriberProfiles.length > 0 ? (
+                          initialSubscriberProfiles.map((subscriber: any) => {
+                            const alertsEnabled =
+                              subscriber.email_alerts_enabled !== false;
 
-                                  <form action={toggleSubscriberEmailAlertsAction}>
-                                    <input
-                                      type="hidden"
-                                      name="profile_id"
-                                      value={subscriber.id || ""}
-                                    />
-                                    <input
-                                      type="hidden"
-                                      name="email_alerts_enabled"
-                                      value={alertsEnabled ? "false" : "true"}
-                                    />
+                            return (
+                              <div
+                                key={subscriber.id}
+                                className="rounded-[24px] border border-amber-200/30 bg-white p-4 shadow-sm"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <div>
+                                    <p className="font-semibold text-zinc-950">
+                                      {subscriber.full_name ||
+                                        subscriber.email ||
+                                        "Subscriber"}
+                                    </p>
 
-                                    <button
-                                      type="submit"
-                                      className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
-                                        alertsEnabled
-                                          ? "bg-red-600 text-white hover:bg-red-500"
-                                          : "bg-emerald-600 text-white hover:bg-emerald-500"
-                                      }`}
+                                    <p className="mt-1 text-sm text-zinc-500">
+                                      {subscriber.email ||
+                                        "No email on profile"}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex items-center gap-3">
+                                    <Badge
+                                      tone={alertsEnabled ? "green" : "rose"}
                                     >
-                                      {alertsEnabled ? "Turn Off" : "Turn On"}
-                                    </button>
-                                  </form>
+                                      {alertsEnabled
+                                        ? "Alerts On"
+                                        : "Alerts Off"}
+                                    </Badge>
+
+                                    <form
+                                      action={toggleSubscriberEmailAlertsAction}
+                                    >
+                                      <input
+                                        type="hidden"
+                                        name="profile_id"
+                                        value={subscriber.id || ""}
+                                      />
+
+                                      <input
+                                        type="hidden"
+                                        name="email_alerts_enabled"
+                                        value={
+                                          alertsEnabled ? "false" : "true"
+                                        }
+                                      />
+
+                                      <button
+                                        type="submit"
+                                        className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+                                          alertsEnabled
+                                            ? "bg-red-600 text-white hover:bg-red-500"
+                                            : "bg-emerald-600 text-white hover:bg-emerald-500"
+                                        }`}
+                                      >
+                                        {alertsEnabled
+                                          ? "Turn Off"
+                                          : "Turn On"}
+                                      </button>
+                                    </form>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
-                          No subscriber profiles found yet.
-                        </div>
-                      )}
-                    </div>
+                            );
+                          })
+                        ) : (
+                          <div className="rounded-[24px] border border-dashed border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600">
+                            No subscriber profiles found yet.
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </Panel>
-
                 <Panel className="bg-white/95">
                   <div className="p-6 text-zinc-950">
                     <h3 className="text-xl font-semibold">Live Tip Notes</h3>
@@ -1097,19 +1134,38 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                         This is how the tip will feel on the subscriber side.
                       </p>
                     </div>
+
                     <TipPill type={tipType} />
                   </div>
 
-                  <div className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(tipType)}`}>
-                    <p className="text-sm text-zinc-500">{tipRace || "Published race required"}</p>
+                  <div
+                    className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
+                      tipType,
+                    )}`}
+                  >
+                    <p className="text-sm text-zinc-500">
+                      {tipRace || "Published race required"}
+                    </p>
+
                     <h3 className="mt-1 text-2xl font-bold text-zinc-950">
                       {tipHorse || "Select a runner"}
                     </h3>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {tipConfidence ? <Badge tone="blue">{tipConfidence} confidence</Badge> : null}
-                      <Badge tone="amber">{suggestedTag || tipNote || "Best Bet"}</Badge>
-                      {tipAngle ? <Badge tone="slate">{tipAngle}</Badge> : null}
+                      {tipConfidence ? (
+                        <Badge tone="blue">
+                          {tipConfidence} confidence
+                        </Badge>
+                      ) : null}
+
+                      <Badge tone="amber">
+                        {suggestedTag || tipNote || "Best Bet"}
+                      </Badge>
+
+                      {tipAngle ? (
+                        <Badge tone="slate">{tipAngle}</Badge>
+                      ) : null}
+
                       {tipRaceDate && tipRaceTime ? (
                         <Badge tone="slate">
                           {tipRaceDate} {tipRaceTime} ({tipRaceTimezone})
@@ -1118,70 +1174,123 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     </div>
 
                     <p className="mt-4 text-sm leading-6 text-zinc-700">
-                      {tipCommentary || "Your Fortune on 5 commentary will appear here."}
+                      {tipCommentary ||
+                        "Your Fortune on 5 commentary will appear here."}
                     </p>
-
                   </div>
 
-                  <div>
-                    <h4 className="text-sm font-semibold text-zinc-900">Live tips</h4>
-                    <div className="mt-4 space-y-4">
-{liveSuggestedTips.map((tip: any) => (
-                        <div
-                          key={tip.id}
-                          className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
-                            tip.type,
-                          )}`}
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <p className="text-sm text-zinc-500">{tip.race}</p>
-                              <p className="mt-1 text-lg font-semibold text-zinc-950">{tip.horse}</p>
+                  <div className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLiveTipsOpen((current) => !current)
+                      }
+                      className="flex w-full items-center justify-between gap-4 text-left"
+                      aria-expanded={liveTipsOpen}
+                    >
+                      <div>
+                        <h4 className="text-base font-semibold text-zinc-900">
+                          Published Live Tips
+                        </h4>
+
+                        <p className="text-sm text-zinc-500">
+                          {liveSuggestedTips.length} active tips
+                        </p>
+                      </div>
+
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white text-lg font-bold">
+                        {liveTipsOpen ? "−" : "+"}
+                      </span>
+                    </button>
+
+                    {liveTipsOpen ? (
+                      <div className="mt-4 space-y-4 border-t border-zinc-200 pt-4">
+                        {liveSuggestedTips.map((tip: any) => (
+                          <div
+                            key={tip.id}
+                            className={`rounded-[24px] border p-5 shadow-sm ${getTipCardStyle(
+                              tip.type,
+                            )}`}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-sm text-zinc-500">
+                                  {tip.race}
+                                </p>
+
+                                <p className="mt-1 text-lg font-semibold text-zinc-950">
+                                  {tip.horse}
+                                </p>
+                              </div>
+
+                              <TipPill type={tip.type} />
                             </div>
-                            <TipPill type={tip.type} />
-                          </div>
 
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {tip.confidence ? <Badge tone="blue">{tip.confidence}</Badge> : null}
-                             {tip.note ? <Badge tone="amber">{tip.note}</Badge> : null}
-                            {tip.tip_angle ? <Badge tone="slate">{tip.tip_angle}</Badge> : null}
-                            {tip.race_runner_id ? <Badge tone="green">Linked</Badge> : <Badge tone="rose">Legacy</Badge>}
-                          </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {tip.confidence ? (
+                                <Badge tone="blue">
+                                  {tip.confidence}
+                                </Badge>
+                              ) : null}
 
-                          <p className="mt-3 text-sm leading-6 text-zinc-700">
-                            {tip.commentary || ""}
-                          </p>
+                              {tip.note ? (
+                                <Badge tone="amber">{tip.note}</Badge>
+                              ) : null}
 
-                          {tip.result_comment ? (
-                            <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                                Post-race analysis
-                              </p>
-                              <p className="mt-2 text-sm leading-6 text-zinc-700">
-                                {tip.result_comment}
-                              </p>
+                              {tip.tip_angle ? (
+                                <Badge tone="slate">
+                                  {tip.tip_angle}
+                                </Badge>
+                              ) : null}
+
+                              {tip.race_runner_id ? (
+                                <Badge tone="green">Linked</Badge>
+                              ) : (
+                                <Badge tone="rose">Legacy</Badge>
+                              )}
                             </div>
-                          ) : null}
 
-                          <div className="mt-4 flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => loadTipIntoForm(tip)}
-                              className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                            >
-                              Edit Tip
-                            </button>
+                            <p className="mt-3 text-sm leading-6 text-zinc-700">
+                              {tip.commentary || ""}
+                            </p>
 
-                            <form action={deleteSuggestedTipAction}>
-                              <input type="hidden" name="id" value={tip.id} />
-                              <button className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500">
-                                Delete
+                            {tip.result_comment ? (
+                              <div className="mt-4 rounded-2xl bg-zinc-950/5 p-4">
+                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                                  Post-race analysis
+                                </p>
+
+                                <p className="mt-2 text-sm leading-6 text-zinc-700">
+                                  {tip.result_comment}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            <div className="mt-4 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => loadTipIntoForm(tip)}
+                                className="rounded-2xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+                              >
+                                Edit Tip
                               </button>
-                            </form>
+
+                              <form action={deleteSuggestedTipAction}>
+                                <input
+                                  type="hidden"
+                                  name="id"
+                                  value={tip.id}
+                                />
+
+                                <button className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500">
+                                  Delete
+                                </button>
+                              </form>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </Panel>
