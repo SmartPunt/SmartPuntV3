@@ -1399,7 +1399,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                   Your Racing <span className="text-amber-300">Command Centre</span>
                 </h2>
                 <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-200 sm:text-base">
-                  Fast access to today's SmartPunt plays, your active bets, race cards and personal strike rate — tuned for iPhone.
+                  Fast access to today's SmartPunt plays, your active bets, race cards and personal strike rate.
                 </p>
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
                   <Link href="/smartpunt-calculator-live-picks" className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-black shadow-lg shadow-amber-500/25 transition hover:brightness-110">
