@@ -1748,6 +1748,7 @@ async function saveRaceClassificationSnapshot({
   activeRunnerCount,
   raceConfidence,
   snapshotAt,
+  snapshotBatchId,
 }: {
   race: Race;
   meeting: Meeting | null;
@@ -1758,6 +1759,7 @@ async function saveRaceClassificationSnapshot({
     gap: number;
   };
   snapshotAt: string;
+  snapshotBatchId: string;
 }) {
   const payload = {
     race_id: Number(race.id),
@@ -1805,6 +1807,7 @@ async function saveRaceClassificationSnapshot({
     race_class: null,
     complexity_band: null,
 
+    snapshot_batch_id: snapshotBatchId,
     snapshot_stage: "pre_settlement",
     snapshot_at: snapshotAt,
   };
@@ -1821,7 +1824,202 @@ async function saveRaceClassificationSnapshot({
     },
   );
 }
+async function savePredictionSnapshotRunners({
+  race,
+  meeting,
+  scoredRunners,
+  raceConfidence,
+  qualifiedTip,
+  snapshotAt,
+  snapshotBatchId,
+}: {
+  race: Race;
+  meeting: Meeting | null;
+  scoredRunners: ReturnType<typeof calculateRaceScores>;
+  raceConfidence: {
+    tier: string;
+    confidencePercent: number;
+    gap: number;
+  };
+  qualifiedTip: ReturnType<typeof getQualifiedCalculatorTip>;
+  snapshotAt: string;
+  snapshotBatchId: string;
+}) {
+  const payload = scoredRunners.map((runner) => {
+    const isQualifiedTip =
+      qualifiedTip !== null &&
+      qualifiedTip !== undefined &&
+      Number(qualifiedTip.runner.id) === Number(runner.id);
 
+    const smartPuntTipType = isQualifiedTip
+      ? qualifiedTip.type
+      : "No Bet";
+
+    const raceGap = isQualifiedTip
+      ? Number(
+          qualifiedTip.gap ||
+            raceConfidence.gap ||
+            0,
+        )
+      : Number(raceConfidence.gap || 0);
+
+    return {
+      race_id: Number(race.id),
+
+      meeting_id: race.meeting_id
+        ? Number(race.meeting_id)
+        : null,
+
+      runner_id: Number(runner.id),
+
+      horse_id: runner.horse_id
+        ? Number(runner.horse_id)
+        : null,
+
+      meeting_name:
+        meeting?.meeting_name || null,
+
+      meeting_date:
+        meeting?.meeting_date || null,
+
+      race_number:
+        Number(race.race_number),
+
+      race_name:
+        race.race_name || null,
+
+      predicted_rank:
+        Number(runner.rank),
+
+      score:
+        Number(runner.score),
+
+      win_percent:
+        Number(runner.winPercent),
+
+      place_percent:
+        Number(runner.placePercent),
+
+      race_gap: raceGap,
+
+      smartpunt_tip:
+        isQualifiedTip,
+
+      smartpunt_tip_type:
+        smartPuntTipType,
+
+      race_confidence_tier:
+        raceConfidence.tier,
+
+      race_confidence_percent:
+        Number(raceConfidence.confidencePercent),
+
+      scoring_version:
+        SMARTPUNT_SCORING_VERSION,
+
+      classifier_version:
+        SMARTPUNT_CLASSIFIER_VERSION,
+
+      snapshot_batch_id:
+        snapshotBatchId,
+
+      snapshot_stage:
+        "pre_settlement",
+
+      snapshot_at:
+        snapshotAt,
+    };
+  });
+
+  if (!payload.length) {
+    return;
+  }
+
+  await serviceRoleFetch(
+    "race_prediction_snapshot_runners?on_conflict=race_id,runner_id,scoring_version,classifier_version,snapshot_stage",
+    {
+      method: "POST",
+      headers: {
+        Prefer:
+          "resolution=ignore-duplicates,return=minimal",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+async function saveResearchSnapshots({
+  race,
+  meeting,
+  activeRunnerCount,
+  scoredRunners,
+  raceConfidence,
+  qualifiedTip,
+  snapshotAt,
+  snapshotBatchId,
+}: {
+  race: Race;
+  meeting: Meeting | null;
+  activeRunnerCount: number;
+  scoredRunners: ReturnType<typeof calculateRaceScores>;
+  raceConfidence: {
+    tier: string;
+    confidencePercent: number;
+    gap: number;
+  };
+  qualifiedTip: ReturnType<typeof getQualifiedCalculatorTip>;
+  snapshotAt: string;
+  snapshotBatchId: string;
+}) {
+  try {
+    await saveRaceClassificationSnapshot({
+      race,
+      meeting,
+      activeRunnerCount,
+      raceConfidence,
+      snapshotAt,
+      snapshotBatchId,
+    });
+  } catch (classificationSnapshotError) {
+    console.error(
+      "Race classification snapshot failed:",
+      {
+        raceId: Number(race.id),
+        snapshotBatchId,
+        scoringVersion:
+          SMARTPUNT_SCORING_VERSION,
+        classifierVersion:
+          SMARTPUNT_CLASSIFIER_VERSION,
+        error: classificationSnapshotError,
+      },
+    );
+  }
+
+  try {
+    await savePredictionSnapshotRunners({
+      race,
+      meeting,
+      scoredRunners,
+      raceConfidence,
+      qualifiedTip,
+      snapshotAt,
+      snapshotBatchId,
+    });
+  } catch (predictionSnapshotError) {
+    console.error(
+      "Race prediction runner snapshot failed:",
+      {
+        raceId: Number(race.id),
+        snapshotBatchId,
+        scoringVersion:
+          SMARTPUNT_SCORING_VERSION,
+        classifierVersion:
+          SMARTPUNT_CLASSIFIER_VERSION,
+        error: predictionSnapshotError,
+      },
+    );
+  }
+}
 async function saveCalculatorPredictionsForRace(
   raceId: number,
   {
@@ -1997,6 +2195,7 @@ const jockeyRows: any[] = [];
   }
 
   const now = new Date().toISOString();
+  const snapshotBatchId = crypto.randomUUID();
 
   const meetingForSnapshot =
     meetings.find(
@@ -2024,27 +2223,16 @@ if (saveClassificationSnapshot) {
     (runner) => runner.scratched !== true,
   ).length;
 
-  try {
-    await saveRaceClassificationSnapshot({
-      race: activeRace,
-      meeting: meetingForSnapshot,
-      activeRunnerCount,
-      raceConfidence,
-      snapshotAt: now,
-    });
-  } catch (classificationSnapshotError) {
-    console.error(
-      "Race classification snapshot failed:",
-      {
-        raceId,
-        scoringVersion:
-          SMARTPUNT_SCORING_VERSION,
-        classifierVersion:
-          SMARTPUNT_CLASSIFIER_VERSION,
-        error: classificationSnapshotError,
-      },
-    );
-  }
+  await saveResearchSnapshots({
+    race: activeRace,
+    meeting: meetingForSnapshot,
+    activeRunnerCount,
+    scoredRunners,
+    raceConfidence,
+    qualifiedTip,
+    snapshotAt: now,
+    snapshotBatchId,
+  });
 }
 
 function getSmartPuntTipType(runnerId: number) {
