@@ -1694,9 +1694,143 @@ async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
 }
 // SmartPunt horse master form seed active
 
+const SMARTPUNT_CLASSIFIER_VERSION = "race-classifier-v1";
+
+function getResearchDistanceBand(
+  distance: number | null | undefined,
+): string | null {
+  const value = Number(distance);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  if (value >= 1000 && value <= 1100) return "1000-1100";
+  if (value === 1200) return "1200";
+  if (value >= 1300 && value <= 1400) return "1300-1400";
+  if (value >= 1500 && value <= 1600) return "1500-1600";
+  if (value >= 1700 && value <= 2000) return "1700-2000";
+
+  if (value > 2000) return "2001+";
+
+  return "Other";
+}
+
+function getResearchConditionBand(
+  condition: string | null | undefined,
+): string {
+  const value = String(condition || "")
+    .trim()
+    .toLowerCase();
+
+  if (value.startsWith("good")) return "Good";
+  if (value.startsWith("soft")) return "Soft";
+  if (value.startsWith("heavy")) return "Heavy";
+  if (value.startsWith("synthetic")) return "Synthetic";
+
+  return "Unknown";
+}
+
+function getResearchFieldSizeBand(
+  activeRunnerCount: number,
+): string {
+  if (activeRunnerCount <= 6) return "1-6";
+  if (activeRunnerCount <= 9) return "7-9";
+  if (activeRunnerCount <= 12) return "10-12";
+  if (activeRunnerCount <= 15) return "13-15";
+
+  return "16+";
+}
+
+async function saveRaceClassificationSnapshot({
+  race,
+  meeting,
+  activeRunnerCount,
+  raceConfidence,
+  snapshotAt,
+}: {
+  race: Race;
+  meeting: Meeting | null;
+  activeRunnerCount: number;
+  raceConfidence: {
+    tier: string;
+    confidencePercent: number;
+    gap: number;
+  };
+  snapshotAt: string;
+}) {
+  const payload = {
+    race_id: Number(race.id),
+    meeting_id: race.meeting_id
+      ? Number(race.meeting_id)
+      : null,
+
+    scoring_version: SMARTPUNT_SCORING_VERSION,
+    classifier_version: SMARTPUNT_CLASSIFIER_VERSION,
+
+    meeting_name: meeting?.meeting_name || null,
+    meeting_date: meeting?.meeting_date || null,
+
+    race_number: Number(race.race_number),
+    race_name: race.race_name || null,
+    distance_m: race.distance_m || null,
+
+    distance_band: getResearchDistanceBand(
+      race.distance_m,
+    ),
+
+    track_condition:
+      meeting?.track_condition || null,
+
+    condition_band: getResearchConditionBand(
+      meeting?.track_condition,
+    ),
+
+    place_terms:
+      (race as any)?.place_terms || "top_3",
+
+    active_runner_count: activeRunnerCount,
+    field_size_band:
+      getResearchFieldSizeBand(activeRunnerCount),
+
+    race_confidence_tier:
+      raceConfidence.tier,
+
+    race_confidence_percent:
+      Number(raceConfidence.confidencePercent),
+
+    race_gap: Number(raceConfidence.gap || 0),
+
+    meeting_type: null,
+    race_class: null,
+    complexity_band: null,
+
+    snapshot_stage: "pre_settlement",
+    snapshot_at: snapshotAt,
+  };
+
+  await serviceRoleFetch(
+    "race_classification_snapshots?on_conflict=race_id,scoring_version,classifier_version,snapshot_stage",
+    {
+      method: "POST",
+      headers: {
+        Prefer:
+          "resolution=ignore-duplicates,return=minimal",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
 async function saveCalculatorPredictionsForRace(
   raceId: number,
-  { excludeScratched = false }: { excludeScratched?: boolean } = {},
+  {
+    excludeScratched = false,
+    saveClassificationSnapshot = false,
+  }: {
+    excludeScratched?: boolean;
+    saveClassificationSnapshot?: boolean;
+  } = {},
 ) {
   const supabase = await createClient();
 
@@ -1876,13 +2010,44 @@ const raceConfidence = calculateRaceConfidence(scoredRunners, {
 });
 
 const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
-  trackCondition: meetingForSnapshot?.track_condition || null,
+  trackCondition:
+    meetingForSnapshot?.track_condition || null,
   raceName: activeRace.race_name || "",
-  placeTerms: (activeRace as any)?.place_terms || "top_3",
-  meetingDate: meetingForSnapshot?.meeting_date || null,
+  placeTerms:
+    (activeRace as any)?.place_terms || "top_3",
+  meetingDate:
+    meetingForSnapshot?.meeting_date || null,
 });
 
-  function getSmartPuntTipType(runnerId: number) {
+if (saveClassificationSnapshot) {
+  const activeRunnerCount = fieldRunners.filter(
+    (runner) => runner.scratched !== true,
+  ).length;
+
+  try {
+    await saveRaceClassificationSnapshot({
+      race: activeRace,
+      meeting: meetingForSnapshot,
+      activeRunnerCount,
+      raceConfidence,
+      snapshotAt: now,
+    });
+  } catch (classificationSnapshotError) {
+    console.error(
+      "Race classification snapshot failed:",
+      {
+        raceId,
+        scoringVersion:
+          SMARTPUNT_SCORING_VERSION,
+        classifierVersion:
+          SMARTPUNT_CLASSIFIER_VERSION,
+        error: classificationSnapshotError,
+      },
+    );
+  }
+}
+
+function getSmartPuntTipType(runnerId: number) {
     if (!qualifiedTip || Number(qualifiedTip.runner.id) !== Number(runnerId)) {
       return "No Bet";
     }
@@ -5419,6 +5584,7 @@ const rpcResults = updates.map((update) => ({
 try {
   await saveCalculatorPredictionsForRace(raceId, {
     excludeScratched: true,
+    saveClassificationSnapshot: true,
   });
 } catch (calculatorSnapshotError) {
   console.error(
