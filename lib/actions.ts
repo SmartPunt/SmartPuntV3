@@ -1840,12 +1840,46 @@ async function savePredictionSnapshotRunners({
     tier: string;
     confidencePercent: number;
     gap: number;
+    suggestedBet?: string | null;
   };
   qualifiedTip: ReturnType<typeof getQualifiedCalculatorTip>;
   snapshotAt: string;
   snapshotBatchId: string;
 }) {
   const payload = scoredRunners.map((runner) => {
+    const snapshotRunner = runner as typeof runner & {
+      runner_number?: number | null;
+      barrier?: number | null;
+      effectiveBarrier?: number | null;
+      jockey_name?: string | null;
+      trainer_name?: string | null;
+      weight_kg?: number | null;
+      apprentice_claim_kg?: number | null;
+      effectiveWeight?: number | null;
+      scratched?: boolean | null;
+
+      form_last_6?: string | null;
+      track_form_last_6?: string | null;
+      distance_form_last_6?: string | null;
+
+      import_good_record?: string | null;
+      import_soft_record?: string | null;
+      import_heavy_record?: string | null;
+      import_synthetic_record?: string | null;
+
+      horse_form_last_6?: string | null;
+      horse_track_form_last_6?: string | null;
+      horse_distance_form_last_6?: string | null;
+
+      good_track_record?: string | null;
+      soft_track_record?: string | null;
+      heavy_track_record?: string | null;
+      synthetic_track_record?: string | null;
+
+      smartpunt_power_rating?: number | null;
+      verdict?: string | null;
+    };
+
     const isQualifiedTip =
       qualifiedTip !== null &&
       qualifiedTip !== undefined &&
@@ -1862,6 +1896,47 @@ async function savePredictionSnapshotRunners({
             0,
         )
       : Number(raceConfidence.gap || 0);
+
+    const runnerNumber =
+      snapshotRunner.runner_number !== null &&
+      snapshotRunner.runner_number !== undefined
+        ? Number(snapshotRunner.runner_number)
+        : null;
+
+    const barrier =
+      snapshotRunner.barrier !== null &&
+      snapshotRunner.barrier !== undefined
+        ? Number(snapshotRunner.barrier)
+        : null;
+
+    const effectiveBarrier =
+      snapshotRunner.effectiveBarrier !== null &&
+      snapshotRunner.effectiveBarrier !== undefined
+        ? Number(snapshotRunner.effectiveBarrier)
+        : null;
+
+    const weightKg =
+      snapshotRunner.weight_kg !== null &&
+      snapshotRunner.weight_kg !== undefined
+        ? Number(snapshotRunner.weight_kg)
+        : null;
+
+    const apprenticeClaimKg =
+      snapshotRunner.apprentice_claim_kg !== null &&
+      snapshotRunner.apprentice_claim_kg !== undefined
+        ? Number(snapshotRunner.apprentice_claim_kg)
+        : null;
+
+    const effectiveWeightKg =
+      snapshotRunner.effectiveWeight !== null &&
+      snapshotRunner.effectiveWeight !== undefined
+        ? Number(snapshotRunner.effectiveWeight)
+        : weightKg !== null
+          ? Math.max(
+              0,
+              weightKg - Number(apprenticeClaimKg || 0),
+            )
+          : null;
 
     return {
       race_id: Number(race.id),
@@ -1888,6 +1963,91 @@ async function savePredictionSnapshotRunners({
       race_name:
         race.race_name || null,
 
+      distance_m:
+        race.distance_m !== null &&
+        race.distance_m !== undefined
+          ? Number(race.distance_m)
+          : null,
+
+      track_condition:
+        meeting?.track_condition || null,
+
+      place_terms:
+        (race as any)?.place_terms || "top_3",
+
+      horse_name:
+        snapshotRunner.horse_name || null,
+
+      runner_number:
+        runnerNumber,
+
+      barrier,
+
+      effective_barrier:
+        effectiveBarrier,
+
+      jockey_name:
+        snapshotRunner.jockey_name || null,
+
+      trainer_name:
+        snapshotRunner.trainer_name || null,
+
+      weight_kg:
+        weightKg,
+
+      apprentice_claim_kg:
+        apprenticeClaimKg,
+
+      effective_weight_kg:
+        effectiveWeightKg,
+
+      scratched:
+        snapshotRunner.scratched === true,
+
+      runner_form_last_6:
+        snapshotRunner.form_last_6 || null,
+
+      runner_track_form_last_6:
+        snapshotRunner.track_form_last_6 || null,
+
+      runner_distance_form_last_6:
+        snapshotRunner.distance_form_last_6 || null,
+
+      /*
+       * The scored runner currently exposes the runner-level imported
+       * form fields. Separate horse-master fields are not guaranteed to
+       * be present in this function, so they remain null unless the
+       * scoring result explicitly supplies them.
+       */
+      horse_form_last_6:
+        snapshotRunner.horse_form_last_6 || null,
+
+      horse_track_form_last_6:
+        snapshotRunner.horse_track_form_last_6 || null,
+
+      horse_distance_form_last_6:
+        snapshotRunner.horse_distance_form_last_6 || null,
+
+      good_track_record:
+        snapshotRunner.import_good_record ||
+        snapshotRunner.good_track_record ||
+        null,
+
+      soft_track_record:
+        snapshotRunner.import_soft_record ||
+        snapshotRunner.soft_track_record ||
+        null,
+
+      heavy_track_record:
+        snapshotRunner.import_heavy_record ||
+        snapshotRunner.heavy_track_record ||
+        null,
+
+      synthetic_track_record:
+        snapshotRunner.import_synthetic_record ||
+        snapshotRunner.synthetic_track_record ||
+        null,
+
       predicted_rank:
         Number(runner.rank),
 
@@ -1900,13 +2060,29 @@ async function savePredictionSnapshotRunners({
       place_percent:
         Number(runner.placePercent),
 
-      race_gap: raceGap,
+      race_gap:
+        raceGap,
 
       smartpunt_tip:
         isQualifiedTip,
 
       smartpunt_tip_type:
         smartPuntTipType,
+
+      suggested_bet:
+        raceConfidence.suggestedBet || null,
+
+      verdict:
+        snapshotRunner.verdict ||
+        (isQualifiedTip
+          ? `${smartPuntTipType} Tip`
+          : "No Bet"),
+
+      smartpunt_power_rating:
+        snapshotRunner.smartpunt_power_rating !== null &&
+        snapshotRunner.smartpunt_power_rating !== undefined
+          ? Number(snapshotRunner.smartpunt_power_rating)
+          : null,
 
       race_confidence_tier:
         raceConfidence.tier,
@@ -1947,7 +2123,6 @@ async function savePredictionSnapshotRunners({
     },
   );
 }
-
 async function saveResearchSnapshots({
   race,
   meeting,
