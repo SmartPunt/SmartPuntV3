@@ -10,9 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function SnapshotExplorerPage({
   params,
 }: {
-  params:
-    | Promise<{ batchId: string }>
-    | { batchId: string };
+  params: Promise<{ batchId: string }>;
 }) {
   const profile = await getCurrentProfile();
 
