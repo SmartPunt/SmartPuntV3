@@ -611,9 +611,12 @@ distance_m: Number(race.distance_m || 0),
 
     return {
       ...calculatedShape,
-      tier:
-        prediction.race_confidence_tier ||
-        calculatedShape.tier,
+tier:
+  (prediction.race_confidence_tier as
+    | "Low"
+    | "Medium"
+    | "High"
+    | "Elite") ?? calculatedShape.tier,
       confidencePercent: Number(
         prediction.race_confidence_percent ||
           calculatedShape.confidencePercent ||
