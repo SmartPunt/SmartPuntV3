@@ -75,6 +75,37 @@ export type ResearchPredictionRunnerSnapshot = {
   created_at: string | null;
 };
 
+export type ResearchRunnerComponentSnapshot = {
+  id: number;
+  race_id: number;
+  meeting_id: number | null;
+
+  runner_id: number;
+  horse_id: number | null;
+
+  snapshot_batch_id: string | null;
+
+  scoring_version: string | null;
+  classifier_version: string | null;
+
+  predicted_rank: number | null;
+  total_score: number | null;
+
+  power_rating: number | null;
+  power_adjustment: number | null;
+  base_score: number | null;
+  standout_bonus: number | null;
+
+  overconfidence_dampener_applied: boolean | null;
+
+  component_scores: Record<string, unknown> | null;
+  scoring_audit: Record<string, unknown> | null;
+
+  snapshot_stage: string | null;
+  snapshot_at: string | null;
+  created_at: string | null;
+};
+
 export type ResearchBatchSummary = {
   snapshotBatchId: string;
 
@@ -135,14 +166,18 @@ export type ResearchWarehouseHealth = {
 
 export type ResearchBatchDetails = {
   batch: ResearchBatchSummary | null;
+
   classificationSnapshots: ResearchClassificationSnapshot[];
   predictionSnapshots: ResearchPredictionRunnerSnapshot[];
+  componentSnapshots: ResearchRunnerComponentSnapshot[];
 
   classificationCount: number;
   predictionRunnerCount: number;
+  componentRunnerCount: number;
 
   expectedRunnerCount: number;
   runnerCountMatches: boolean;
+  componentRunnerCountMatches: boolean;
 
   warnings: string[];
 };
@@ -646,6 +681,7 @@ export async function getResearchBatch(
   const [
     classificationSnapshots,
     predictionSnapshots,
+    componentSnapshots,
   ] = await Promise.all([
     serviceRoleSelect<ResearchClassificationSnapshot>(
       [
@@ -659,6 +695,15 @@ export async function getResearchBatch(
     serviceRoleSelect<ResearchPredictionRunnerSnapshot>(
       [
         "race_prediction_snapshot_runners",
+        "?select=*",
+        `&snapshot_batch_id=eq.${encodedBatchId}`,
+        "&order=predicted_rank.asc",
+      ].join(""),
+    ),
+
+    serviceRoleSelect<ResearchRunnerComponentSnapshot>(
+      [
+        "runner_component_snapshots",
         "?select=*",
         `&snapshot_batch_id=eq.${encodedBatchId}`,
         "&order=predicted_rank.asc",
@@ -678,9 +723,17 @@ export async function getResearchBatch(
   const predictionRunnerCount =
     predictionSnapshots.length;
 
+  const componentRunnerCount =
+    componentSnapshots.length;
+
   const runnerCountMatches =
     expectedRunnerCount > 0 &&
     predictionRunnerCount ===
+      expectedRunnerCount;
+
+  const componentRunnerCountMatches =
+    expectedRunnerCount > 0 &&
+    componentRunnerCount ===
       expectedRunnerCount;
 
   const warnings: string[] = [];
@@ -697,6 +750,12 @@ export async function getResearchBatch(
     );
   }
 
+  if (!componentSnapshots.length) {
+    warnings.push(
+      "No runner component snapshots were found for this batch.",
+    );
+  }
+
   if (
     expectedRunnerCount > 0 &&
     predictionRunnerCount !==
@@ -707,11 +766,24 @@ export async function getResearchBatch(
     );
   }
 
+  if (
+    expectedRunnerCount > 0 &&
+    componentRunnerCount !==
+      expectedRunnerCount
+  ) {
+    warnings.push(
+      `The classification snapshot expected ${expectedRunnerCount} active runners, but ${componentRunnerCount} component snapshots were captured.`,
+    );
+  }
+
   const raceIds = uniqueNumbers([
     ...classificationSnapshots.map(
       (row) => row.race_id,
     ),
     ...predictionSnapshots.map(
+      (row) => row.race_id,
+    ),
+    ...componentSnapshots.map(
       (row) => row.race_id,
     ),
   ]);
@@ -727,14 +799,17 @@ export async function getResearchBatch(
 
     classificationSnapshots,
     predictionSnapshots,
+    componentSnapshots,
 
     classificationCount:
       classificationSnapshots.length,
 
     predictionRunnerCount,
+    componentRunnerCount,
 
     expectedRunnerCount,
     runnerCountMatches,
+    componentRunnerCountMatches,
 
     warnings,
   };
