@@ -2319,8 +2319,18 @@ type CalculatorTipEvolutionReason = {
 };
 
 function normaliseEvolutionNumber(
-  value: number | null | undefined,
-): number | null {
+  value: string | number | null | undefined,
+) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue)
+    ? Number(numberValue.toFixed(2))
+    : null;
+}
   const numberValue = Number(value);
 
   if (!Number.isFinite(numberValue)) {
