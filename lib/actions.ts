@@ -2123,6 +2123,87 @@ async function savePredictionSnapshotRunners({
     },
   );
 }
+async function saveRunnerComponentSnapshots({
+  race,
+  scoredRunners,
+  snapshotAt,
+  snapshotBatchId,
+}: {
+  race: Race;
+  scoredRunners: ReturnType<typeof calculateRaceScores>;
+  snapshotAt: string;
+  snapshotBatchId: string;
+}) {
+  const payload = scoredRunners.map((runner) => ({
+    race_id: Number(race.id),
+
+    meeting_id:
+      race.meeting_id !== null &&
+      race.meeting_id !== undefined
+        ? Number(race.meeting_id)
+        : null,
+
+    runner_id: Number(runner.id),
+
+    horse_id:
+      runner.horse_id !== null &&
+      runner.horse_id !== undefined
+        ? Number(runner.horse_id)
+        : null,
+
+    snapshot_batch_id: snapshotBatchId,
+
+    scoring_version: SMARTPUNT_SCORING_VERSION,
+    classifier_version: SMARTPUNT_CLASSIFIER_VERSION,
+
+    predicted_rank: Number(runner.rank),
+    total_score: Number(runner.score),
+
+    power_rating:
+      runner.components.powerRating !== null &&
+      runner.components.powerRating !== undefined
+        ? Number(runner.components.powerRating)
+        : null,
+
+    power_adjustment: Number(
+      runner.components.powerAdjustment || 0,
+    ),
+
+    base_score: Number(
+      runner.audit.overall.baseScore,
+    ),
+
+    standout_bonus: Number(
+      runner.audit.overall.standoutBonus || 0,
+    ),
+
+    overconfidence_dampener_applied:
+      runner.audit.overall
+        .overconfidenceDampenerApplied === true,
+
+    component_scores: runner.components,
+    scoring_audit: runner.audit,
+
+    snapshot_stage: "pre_settlement",
+    snapshot_at: snapshotAt,
+  }));
+
+  if (!payload.length) {
+    return;
+  }
+
+  await serviceRoleFetch(
+    "runner_component_snapshots?on_conflict=race_id,runner_id,scoring_version,classifier_version,snapshot_stage",
+    {
+      method: "POST",
+      headers: {
+        Prefer:
+          "resolution=ignore-duplicates,return=minimal",
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+}
 async function saveResearchSnapshots({
   race,
   meeting,
@@ -2191,6 +2272,28 @@ async function saveResearchSnapshots({
         classifierVersion:
           SMARTPUNT_CLASSIFIER_VERSION,
         error: predictionSnapshotError,
+      },
+    );
+  }
+
+  try {
+    await saveRunnerComponentSnapshots({
+      race,
+      scoredRunners,
+      snapshotAt,
+      snapshotBatchId,
+    });
+  } catch (componentSnapshotError) {
+    console.error(
+      "Runner component snapshot failed:",
+      {
+        raceId: Number(race.id),
+        snapshotBatchId,
+        scoringVersion:
+          SMARTPUNT_SCORING_VERSION,
+        classifierVersion:
+          SMARTPUNT_CLASSIFIER_VERSION,
+        error: componentSnapshotError,
       },
     );
   }
