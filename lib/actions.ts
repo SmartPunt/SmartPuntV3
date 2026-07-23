@@ -3050,15 +3050,12 @@ try {
     changedAt: now,
   });
 } catch (tipEvolutionError) {
-  console.error(
-    "Calculator tip evolution recording failed:",
-    {
-      raceId,
-      scoringVersion:
-        SMARTPUNT_SCORING_VERSION,
-      error: tipEvolutionError,
-    },
-  );
+console.error(
+  "Calculator tip evolution recording failed:",
+  tipEvolutionError,
+);
+
+throw tipEvolutionError;
 }
 
 if (saveClassificationSnapshot) {
