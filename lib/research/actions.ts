@@ -105,7 +105,17 @@ export type ResearchRunnerComponentSnapshot = {
   snapshot_at: string | null;
   created_at: string | null;
 };
+export type ResearchBatchRunner = {
+  runnerId: number;
+  horseId: number | null;
 
+  predictedRank: number | null;
+
+  prediction: ResearchPredictionRunnerSnapshot;
+  component: ResearchRunnerComponentSnapshot | null;
+
+  hasComponentSnapshot: boolean;
+};
 export type ResearchBatchSummary = {
   snapshotBatchId: string;
 
@@ -170,6 +180,8 @@ export type ResearchBatchDetails = {
   classificationSnapshots: ResearchClassificationSnapshot[];
   predictionSnapshots: ResearchPredictionRunnerSnapshot[];
   componentSnapshots: ResearchRunnerComponentSnapshot[];
+
+  runners: ResearchBatchRunner[];
 
   classificationCount: number;
   predictionRunnerCount: number;
@@ -726,6 +738,60 @@ export async function getResearchBatch(
   const componentRunnerCount =
     componentSnapshots.length;
 
+  const componentByRunnerId = new Map<
+    number,
+    ResearchRunnerComponentSnapshot
+  >();
+
+  for (const componentSnapshot of componentSnapshots) {
+    const runnerId = Number(
+      componentSnapshot.runner_id,
+    );
+
+    if (
+      Number.isFinite(runnerId) &&
+      runnerId > 0 &&
+      !componentByRunnerId.has(runnerId)
+    ) {
+      componentByRunnerId.set(
+        runnerId,
+        componentSnapshot,
+      );
+    }
+  }
+
+  const runners: ResearchBatchRunner[] =
+    predictionSnapshots.map((prediction) => {
+      const runnerId = Number(
+        prediction.runner_id,
+      );
+
+      const component =
+        componentByRunnerId.get(runnerId) || null;
+
+      return {
+        runnerId,
+
+        horseId:
+          prediction.horse_id !== null &&
+          prediction.horse_id !== undefined
+            ? Number(prediction.horse_id)
+            : null,
+
+        predictedRank:
+          prediction.predicted_rank !== null &&
+          prediction.predicted_rank !== undefined
+            ? Number(prediction.predicted_rank)
+            : null,
+
+        prediction,
+        component,
+
+        hasComponentSnapshot:
+          component !== null,
+      };
+    });
+
   const runnerCountMatches =
     expectedRunnerCount > 0 &&
     predictionRunnerCount ===
@@ -775,7 +841,20 @@ export async function getResearchBatch(
       `The classification snapshot expected ${expectedRunnerCount} active runners, but ${componentRunnerCount} component snapshots were captured.`,
     );
   }
+  const runnersWithoutComponents =
+    runners.filter(
+      (runner) => !runner.hasComponentSnapshot,
+    );
 
+  if (runnersWithoutComponents.length > 0) {
+    warnings.push(
+      `${runnersWithoutComponents.length} prediction runner${
+        runnersWithoutComponents.length === 1
+          ? ""
+          : "s"
+      } could not be matched to a component snapshot.`,
+    );
+  }
   const raceIds = uniqueNumbers([
     ...classificationSnapshots.map(
       (row) => row.race_id,
@@ -800,6 +879,8 @@ export async function getResearchBatch(
     classificationSnapshots,
     predictionSnapshots,
     componentSnapshots,
+
+    runners,
 
     classificationCount:
       classificationSnapshots.length,
