@@ -34,7 +34,44 @@ type CalculatorTip = {
   status: string | null;
   published_at: string | null;
 };
+type CalculatorPredictionSnapshot = {
+  id: number;
+  race_id: number;
+  runner_id: number;
+  horse_id: number | null;
 
+  scoring_version: string | null;
+
+  score: number | string;
+  rank: number;
+  win_percent: number;
+  place_percent: number;
+
+  recent_form_score: number | string;
+  distance_score: number | string;
+  track_score: number | string;
+  condition_score: number | string;
+  barrier_score: number | string;
+  weight_score: number | string;
+  jockey_score: number | string;
+  trainer_score: number | string;
+
+  is_smartpunt_tip: boolean | null;
+  smartpunt_tip_type: string | null;
+
+  race_gap: number | string | null;
+  race_confidence_tier: string | null;
+  race_confidence_percent: number | string | null;
+  suggested_bet: string | null;
+
+  audit_json: any;
+
+  predicted_at: string | null;
+  finishing_position: number | null;
+  won: boolean | null;
+  placed: boolean | null;
+  settled_at: string | null;
+};
 type SpecialistAlert = {
   horseName: string;
   label: string;
@@ -389,6 +426,7 @@ export default function AdminCalculator({
   meetings,
   jockeyProfiles,
   calculatorTips = [],
+  calculatorPredictions = [],
   dayDates,
 }: {
   races: Race[];
@@ -397,6 +435,7 @@ export default function AdminCalculator({
   meetings: Meeting[];
   jockeyProfiles: JockeyProfile[];
   calculatorTips?: CalculatorTip[];
+  calculatorPredictions?: CalculatorPredictionSnapshot[];
   dayDates?: DayDates;
 }) {
   const [search, setSearch] = useState("");
@@ -425,6 +464,225 @@ export default function AdminCalculator({
   );
 
   const selectedRaceDayLabel = getRaceDayLabel(raceDayFilter);
+
+  const predictionSnapshotsByRaceId = useMemo(() => {
+    const map = new Map<number, CalculatorPredictionSnapshot[]>();
+
+    calculatorPredictions.forEach((prediction) => {
+      const raceId = Number(prediction.race_id);
+      const existing = map.get(raceId) || [];
+
+      existing.push(prediction);
+      map.set(raceId, existing);
+    });
+
+    map.forEach((racePredictions) => {
+      racePredictions.sort(
+        (a, b) => Number(a.rank || 0) - Number(b.rank || 0),
+      );
+    });
+
+    return map;
+  }, [calculatorPredictions]);
+
+  function buildHistoricalScoredRunners(race: Race) {
+    const predictions =
+      predictionSnapshotsByRaceId.get(Number(race.id)) || [];
+
+    if (!predictions.length) {
+      return null;
+    }
+
+    const meeting = meetings.find(
+      (item) => Number(item.id) === Number(race.meeting_id),
+    );
+
+    return predictions.map((prediction) => {
+      const runner = runners.find(
+        (item) => Number(item.id) === Number(prediction.runner_id),
+      );
+
+      const horse = horses.find(
+        (item) =>
+          Number(item.id) ===
+          Number(prediction.horse_id || runner?.horse_id),
+      );
+
+      const weightKg =
+        runner?.weight_kg !== null && runner?.weight_kg !== undefined
+          ? Number(runner.weight_kg)
+          : null;
+
+      const apprenticeClaim =
+        runner?.apprentice_claim_kg !== null &&
+        runner?.apprentice_claim_kg !== undefined
+          ? Number(runner.apprentice_claim_kg)
+          : 0;
+
+      return {
+        ...(runner || {}),
+
+        id: Number(prediction.runner_id),
+        race_id: Number(prediction.race_id),
+        horse_id:
+          prediction.horse_id !== null &&
+          prediction.horse_id !== undefined
+            ? Number(prediction.horse_id)
+            : Number(runner?.horse_id || 0),
+
+        horse_name: horse?.horse_name || "Unknown horse",
+
+        meeting_name: meeting?.meeting_name || "",
+        meeting_date: meeting?.meeting_date || "",
+        track_condition: meeting?.track_condition || null,
+
+        score: Number(prediction.score || 0),
+        rank: Number(prediction.rank || 0),
+
+        winPercent: Number(prediction.win_percent || 0),
+        placePercent: Number(prediction.place_percent || 0),
+
+        components: {
+          recentForm: Number(prediction.recent_form_score || 0),
+          distance: Number(prediction.distance_score || 0),
+          track: Number(prediction.track_score || 0),
+          condition: Number(prediction.condition_score || 0),
+          barrier: Number(prediction.barrier_score || 0),
+          weight: Number(prediction.weight_score || 0),
+          jockey: Number(prediction.jockey_score || 0),
+          trainer: Number(prediction.trainer_score || 0),
+
+          consistency: Number(
+            prediction.audit_json?.sections?.consistency?.score || 0,
+          ),
+
+          powerRating: Number(
+            prediction.audit_json?.overall?.powerRating || 0,
+          ),
+
+          powerAdjustment: Number(
+            prediction.audit_json?.overall?.powerAdjustment || 0,
+          ),
+        },
+
+        audit: prediction.audit_json || null,
+
+        effectiveWeight:
+          weightKg !== null
+            ? Math.max(0, weightKg - apprenticeClaim)
+            : null,
+
+        smartpunt_power_rating:
+          horse?.smartpunt_power_rating ?? null,
+
+        verdict:
+          prediction.is_smartpunt_tip === true
+            ? `${prediction.smartpunt_tip_type || "Tip"} Tip`
+            : "No Bet",
+
+        historicalPrediction: prediction,
+      };
+    }) as ReturnType<typeof calculateRaceScores>;
+  }
+
+  function getStoredRaceConfidence(
+    race: Race | null,
+    scored: ReturnType<typeof calculateRaceScores>,
+    trackCondition?: string | null,
+  ) {
+    if (!race || String(race.status || "") !== "closed") {
+      return null;
+    }
+
+    const prediction =
+      predictionSnapshotsByRaceId.get(Number(race.id))?.[0] || null;
+
+    if (!prediction) {
+      return null;
+    }
+
+    const calculatedShape = calculateRaceConfidence(scored, {
+      trackCondition: trackCondition || null,
+      raceName: race.race_name || "",
+      placeTerms: race.place_terms || "top_3",
+    });
+
+    return {
+      ...calculatedShape,
+      tier:
+        prediction.race_confidence_tier ||
+        calculatedShape.tier,
+      confidencePercent: Number(
+        prediction.race_confidence_percent ||
+          calculatedShape.confidencePercent ||
+          0,
+      ),
+      gap: Number(
+        prediction.race_gap ??
+          calculatedShape.gap ??
+          0,
+      ),
+      suggestedBet:
+        prediction.suggested_bet ||
+        calculatedShape.suggestedBet,
+      volatility: "Historical snapshot",
+      summary:
+        "Stored pre-settlement calculator snapshot. Scores, ranking, confidence and tip decision are frozen from race day.",
+    };
+  }
+
+  function getStoredQualifiedTip(
+    race: Race | null,
+    scored: ReturnType<typeof calculateRaceScores>,
+    storedRaceConfidence: ReturnType<
+      typeof calculateRaceConfidence
+    > | null,
+  ) {
+    if (
+      !race ||
+      String(race.status || "") !== "closed" ||
+      !storedRaceConfidence
+    ) {
+      return null;
+    }
+
+    const predictions =
+      predictionSnapshotsByRaceId.get(Number(race.id)) || [];
+
+    const tipPrediction = predictions.find(
+      (prediction) => prediction.is_smartpunt_tip === true,
+    );
+
+    if (!tipPrediction) {
+      return null;
+    }
+
+    const runner =
+      scored.find(
+        (item) =>
+          Number(item.id) === Number(tipPrediction.runner_id),
+      ) || null;
+
+    if (!runner) {
+      return null;
+    }
+
+    const type =
+      String(tipPrediction.smartpunt_tip_type || "")
+        .toLowerCase()
+        .includes("place")
+        ? "Place"
+        : "Win";
+
+    return {
+      runner,
+      type,
+      gap: Number(tipPrediction.race_gap || 0),
+      raceConfidence: storedRaceConfidence,
+      qualifiesAsStrongWin: false,
+      qualifiesAsStrongPlace: false,
+    };
+  }
 
   const publishedRaces = useMemo(
     () =>
@@ -531,6 +789,16 @@ export default function AdminCalculator({
     >();
 
     racesToScore.forEach((race, raceId) => {
+      const historicalScoredRunners =
+        String(race.status || "") === "closed"
+          ? buildHistoricalScoredRunners(race)
+          : null;
+
+      if (historicalScoredRunners?.length) {
+        scoredByRaceId.set(raceId, historicalScoredRunners);
+        return;
+      }
+
       scoredByRaceId.set(
         raceId,
         calculateRaceScores({
@@ -551,6 +819,7 @@ export default function AdminCalculator({
     horses,
     jockeyProfiles,
     meetings,
+    predictionSnapshotsByRaceId,
     races,
     runners,
   ]);
@@ -589,28 +858,38 @@ export default function AdminCalculator({
   const activePlaceTerms = activeRace?.place_terms || "top_3";
   const placeBettingDisabled = activePlaceTerms === "win_only";
 
-  function placeTermsLabel(value?: string | null) {
-    if (value === "win_only") return "Pay 1 Only";
-    if (value === "top_2") return "Pay 1 & 2";
-    return "Pay 1, 2 & 3";
+function placeTermsLabel(value?: string | null) {
+  if (value === "win_only") return "Pay 1 Only";
+  if (value === "top_2") return "Pay 1 & 2";
+  return "Pay 1, 2 & 3";
+}
+
+const raceConfidence = useMemo(() => {
+  if (!scoredRunners.length) {
+    return null;
   }
 
-  const raceConfidence = useMemo(
-    () =>
-      scoredRunners.length
-        ? calculateRaceConfidence(scoredRunners, {
-            trackCondition: topWinChance?.track_condition || null,
-            raceName: activeRace?.race_name || "",
-            placeTerms: activeRace?.place_terms || "top_3",
-          })
-        : null,
-    [
-      activeRace?.place_terms,
-      activeRace?.race_name,
-      scoredRunners,
-      topWinChance?.track_condition,
-    ],
+  const storedConfidence = getStoredRaceConfidence(
+    activeRace,
+    scoredRunners,
+    topWinChance?.track_condition || null,
   );
+
+  if (storedConfidence) {
+    return storedConfidence;
+  }
+
+  return calculateRaceConfidence(scoredRunners, {
+    trackCondition: topWinChance?.track_condition || null,
+    raceName: activeRace?.race_name || "",
+    placeTerms: activeRace?.place_terms || "top_3",
+  });
+}, [
+  activeRace,
+  scoredRunners,
+  topWinChance?.track_condition,
+  predictionSnapshotsByRaceId,
+]);
 
 const tipThresholds = useMemo(
   () =>
@@ -652,9 +931,27 @@ const tipThresholds = useMemo(
       : roundScore(Number(activeTopPlaceChance.score || 0));
   }, [activeTopPlaceChance, scoredRunners]);
 
-const qualifiedTip = useMemo(
-  () =>
-    getQualifiedCalculatorTip(scoredRunners, {
+  const qualifiedTip = useMemo(() => {
+    const storedTip = getStoredQualifiedTip(
+      activeRace,
+      scoredRunners,
+      raceConfidence,
+    );
+
+    if (storedTip) {
+      return storedTip;
+    }
+
+    if (String(activeRace?.status || "") === "closed") {
+      const hasSnapshot =
+        predictionSnapshotsByRaceId.has(Number(activeRace?.id));
+
+      if (hasSnapshot) {
+        return null;
+      }
+    }
+
+    return getQualifiedCalculatorTip(scoredRunners, {
       trackCondition: topWinChance?.track_condition || null,
       raceName: activeRace?.race_name || "",
       placeTerms: activeRace?.place_terms || "top_3",
@@ -663,16 +960,15 @@ const qualifiedTip = useMemo(
           (meeting) =>
             Number(meeting.id) === Number(activeRace?.meeting_id),
         )?.meeting_date || null,
-    }),
-  [
-    activeRace?.meeting_id,
-    activeRace?.place_terms,
-    activeRace?.race_name,
+    });
+  }, [
+    activeRace,
     meetings,
+    predictionSnapshotsByRaceId,
+    raceConfidence,
     scoredRunners,
     topWinChance?.track_condition,
-  ],
-);
+  ]);
   const activeRaceIndex = activeRace
     ? orderedPublishedRaces.findIndex(
         (race) => Number(race.id) === Number(activeRace.id),
@@ -734,7 +1030,12 @@ const qualifiedTip = useMemo(
           scoredRunnersByRaceId.get(Number(race.id)) || [];
 
         const confidence = scored.length
-          ? calculateRaceConfidence(scored, {
+          ? getStoredRaceConfidence(
+              race,
+              scored,
+              meeting?.track_condition || null,
+            ) ||
+            calculateRaceConfidence(scored, {
               trackCondition: meeting?.track_condition || null,
               placeTerms: race.place_terms || "top_3",
             })
@@ -744,12 +1045,28 @@ const qualifiedTip = useMemo(
           (item) => Number(item.id) === Number(race.meeting_id),
         );
 
-const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: raceMeeting?.track_condition || null,
-  raceName: race.race_name || "",
-  placeTerms: race.place_terms || "top_3",
-  meetingDate: raceMeeting?.meeting_date || null,
-});
+        const storedQualifiedTip = getStoredQualifiedTip(
+          race,
+          scored,
+          confidence,
+        );
+
+        const hasStoredSnapshot =
+          String(race.status || "") === "closed" &&
+          predictionSnapshotsByRaceId.has(Number(race.id));
+
+        const qualifiedTip =
+          storedQualifiedTip ||
+          (hasStoredSnapshot
+            ? null
+            : getQualifiedCalculatorTip(scored, {
+                trackCondition:
+                  raceMeeting?.track_condition || null,
+                raceName: race.race_name || "",
+                placeTerms: race.place_terms || "top_3",
+                meetingDate:
+                  raceMeeting?.meeting_date || null,
+              }));
 
         const calculatorTip = qualifiedTip?.type || "No Bet";
 
@@ -785,6 +1102,7 @@ const qualifiedTip = getQualifiedCalculatorTip(scored, {
     dayPublishedRaces,
     horses,
     meetings,
+    predictionSnapshotsByRaceId,
     races,
     runners,
     scoredRunnersByRaceId,
@@ -872,12 +1190,41 @@ const importHealthWarningCount = importHealthWarnings.length;
           (item) => Number(item.id) === Number(race.meeting_id),
         );
 
-const qualifiedTip = getQualifiedCalculatorTip(scored, {
-  trackCondition: raceMeeting?.track_condition || null,
-  raceName: race.race_name || "",
-  placeTerms: race.place_terms || "top_3",
-  meetingDate: raceMeeting?.meeting_date || null,
-});
+        const confidenceForRace =
+          getStoredRaceConfidence(
+            race,
+            scored,
+            raceMeeting?.track_condition || null,
+          ) ||
+          calculateRaceConfidence(scored, {
+            trackCondition:
+              raceMeeting?.track_condition || null,
+            raceName: race.race_name || "",
+            placeTerms: race.place_terms || "top_3",
+          });
+
+        const storedQualifiedTip = getStoredQualifiedTip(
+          race,
+          scored,
+          confidenceForRace,
+        );
+
+        const hasStoredSnapshot =
+          String(race.status || "") === "closed" &&
+          predictionSnapshotsByRaceId.has(Number(race.id));
+
+        const qualifiedTip =
+          storedQualifiedTip ||
+          (hasStoredSnapshot
+            ? null
+            : getQualifiedCalculatorTip(scored, {
+                trackCondition:
+                  raceMeeting?.track_condition || null,
+                raceName: race.race_name || "",
+                placeTerms: race.place_terms || "top_3",
+                meetingDate:
+                  raceMeeting?.meeting_date || null,
+              }));
 
         if (!qualifiedTip) return null;
 
@@ -921,6 +1268,7 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
     calculatorTips,
     dayPublishedRaces,
     meetings,
+    predictionSnapshotsByRaceId,
     scoredRunnersByRaceId,
     strongestBetMode,
   ]);
