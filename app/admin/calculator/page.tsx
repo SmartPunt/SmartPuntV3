@@ -41,6 +41,39 @@ type CalculatorPredictionSnapshot = {
   placed: boolean | null;
   settled_at: string | null;
 };
+type CalculatorTipEvolutionRow = {
+  id: number;
+  race_id: number;
+  runner_id: number | null;
+  horse_id: number | null;
+
+  event_type: string | null;
+  reason_code: string | null;
+
+  previous_tip: string | null;
+  new_tip: string | null;
+
+  previous_runner_id: number | null;
+  new_runner_id: number | null;
+  previous_horse_id: number | null;
+  new_horse_id: number | null;
+
+  previous_score: number | string | null;
+  new_score: number | string | null;
+
+  previous_gap: number | string | null;
+  new_gap: number | string | null;
+
+  previous_confidence_percent: number | string | null;
+  new_confidence_percent: number | string | null;
+
+  previous_confidence_tier: string | null;
+  new_confidence_tier: string | null;
+
+  change_reasons_json: unknown;
+  scoring_version: string | null;
+  changed_at: string;
+};
 function getPerthDate(offsetDays = 0) {
   const perthParts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Australia/Perth",
@@ -470,6 +503,15 @@ const requiredRaceIds = uniqueNumbers([
       })
     : [];
 
+  const calculatorTipEvolution = currentRaceIds.length
+    ? await fetchServiceRoleRowsByRaceIds<CalculatorTipEvolutionRow>({
+        table: "calculator_tip_evolution",
+        select: "*",
+        raceIds: currentRaceIds,
+        order: "changed_at.asc",
+      })
+    : [];
+
   const closedRaceIds = uniqueNumbers(
     currentRaces
       .filter((race) => String(race.status || "") === "closed")
@@ -528,6 +570,7 @@ const requiredRaceIds = uniqueNumbers([
       jockeyProfiles={jockeyProfiles}
       calculatorTips={calculatorTips}
       calculatorPredictions={calculatorPredictions}
+      calculatorTipEvolution={calculatorTipEvolution}
       dayDates={{ yesterday, today, tomorrow }}
     />
   );
