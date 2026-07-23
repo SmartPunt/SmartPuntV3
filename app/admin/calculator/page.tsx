@@ -3,6 +3,44 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import AdminCalculator from "@/components/admin-calculator";
 
+type CalculatorPredictionSnapshot = {
+  id: number;
+  race_id: number;
+  runner_id: number;
+  horse_id: number | null;
+
+  scoring_version: string | null;
+
+  score: number | string;
+  rank: number;
+  win_percent: number;
+  place_percent: number;
+
+  recent_form_score: number | string;
+  distance_score: number | string;
+  track_score: number | string;
+  condition_score: number | string;
+  barrier_score: number | string;
+  weight_score: number | string;
+  jockey_score: number | string;
+  trainer_score: number | string;
+
+  is_smartpunt_tip: boolean | null;
+  smartpunt_tip_type: string | null;
+
+  race_gap: number | string | null;
+  race_confidence_tier: string | null;
+  race_confidence_percent: number | string | null;
+  suggested_bet: string | null;
+
+  audit_json: unknown;
+
+  predicted_at: string | null;
+  finishing_position: number | null;
+  won: boolean | null;
+  placed: boolean | null;
+  settled_at: string | null;
+};
 function getPerthDate(offsetDays = 0) {
   const perthParts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Australia/Perth",
@@ -432,6 +470,55 @@ const requiredRaceIds = uniqueNumbers([
       })
     : [];
 
+  const closedRaceIds = uniqueNumbers(
+    currentRaces
+      .filter((race) => String(race.status || "") === "closed")
+      .map((race) => race.id),
+  );
+
+  const predictionVersions = closedRaceIds.length
+    ? await fetchServiceRoleRowsByRaceIds<CalculatorPredictionSnapshot>({
+        table: "calculator_predictions",
+        select: "*",
+        raceIds: closedRaceIds,
+        order: "predicted_at.desc",
+      })
+    : [];
+
+  const latestPredictionByRunner = new Map<
+    string,
+    CalculatorPredictionSnapshot
+  >();
+
+  for (const prediction of predictionVersions) {
+    const key = `${Number(prediction.race_id)}-${Number(
+      prediction.runner_id,
+    )}`;
+
+    const existing = latestPredictionByRunner.get(key);
+
+    if (!existing) {
+      latestPredictionByRunner.set(key, prediction);
+      continue;
+    }
+
+    const existingTime = new Date(
+      existing.predicted_at || existing.settled_at || 0,
+    ).getTime();
+
+    const predictionTime = new Date(
+      prediction.predicted_at || prediction.settled_at || 0,
+    ).getTime();
+
+    if (predictionTime >= existingTime) {
+      latestPredictionByRunner.set(key, prediction);
+    }
+  }
+
+  const calculatorPredictions = Array.from(
+    latestPredictionByRunner.values(),
+  );
+
   return (
     <AdminCalculator
       races={races}
@@ -440,6 +527,7 @@ const requiredRaceIds = uniqueNumbers([
       meetings={meetings}
       jockeyProfiles={jockeyProfiles}
       calculatorTips={calculatorTips}
+      calculatorPredictions={calculatorPredictions}
       dayDates={{ yesterday, today, tomorrow }}
     />
   );
