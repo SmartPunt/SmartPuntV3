@@ -2298,6 +2298,536 @@ async function saveResearchSnapshots({
     );
   }
 }
+type CalculatorTipEvolutionState = {
+  tip: string;
+  runnerId: number | null;
+  horseId: number | null;
+  score: number | null;
+  winPercent: number | null;
+  placePercent: number | null;
+  gap: number | null;
+  confidencePercent: number | null;
+  confidenceTier: string | null;
+  scoringVersion: string;
+};
+
+type CalculatorTipEvolutionReason = {
+  code: string;
+  label: string;
+  previousValue?: string | number | null;
+  newValue?: string | number | null;
+};
+
+function normaliseEvolutionNumber(
+  value: number | null | undefined,
+): number | null {
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) {
+    return null;
+  }
+
+  return Number(numberValue.toFixed(4));
+}
+
+function buildCalculatorTipEvolutionState({
+  scoredRunners,
+  raceConfidence,
+  qualifiedTip,
+}: {
+  scoredRunners: ReturnType<typeof calculateRaceScores>;
+  raceConfidence: {
+    tier: string;
+    confidencePercent: number;
+    gap: number;
+  };
+  qualifiedTip: ReturnType<typeof getQualifiedCalculatorTip>;
+}): CalculatorTipEvolutionState {
+  const selectedRunner =
+    qualifiedTip?.runner || scoredRunners[0] || null;
+
+  const tip =
+    qualifiedTip &&
+    selectedRunner &&
+    Number(qualifiedTip.runner.id) === Number(selectedRunner.id)
+      ? String(qualifiedTip.type || "No Bet")
+      : "No Bet";
+
+  return {
+    tip,
+
+    runnerId: selectedRunner?.id
+      ? Number(selectedRunner.id)
+      : null,
+
+    horseId: selectedRunner?.horse_id
+      ? Number(selectedRunner.horse_id)
+      : null,
+
+    score: normaliseEvolutionNumber(
+      selectedRunner?.score,
+    ),
+
+    winPercent: normaliseEvolutionNumber(
+      selectedRunner?.winPercent,
+    ),
+
+    placePercent: normaliseEvolutionNumber(
+      selectedRunner?.placePercent,
+    ),
+
+    gap: normaliseEvolutionNumber(
+      qualifiedTip?.gap ?? raceConfidence.gap,
+    ),
+
+    confidencePercent: normaliseEvolutionNumber(
+      raceConfidence.confidencePercent,
+    ),
+
+    confidenceTier:
+      String(raceConfidence.tier || "").trim() || null,
+
+    scoringVersion: SMARTPUNT_SCORING_VERSION,
+  };
+}
+
+function buildCalculatorTipEvolutionReasons(
+  previousState: CalculatorTipEvolutionState | null,
+  newState: CalculatorTipEvolutionState,
+): CalculatorTipEvolutionReason[] {
+  if (!previousState) {
+    return [
+      {
+        code: "initial_state",
+        label: "Initial calculator state recorded",
+        previousValue: null,
+        newValue: newState.tip,
+      },
+    ];
+  }
+
+  const reasons: CalculatorTipEvolutionReason[] = [];
+
+  if (previousState.tip !== newState.tip) {
+    let code = "tip_type_changed";
+    let label = "Calculator tip type changed";
+
+    if (
+      previousState.tip === "No Bet" &&
+      newState.tip !== "No Bet"
+    ) {
+      code = "tip_added";
+      label = "Calculator tip became qualified";
+    } else if (
+      previousState.tip !== "No Bet" &&
+      newState.tip === "No Bet"
+    ) {
+      code = "tip_removed";
+      label = "Calculator tip no longer qualified";
+    }
+
+    reasons.push({
+      code,
+      label,
+      previousValue: previousState.tip,
+      newValue: newState.tip,
+    });
+  }
+
+  if (previousState.runnerId !== newState.runnerId) {
+    reasons.push({
+      code: "selection_changed",
+      label: "Top calculator selection changed",
+      previousValue: previousState.runnerId,
+      newValue: newState.runnerId,
+    });
+  }
+
+  if (previousState.horseId !== newState.horseId) {
+    reasons.push({
+      code: "horse_changed",
+      label: "Top calculator horse changed",
+      previousValue: previousState.horseId,
+      newValue: newState.horseId,
+    });
+  }
+
+  if (previousState.score !== newState.score) {
+    reasons.push({
+      code:
+        Number(newState.score || 0) >
+        Number(previousState.score || 0)
+          ? "score_increased"
+          : "score_decreased",
+      label: "Top selection score changed",
+      previousValue: previousState.score,
+      newValue: newState.score,
+    });
+  }
+
+  if (
+    previousState.winPercent !==
+    newState.winPercent
+  ) {
+    reasons.push({
+      code: "win_percent_changed",
+      label: "Win probability changed",
+      previousValue: previousState.winPercent,
+      newValue: newState.winPercent,
+    });
+  }
+
+  if (
+    previousState.placePercent !==
+    newState.placePercent
+  ) {
+    reasons.push({
+      code: "place_percent_changed",
+      label: "Place probability changed",
+      previousValue: previousState.placePercent,
+      newValue: newState.placePercent,
+    });
+  }
+
+  if (previousState.gap !== newState.gap) {
+    reasons.push({
+      code: "gap_changed",
+      label: "Score gap changed",
+      previousValue: previousState.gap,
+      newValue: newState.gap,
+    });
+  }
+
+  if (
+    previousState.confidencePercent !==
+    newState.confidencePercent
+  ) {
+    reasons.push({
+      code:
+        Number(newState.confidencePercent || 0) >
+        Number(previousState.confidencePercent || 0)
+          ? "confidence_increased"
+          : "confidence_decreased",
+      label: "Race confidence changed",
+      previousValue:
+        previousState.confidencePercent,
+      newValue: newState.confidencePercent,
+    });
+  }
+
+  if (
+    previousState.confidenceTier !==
+    newState.confidenceTier
+  ) {
+    reasons.push({
+      code: "confidence_tier_changed",
+      label: "Race confidence tier changed",
+      previousValue:
+        previousState.confidenceTier,
+      newValue: newState.confidenceTier,
+    });
+  }
+
+  if (
+    previousState.scoringVersion !==
+    newState.scoringVersion
+  ) {
+    reasons.push({
+      code: "scoring_version_changed",
+      label: "Calculator scoring version changed",
+      previousValue:
+        previousState.scoringVersion,
+      newValue: newState.scoringVersion,
+    });
+  }
+
+  return reasons;
+}
+
+function getCalculatorTipEvolutionReasonCode(
+  reasons: CalculatorTipEvolutionReason[],
+): string | null {
+  const priority = [
+    "initial_state",
+    "tip_removed",
+    "tip_added",
+    "tip_type_changed",
+    "selection_changed",
+    "horse_changed",
+    "confidence_tier_changed",
+    "confidence_decreased",
+    "confidence_increased",
+    "score_decreased",
+    "score_increased",
+    "gap_changed",
+    "win_percent_changed",
+    "place_percent_changed",
+    "scoring_version_changed",
+  ];
+
+  for (const code of priority) {
+    if (reasons.some((reason) => reason.code === code)) {
+      return code;
+    }
+  }
+
+  return reasons[0]?.code || null;
+}
+
+async function buildCalculatorTipEvolutionStateHash({
+  raceId,
+  state,
+}: {
+  raceId: number;
+  state: CalculatorTipEvolutionState;
+}) {
+  const hashInput = JSON.stringify({
+    raceId: Number(raceId),
+    tip: state.tip,
+    runnerId: state.runnerId,
+    horseId: state.horseId,
+    score: state.score,
+    winPercent: state.winPercent,
+    placePercent: state.placePercent,
+    gap: state.gap,
+    confidencePercent: state.confidencePercent,
+    confidenceTier: state.confidenceTier,
+    scoringVersion: state.scoringVersion,
+  });
+
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(hashInput),
+  );
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function parseCalculatorTipEvolutionState(
+  value: unknown,
+): CalculatorTipEvolutionState | null {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+
+  return {
+    tip: String(row.tip || "No Bet"),
+
+    runnerId:
+      row.runnerId !== null &&
+      row.runnerId !== undefined
+        ? Number(row.runnerId)
+        : null,
+
+    horseId:
+      row.horseId !== null &&
+      row.horseId !== undefined
+        ? Number(row.horseId)
+        : null,
+
+    score: normaliseEvolutionNumber(
+      row.score as number | null,
+    ),
+
+    winPercent: normaliseEvolutionNumber(
+      row.winPercent as number | null,
+    ),
+
+    placePercent: normaliseEvolutionNumber(
+      row.placePercent as number | null,
+    ),
+
+    gap: normaliseEvolutionNumber(
+      row.gap as number | null,
+    ),
+
+    confidencePercent: normaliseEvolutionNumber(
+      row.confidencePercent as number | null,
+    ),
+
+    confidenceTier:
+      row.confidenceTier !== null &&
+      row.confidenceTier !== undefined
+        ? String(row.confidenceTier)
+        : null,
+
+    scoringVersion:
+      String(
+        row.scoringVersion ||
+          SMARTPUNT_SCORING_VERSION,
+      ),
+  };
+}
+
+async function recordCalculatorTipEvolution({
+  raceId,
+  scoredRunners,
+  raceConfidence,
+  qualifiedTip,
+  changedAt,
+}: {
+  raceId: number;
+  scoredRunners: ReturnType<typeof calculateRaceScores>;
+  raceConfidence: {
+    tier: string;
+    confidencePercent: number;
+    gap: number;
+  };
+  qualifiedTip: ReturnType<typeof getQualifiedCalculatorTip>;
+  changedAt: string;
+}) {
+  const newState =
+    buildCalculatorTipEvolutionState({
+      scoredRunners,
+      raceConfidence,
+      qualifiedTip,
+    });
+
+  const latestRows = (await serviceRoleSelect(
+    `calculator_tip_evolution?select=id,new_snapshot_json,state_hash&race_id=eq.${Number(
+      raceId,
+    )}&order=changed_at.desc,id.desc&limit=1`,
+  )) as Array<{
+    id: number;
+    new_snapshot_json: unknown;
+    state_hash: string;
+  }> | null;
+
+  const latestRow = latestRows?.[0] || null;
+
+  const previousState =
+    parseCalculatorTipEvolutionState(
+      latestRow?.new_snapshot_json,
+    );
+
+  const stateHash =
+    await buildCalculatorTipEvolutionStateHash({
+      raceId,
+      state: newState,
+    });
+
+  if (
+    latestRow?.state_hash &&
+    latestRow.state_hash === stateHash
+  ) {
+    return;
+  }
+
+  const reasons =
+    buildCalculatorTipEvolutionReasons(
+      previousState,
+      newState,
+    );
+
+  if (previousState && reasons.length === 0) {
+    return;
+  }
+
+  const reasonCode =
+    getCalculatorTipEvolutionReasonCode(reasons);
+
+  await serviceRoleFetch(
+    "calculator_tip_evolution",
+    {
+      method: "POST",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        race_id: Number(raceId),
+
+        runner_id: newState.runnerId,
+        horse_id: newState.horseId,
+
+        event_type: "state_change",
+
+        previous_tip:
+          previousState?.tip || null,
+
+        new_tip: newState.tip,
+
+        previous_runner_id:
+          previousState?.runnerId || null,
+
+        new_runner_id:
+          newState.runnerId,
+
+        previous_horse_id:
+          previousState?.horseId || null,
+
+        new_horse_id:
+          newState.horseId,
+
+        previous_score:
+          previousState?.score ?? null,
+
+        new_score:
+          newState.score,
+
+        previous_win_percent:
+          previousState?.winPercent ?? null,
+
+        new_win_percent:
+          newState.winPercent,
+
+        previous_place_percent:
+          previousState?.placePercent ?? null,
+
+        new_place_percent:
+          newState.placePercent,
+
+        previous_gap:
+          previousState?.gap ?? null,
+
+        new_gap:
+          newState.gap,
+
+        previous_confidence_percent:
+          previousState?.confidencePercent ??
+          null,
+
+        new_confidence_percent:
+          newState.confidencePercent,
+
+        previous_confidence_tier:
+          previousState?.confidenceTier ??
+          null,
+
+        new_confidence_tier:
+          newState.confidenceTier,
+
+        scoring_version:
+          newState.scoringVersion,
+
+        previous_snapshot_json:
+          previousState,
+
+        new_snapshot_json:
+          newState,
+
+        change_reasons_json:
+          reasons,
+
+        state_hash:
+          stateHash,
+
+        changed_at:
+          changedAt,
+
+        reason_code:
+          reasonCode,
+      }),
+    },
+  );
+}
 async function saveCalculatorPredictionsForRace(
   raceId: number,
   {
@@ -2495,6 +3025,26 @@ const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
   meetingDate:
     meetingForSnapshot?.meeting_date || null,
 });
+
+try {
+  await recordCalculatorTipEvolution({
+    raceId,
+    scoredRunners,
+    raceConfidence,
+    qualifiedTip,
+    changedAt: now,
+  });
+} catch (tipEvolutionError) {
+  console.error(
+    "Calculator tip evolution recording failed:",
+    {
+      raceId,
+      scoringVersion:
+        SMARTPUNT_SCORING_VERSION,
+      error: tipEvolutionError,
+    },
+  );
+}
 
 if (saveClassificationSnapshot) {
   const activeRunnerCount = fieldRunners.filter(
