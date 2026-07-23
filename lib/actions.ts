@@ -2343,15 +2343,22 @@ function buildCalculatorTipEvolutionState({
   };
   qualifiedTip: ReturnType<typeof getQualifiedCalculatorTip>;
 }): CalculatorTipEvolutionState {
-  const selectedRunner =
-    qualifiedTip?.runner || scoredRunners[0] || null;
+const selectedRunner =
+  qualifiedTip?.runner || scoredRunners[0] || null;
 
-  const tip =
-    qualifiedTip &&
-    selectedRunner &&
-    Number(qualifiedTip.runner.id) === Number(selectedRunner.id)
-      ? String(qualifiedTip.type || "No Bet")
-      : "No Bet";
+const selectedScoredRunner = selectedRunner
+  ? scoredRunners.find(
+      (runner) =>
+        Number(runner.id) === Number(selectedRunner.id),
+    ) || null
+  : null;
+
+const tip =
+  qualifiedTip &&
+  selectedRunner &&
+  Number(qualifiedTip.runner.id) === Number(selectedRunner.id)
+    ? String(qualifiedTip.type || "No Bet")
+    : "No Bet";
 
   return {
     tip,
@@ -2360,9 +2367,9 @@ function buildCalculatorTipEvolutionState({
       ? Number(selectedRunner.id)
       : null,
 
-    horseId: selectedRunner?.horse_id
-      ? Number(selectedRunner.horse_id)
-      : null,
+horseId: selectedScoredRunner?.horse_id
+  ? Number(selectedScoredRunner.horse_id)
+  : null,
 
     score: normaliseEvolutionNumber(
       selectedRunner?.score,
