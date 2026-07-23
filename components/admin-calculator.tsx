@@ -535,7 +535,9 @@ export default function AdminCalculator({
         meeting_name: meeting?.meeting_name || "",
         meeting_date: meeting?.meeting_date || "",
         track_condition: meeting?.track_condition || null,
-
+race_name: race.race_name || "",
+race_number: Number(race.race_number || 0),
+distance_m: Number(race.distance_m || 0),
         score: Number(prediction.score || 0),
         rank: Number(prediction.rank || 0),
 
