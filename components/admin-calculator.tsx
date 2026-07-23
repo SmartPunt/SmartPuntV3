@@ -72,6 +72,39 @@ type CalculatorPredictionSnapshot = {
   placed: boolean | null;
   settled_at: string | null;
 };
+type CalculatorTipEvolutionRow = {
+  id: number;
+  race_id: number;
+  runner_id: number | null;
+  horse_id: number | null;
+
+  event_type: string | null;
+  reason_code: string | null;
+
+  previous_tip: string | null;
+  new_tip: string | null;
+
+  previous_runner_id: number | null;
+  new_runner_id: number | null;
+  previous_horse_id: number | null;
+  new_horse_id: number | null;
+
+  previous_score: number | string | null;
+  new_score: number | string | null;
+
+  previous_gap: number | string | null;
+  new_gap: number | string | null;
+
+  previous_confidence_percent: number | string | null;
+  new_confidence_percent: number | string | null;
+
+  previous_confidence_tier: string | null;
+  new_confidence_tier: string | null;
+
+  change_reasons_json: unknown;
+  scoring_version: string | null;
+  changed_at: string;
+};
 type SpecialistAlert = {
   horseName: string;
   label: string;
@@ -418,7 +451,62 @@ function formatImportedAt(value?: string | null) {
     hour12: true,
   }).format(date);
 }
+function formatEvolutionTime(value?: string | null) {
+  if (!value) return "Time not recorded";
 
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Time not recorded";
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    timeZone: "Australia/Perth",
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
+function getEvolutionReasonLabel(value?: string | null) {
+  if (value === "initial_state") return "Initial calculator state";
+  if (value === "tip_added") return "Calculator tip added";
+  if (value === "tip_removed") return "Calculator tip removed";
+  if (value === "tip_type_changed") return "Tip type changed";
+  if (value === "selected_runner_changed") return "Selected runner changed";
+  if (value === "score_increased") return "Top score increased";
+  if (value === "score_decreased") return "Top score decreased";
+  if (value === "confidence_increased") return "Race confidence increased";
+  if (value === "confidence_decreased") return "Race confidence decreased";
+  if (value === "gap_increased") return "Race gap increased";
+  if (value === "gap_decreased") return "Race gap decreased";
+  return "Calculator state changed";
+}
+
+function getEvolutionReasons(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (typeof item === "string") {
+        return item.trim();
+      }
+
+      if (
+        item &&
+        typeof item === "object" &&
+        "label" in item &&
+        typeof item.label === "string"
+      ) {
+        return item.label.trim();
+      }
+
+      return "";
+    })
+    .filter(Boolean);
+}
 export default function AdminCalculator({
   races,
   runners,
@@ -427,6 +515,7 @@ export default function AdminCalculator({
   jockeyProfiles,
   calculatorTips = [],
   calculatorPredictions = [],
+  calculatorTipEvolution = [],
   dayDates,
 }: {
   races: Race[];
@@ -436,6 +525,7 @@ export default function AdminCalculator({
   jockeyProfiles: JockeyProfile[];
   calculatorTips?: CalculatorTip[];
   calculatorPredictions?: CalculatorPredictionSnapshot[];
+  calculatorTipEvolution?: CalculatorTipEvolutionRow[];
   dayDates?: DayDates;
 }) {
   const [search, setSearch] = useState("");
@@ -836,6 +926,21 @@ tier:
         : [],
     [activeRace, scoredRunnersByRaceId],
   );
+
+  const activeRaceTipEvolution = useMemo(() => {
+    if (!activeRace) return [];
+
+    return calculatorTipEvolution
+      .filter(
+        (entry) =>
+          Number(entry.race_id) === Number(activeRace.id),
+      )
+      .sort(
+        (a, b) =>
+          new Date(a.changed_at).getTime() -
+          new Date(b.changed_at).getTime(),
+      );
+  }, [activeRace, calculatorTipEvolution]);
 
   const selectedAuditRunner = useMemo(() => {
     if (selectedAuditRunnerId === null) return null;
@@ -3028,6 +3133,191 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
               )}
             </div>
           </div>
+        </Panel>
+
+        <Panel className="mt-6 overflow-hidden border border-amber-400/30 bg-[#070707]">
+          <details open className="group">
+            <summary className="cursor-pointer list-none px-5 py-5 text-white sm:px-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
+                    SmartPunt Tip History
+                  </p>
+                  <h2 className="mt-1 text-xl font-black">
+                    Calculator evolution for this race
+                  </h2>
+                  <p className="mt-1 text-sm font-semibold text-zinc-400">
+                    Shows each recorded change to the selected runner, tip,
+                    score, gap and race confidence.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-amber-200">
+                    {activeRaceTipEvolution.length} state
+                    {activeRaceTipEvolution.length === 1 ? "" : "s"}
+                  </span>
+
+                  <span className="text-xl text-amber-300 transition group-open:rotate-180">
+                    ▾
+                  </span>
+                </div>
+              </div>
+            </summary>
+
+            <div className="border-t border-amber-400/20 px-5 pb-6 pt-5 sm:px-6">
+              {activeRace ? (
+                activeRaceTipEvolution.length > 0 ? (
+                  <div className="space-y-4">
+                    {activeRaceTipEvolution.map((entry, index) => {
+                      const reasons = getEvolutionReasons(
+                        entry.change_reasons_json,
+                      );
+
+                      const previousTip =
+                        entry.previous_tip || "No previous state";
+                      const newTip = entry.new_tip || "No Bet";
+
+                      const selectedRunner = runners.find(
+                        (runner) =>
+                          Number(runner.id) ===
+                          Number(
+                            entry.new_runner_id ||
+                              entry.runner_id,
+                          ),
+                      );
+
+                      const selectedHorse = horses.find(
+                        (horse) =>
+                          Number(horse.id) ===
+                          Number(
+                            entry.new_horse_id ||
+                              entry.horse_id ||
+                              selectedRunner?.horse_id,
+                          ),
+                      );
+
+                      const horseName =
+                        selectedHorse?.horse_name ||
+                        (selectedRunner as any)?.horse_name ||
+                        "No selected runner";
+
+                      return (
+                        <div
+                          key={entry.id}
+                          className="relative rounded-[24px] border border-white/10 bg-white/[0.04] p-4 sm:p-5"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex items-start gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-400/40 bg-amber-500/15 text-sm font-black text-amber-200">
+                                {index + 1}
+                              </div>
+
+                              <div>
+                                <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-300">
+                                  {formatEvolutionTime(entry.changed_at)}
+                                </p>
+
+                                <p className="mt-2 text-lg font-black text-white">
+                                  {previousTip}{" "}
+                                  <span className="px-1 text-amber-300">→</span>{" "}
+                                  {newTip}
+                                </p>
+
+                                <p className="mt-1 text-sm font-semibold text-zinc-300">
+                                  {horseName}
+                                </p>
+                              </div>
+                            </div>
+
+                            <span className="rounded-full border border-sky-400/30 bg-sky-500/10 px-3 py-1.5 text-xs font-black text-sky-200">
+                              {getEvolutionReasonLabel(entry.reason_code)}
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                            <div className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                                Score
+                              </p>
+                              <p className="mt-1 font-black text-white">
+                                {entry.previous_score ?? "—"} →{" "}
+                                {entry.new_score ?? "—"}
+                              </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                                Gap
+                              </p>
+                              <p className="mt-1 font-black text-white">
+                                {entry.previous_gap ?? "—"} →{" "}
+                                {entry.new_gap ?? "—"}
+                              </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                                Confidence
+                              </p>
+                              <p className="mt-1 font-black text-white">
+                                {entry.previous_confidence_percent ?? "—"}%
+                                {" → "}
+                                {entry.new_confidence_percent ?? "—"}%
+                              </p>
+                              <p className="mt-1 text-xs font-semibold text-zinc-400">
+                                {entry.previous_confidence_tier || "—"} →{" "}
+                                {entry.new_confidence_tier || "—"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {reasons.length > 0 ? (
+                            <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-500/[0.06] px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-300">
+                                Why it changed
+                              </p>
+
+                              <div className="mt-2 space-y-1.5">
+                                {reasons.map((reason, reasonIndex) => (
+                                  <p
+                                    key={`${entry.id}-${reasonIndex}`}
+                                    className="text-sm font-semibold text-zinc-200"
+                                  >
+                                    • {reason}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {entry.scoring_version ? (
+                            <p className="mt-3 text-right text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-600">
+                              {entry.scoring_version}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-5 py-8 text-center">
+                    <p className="font-black text-zinc-200">
+                      No tip history has been recorded for this race yet.
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-zinc-500">
+                      A first state will appear after this race next passes
+                      through the calculator snapshot process.
+                    </p>
+                  </div>
+                )
+              ) : (
+                <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] px-5 py-8 text-center text-sm font-semibold text-zinc-500">
+                  Select a published race to view its calculator history.
+                </div>
+              )}
+            </div>
+          </details>
         </Panel>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-3">
