@@ -47,6 +47,9 @@ export type ResearchPredictionRunnerSnapshot = {
   runner_id: number;
   horse_id: number | null;
 
+  horse_name: string | null;
+  runner_number: number | null;
+
   meeting_name: string | null;
   meeting_date: string | null;
 
