@@ -3135,8 +3135,11 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
           </div>
         </Panel>
 
-        <Panel className="mt-6 overflow-hidden border border-amber-400/30 bg-[#070707]">
-          <details open className="group">
+<Panel className="mt-6 overflow-hidden !border-zinc-700 !bg-zinc-950">
+  <details
+    open
+    className="group bg-[linear-gradient(135deg,#09090b_0%,#111827_55%,#09090b_100%)] text-white"
+  >
             <summary className="cursor-pointer list-none px-5 py-5 text-white sm:px-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -3165,7 +3168,7 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
               </div>
             </summary>
 
-            <div className="border-t border-amber-400/20 px-5 pb-6 pt-5 sm:px-6">
+<div className="border-t border-zinc-700 bg-black/20 px-5 pb-6 pt-5 sm:px-6">
               {activeRace ? (
                 activeRaceTipEvolution.length > 0 ? (
                   <div className="space-y-4">
