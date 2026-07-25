@@ -371,6 +371,89 @@ function zonedDateTimeToUtcIso(
 function normaliseHorseName(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
+
+export async function searchRaceBuilderHorsesAction(
+  query: string,
+): Promise<{
+  success: boolean;
+  error: string | null;
+  horses: Array<{
+    id: number;
+    horse_name: string;
+    normalised_name: string;
+    sex: string | null;
+    age: number | null;
+    career_prize_money: number | null;
+    created_at: string;
+    updated_at: string;
+  }>;
+}> {
+  try {
+    await requireRacingAdmin();
+
+    const searchTerm = String(query || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (searchTerm.length < 2) {
+      return {
+        success: true,
+        error: null,
+        horses: [],
+      };
+    }
+
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("horses")
+      .select(
+        "id, horse_name, normalised_name, sex, age, career_prize_money, created_at, updated_at",
+      )
+      .ilike("horse_name", `%${searchTerm}%`)
+      .order("horse_name", { ascending: true })
+      .limit(8);
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+        horses: [],
+      };
+    }
+
+    return {
+      success: true,
+      error: null,
+      horses: (data || []).map((horse) => ({
+        id: Number(horse.id),
+        horse_name: String(horse.horse_name || ""),
+        normalised_name: String(horse.normalised_name || ""),
+        sex: horse.sex ? String(horse.sex) : null,
+        age:
+          horse.age !== null && horse.age !== undefined
+            ? Number(horse.age)
+            : null,
+        career_prize_money:
+          horse.career_prize_money !== null &&
+          horse.career_prize_money !== undefined
+            ? Number(horse.career_prize_money)
+            : null,
+        created_at: String(horse.created_at || ""),
+        updated_at: String(horse.updated_at || ""),
+      })),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to search horses.",
+      horses: [],
+    };
+  }
+}
 function normaliseImportedForm(value: string) {
   return String(value || "")
     .trim()
