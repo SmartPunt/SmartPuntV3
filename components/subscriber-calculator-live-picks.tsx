@@ -1397,8 +1397,7 @@ const qualifiedTip = useMemo(() => {
   const officialTipComment = officialRaceTip
     ? officialRaceTip.commentary ||
       officialRaceTip.note ||
-      officialRaceTip.tip_angle ||
-      "The Head Tipper has endorsed this race. View the full write-up in Current Tips."
+      "The Head Tipper has endorsed this race."
     : "";
 
   const officialTipConfidence = officialRaceTip?.confidence || null;
@@ -1922,11 +1921,6 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                             </span>
                           ) : null}
 
-                          {officialTipAngle ? (
-                            <span className="rounded-full border border-amber-300/45 bg-amber-400/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
-                              {officialTipAngle}
-                            </span>
-                          ) : null}
                         </div>
                         {isConsensusPick ? (
                           <p className="mt-2 inline-flex rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
@@ -1978,6 +1972,34 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                         )}
                       </div>
                     </div>
+
+                    {officialTipAngle ? (
+                      <div className="relative mt-4 overflow-hidden rounded-[18px] border-2 border-amber-300/70 bg-[linear-gradient(135deg,rgba(251,191,36,0.24)_0%,rgba(120,53,15,0.34)_42%,rgba(0,0,0,0.72)_100%)] px-4 py-4 shadow-[0_0_24px_rgba(251,191,36,0.18),0_12px_28px_rgba(0,0,0,0.35)]">
+                        <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/20 blur-2xl" />
+
+                        <div className="relative flex items-start gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-amber-200/60 bg-amber-300 text-xl shadow-[0_0_18px_rgba(251,191,36,0.45)]">
+                            🎯
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">
+                                Head Tipper Angle
+                              </p>
+
+                              <span className="rounded-full border border-amber-200/40 bg-black/30 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
+                                Key Insight
+                              </span>
+                            </div>
+
+                            <p className="mt-2 text-[14px] font-black leading-6 text-white">
+                              {officialTipAngle}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
 
                     {officialTipComment ? (
                       <div className="mt-3">
