@@ -1978,22 +1978,20 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                         <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/20 blur-2xl" />
 
                         <div className="relative flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-amber-200/60 bg-amber-300 text-xl shadow-[0_0_18px_rgba(251,191,36,0.45)]">
-                            🎯
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-200/40 bg-black/65 shadow-[0_0_16px_rgba(251,191,36,0.22)]">
+                            <img
+                              src="/smartpunt-icon-512.png"
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-200">
-                                Head Tipper Angle
-                              </p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
+                              Head Tipper Angle
+                            </p>
 
-                              <span className="rounded-full border border-amber-200/40 bg-black/30 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
-                                Key Insight
-                              </span>
-                            </div>
-
-                            <p className="mt-2 text-[14px] font-black leading-6 text-white">
+                            <p className="mt-2 text-[14px] font-bold leading-6 text-white">
                               {officialTipAngle}
                             </p>
                           </div>
