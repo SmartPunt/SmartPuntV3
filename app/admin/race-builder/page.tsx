@@ -48,7 +48,7 @@ export default async function Page() {
   try {
     const supabase = await createClient();
 
-    const [meetings, races, horses, raceRunners] = await Promise.all([
+    const [meetings, races, horses] = await Promise.all([
       fetchAllRows({
         getPage: async (from, to) => {
           const result = await supabase
@@ -95,24 +95,30 @@ export default async function Page() {
           };
         },
       }),
-
-      fetchAllRows({
-        getPage: async (from, to) => {
-          const result = await supabase
-.from("race_runners")
-.select("*")
-.is("settled_at", null)
-.order("created_at", { ascending: false })
-.range(from, to);
-
-          return {
-            data: result.data ?? [],
-            error: result.error,
-          };
-        },
-      }),
     ]);
 
+    const draftRaceIds = races
+      .filter((race) => race.status === "draft")
+      .map((race) => race.id);
+
+    const raceRunners =
+      draftRaceIds.length > 0
+        ? await fetchAllRows({
+            getPage: async (from, to) => {
+              const result = await supabase
+                .from("race_runners")
+                .select("*")
+                .in("race_id", draftRaceIds)
+                .order("created_at", { ascending: false })
+                .range(from, to);
+
+              return {
+                data: result.data ?? [],
+                error: result.error,
+              };
+            },
+          })
+        : [];
     return (
       <RaceBuilderPage
         currentUser={profile}
