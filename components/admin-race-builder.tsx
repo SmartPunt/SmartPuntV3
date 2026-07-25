@@ -15,6 +15,7 @@ import {
   removeAllRaceRunnersAction,
   toggleRacePublishAction,
   publishMeetingRacesAction,
+  searchRaceBuilderHorsesAction,
   signOutAction,
 } from "@/lib/actions";
 
@@ -721,6 +722,9 @@ const [racePlaceTerms, setRacePlaceTerms] = useState("top_3");
   const [selectedRaceIdForRunner, setSelectedRaceIdForRunner] = useState("");
   const [horseQuery, setHorseQuery] = useState("");
   const [selectedHorseId, setSelectedHorseId] = useState("");
+  const [horseSuggestions, setHorseSuggestions] = useState<Horse[]>([]);
+  const [isSearchingHorses, setIsSearchingHorses] = useState(false);
+  const [horseSearchError, setHorseSearchError] = useState("");
   const [jockeyName, setJockeyName] = useState("");
   const [trainerName, setTrainerName] = useState("");
   const [barrier, setBarrier] = useState("");
@@ -759,6 +763,61 @@ const [expandedRaceId, setExpandedRaceId] = useState<number | null>(null);
   useEffect(() => {
     setRunners(initialRunners);
   }, [initialRunners]);
+
+  useEffect(() => {
+    const query = horseQuery
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (query.length < 2) {
+      setHorseSuggestions([]);
+      setHorseSearchError("");
+      setIsSearchingHorses(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const searchTimer = window.setTimeout(async () => {
+      setIsSearchingHorses(true);
+      setHorseSearchError("");
+
+      try {
+        const result =
+          await searchRaceBuilderHorsesAction(query);
+
+        if (cancelled) return;
+
+        if (!result.success) {
+          setHorseSuggestions([]);
+          setHorseSearchError(
+            result.error || "Horse search failed.",
+          );
+          return;
+        }
+
+        setHorseSuggestions(result.horses);
+      } catch (error) {
+        if (cancelled) return;
+
+        setHorseSuggestions([]);
+        setHorseSearchError(
+          error instanceof Error
+            ? error.message
+            : "Horse search failed.",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsSearchingHorses(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(searchTimer);
+    };
+  }, [horseQuery]);
 
   const draftRaces = useMemo(
     () => races.filter((race) => race.status === "draft"),
@@ -858,28 +917,22 @@ const [expandedRaceId, setExpandedRaceId] = useState<number | null>(null);
   ).sort((a, b) => a.localeCompare(b));
 }, [meetings]);
 
-  const filteredHorseSuggestions = useMemo(() => {
-    const query = horseQuery.trim().toLowerCase();
-
-    if (!query) {
-      return initialHorses.slice(0, 8);
-    }
-
-    return initialHorses
-      .filter((horse) => horse.horse_name.toLowerCase().includes(query))
-      .slice(0, 8);
-  }, [horseQuery, initialHorses]);
-
   const matchedHorseFromQuery = useMemo(() => {
     const query = normaliseName(horseQuery);
+
     if (!query) return null;
 
     return (
-      initialHorses.find((horse) => horse.normalised_name === query) ||
-      initialHorses.find((horse) => normaliseName(horse.horse_name) === query) ||
+      horseSuggestions.find(
+        (horse) => horse.normalised_name === query,
+      ) ||
+      horseSuggestions.find(
+        (horse) =>
+          normaliseName(horse.horse_name) === query,
+      ) ||
       null
     );
-  }, [horseQuery, initialHorses]);
+  }, [horseQuery, horseSuggestions]);
 
   const activeHorseId = useMemo(() => {
     if (selectedHorseId) return Number(selectedHorseId);
@@ -1038,6 +1091,9 @@ setRacePlaceTerms("top_3");
     setSelectedRaceIdForRunner("");
     setHorseQuery("");
     setSelectedHorseId("");
+    setHorseSuggestions([]);
+    setHorseSearchError("");
+    setIsSearchingHorses(false);
     setJockeyName("");
     setTrainerName("");
     setBarrier("");
@@ -2370,13 +2426,33 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
 
               {horseQuery.trim() ? (
                 <div className="rounded-[24px] border border-amber-200/30 bg-amber-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
-                    Horse suggestions
-                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                      Horse suggestions
+                    </p>
+
+                    {isSearchingHorses ? (
+                      <span className="text-xs font-semibold text-amber-800">
+                        Searching database...
+                      </span>
+                    ) : null}
+                  </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {filteredHorseSuggestions.length > 0 ? (
-                      filteredHorseSuggestions.map((horse) => (
+                    {horseQuery.trim().length < 2 ? (
+                      <p className="text-sm text-zinc-600">
+                        Type at least two letters to search saved horses.
+                      </p>
+                    ) : horseSearchError ? (
+                      <p className="text-sm font-medium text-red-700">
+                        {horseSearchError}
+                      </p>
+                    ) : isSearchingHorses ? (
+                      <p className="text-sm text-zinc-600">
+                        Looking for matching saved horses...
+                      </p>
+                    ) : horseSuggestions.length > 0 ? (
+                      horseSuggestions.map((horse) => (
                         <button
                           key={horse.id}
                           type="button"
@@ -2388,7 +2464,9 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                           }`}
                         >
                           {horse.horse_name}
-                          {formatHorseMeta(horse) ? ` · ${formatHorseMeta(horse)}` : ""}
+                          {formatHorseMeta(horse)
+                            ? ` · ${formatHorseMeta(horse)}`
+                            : ""}
                         </button>
                       ))
                     ) : (
