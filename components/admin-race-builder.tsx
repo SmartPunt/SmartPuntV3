@@ -745,6 +745,9 @@ const [importValidation, setImportValidation] =
 const [pendingParsedImportRunners, setPendingParsedImportRunners] = useState<
   ImportedRunner[]
 >([]);
+
+const [raceBoardMeetingId, setRaceBoardMeetingId] = useState("");
+const [expandedRaceId, setExpandedRaceId] = useState<number | null>(null);
   useEffect(() => {
     setMeetings(initialMeetings);
   }, [initialMeetings]);
@@ -782,7 +785,69 @@ const [pendingParsedImportRunners, setPendingParsedImportRunners] = useState<
     });
   }, [meetings, races]);
 
-  const closedRaceIds = useMemo(() => new Set(closedRaces.map((race) => race.id)), [closedRaces]);
+  const closedRaceIds = useMemo(
+    () => new Set(closedRaces.map((race) => race.id)),
+    [closedRaces],
+  );
+
+  const meetingsById = useMemo(() => {
+    return new Map(meetings.map((meeting) => [meeting.id, meeting]));
+  }, [meetings]);
+
+  const horsesById = useMemo(() => {
+    return new Map(initialHorses.map((horse) => [horse.id, horse]));
+  }, [initialHorses]);
+
+  const runnersByRaceId = useMemo(() => {
+    const lookup = new Map<number, Runner[]>();
+
+    for (const runner of runners) {
+      const current = lookup.get(runner.race_id);
+
+      if (current) {
+        current.push(runner);
+      } else {
+        lookup.set(runner.race_id, [runner]);
+      }
+    }
+
+    return lookup;
+  }, [runners]);
+
+  const draftRacesByMeetingId = useMemo(() => {
+    const lookup = new Map<number, Race[]>();
+
+    for (const race of draftRaces) {
+      const current = lookup.get(race.meeting_id);
+
+      if (current) {
+        current.push(race);
+      } else {
+        lookup.set(race.meeting_id, [race]);
+      }
+    }
+
+    for (const meetingRaces of lookup.values()) {
+      meetingRaces.sort(
+        (a, b) => Number(a.race_number || 0) - Number(b.race_number || 0),
+      );
+    }
+
+    return lookup;
+  }, [draftRaces]);
+
+  const raceBoardMeetings = useMemo(() => {
+    return activeMeetings.filter(
+      (meeting) => (draftRacesByMeetingId.get(meeting.id)?.length || 0) > 0,
+    );
+  }, [activeMeetings, draftRacesByMeetingId]);
+
+  const visibleRaceBoardRaces = useMemo(() => {
+    if (!raceBoardMeetingId) return [];
+
+    return draftRacesByMeetingId.get(Number(raceBoardMeetingId)) || [];
+  }, [draftRacesByMeetingId, raceBoardMeetingId]);
+
   const knownMeetingNames = useMemo(() => {
   return Array.from(
     new Set(
@@ -944,6 +1009,10 @@ useEffect(() => {
 
   setMeetingName(selectedExistingMeeting);
 }, [selectedExistingMeeting]);
+
+useEffect(() => {
+  setExpandedRaceId(null);
+}, [raceBoardMeetingId]);
   function applySuggestedHorseForm() {
     if (suggestedOverallForm) setFormLast6(suggestedOverallForm);
     if (suggestedTrackForm) setTrackFormLast6(suggestedTrackForm);
@@ -1388,15 +1457,15 @@ formData.set("place_terms", racePlaceTerms);
     });
   }
   function runnersForRace(raceId: number) {
-    return runners.filter((runner) => runner.race_id === raceId);
+    return runnersByRaceId.get(raceId) || [];
   }
 
   function findHorse(horseId: number) {
-    return initialHorses.find((horse) => horse.id === horseId) || null;
+    return horsesById.get(horseId) || null;
   }
 
   function findHorseName(horseId: number) {
-    return findHorse(horseId)?.horse_name || "Unknown horse";
+    return horsesById.get(horseId)?.horse_name || "Unknown horse";
   }
 
   return (
@@ -2527,11 +2596,41 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                 <Badge tone="green">{runners.length} loaded</Badge>
               </div>
 
-              <div className="rounded-[24px] border border-amber-200/30 bg-amber-50 p-4 text-sm text-zinc-700">
-                Race Builder is now for building only. Once a race is ready, send it to Current Races to manage live edits, scratchings, and official settlement.
-              </div>
+<div className="rounded-[24px] border border-amber-200/30 bg-amber-50 p-4 text-sm text-zinc-700">
+  Race Builder is now for building only. Once a race is ready, send it to Current Races to manage live edits, scratchings, and official settlement.
+</div>
 
-              <div className="space-y-4">
+<Field label="Meeting shown on race board">
+  <Select
+    value={raceBoardMeetingId}
+    onChange={setRaceBoardMeetingId}
+  >
+    <option value="">Select a meeting</option>
+
+    {raceBoardMeetings.map((meeting) => {
+      const meetingRaceCount =
+        draftRacesByMeetingId.get(meeting.id)?.length || 0;
+
+      return (
+        <option
+          key={meeting.id}
+          value={String(meeting.id)}
+        >
+          {formatMeetingLabel(meeting)} — {meetingRaceCount} race
+          {meetingRaceCount === 1 ? "" : "s"}
+        </option>
+      );
+    })}
+  </Select>
+</Field>
+
+{!raceBoardMeetingId && (
+  <div className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-5 text-sm text-zinc-600">
+    Select a meeting above to load its draft races.
+  </div>
+)}
+
+<div className="space-y-4">
                 {draftRaces.length > 0 ? (
                   draftRaces.map((race) => {
                     const meeting = meetings.find((item) => item.id === race.meeting_id);
