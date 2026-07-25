@@ -2631,8 +2631,8 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
 )}
 
 <div className="space-y-4">
-                {draftRaces.length > 0 ? (
-                  draftRaces.map((race) => {
+{raceBoardMeetingId && visibleRaceBoardRaces.length > 0 ? (
+  visibleRaceBoardRaces.map((race) => {
                     const meeting = meetings.find((item) => item.id === race.meeting_id);
                     const raceRunners = runnersForRace(race.id);
 
@@ -2777,9 +2777,11 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                       </div>
                     );
                   })
-                ) : (
-                  <p className="text-sm text-zinc-500">No draft races available yet.</p>
-                )}
+) : raceBoardMeetingId ? (
+  <p className="text-sm text-zinc-500">
+    No draft races available for this meeting.
+  </p>
+) : null}
               </div>
             </div>
           </Panel>
