@@ -2633,10 +2633,11 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
 <div className="space-y-4">
 {raceBoardMeetingId && visibleRaceBoardRaces.length > 0 ? (
   visibleRaceBoardRaces.map((race) => {
-                    const meeting = meetings.find((item) => item.id === race.meeting_id);
-                    const raceRunners = runnersForRace(race.id);
+const meeting = meetings.find((item) => item.id === race.meeting_id);
+const raceRunners = runnersForRace(race.id);
+const isExpanded = expandedRaceId === race.id;
 
-                    return (
+return (
                       <div
                         key={race.id}
                         className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
@@ -2658,6 +2659,18 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
 
 <div className="flex flex-wrap items-center gap-2">
   <Badge tone="amber">{raceRunners.length} runners</Badge>
+
+  <button
+    type="button"
+    onClick={() =>
+      setExpandedRaceId((current) =>
+        current === race.id ? null : race.id,
+      )
+    }
+    className="rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+  >
+    {isExpanded ? "Hide Runners" : "Show Runners"}
+  </button>
 
   {raceRunners.length > 0 && (
     <button
@@ -2681,8 +2694,9 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
 </div>
                         </div>
 
-                        <div className="mt-4 space-y-3">
-                          {raceRunners.length > 0 ? (
+{isExpanded ? (
+  <div className="mt-4 space-y-3">
+    {raceRunners.length > 0 ? (
                             raceRunners.map((runner) => {
                               const horse = findHorse(runner.horse_id);
 
@@ -2774,6 +2788,7 @@ hint="Paste the raw race text exactly as copied. SmartPunt will parse the runner
                             </p>
                           )}
                         </div>
+                      ) : null}
                       </div>
                     );
                   })
