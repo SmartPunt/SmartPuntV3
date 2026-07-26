@@ -2098,8 +2098,11 @@ const fieldSizeAdjustment =
 
   const placeTermsPenalty =
     placeTerms === "win_only" ? 10 : placeTerms === "top_2" ? 5 : 0;
-  const maidenPenalty =
-  raceName.includes("maiden") || /\bmdn\b/i.test(raceName) ? 10 : 0;
+// Maiden races no longer receive an automatic confidence penalty.
+// SmartPunt's historical performance has shown maidens are one of the
+// model's strongest race categories, so confidence is now determined
+// entirely by the race data itself.
+const maidenPenalty = 0;
 
   const confidencePercent = clamp(
     Math.round(
@@ -2155,7 +2158,9 @@ if (sorted.length <= 7) positives.push("a small field");
 else if (sorted.length >= 14) risks.push("a large field");
 else if (sorted.length >= 11) risks.push("a bigger field");
 
-if (maidenPenalty > 0) risks.push("maiden race unpredictability");
+// Automatic maiden risk removed.
+// If maiden races prove difficult again in the future, the Intelligence
+// Board should detect that from evidence rather than a hard-coded rule.
 if (trackCondition.startsWith("heavy")) risks.push("heavy conditions");
 else if (trackCondition.startsWith("soft")) risks.push("soft conditions");
 else if (trackCondition.startsWith("good")) positives.push("good conditions");
