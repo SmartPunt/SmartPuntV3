@@ -568,6 +568,28 @@ const monthlyPerformance = Array.from(
       return a.angle.localeCompare(b.angle);
     });
 
+  const confidenceOrder = ["High", "Medium", "Low"];
+
+  const confidenceBreakdown = confidenceOrder.map(
+    (confidence) => {
+      const tips = filteredTips.filter(
+        (tip) =>
+          String(tip.confidence || "")
+            .trim()
+            .toLowerCase() === confidence.toLowerCase(),
+      );
+
+      return {
+        confidence,
+        summary: calculateSummary(tips),
+      };
+    },
+  );
+
+  const unclassifiedConfidenceTips = filteredTips.filter(
+    (tip) => !String(tip.confidence || "").trim(),
+  ).length;
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] p-4 text-white lg:p-8">
       <div className="mx-auto max-w-7xl">
@@ -941,7 +963,112 @@ const monthlyPerformance = Array.from(
             </div>
           </div>
         </Panel>
+        <Panel className="mt-6 bg-white/95">
+          <div className="p-5 text-zinc-950 lg:p-6">
+            <div>
+              <h2 className="text-xl font-semibold">
+                Performance by Confidence
+              </h2>
 
+              <p className="mt-1 text-sm text-zinc-500">
+                Measures whether The Maverick&apos;s confidence ratings
+                are translating into stronger results.
+              </p>
+            </div>
+
+            <div className="mt-5 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                    <th className="px-3 py-3">Confidence</th>
+                    <th className="px-3 py-3">Tips</th>
+                    <th className="px-3 py-3">Successful</th>
+                    <th className="px-3 py-3">Strike</th>
+                    <th className="px-3 py-3">Priced</th>
+                    <th className="px-3 py-3">Staked</th>
+                    <th className="px-3 py-3">Profit/Loss</th>
+                    <th className="px-3 py-3">ROI</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {confidenceBreakdown.map((row) => (
+                    <tr
+                      key={row.confidence}
+                      className="border-b border-zinc-100 last:border-0"
+                    >
+                      <td className="px-3 py-4">
+                        <Badge
+                          tone={
+                            row.confidence === "High"
+                              ? "green"
+                              : row.confidence === "Medium"
+                                ? "amber"
+                                : "slate"
+                          }
+                        >
+                          {row.confidence}
+                        </Badge>
+                      </td>
+
+                      <td className="px-3 py-4 font-semibold">
+                        {row.summary.totalTips}
+                      </td>
+
+                      <td className="px-3 py-4">
+                        {row.summary.successfulTips}
+                      </td>
+
+                      <td className="px-3 py-4">
+                        {formatPercent(row.summary.strikeRate)}
+                      </td>
+
+                      <td className="px-3 py-4">
+                        {row.summary.pricedTips}
+                      </td>
+
+                      <td className="px-3 py-4">
+                        {row.summary.stake.toFixed(2)}u
+                      </td>
+
+                      <td
+                        className={`px-3 py-4 font-semibold ${
+                          row.summary.profitLoss > 0
+                            ? "text-emerald-700"
+                            : row.summary.profitLoss < 0
+                              ? "text-red-700"
+                              : ""
+                        }`}
+                      >
+                        {formatUnits(row.summary.profitLoss)}
+                      </td>
+
+                      <td
+                        className={`px-3 py-4 font-semibold ${
+                          row.summary.roi > 0
+                            ? "text-emerald-700"
+                            : row.summary.roi < 0
+                              ? "text-red-700"
+                              : ""
+                        }`}
+                      >
+                        {formatPercent(row.summary.roi)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {unclassifiedConfidenceTips > 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">
+                {unclassifiedConfidenceTips}{" "}
+                {unclassifiedConfidenceTips === 1 ? "tip has" : "tips have"}{" "}
+                no confidence rating and are excluded from this breakdown.
+              </p>
+            ) : null}
+          </div>
+        </Panel>
         <Panel className="mt-6 bg-white/95">
           <div className="p-5 text-zinc-950 lg:p-6">
             <div>
