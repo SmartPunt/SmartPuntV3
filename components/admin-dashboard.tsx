@@ -280,6 +280,8 @@ const [openTipIds, setOpenTipIds] = useState<Record<string, boolean>>({});
   const [tipRace, setTipRace] = useState("");
   const [tipHorse, setTipHorse] = useState("");
   const [tipType, setTipType] = useState("Win");
+  const [tipWinOdds, setTipWinOdds] = useState("");
+  const [tipPlaceOdds, setTipPlaceOdds] = useState("");
   const [tipConfidence, setTipConfidence] = useState("High");
   const [tipNote, setTipNote] = useState("Best Bet");
   const [tipAngle, setTipAngle] = useState("");
@@ -360,6 +362,16 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
     setTipRace(tip.race || "");
     setTipHorse(tip.horse || "");
     setTipType(tip.type || "Win");
+    setTipWinOdds(
+      tip.win_odds !== null && tip.win_odds !== undefined
+        ? String(tip.win_odds)
+        : "",
+    );
+    setTipPlaceOdds(
+      tip.place_odds !== null && tip.place_odds !== undefined
+        ? String(tip.place_odds)
+        : "",
+    );
     setTipConfidence(tip.confidence || "High");
     setTipNote(tip.note || "Best Bet");
     setTipAngle(tip.tip_angle || "");
@@ -378,6 +390,8 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
     setTipRace("");
     setTipHorse("");
     setTipType("Win");
+    setTipWinOdds("");
+    setTipPlaceOdds("");
     setTipConfidence("High");
     setTipNote("Best Bet");
     setTipAngle("");
@@ -953,12 +967,24 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                       <select
                         name="type"
                         value={tipType}
-                        onChange={(e) => setTipType(e.target.value)}
+                        onChange={(e) => {
+                          const nextType = e.target.value;
+
+                          setTipType(nextType);
+
+                          if (nextType === "Win") {
+                            setTipPlaceOdds("");
+                          }
+
+                          if (nextType === "Place") {
+                            setTipWinOdds("");
+                          }
+                        }}
                         className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
                         <option>Win</option>
                         <option>Place</option>
-<option>Each Way</option>
+                        <option>Each Way</option>
                       </select>
                     </Field>
 
@@ -976,8 +1002,45 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     </Field>
 
                     <Field label="Tag">
-                      <Input name="note" placeholder="Best Bet" value={tipNote} onChange={setTipNote} />
+                      <Input
+                        name="note"
+                        placeholder="Best Bet"
+                        value={tipNote}
+                        onChange={setTipNote}
+                      />
                     </Field>
+                  </div>
+
+                  <div
+                    className={`grid gap-4 ${
+                      tipType === "Each Way"
+                        ? "md:grid-cols-2"
+                        : "md:grid-cols-1"
+                    }`}
+                  >
+                    {tipType === "Win" || tipType === "Each Way" ? (
+                      <Field label="Win odds">
+                        <Input
+                          name="win_odds"
+                          type="number"
+                          placeholder="Example: 5.50"
+                          value={tipWinOdds}
+                          onChange={setTipWinOdds}
+                        />
+                      </Field>
+                    ) : null}
+
+                    {tipType === "Place" || tipType === "Each Way" ? (
+                      <Field label="Place odds">
+                        <Input
+                          name="place_odds"
+                          type="number"
+                          placeholder="Example: 2.10"
+                          value={tipPlaceOdds}
+                          onChange={setTipPlaceOdds}
+                        />
+                      </Field>
+                    ) : null}
                   </div>
 
                   <Field label="SmartPunt Angle">
