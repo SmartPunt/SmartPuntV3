@@ -4,6 +4,16 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { upsertSuggestedTip } from "@/lib/actions";
+import {
+  MAVERICK_CONFIDENCE_LEVELS,
+  MAVERICK_TIMEZONES,
+  MAVERICK_TIP_ANGLES,
+  MAVERICK_TIP_TYPES,
+  requiresPlaceOdds,
+  requiresWinOdds,
+  type MaverickConfidence,
+  type MaverickTipType,
+} from "@/lib/maverick-tip-options";
 
 type Meeting = {
   id: number;
@@ -58,21 +68,6 @@ type DayDates = {
 };
 
 type SelectedDay = keyof DayDates;
-type TipType = "Win" | "Place" | "Each Way";
-type Confidence = "High" | "Medium" | "Low";
-
-const TIP_ANGLES = [
-  "The Vibe",
-  "Favourite Vulnerable",
-  "Track Specialist",
-  "Wet Tracker",
-  "Maps Perfectly",
-  "Value At Odds",
-  "Tempo Edge",
-  "First-Up Play",
-  "Forgive Run",
-  "Stable Mail",
-];
 
 function buildRaceLabel(
   race: Race,
@@ -118,11 +113,11 @@ export default function MobileMaverickTipBuilder({
   const [selectedRunnerId, setSelectedRunnerId] =
     useState("");
 
-  const [tipType, setTipType] =
-    useState<TipType>("Win");
+const [tipType, setTipType] =
+  useState<MaverickTipType>("Win");
 
-  const [confidence, setConfidence] =
-    useState<Confidence>("High");
+const [confidence, setConfidence] =
+  useState<MaverickConfidence>("High");
 
   const [tipAngle, setTipAngle] =
     useState("");
@@ -388,22 +383,16 @@ export default function MobileMaverickTipBuilder({
       raceTimezone,
     );
 
-    if (
-      tipType === "Win" ||
-      tipType === "Each Way"
-    ) {
-      formData.set("win_odds", winOdds);
-    }
+if (requiresWinOdds(tipType)) {
+  formData.set("win_odds", winOdds);
+}
 
-    if (
-      tipType === "Place" ||
-      tipType === "Each Way"
-    ) {
-      formData.set(
-        "place_odds",
-        placeOdds,
-      );
-    }
+if (requiresPlaceOdds(tipType)) {
+  formData.set(
+    "place_odds",
+    placeOdds,
+  );
+}
 
     if (sendNotification) {
       formData.set(
@@ -701,13 +690,7 @@ export default function MobileMaverickTipBuilder({
                 </p>
 
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  {(
-                    [
-                      "Win",
-                      "Place",
-                      "Each Way",
-                    ] as TipType[]
-                  ).map((value) => (
+{MAVERICK_TIP_TYPES.map((value) => (
                     <button
                       key={value}
                       type="button"
@@ -738,13 +721,8 @@ export default function MobileMaverickTipBuilder({
                 </p>
 
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  {(
-                    [
-                      "High",
-                      "Medium",
-                      "Low",
-                    ] as Confidence[]
-                  ).map((value) => (
+{MAVERICK_CONFIDENCE_LEVELS.map(
+  (value) => (
                     <button
                       key={value}
                       type="button"
@@ -757,7 +735,8 @@ export default function MobileMaverickTipBuilder({
                     >
                       {value}
                     </button>
-                  ))}
+  ),
+)}
                 </div>
               </div>
 
@@ -787,7 +766,7 @@ export default function MobileMaverickTipBuilder({
                     No angle
                   </option>
 
-                  {TIP_ANGLES.map((angle) => (
+{MAVERICK_TIP_ANGLES.map((angle) => (
                     <option
                       key={angle}
                       value={angle}
@@ -805,8 +784,7 @@ export default function MobileMaverickTipBuilder({
                     : "grid-cols-1"
                 }`}
               >
-                {tipType === "Win" ||
-                tipType === "Each Way" ? (
+{requiresWinOdds(tipType) ? (
                   <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
                     Win Odds
                     <input
@@ -825,8 +803,7 @@ export default function MobileMaverickTipBuilder({
                   </label>
                 ) : null}
 
-                {tipType === "Place" ||
-                tipType === "Each Way" ? (
+{requiresPlaceOdds(tipType) ? (
                   <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
                     Place Odds
                     <input
@@ -872,27 +849,16 @@ export default function MobileMaverickTipBuilder({
                     }
                     className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-2 py-3 text-xs font-semibold text-zinc-950 outline-none"
                   >
-                    <option value="Australia/Perth">
-                      Perth
-                    </option>
-                    <option value="Australia/Adelaide">
-                      Adelaide
-                    </option>
-                    <option value="Australia/Darwin">
-                      Darwin
-                    </option>
-                    <option value="Australia/Brisbane">
-                      Brisbane
-                    </option>
-                    <option value="Australia/Sydney">
-                      Sydney
-                    </option>
-                    <option value="Australia/Melbourne">
-                      Melbourne
-                    </option>
-                    <option value="Australia/Hobart">
-                      Hobart
-                    </option>
+{MAVERICK_TIMEZONES.map(
+  (timezone) => (
+    <option
+      key={timezone.value}
+      value={timezone.value}
+    >
+      {timezone.mobileLabel}
+    </option>
+  ),
+)}
                   </select>
                 </label>
               </div>
