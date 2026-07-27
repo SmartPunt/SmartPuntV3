@@ -80,17 +80,12 @@ export default async function SubscriberDashboardPage() {
     redirect("/login");
   }
 
-  if (profile.role === "admin") {
-    redirect("/");
-  }
-
-  if (profile.role === "staff_admin") {
-    redirect("/current-races");
-  }
-
-  if (profile.role !== "user") {
-    redirect("/");
-  }
+if (
+  profile.status !== "active" ||
+  !["user", "admin", "staff_admin"].includes(profile.role)
+) {
+  redirect("/");
+}
 
   const clientStartedAt = Date.now();
   const supabase = await createClient();
