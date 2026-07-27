@@ -43,8 +43,8 @@ async function requireVaultSubscriber() {
 
   if (
     !profile ||
-    profile.role !== "user" ||
-    profile.status !== "active"
+    profile.status !== "active" ||
+    !["user", "admin", "staff_admin"].includes(profile.role)
   ) {
     throw new Error("Unauthorized");
   }
