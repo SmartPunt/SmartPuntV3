@@ -4119,106 +4119,252 @@ export async function removeTipActiveAction(formData: FormData): Promise<void> {
   revalidatePath("/my-resulted-tips");
 }
 
-export async function upsertSuggestedTip(formData: FormData): Promise<void> {
+export async function upsertSuggestedTip(
+  formData: FormData,
+): Promise<void> {
   const profile = await requireAdmin();
-  const id = String(formData.get("id") ?? "");
+
+  const id = String(formData.get("id") ?? "").trim();
   const isNew = !id;
+
   const sendNotification =
     String(formData.get("send_notification") ?? "") === "true";
 
-  const raceDate = String(formData.get("race_date") ?? "");
-  const raceTime = String(formData.get("race_time") ?? "");
+  const raceDate = String(
+    formData.get("race_date") ?? "",
+  ).trim();
+
+  const raceTime = String(
+    formData.get("race_time") ?? "",
+  ).trim();
+
   const raceTimezone = String(
     formData.get("race_timezone") ?? "Australia/Perth",
-  );
-  const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
+  ).trim();
 
-  const meetingIdRaw = String(formData.get("meeting_id") ?? "").trim();
-  const raceIdRaw = String(formData.get("race_id") ?? "").trim();
-  const horseIdRaw = String(formData.get("horse_id") ?? "").trim();
-  const raceRunnerIdRaw = String(formData.get("race_runner_id") ?? "").trim();
+  const raceStartAt = zonedDateTimeToUtcIso(
+    raceDate,
+    raceTime,
+    raceTimezone,
+  );
+
+  const meetingIdRaw = String(
+    formData.get("meeting_id") ?? "",
+  ).trim();
+
+  const raceIdRaw = String(
+    formData.get("race_id") ?? "",
+  ).trim();
+
+  const horseIdRaw = String(
+    formData.get("horse_id") ?? "",
+  ).trim();
+
+  const raceRunnerIdRaw = String(
+    formData.get("race_runner_id") ?? "",
+  ).trim();
 
   const finishingPositionRaw = String(
     formData.get("finishing_position") ?? "",
   ).trim();
-  const successfulRaw = String(formData.get("successful") ?? "").trim();
 
-const successful =
-  successfulRaw === "true"
-    ? true
-    : successfulRaw === "false"
-      ? false
-      : null;
+  const successfulRaw = String(
+    formData.get("successful") ?? "",
+  ).trim();
 
-const meetingId = meetingIdRaw ? Number(meetingIdRaw) : null;
-const raceId = raceIdRaw ? Number(raceIdRaw) : null;
-const horseId = horseIdRaw ? Number(horseIdRaw) : null;
-const raceRunnerId = raceRunnerIdRaw
-  ? Number(raceRunnerIdRaw)
-  : null;
+  const tipTypeRaw = String(
+    formData.get("type") ?? "Win",
+  ).trim();
 
-if (
-  !meetingId ||
-  !raceId ||
-  !horseId ||
-  !raceRunnerId
-) {
-  throw new Error(
-    "A Head Tipper tip must be linked to a published meeting, race, and runner.",
-  );
-}
+  const normalisedTipType = tipTypeRaw
+    .toLowerCase()
+    .replace(/[_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-const supabase = await createClient();
+  let tipType: "Win" | "Place" | "Each Way";
 
-const { data: linkedRunner, error: linkedRunnerError } =
-  await supabase
-    .from("race_runners")
-    .select(`
-      id,
-      race_id,
-      horse_id,
-      races!inner (
+  if (normalisedTipType === "win") {
+    tipType = "Win";
+  } else if (normalisedTipType === "place") {
+    tipType = "Place";
+  } else if (
+    normalisedTipType === "each way" ||
+    normalisedTipType === "eachway"
+  ) {
+    tipType = "Each Way";
+  } else {
+    throw new Error(
+      "The Maverick tip type must be Win, Place, or Each Way.",
+    );
+  }
+
+  const winOddsRaw = String(
+    formData.get("win_odds") ?? "",
+  ).trim();
+
+  const placeOddsRaw = String(
+    formData.get("place_odds") ?? "",
+  ).trim();
+
+  const winOdds = winOddsRaw
+    ? Number(winOddsRaw)
+    : null;
+
+  const placeOdds = placeOddsRaw
+    ? Number(placeOddsRaw)
+    : null;
+
+  if (
+    (tipType === "Win" || tipType === "Each Way") &&
+    (
+      winOdds === null ||
+      !Number.isFinite(winOdds) ||
+      winOdds <= 1
+    )
+  ) {
+    throw new Error(
+      `Valid win odds greater than 1.00 are required for a ${tipType} tip.`,
+    );
+  }
+
+  if (
+    (tipType === "Place" || tipType === "Each Way") &&
+    (
+      placeOdds === null ||
+      !Number.isFinite(placeOdds) ||
+      placeOdds <= 1
+    )
+  ) {
+    throw new Error(
+      `Valid place odds greater than 1.00 are required for a ${tipType} tip.`,
+    );
+  }
+
+  const successful =
+    successfulRaw === "true"
+      ? true
+      : successfulRaw === "false"
+        ? false
+        : null;
+
+  const meetingId = meetingIdRaw
+    ? Number(meetingIdRaw)
+    : null;
+
+  const raceId = raceIdRaw
+    ? Number(raceIdRaw)
+    : null;
+
+  const horseId = horseIdRaw
+    ? Number(horseIdRaw)
+    : null;
+
+  const raceRunnerId = raceRunnerIdRaw
+    ? Number(raceRunnerIdRaw)
+    : null;
+
+  if (
+    !meetingId ||
+    !raceId ||
+    !horseId ||
+    !raceRunnerId
+  ) {
+    throw new Error(
+      "A The Maverick tip must be linked to a published meeting, race, and runner.",
+    );
+  }
+
+  const supabase = await createClient();
+
+  const { data: linkedRunner, error: linkedRunnerError } =
+    await supabase
+      .from("race_runners")
+      .select(`
         id,
-        meeting_id
-      )
-    `)
-    .eq("id", raceRunnerId)
-    .eq("race_id", raceId)
-    .eq("horse_id", horseId)
-    .eq("races.meeting_id", meetingId)
-    .maybeSingle();
+        race_id,
+        horse_id,
+        races!inner (
+          id,
+          meeting_id
+        )
+      `)
+      .eq("id", raceRunnerId)
+      .eq("race_id", raceId)
+      .eq("horse_id", horseId)
+      .eq("races.meeting_id", meetingId)
+      .maybeSingle();
 
-if (linkedRunnerError) {
-  throw new Error(linkedRunnerError.message);
-}
+  if (linkedRunnerError) {
+    throw new Error(linkedRunnerError.message);
+  }
 
-if (!linkedRunner) {
-  throw new Error(
-    "The selected runner does not match the selected meeting, race, and horse. Refresh the page and try again.",
-  );
-}
+  if (!linkedRunner) {
+    throw new Error(
+      "The selected runner does not match the selected meeting, race, and horse. Refresh the page and try again.",
+    );
+  }
 
-const payload = {
-meeting_id: meetingId,
-race_id: raceId,
-horse_id: horseId,
-race_runner_id: raceRunnerId,
-    race: String(formData.get("race") ?? ""),
-    horse: String(formData.get("horse") ?? ""),
-    type: String(formData.get("type") ?? "Win"),
-    confidence: String(formData.get("confidence") ?? "High"),
-    note: String(formData.get("note") ?? ""),
-    tip_angle: String(formData.get("tip_angle") ?? ""),
-    commentary: String(formData.get("commentary") ?? ""),
-    result_comment: String(formData.get("result_comment") ?? ""),
+  const payload = {
+    meeting_id: meetingId,
+    race_id: raceId,
+    horse_id: horseId,
+    race_runner_id: raceRunnerId,
+
+    race: String(
+      formData.get("race") ?? "",
+    ),
+
+    horse: String(
+      formData.get("horse") ?? "",
+    ),
+
+    type: tipType,
+
+    win_odds:
+      tipType === "Win" || tipType === "Each Way"
+        ? Number(winOdds!.toFixed(2))
+        : null,
+
+    place_odds:
+      tipType === "Place" || tipType === "Each Way"
+        ? Number(placeOdds!.toFixed(2))
+        : null,
+
+    confidence: String(
+      formData.get("confidence") ?? "High",
+    ),
+
+    note: String(
+      formData.get("note") ?? "",
+    ),
+
+    tip_angle: String(
+      formData.get("tip_angle") ?? "",
+    ),
+
+    commentary: String(
+      formData.get("commentary") ?? "",
+    ),
+
+    result_comment: String(
+      formData.get("result_comment") ?? "",
+    ),
+
     race_start_at: raceStartAt,
     race_timezone: raceTimezone,
+
     finishing_position: finishingPositionRaw
       ? Number(finishingPositionRaw)
       : null,
+
     successful,
+
     settled_at:
-      typeof successful === "boolean" ? new Date().toISOString() : null,
+      typeof successful === "boolean"
+        ? new Date().toISOString()
+        : null,
+
     created_by: profile.id,
     updated_at: new Date().toISOString(),
   };
@@ -4229,7 +4375,9 @@ race_runner_id: raceRunnerId,
       .update(payload)
       .eq("id", Number(id));
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
   } else {
     const { data, error } = await supabase
       .from("suggested_tips")
@@ -4237,24 +4385,32 @@ race_runner_id: raceRunnerId,
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
 
-if (isNew && sendNotification && data) {
-  sendSuggestedTipNotifications({
-    race: data.race || payload.race,
-    horse: data.horse || payload.horse,
-    type: data.type || payload.type,
-    confidence: data.confidence || payload.confidence,
-    note: data.note || payload.note,
-    tipAngle: data.tip_angle || payload.tip_angle,
-    commentary: data.commentary || payload.commentary,
-  }).catch((notificationError) => {
-    console.error("Suggested tip notification failed:", notificationError);
-  });
-}
+    if (isNew && sendNotification && data) {
+      sendSuggestedTipNotifications({
+        race: data.race || payload.race,
+        horse: data.horse || payload.horse,
+        type: data.type || payload.type,
+        confidence:
+          data.confidence || payload.confidence,
+        note: data.note || payload.note,
+        tipAngle:
+          data.tip_angle || payload.tip_angle,
+        commentary:
+          data.commentary || payload.commentary,
+      }).catch((notificationError) => {
+        console.error(
+          "Suggested tip notification failed:",
+          notificationError,
+        );
+      });
+    }
   }
 
-revalidatePath("/");
+  revalidatePath("/");
 }
 export async function addUserBetAction(
   formData: FormData,
