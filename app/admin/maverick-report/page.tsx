@@ -502,6 +502,7 @@ const allTips = (data ?? []) as unknown as MaverickTip[];
   );
 
   const summary = calculateSummary(filteredTips);
+  const recentForm = filteredTips.slice(0, 10);
 
   const typeBreakdown = ["Win", "Place", "Each Way"].map(
     (type) => {
@@ -692,7 +693,39 @@ const allTips = (data ?? []) as unknown as MaverickTip[];
             </div>
           </Panel>
         </div>
+<Panel className="mt-6 bg-white/95">
+  <div className="p-5 text-zinc-950">
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+      Current Form
+    </p>
 
+    <div className="mt-4 flex flex-wrap gap-3">
+      {recentForm.length > 0 ? (
+        recentForm.map((tip) => (
+          <div
+            key={tip.id}
+            title={`${tip.horse ?? "Unknown"} • ${tip.race ?? ""}`}
+            className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold text-white ${
+              tip.successful
+                ? "bg-emerald-600"
+                : "bg-red-600"
+            }`}
+          >
+            {tip.successful ? "✓" : "✕"}
+          </div>
+        ))
+      ) : (
+        <p className="text-sm text-zinc-500">
+          No resulted tips yet.
+        </p>
+      )}
+    </div>
+
+    <p className="mt-4 text-sm text-zinc-500">
+      Most recent 10 resulted tips.
+    </p>
+  </div>
+</Panel>
         {summary.unpricedTips > 0 ? (
           <div className="mt-4 rounded-[24px] border border-amber-300/30 bg-amber-300/10 px-5 py-4 text-sm text-amber-100">
             {summary.unpricedTips} historical{" "}
