@@ -258,7 +258,7 @@ export const DEFAULT_CALCULATOR_SCORING_PROFILE: CalculatorScoringProfile = {
     weight: 0.02,
     jockey: 0.07,
     trainer: 0.02,
-    consistency: 0.11,
+    consistency: 0.09,
   },
   standout: {
     strongRecentForm: 80,
