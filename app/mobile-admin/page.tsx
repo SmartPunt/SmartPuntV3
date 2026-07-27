@@ -115,21 +115,28 @@ export default async function MobileAdminPage() {
             The Maverick&apos;s selections from your phone.
           </p>
 
-          <div className="mt-5 flex gap-2">
-            <Link
-              href="/"
-              className="flex-1 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/10"
-            >
-              SmartPunt Home
-            </Link>
+<div className="mt-5 grid grid-cols-2 gap-2">
+  <Link
+    href="/subscriber-dashboard"
+    className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-3 py-3 text-center text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
+  >
+    Subscriber Dashboard
+  </Link>
 
-            <Link
-              href="/admin"
-              className="flex-1 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-300/15"
-            >
-              Desktop Admin
-            </Link>
-          </div>
+  <Link
+    href="/the-vault"
+    className="rounded-2xl border border-white/15 bg-white/5 px-3 py-3 text-center text-[10px] font-black uppercase tracking-[0.1em] text-white transition hover:bg-white/10"
+  >
+    The Vault
+  </Link>
+
+  <Link
+    href="/admin"
+    className="col-span-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-center text-[10px] font-black uppercase tracking-[0.1em] text-white transition hover:bg-white/10"
+  >
+    Desktop Admin
+  </Link>
+</div>
         </header>
 
         <main className="mt-4 space-y-3 pb-10">
