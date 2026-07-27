@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v7.2";
+export const SMARTPUNT_SCORING_VERSION = "v7.3";
 
 export type Race = {
   id: number;
@@ -153,6 +153,7 @@ export type RunnerScoringAudit = {
     baseScore: number;
     standoutBonus: number;
     powerAdjustment: number;
+    relativeWeightAdjustment: number;
     overconfidenceDampenerApplied: boolean;
   };
   sections: {
@@ -907,8 +908,8 @@ function scoreBarrier(
 if (distance && distance <= 1200) {
   if (barrier <= 4) return 76;
   if (barrier <= 8) return 62;
-  if (barrier <= 12) return 50;
-  return 42;
+  if (barrier <= 12) return 47;
+  return 39;
 }
 
 if (distance && distance <= 1400) {
@@ -966,6 +967,150 @@ function scoreWeight(
     42,
     68,
   );
+}
+
+const RELATIVE_WEIGHT_CONTENDER_COUNT = 5;
+
+const RELATIVE_WEIGHT_ADJUSTMENTS = [
+  { maximumDifferenceKg: 1, adjustment: 0 },
+  { maximumDifferenceKg: 2, adjustment: -0.5 },
+  { maximumDifferenceKg: 3, adjustment: -1 },
+  { maximumDifferenceKg: 4, adjustment: -1.5 },
+  { maximumDifferenceKg: 5, adjustment: -2 },
+  { maximumDifferenceKg: Number.POSITIVE_INFINITY, adjustment: -3 },
+] as const;
+
+function getRelativeWeightAdjustment(weightDifferenceKg: number) {
+  if (!Number.isFinite(weightDifferenceKg) || weightDifferenceKg <= 0) {
+    return 0;
+  }
+
+  return (
+    RELATIVE_WEIGHT_ADJUSTMENTS.find(
+      (band) => weightDifferenceKg <= band.maximumDifferenceKg,
+    )?.adjustment ?? 0
+  );
+}
+
+function applyRelativeWeightAdjustments(
+  runners: ScoredRunner[],
+): ScoredRunner[] {
+  const contenders = [...runners]
+    .sort((a, b) => {
+      const scoreGap = b.score - a.score;
+
+      if (scoreGap !== 0) return scoreGap;
+
+      return a.horse_name.localeCompare(b.horse_name);
+    })
+    .slice(0, RELATIVE_WEIGHT_CONTENDER_COUNT);
+
+  const contenderIds = new Set(
+    contenders.map((runner) => Number(runner.id)),
+  );
+
+  return runners.map((runner) => {
+    const isContender = contenderIds.has(Number(runner.id));
+    const effectiveWeight = runner.effectiveWeight;
+
+    if (
+      !isContender ||
+      effectiveWeight === null ||
+      !Number.isFinite(Number(effectiveWeight))
+    ) {
+      return {
+        ...runner,
+        audit: {
+          ...runner.audit,
+          overall: {
+            ...runner.audit.overall,
+            relativeWeightAdjustment: 0,
+          },
+        },
+      };
+    }
+
+    const comparisonWeights = contenders
+      .filter((contender) => Number(contender.id) !== Number(runner.id))
+      .map((contender) => contender.effectiveWeight)
+      .filter(
+        (weight): weight is number =>
+          weight !== null && Number.isFinite(Number(weight)),
+      );
+
+    if (!comparisonWeights.length) {
+      return {
+        ...runner,
+        audit: {
+          ...runner.audit,
+          overall: {
+            ...runner.audit.overall,
+            relativeWeightAdjustment: 0,
+          },
+        },
+      };
+    }
+
+    const comparisonAverage =
+      comparisonWeights.reduce((sum, weight) => sum + weight, 0) /
+      comparisonWeights.length;
+
+    const weightDifferenceKg =
+      Number(effectiveWeight) - comparisonAverage;
+
+    const relativeWeightAdjustment =
+      getRelativeWeightAdjustment(weightDifferenceKg);
+
+    const adjustedScore = clamp(
+      runner.score + relativeWeightAdjustment,
+      25,
+      95,
+    );
+
+    const formattedAverage = comparisonAverage.toFixed(1);
+    const formattedDifference = weightDifferenceKg.toFixed(1);
+
+    const relativeWeightDecision =
+      relativeWeightAdjustment < 0
+        ? `Relative weight adjustment ${relativeWeightAdjustment}: effective weight ${Number(effectiveWeight).toFixed(1)}kg was ${formattedDifference}kg above the ${formattedAverage}kg average of the other leading contenders.`
+        : `No relative weight adjustment: effective weight ${Number(effectiveWeight).toFixed(1)}kg was not materially above the ${formattedAverage}kg average of the other leading contenders.`;
+
+    return {
+      ...runner,
+      score: adjustedScore,
+      verdict: getVerdict(adjustedScore),
+      audit: {
+        ...runner.audit,
+        overall: {
+          ...runner.audit.overall,
+          score: adjustedScore,
+          relativeWeightAdjustment,
+        },
+        sections: {
+          ...runner.audit.sections,
+          weight: {
+            ...runner.audit.sections.weight,
+            summary:
+              "Effective weight was compared with the other leading contenders after apprentice claims.",
+            details: [
+              ...runner.audit.sections.weight.details,
+              `Other leading contenders' average effective weight: ${formattedAverage}kg`,
+              `Difference from contender average: ${formattedDifference}kg`,
+              `Relative weight adjustment: ${relativeWeightAdjustment}`,
+            ],
+            decisionLog: [
+              ...runner.audit.sections.weight.decisionLog,
+              relativeWeightDecision,
+            ],
+          },
+        },
+        decisionLog: [
+          ...runner.audit.decisionLog,
+          relativeWeightDecision,
+        ],
+      },
+    };
+  });
 }
 function scoreJockey(
   runner: Runner,
@@ -1772,6 +1917,7 @@ const audit: RunnerScoringAudit = {
     baseScore,
     standoutBonus,
     powerAdjustment,
+    relativeWeightAdjustment: 0,
     overconfidenceDampenerApplied: score !== preDampenedScore,
   },
   sections: {
@@ -2002,15 +2148,26 @@ const audit: RunnerScoringAudit = {
     };
   });
 
-  const percentages = normalisePercentages(baseScored.map((runner) => runner.score));
+  const weightAdjustedScored =
+    applyRelativeWeightAdjustments(baseScored);
 
-  return baseScored
+  const percentages = normalisePercentages(
+    weightAdjustedScored.map((runner) => runner.score),
+  );
+
+  return weightAdjustedScored
     .map((runner, index) => ({
       ...runner,
       winPercent: percentages[index].winPercent,
       placePercent: percentages[index].placePercent,
     }))
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => {
+      const scoreGap = b.score - a.score;
+
+      if (scoreGap !== 0) return scoreGap;
+
+      return a.horse_name.localeCompare(b.horse_name);
+    })
     .map((runner, index) => ({
       ...runner,
       rank: index + 1,
