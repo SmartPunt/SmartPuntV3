@@ -532,7 +532,11 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
   href="/admin/intelligence-platform"
   label="🧠 Intelligence Platform"
 />
-                  <ToolLink href="/admin/calculator-report" label="Calculator Report" />
+<ToolLink href="/admin/calculator-report" label="Calculator Report" />
+<ToolLink
+  href="/admin/maverick-report"
+  label="The Maverick Report"
+/>
                   <ToolLink href="/admin/power-rating-race-card" label="Power Rating Race Card" />
 <ToolLink href="/admin/fortune-on-5" label="Fortune on 5" />
                   <ToolLink href="/admin/jockeys" label="Jockey Profiles" />
