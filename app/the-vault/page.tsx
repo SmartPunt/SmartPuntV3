@@ -57,17 +57,12 @@ export default async function TheVaultPage() {
     redirect("/login");
   }
 
-  if (profile.role === "admin") {
-    redirect("/");
-  }
-
-  if (profile.role === "staff_admin") {
-    redirect("/current-races");
-  }
-
-  if (profile.role !== "user") {
-    redirect("/");
-  }
+if (
+  profile.status !== "active" ||
+  !["user", "admin", "staff_admin"].includes(profile.role)
+) {
+  redirect("/");
+}
 
 const supabase = await createClient();
 
