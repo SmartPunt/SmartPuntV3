@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
@@ -54,7 +55,16 @@ function getServiceRoleConfig() {
     },
   };
 }
+async function isPhoneRequest() {
+  const requestHeaders = await headers();
+  const userAgent = requestHeaders.get("user-agent") || "";
 
+  return (
+    /iPhone|iPod/i.test(userAgent) ||
+    /Android/i.test(userAgent) &&
+      /Mobile/i.test(userAgent)
+  );
+}
 async function fetchServiceRoleRows<T>(tablePath: string) {
   const allRows: T[] = [];
   let offset = 0;
@@ -99,9 +109,18 @@ export default async function HomePage() {
   if (profile.role === "staff_admin") {
     redirect("/current-races");
   }
+
   if (profile.role === "user") {
     redirect("/subscriber-dashboard");
   }
+
+  if (
+    profile.role === "admin" &&
+    await isPhoneRequest()
+  ) {
+    redirect("/mobile-admin");
+  }
+
   const supabase = await createClient();
 
   const suggestedTips = await fetchAllRows({
