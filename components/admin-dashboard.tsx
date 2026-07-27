@@ -13,6 +13,14 @@ import {
   upsertSuggestedTip,
   upsertWatchItem,
 } from "@/lib/actions";
+import {
+  MAVERICK_CONFIDENCE_LEVELS,
+  MAVERICK_TIMEZONES,
+  MAVERICK_TIP_ANGLES,
+  MAVERICK_TIP_TYPES,
+  requiresPlaceOdds,
+  requiresWinOdds,
+} from "@/lib/maverick-tip-options";
 import { Badge, Panel, TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
 
@@ -989,9 +997,11 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                         }}
                         className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
-                        <option>Win</option>
-                        <option>Place</option>
-                        <option>Each Way</option>
+{MAVERICK_TIP_TYPES.map((value) => (
+  <option key={value} value={value}>
+    {value}
+  </option>
+))}
                       </select>
                     </Field>
 
@@ -1002,9 +1012,13 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                         onChange={(e) => setTipConfidence(e.target.value)}
                         className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
-                        <option>High</option>
-                        <option>Medium</option>
-                        <option>Low</option>
+{MAVERICK_CONFIDENCE_LEVELS.map(
+  (value) => (
+    <option key={value} value={value}>
+      {value}
+    </option>
+  ),
+)}
                       </select>
                     </Field>
 
@@ -1025,7 +1039,12 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                         : "md:grid-cols-1"
                     }`}
                   >
-                    {tipType === "Win" || tipType === "Each Way" ? (
+{requiresWinOdds(
+  tipType as
+    | "Win"
+    | "Place"
+    | "Each Way",
+) ? (
                       <Field label="Win odds">
                         <Input
                           name="win_odds"
@@ -1037,7 +1056,12 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                       </Field>
                     ) : null}
 
-                    {tipType === "Place" || tipType === "Each Way" ? (
+ {requiresPlaceOdds(
+  tipType as
+    | "Win"
+    | "Place"
+    | "Each Way",
+) ? (
                       <Field label="Place odds">
                         <Input
                           name="place_odds"
@@ -1057,17 +1081,18 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                       onChange={(e) => setTipAngle(e.target.value)}
                       className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                     >
-                      <option value="">No angle</option>
-                      <option value="The Vibe">The Vibe</option>
-                      <option value="Favourite Vulnerable">Favourite Vulnerable</option>
-                      <option value="Track Specialist">Track Specialist</option>
-                      <option value="Wet Tracker">Wet Tracker</option>
-                      <option value="Maps Perfectly">Maps Perfectly</option>
-                      <option value="Value At Odds">Value At Odds</option>
-                      <option value="Tempo Edge">Tempo Edge</option>
-                      <option value="First-Up Play">First-Up Play</option>
-                      <option value="Forgive Run">Forgive Run</option>
-                      <option value="Stable Mail">Stable Mail</option>
+<option value="">No angle</option>
+
+{MAVERICK_TIP_ANGLES.map(
+  (angle) => (
+    <option
+      key={angle}
+      value={angle}
+    >
+      {angle}
+    </option>
+  ),
+)}
                     </select>
                   </Field>
 
@@ -1102,13 +1127,16 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                         onChange={(e) => setTipRaceTimezone(e.target.value)}
                         className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
-                        <option value="Australia/Perth">Australia/Perth</option>
-                        <option value="Australia/Adelaide">Australia/Adelaide</option>
-                        <option value="Australia/Darwin">Australia/Darwin</option>
-                        <option value="Australia/Brisbane">Australia/Brisbane</option>
-                        <option value="Australia/Sydney">Australia/Sydney</option>
-                        <option value="Australia/Melbourne">Australia/Melbourne</option>
-                        <option value="Australia/Hobart">Australia/Hobart</option>
+{MAVERICK_TIMEZONES.map(
+  (timezone) => (
+    <option
+      key={timezone.value}
+      value={timezone.value}
+    >
+      {timezone.desktopLabel}
+    </option>
+  ),
+)}
                       </select>
                     </Field>
                   </div>
