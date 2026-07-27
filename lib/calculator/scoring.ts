@@ -153,6 +153,7 @@ export type RunnerScoringAudit = {
     baseScore: number;
     standoutBonus: number;
     powerAdjustment: number;
+    sprintBarrierAdjustment: number;
     relativeWeightAdjustment: number;
     overconfidenceDampenerApplied: boolean;
   };
@@ -924,6 +925,45 @@ if (barrier <= 4) return 68;
 if (barrier <= 8) return 64;
 if (barrier <= 12) return 60;
 return 56;
+}
+
+function getSprintBarrierAdjustment({
+  effectiveBarrier,
+  fieldSize,
+  distance,
+}: {
+  effectiveBarrier: number | null;
+  fieldSize: number;
+  distance: number | null | undefined;
+}) {
+  if (
+    effectiveBarrier === null ||
+    !Number.isFinite(Number(effectiveBarrier)) ||
+    !distance ||
+    distance > 1200 ||
+    fieldSize < 10
+  ) {
+    return 0;
+  }
+
+  const outsideThirdStartsAt =
+    Math.floor((fieldSize * 2) / 3) + 1;
+
+  if (effectiveBarrier < outsideThirdStartsAt) {
+    return 0;
+  }
+
+  if (fieldSize >= 13) {
+    const finalTwoBarriersStartAt = fieldSize - 1;
+
+    if (effectiveBarrier >= finalTwoBarriersStartAt) {
+      return -3;
+    }
+
+    return -2;
+  }
+
+  return -1;
 }
 
 export function getEffectiveWeight(runner: Runner) {
@@ -1761,14 +1801,30 @@ const powerAdjustment = clamp(
   scoringProfile.power.maxAdjustment,
 );
 
-const preDampenedScore = clamp(baseScore + standoutBonus + powerAdjustment);
-const score = applyOverconfidenceDampener({
+const preDampenedScore = clamp(
+  baseScore + standoutBonus + powerAdjustment,
+);
+
+const dampenedScore = applyOverconfidenceDampener({
   baseScore: preDampenedScore,
   recentForm,
   distance,
   track,
   condition,
 });
+
+const sprintBarrierAdjustment =
+  getSprintBarrierAdjustment({
+    effectiveBarrier,
+    fieldSize: field.length,
+    distance: activeRace.distance_m,
+  });
+
+const score = clamp(
+  dampenedScore + sprintBarrierAdjustment,
+  25,
+  95,
+);
 
 const distanceStats = getRunStatsForAudit(distanceHistoryRuns);
 const trackStats = getRunStatsForAudit(trackHistoryRuns);
@@ -1860,10 +1916,15 @@ conditionEvidenceDecision.source === "stored"
     ? `Condition selected SmartPunt ${conditionBucket} history: ${conditionEvidenceDecision.smartPuntRuns} SmartPunt runs versus ${conditionEvidenceDecision.storedRuns} stored runs. ${conditionEvidenceDecision.reason}`
     : "Condition had no usable evidence. Neutral score applied.",
   standoutBonus ? `Applied standout bonus of ${standoutBonus}.` : "No standout bonus applied.",
-  powerAdjustment ? `Applied power-rating adjustment of ${powerAdjustment}.` : "No power-rating adjustment applied.",
-  score !== preDampenedScore
-    ? `Overconfidence dampener reduced score from ${preDampenedScore} to ${score}.`
+  powerAdjustment
+    ? `Applied power-rating adjustment of ${powerAdjustment}.`
+    : "No power-rating adjustment applied.",
+  dampenedScore !== preDampenedScore
+    ? `Overconfidence dampener reduced score from ${preDampenedScore} to ${dampenedScore}.`
     : "No overconfidence dampener applied.",
+  sprintBarrierAdjustment
+    ? `Applied sprint barrier adjustment of ${sprintBarrierAdjustment} for effective barrier ${effectiveBarrier} in a ${field.length}-runner field over ${activeRace.distance_m}m.`
+    : "No sprint barrier adjustment applied.",
 ];
 
 const audit: RunnerScoringAudit = {
@@ -1917,8 +1978,10 @@ const audit: RunnerScoringAudit = {
     baseScore,
     standoutBonus,
     powerAdjustment,
+    sprintBarrierAdjustment,
     relativeWeightAdjustment: 0,
-    overconfidenceDampenerApplied: score !== preDampenedScore,
+    overconfidenceDampenerApplied:
+      dampenedScore !== preDampenedScore,
   },
   sections: {
     recentForm: buildAuditSection({
@@ -2023,15 +2086,24 @@ const audit: RunnerScoringAudit = {
     barrier: buildAuditSection({
       label: "Barrier",
       score: barrier,
-      summary: "Barrier score uses effective barrier after inside scratchings and distance profile.",
+      summary:
+        sprintBarrierAdjustment < 0
+          ? "A wide effective barrier in a larger sprint field reduced the final score."
+          : "Barrier score uses effective barrier after inside scratchings and distance profile.",
       details: [
         `Score: ${formatAuditScore(barrier)}`,
         `Original barrier: ${runner.barrier || "Unknown"}`,
         `Effective barrier: ${effectiveBarrier || "Unknown"}`,
         `Field size excluding scratchings: ${field.length}`,
         `Race distance: ${activeRace.distance_m || "Unknown"}m`,
+        `Sprint barrier adjustment: ${sprintBarrierAdjustment}`,
       ],
-      decisionLog: ["Barrier adjusted for scratchings inside the draw."],
+      decisionLog: [
+        "Barrier adjusted for scratchings inside the draw.",
+        sprintBarrierAdjustment < 0
+          ? `Applied a ${sprintBarrierAdjustment}-point contextual penalty because effective barrier ${effectiveBarrier} was wide in a ${field.length}-runner sprint field.`
+          : "No additional sprint barrier penalty was required.",
+      ],
     }),
     weight: buildAuditSection({
       label: "Weight",
