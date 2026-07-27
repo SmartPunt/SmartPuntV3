@@ -142,14 +142,14 @@ export default async function MobileAdminPage() {
             featured
           />
 
-          <AdminLink
-            href="/admin"
-            eyebrow="The Maverick"
-            title="Publish a Tip"
-            description="Temporary link to the existing publishing tools while the new phone tip workflow is built."
-            icon="⭐"
-            featured
-          />
+<AdminLink
+  href="/mobile-admin/tips"
+  eyebrow="The Maverick"
+  title="Publish a Tip"
+  description="Choose today or tomorrow, select a meeting, race and runner, then publish directly from your phone."
+  icon="⭐"
+  featured
+/>
 
           <AdminLink
             href="/admin/maverick-report"
@@ -167,21 +167,20 @@ export default async function MobileAdminPage() {
             icon="📱"
           />
 
-          <section className="rounded-[1.75rem] border border-dashed border-amber-300/25 bg-amber-300/[0.06] p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
-              Coming next
-            </p>
+<section className="rounded-[1.75rem] border border-emerald-300/25 bg-emerald-400/[0.07] p-5">
+  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-300">
+    Mobile Workflow Live
+  </p>
 
-            <h2 className="mt-2 text-lg font-black text-white">
-              Phone Tip Publishing
-            </h2>
+  <h2 className="mt-2 text-lg font-black text-white">
+    Phone Tip Publishing
+  </h2>
 
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Select a meeting, tap a race, choose a runner, enter
-              the bet type, confidence, angle and official odds,
-              then publish without using the desktop form.
-            </p>
-          </section>
+  <p className="mt-2 text-sm leading-6 text-zinc-400">
+    The Maverick can now move from meeting to race to runner,
+    enter official odds and publish directly from the mobile admin.
+  </p>
+</section>
         </main>
       </div>
     </div>
