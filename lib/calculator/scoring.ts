@@ -255,7 +255,7 @@ export const DEFAULT_CALCULATOR_SCORING_PROFILE: CalculatorScoringProfile = {
     track: 0.11,
     condition: 0.18,
     barrier: 0.05,
-    weight: 0,
+    weight: 0.02,
     jockey: 0.07,
     trainer: 0.02,
     consistency: 0.11,
