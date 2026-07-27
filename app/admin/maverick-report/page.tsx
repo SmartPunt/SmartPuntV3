@@ -503,7 +503,30 @@ const allTips = (data ?? []) as unknown as MaverickTip[];
 
   const summary = calculateSummary(filteredTips);
   const recentForm = filteredTips.slice(0, 10);
+const monthlyPerformance = Array.from(
+  filteredTips.reduce((map, tip) => {
+    const key = tip.settled_at
+      ? new Intl.DateTimeFormat("en-AU", {
+          timeZone: "Australia/Perth",
+          month: "long",
+          year: "numeric",
+        }).format(new Date(tip.settled_at))
+      : "Unknown";
 
+    if (!map.has(key)) {
+      map.set(key, []);
+    }
+
+    map.get(key)!.push(tip);
+
+    return map;
+  }, new Map<string, MaverickTip[]>()),
+)
+  .map(([month, tips]) => ({
+    month,
+    summary: calculateSummary(tips),
+  }))
+  .reverse();
   const typeBreakdown = ["Win", "Place", "Each Way"].map(
     (type) => {
       const tips = filteredTips.filter(
@@ -734,7 +757,74 @@ const allTips = (data ?? []) as unknown as MaverickTip[];
             rate but are excluded from profit and ROI.
           </div>
         ) : null}
+<Panel className="mt-6 bg-white/95">
+  <div className="p-5 text-zinc-950">
+    <h2 className="text-xl font-semibold">
+      Monthly Performance
+    </h2>
 
+    <p className="mt-1 text-sm text-zinc-500">
+      Performance grouped by settled month.
+    </p>
+
+    <div className="mt-5 overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-zinc-200">
+            <th className="py-3">Month</th>
+            <th>Tips</th>
+            <th>Strike Rate</th>
+            <th>Profit/Loss</th>
+            <th>ROI</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {monthlyPerformance.map((row) => (
+            <tr
+              key={row.month}
+              className="border-b border-zinc-100"
+            >
+              <td className="py-3 font-semibold">
+                {row.month}
+              </td>
+
+              <td>{row.summary.totalTips}</td>
+
+              <td>
+                {formatPercent(row.summary.strikeRate)}
+              </td>
+
+              <td
+                className={
+                  row.summary.profitLoss > 0
+                    ? "font-semibold text-emerald-700"
+                    : row.summary.profitLoss < 0
+                    ? "font-semibold text-red-700"
+                    : ""
+                }
+              >
+                {formatUnits(row.summary.profitLoss)}
+              </td>
+
+              <td
+                className={
+                  row.summary.roi > 0
+                    ? "font-semibold text-emerald-700"
+                    : row.summary.roi < 0
+                    ? "font-semibold text-red-700"
+                    : ""
+                }
+              >
+                {formatPercent(row.summary.roi)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Panel>
         <Panel className="mt-6 bg-white/95">
           <div className="p-5 text-zinc-950 lg:p-6">
             <div>
