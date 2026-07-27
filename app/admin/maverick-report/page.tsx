@@ -478,29 +478,14 @@ export default async function MaverickReportPage({
 
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("suggested_tips")
-    .select(
-      [
-        "id",
-        "race",
-        "horse",
-        "type",
-        "confidence",
-        "note",
-        "commentary",
-        "finishing_position",
-        "successful",
-        "settled_at",
-        "result_comment",
-        "win_odds",
-        "place_odds",
-        "tip_angle",
-      ].join(","),
-    )
-    .not("successful", "is", null)
-    .not("settled_at", "is", null)
-    .order("settled_at", { ascending: false });
+const { data, error } = await supabase
+  .from("suggested_tips")
+  .select(
+    "id,race,horse,type,confidence,note,commentary,finishing_position,successful,settled_at,result_comment,win_odds,place_odds,tip_angle",
+  )
+  .not("successful", "is", null)
+  .not("settled_at", "is", null)
+  .order("settled_at", { ascending: false });
 
   if (error) {
     throw new Error(
@@ -508,7 +493,7 @@ export default async function MaverickReportPage({
     );
   }
 
-  const allTips = (data || []) as MaverickTip[];
+const allTips = (data ?? []) as unknown as MaverickTip[];
 
   const filteredTips = filterTipsByDate(
     allTips,
