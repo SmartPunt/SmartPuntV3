@@ -1831,10 +1831,6 @@ const sprintBarrierAdjustment =
     distance: activeRace.distance_m,
     meetingName: raceMeeting?.meeting_name,
   });
-    effectiveBarrier,
-    fieldSize: field.length,
-    distance: activeRace.distance_m,
-  });
 
 const score = clamp(
   dampenedScore + sprintBarrierAdjustment,
