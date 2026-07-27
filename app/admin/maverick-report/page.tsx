@@ -541,6 +541,33 @@ const monthlyPerformance = Array.from(
     },
   );
 
+  const angleBreakdown = Array.from(
+    filteredTips.reduce((map, tip) => {
+      const angle = String(tip.tip_angle || "").trim();
+
+      if (!angle) {
+        return map;
+      }
+
+      const existingTips = map.get(angle) ?? [];
+      existingTips.push(tip);
+      map.set(angle, existingTips);
+
+      return map;
+    }, new Map<string, MaverickTip[]>()),
+  )
+    .map(([angle, tips]) => ({
+      angle,
+      summary: calculateSummary(tips),
+    }))
+    .sort((a, b) => {
+      if (b.summary.totalTips !== a.summary.totalTips) {
+        return b.summary.totalTips - a.summary.totalTips;
+      }
+
+      return a.angle.localeCompare(b.angle);
+    });
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] p-4 text-white lg:p-8">
       <div className="mx-auto max-w-7xl">
@@ -915,17 +942,131 @@ const monthlyPerformance = Array.from(
           </div>
         </Panel>
 
-        <div className="mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-3">
+        <Panel className="mt-6 bg-white/95">
+          <div className="p-5 text-zinc-950 lg:p-6">
             <div>
-              <h2 className="text-2xl font-semibold">
-                Resulted Tip History
+              <h2 className="text-xl font-semibold">
+                Performance by Tip Angle
               </h2>
-              <p className="mt-1 text-sm text-zinc-400">
-                {filteredTips.length} tips in the selected period.
+
+              <p className="mt-1 text-sm text-zinc-500">
+                Official performance grouped by The Maverick angle
+                recorded when each tip was published.
               </p>
             </div>
+
+            {angleBreakdown.length > 0 ? (
+              <div className="mt-5 overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                      <th className="px-3 py-3">Tip Angle</th>
+                      <th className="px-3 py-3">Tips</th>
+                      <th className="px-3 py-3">Successful</th>
+                      <th className="px-3 py-3">Strike</th>
+                      <th className="px-3 py-3">Priced</th>
+                      <th className="px-3 py-3">Staked</th>
+                      <th className="px-3 py-3">Profit/Loss</th>
+                      <th className="px-3 py-3">ROI</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {angleBreakdown.map((row) => (
+                      <tr
+                        key={row.angle}
+                        className="border-b border-zinc-100 last:border-0"
+                      >
+                        <td className="px-3 py-4">
+                          <Badge tone="slate">
+                            {row.angle}
+                          </Badge>
+                        </td>
+
+                        <td className="px-3 py-4 font-semibold">
+                          {row.summary.totalTips}
+                        </td>
+
+                        <td className="px-3 py-4">
+                          {row.summary.successfulTips}
+                        </td>
+
+                        <td className="px-3 py-4">
+                          {formatPercent(row.summary.strikeRate)}
+                        </td>
+
+                        <td className="px-3 py-4">
+                          {row.summary.pricedTips}
+                        </td>
+
+                        <td className="px-3 py-4">
+                          {row.summary.stake.toFixed(2)}u
+                        </td>
+
+                        <td
+                          className={`px-3 py-4 font-semibold ${
+                            row.summary.profitLoss > 0
+                              ? "text-emerald-700"
+                              : row.summary.profitLoss < 0
+                                ? "text-red-700"
+                                : ""
+                          }`}
+                        >
+                          {formatUnits(row.summary.profitLoss)}
+                        </td>
+
+                        <td
+                          className={`px-3 py-4 font-semibold ${
+                            row.summary.roi > 0
+                              ? "text-emerald-700"
+                              : row.summary.roi < 0
+                                ? "text-red-700"
+                                : ""
+                          }`}
+                        >
+                          {formatPercent(row.summary.roi)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-dashed border-zinc-300 p-6 text-center text-sm text-zinc-500">
+                No tip angles have been recorded for this period.
+              </div>
+            )}
           </div>
+        </Panel>
+
+        <details className="group mt-8 rounded-[30px] border border-white/10 bg-black/30 p-5 lg:p-6">
+          <summary className="cursor-pointer list-none">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-semibold">
+                  Resulted Tip History
+                </h2>
+
+                <p className="mt-1 text-sm text-zinc-400">
+                  {filteredTips.length} tips in the selected period.
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="text-sm font-semibold text-amber-300 group-open:hidden">
+                  Show History
+                </p>
+
+                <p className="hidden text-sm font-semibold text-amber-300 group-open:block">
+                  Hide History
+                </p>
+
+                <span className="mt-1 block text-xl text-zinc-400 transition group-open:rotate-180">
+                  ⌄
+                </span>
+              </div>
+            </div>
+          </summary>
 
           {filteredTips.length > 0 ? (
             <div className="mt-4 space-y-3">
@@ -1066,7 +1207,7 @@ const monthlyPerformance = Array.from(
               No resulted Maverick tips were found for this period.
             </div>
           )}
-        </div>
+        </details>
       </div>
     </div>
   );
