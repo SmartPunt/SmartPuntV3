@@ -931,11 +931,22 @@ function getSprintBarrierAdjustment({
   effectiveBarrier,
   fieldSize,
   distance,
+  meetingName,
 }: {
   effectiveBarrier: number | null;
   fieldSize: number;
   distance: number | null | undefined;
+  meetingName: string | null | undefined;
 }) {
+  const trackName = String(meetingName || "")
+    .trim()
+    .toLowerCase();
+
+  // Flemington straight-course sprints are exempt.
+  if (trackName.includes("flemington")) {
+    return 0;
+  }
+
   if (
     effectiveBarrier === null ||
     !Number.isFinite(Number(effectiveBarrier)) ||
@@ -1815,6 +1826,11 @@ const dampenedScore = applyOverconfidenceDampener({
 
 const sprintBarrierAdjustment =
   getSprintBarrierAdjustment({
+    effectiveBarrier,
+    fieldSize: field.length,
+    distance: activeRace.distance_m,
+    meetingName: raceMeeting?.meeting_name,
+  });
     effectiveBarrier,
     fieldSize: field.length,
     distance: activeRace.distance_m,
