@@ -1717,21 +1717,28 @@ source: isConsensus ? "CONSENSUS" : "HEAD",
                       key={`${item.source}-${item.raceId}-${item.horseName}`}
                       type="button"
                       onClick={() => setSelectedRaceId(String(item.raceId))}
-className={`grid w-full grid-cols-[78px_1fr_56px] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
+className={`grid w-full grid-cols-[94px_1fr_56px] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
                         isSelected
                           ? "border-amber-300 bg-amber-300/20 shadow-[0_0_0_1px_rgba(251,191,36,0.35)_inset]"
                           : "border-white/10 bg-black/65 hover:border-amber-300/45 hover:bg-black/85"
                       }`}
                     >
 <span
-  className={`flex min-h-[26px] items-center justify-center rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses}`}
+  className={`flex min-h-[34px] items-center justify-center rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses}`}
 >
   {item.source === "HEAD" ? (
-    <img
-      src="/maverick/maverick-shield.png"
-      alt="The Maverick"
-      className="h-5 w-5 object-contain"
-    />
+    <span className="flex items-center justify-center gap-1">
+      <img
+        src="/maverick/maverick-shield.png"
+        alt=""
+        aria-hidden="true"
+        className="h-[30px] w-[30px] shrink-0 object-contain"
+      />
+
+      <span className="text-[7px] font-black uppercase tracking-[0.08em] text-amber-100">
+        Maverick
+      </span>
+    </span>
   ) : (
     item.source
   )}
