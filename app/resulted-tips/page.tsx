@@ -202,13 +202,39 @@ export default async function Page() {
     <div className="min-h-screen bg-black p-4 text-white lg:p-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Resulted Tips</h1>
+<h1 className="text-2xl font-bold">Maverick Report</h1>
           <Link href="/" className="text-sm text-zinc-400">
             Back
           </Link>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+<div className="mt-6 overflow-hidden rounded-[26px] border border-amber-300/35 bg-[linear-gradient(135deg,rgba(251,191,36,0.14)_0%,rgba(24,24,27,0.98)_42%,rgba(0,0,0,0.98)_100%)] p-5 shadow-[0_0_30px_rgba(251,191,36,0.12),0_22px_55px_rgba(0,0,0,0.45)]">
+  <div className="flex items-center gap-4">
+    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-amber-200/45 bg-black/75 shadow-[0_0_24px_rgba(251,191,36,0.28)]">
+      <img
+        src="/maverick/maverick-shield.png"
+        alt="The Maverick"
+        className="h-full w-full object-contain p-1.5"
+      />
+    </div>
+
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
+        SmartPunt Official Tipper
+      </p>
+
+      <h2 className="mt-1 text-3xl font-black tracking-tight text-white">
+        The Maverick
+      </h2>
+
+      <p className="mt-1 text-xs font-semibold text-zinc-300">
+        Official selections, settled results and performance history.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           <Panel className="bg-white/95 p-4 text-black">
             <p>Total</p>
             <p className="text-xl font-bold">{total}</p>
@@ -220,7 +246,7 @@ export default async function Page() {
           </Panel>
 
           <Panel className="bg-white/95 p-4 text-black">
-            <p>Head Tipper Strike</p>
+<p>The Maverick Strike</p>
             <p className="text-xl font-bold">{strikeRate}%</p>
           </Panel>
 
