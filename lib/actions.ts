@@ -4410,7 +4410,11 @@ export async function upsertSuggestedTip(
     }
   }
 
-  revalidatePath("/");
+revalidatePath("/");
+revalidatePath("/mobile-admin/tips");
+revalidatePath("/subscriber-dashboard");
+revalidatePath("/smartpunt-calculator-live-picks");
+revalidatePath("/my-active-tips");
 }
 export async function addUserBetAction(
   formData: FormData,
@@ -4818,6 +4822,10 @@ const { data: tip, error: tipError } = await supabase
   }
 
 revalidatePath("/");
+revalidatePath("/mobile-admin/tips");
+revalidatePath("/subscriber-dashboard");
+revalidatePath("/smartpunt-calculator-live-picks");
+revalidatePath("/my-active-tips");
 
 if (tip?.settled_at) {
   revalidatePath("/resulted-tips");
