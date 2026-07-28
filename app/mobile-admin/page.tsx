@@ -130,12 +130,12 @@ export default async function MobileAdminPage() {
     The Vault
   </Link>
 
-  <Link
-    href="/admin"
-    className="col-span-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-center text-[10px] font-black uppercase tracking-[0.1em] text-white transition hover:bg-white/10"
-  >
-    Desktop Admin
-  </Link>
+<Link
+  href="/"
+  className="flex-1 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-300/15"
+>
+  Desktop Admin
+</Link>
 </div>
         </header>
 
