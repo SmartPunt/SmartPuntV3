@@ -1397,7 +1397,7 @@ const qualifiedTip = useMemo(() => {
   const officialTipComment = officialRaceTip
     ? officialRaceTip.commentary ||
       officialRaceTip.note ||
-      "The Head Tipper has endorsed this race."
+"The Maverick has endorsed this race."
     : "";
 
   const officialTipConfidence = officialRaceTip?.confidence || null;
@@ -1513,7 +1513,7 @@ const qualifiedTip = useMemo(() => {
       raceLabel: string;
       horseName: string;
       betType: string;
-      source: "CONSENSUS" | "HEAD" | "CALC";
+source: "CONSENSUS" | "HEAD" | "CALC";
       confidencePercent: number;
       confidenceTier: string;
       sortGroup: number;
@@ -1621,7 +1621,7 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
           raceLabel,
           horseName: officialSelection,
           betType: officialType,
-          source: isConsensus ? "CONSENSUS" : "HEAD",
+source: isConsensus ? "CONSENSUS" : "MAVERICK",
           confidencePercent,
           confidenceTier,
           sortGroup: isConsensus ? 0 : 1,
@@ -1705,7 +1705,7 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                   const sourceClasses =
                     item.source === "CONSENSUS"
                       ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
-                      : item.source === "HEAD"
+: item.source === "MAVERICK"
                         ? "border-amber-300/45 bg-amber-500/20 text-amber-100"
                         : "border-sky-300/45 bg-sky-500/20 text-sky-100";
                   const betClasses = item.betType.toLowerCase().includes("win")
@@ -1717,7 +1717,7 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                       key={`${item.source}-${item.raceId}-${item.horseName}`}
                       type="button"
                       onClick={() => setSelectedRaceId(String(item.raceId))}
-                      className={`grid w-full grid-cols-[58px_1fr_56px] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
+className={`grid w-full grid-cols-[78px_1fr_56px] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
                         isSelected
                           ? "border-amber-300 bg-amber-300/20 shadow-[0_0_0_1px_rgba(251,191,36,0.35)_inset]"
                           : "border-white/10 bg-black/65 hover:border-amber-300/45 hover:bg-black/85"
@@ -1905,9 +1905,22 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                   <div className="rounded-[20px] border border-emerald-300/45 bg-[linear-gradient(135deg,rgba(6,78,59,0.55)_0%,rgba(2,6,23,0.96)_55%,rgba(0,0,0,0.98)_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-200">
-                          ⭐ Official SmartPunt Tip
-                        </p>
+<div className="flex items-center gap-2.5">
+  <img
+    src="/maverick/maverick-shield.png"
+    alt=""
+    className="h-9 w-9 shrink-0 object-contain drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]"
+  />
+
+  <div>
+    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
+      The Maverick
+    </p>
+    <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-emerald-200">
+      Official Selection
+    </p>
+  </div>
+</div>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <p className="text-lg font-black leading-tight text-white">
                             {officialTipSelection}
@@ -1924,8 +1937,8 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                         </div>
                         {isConsensusPick ? (
                           <p className="mt-2 inline-flex rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
-                            SmartPunt Consensus Pick — calculator and Head
-                            Tipper agree
+SmartPunt Consensus Pick — Calculator and The
+Maverick agree
                           </p>
                         ) : null}
                       </div>
@@ -1979,16 +1992,16 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
 
                         <div className="relative flex items-start gap-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-200/40 bg-black/65 shadow-[0_0_16px_rgba(251,191,36,0.22)]">
-                            <img
-                              src="/smartpunt-icon-512.png"
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
+<img
+  src="/maverick/maverick-shield.png"
+  alt=""
+  className="h-full w-full object-contain p-0.5"
+/>
                           </div>
 
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
-                              Head Tipper Angle
+The Maverick's Angle
                             </p>
 
                             <p className="mt-2 text-[14px] font-bold leading-6 text-white">
@@ -2008,15 +2021,15 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
                           }
                           className="rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:bg-white/10"
                         >
-                          {expandedOfficialTipComment
-                            ? "Hide Head Tipper Comment"
-                            : "Read Head Tipper Comment"}
+{expandedOfficialTipComment
+  ? "Hide Maverick Insight"
+  : "Read Maverick Insight"}
                         </button>
 
                         {expandedOfficialTipComment ? (
                           <div className="mt-3 rounded-2xl border border-emerald-300/20 bg-black/45 p-3">
                             <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-200">
-                              Head Tipper Comment
+Maverick Insight
                             </p>
                             <p className="mt-2 text-[12px] font-semibold leading-6 text-zinc-200">
                               {officialTipComment}
@@ -2286,17 +2299,25 @@ const isResulted = finishingPosition !== null;
 
                 {!officialRaceTip ? (
                   <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#080808_0%,#111827_58%,#020617_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
-                      ⭐ Head Tipper Status
-                    </p>
+<div className="flex items-center gap-2.5">
+  <img
+    src="/maverick/maverick-shield.png"
+    alt=""
+    className="h-9 w-9 shrink-0 object-contain opacity-80"
+  />
+
+  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+    The Maverick Status
+  </p>
+</div>
                     <p className="mt-3 text-lg font-black text-zinc-200">
-                      ⚪ No Official Head Tipper Tip
+⚪ No Official Maverick Selection
                     </p>
                     <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-300">
-                      The Head Tipper has not published an official selection
-                      for this race. If the calculator has a live Win or Place
-                      recommendation, you can accept it directly on that horse
-                      in the SmartPunt Calculator Top 3 above.
+The Maverick has not published an official selection for
+this race. If the calculator has a live Win or Place
+recommendation, you can accept it directly on that horse
+in the SmartPunt Calculator Top 3 above.
                     </p>
                   </div>
                 ) : null}
@@ -2531,7 +2552,7 @@ const isResulted = finishingPosition !== null;
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <Pill tone="green">{orderedPublishedRaces.length} {selectedRaceDayLabel.toLowerCase()} races</Pill>
               <Pill tone="gold">Live calculator</Pill>
-              <Pill tone="blue">Head Tipper status</Pill>
+<Pill tone="blue">The Maverick</Pill>
             </div>
           </footer>
         </div>
