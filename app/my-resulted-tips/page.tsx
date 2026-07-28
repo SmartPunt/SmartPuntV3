@@ -519,10 +519,12 @@ function SourceROICard({
   label,
   stats,
   tone,
+  showMaverickBadge = false,
 }: {
   label: string;
   stats: PersonalStats;
   tone: "gold" | "blue" | "green";
+  showMaverickBadge?: boolean;
 }) {
   const toneClasses = {
     gold: "border-amber-300/25 bg-amber-400/10",
@@ -532,9 +534,30 @@ function SourceROICard({
 
   return (
     <div className={`rounded-2xl border p-3 ${toneClasses}`}>
-      <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-300">
-        {label}
-      </p>
+      {showMaverickBadge ? (
+        <div className="flex items-center gap-2">
+          <img
+            src="/maverick/maverick-shield.png"
+            alt=""
+            aria-hidden="true"
+            className="h-8 w-8 shrink-0 object-contain"
+          />
+
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-[0.14em] text-amber-200">
+              The Maverick
+            </p>
+
+            <p className="mt-0.5 text-[7px] font-black uppercase tracking-[0.12em] text-zinc-500">
+              Your Accepted Tips
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-300">
+          {label}
+        </p>
+      )}
 
       <ROINumber
         value={stats.roi}
@@ -1027,6 +1050,7 @@ const maverickPerformance =
   label="The Maverick"
   stats={selectedHeadTipperStats}
   tone="gold"
+  showMaverickBadge
 />
 
               <SourceROICard
