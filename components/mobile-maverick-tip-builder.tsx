@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { upsertSuggestedTip } from "@/lib/actions";
+import {
+  deleteSuggestedTipAction,
+  upsertSuggestedTip,
+} from "@/lib/actions";
 import {
   MAVERICK_CONFIDENCE_LEVELS,
   MAVERICK_TIMEZONES,
@@ -58,8 +61,15 @@ type ExistingTip = {
   race: string;
   type: string;
   confidence: string;
+  note: string | null;
   tip_angle: string | null;
+  commentary: string | null;
+  win_odds: number | string | null;
+  place_odds: number | string | null;
+  race_start_at: string | null;
+  race_timezone: string | null;
   settled_at: string | null;
+  created_at: string | null;
 };
 
 type DayDates = {
@@ -81,7 +91,83 @@ function selectionClasses(selected: boolean) {
     ? "border-amber-300 bg-amber-300 text-black shadow-lg shadow-amber-500/20"
     : "border-white/10 bg-white/5 text-zinc-200";
 }
+function detectBestTag({
+  confidence,
+  type,
+  notes,
+}: {
+  confidence: string;
+  type: string;
+  notes: string;
+}) {
+  const normalisedNotes = notes.toLowerCase();
 
+  if (
+    confidence === "High" &&
+    type === "Win"
+  ) {
+    return "Best Bet";
+  }
+
+  if (
+    normalisedNotes.includes("overs") ||
+    normalisedNotes.includes("value") ||
+    normalisedNotes.includes("price")
+  ) {
+    return "Value Bet";
+  }
+
+  if (
+    type === "Place" ||
+    type === "Each Way"
+  ) {
+    return "Safe Play";
+  }
+
+  if (
+    normalisedNotes.includes("watch") ||
+    normalisedNotes.includes("forgive")
+  ) {
+    return "Horse to Watch";
+  }
+
+  return "Best Bet";
+}
+
+function formatRaceTimeForInput(
+  value: string | null | undefined,
+  timeZone: string,
+) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const parts =
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(date);
+
+  const hour =
+    parts.find(
+      (part) => part.type === "hour",
+    )?.value || "";
+
+  const minute =
+    parts.find(
+      (part) => part.type === "minute",
+    )?.value || "";
+
+  return hour && minute
+    ? `${hour}:${minute}`
+    : "";
+}
 export default function MobileMaverickTipBuilder({
   meetings,
   races,
@@ -98,8 +184,29 @@ export default function MobileMaverickTipBuilder({
   dayDates: DayDates;
 }) {
   const router = useRouter();
-  const [isPublishing, startPublishing] =
-    useTransition();
+const [isPublishing, startPublishing] =
+  useTransition();
+
+const [isDeleting, startDeleting] =
+  useTransition();
+
+const [editingTipId, setEditingTipId] =
+  useState<number | null>(null);
+
+const [activeTipsOpen, setActiveTipsOpen] =
+  useState(true);
+
+const [deleteConfirmId, setDeleteConfirmId] =
+  useState<number | null>(null);
+
+const [tipperNotes, setTipperNotes] =
+  useState("");
+
+const [isGenerating, setIsGenerating] =
+  useState(false);
+
+const [generateError, setGenerateError] =
+  useState("");
 
   const [selectedDay, setSelectedDay] =
     useState<SelectedDay>("today");
@@ -172,7 +279,31 @@ const [confidence, setConfidence] =
   );
 
   const activeDate = dayDates[selectedDay];
+const activeTips = useMemo(
+  () =>
+    existingTips
+      .filter(
+        (tip) => !tip.settled_at,
+      )
+      .sort((a, b) => {
+        const aTime =
+          a.race_start_at
+            ? new Date(
+                a.race_start_at,
+              ).getTime()
+            : Number.MAX_SAFE_INTEGER;
 
+        const bTime =
+          b.race_start_at
+            ? new Date(
+                b.race_start_at,
+              ).getTime()
+            : Number.MAX_SAFE_INTEGER;
+
+        return aTime - bTime;
+      }),
+  [existingTips],
+);
   const dayMeetings = useMemo(
     () =>
       meetings
@@ -295,18 +426,233 @@ const [confidence, setConfidence] =
     };
   }
 
-  function clearSelectionAfterPublish() {
-    setSelectedRunnerId("");
-    setTipType("Win");
-    setConfidence("High");
-    setTipAngle("");
-    setTag("Best Bet");
-    setWinOdds("");
-    setPlaceOdds("");
-    setCommentary("");
-    setSendNotification(false);
-  }
+function clearTipForm() {
+  setEditingTipId(null);
+  setSelectedRunnerId("");
+  setTipType("Win");
+  setConfidence("High");
+  setTipAngle("");
+  setTag("Best Bet");
+  setWinOdds("");
+  setPlaceOdds("");
+  setRaceTime("");
+  setRaceTimezone("Australia/Perth");
+  setTipperNotes("");
+  setCommentary("");
+  setSendNotification(false);
+  setGenerateError("");
+  setDeleteConfirmId(null);
+}
+function editTip(tip: ExistingTip) {
+  const meeting = meetings.find(
+    (item) =>
+      Number(item.id) ===
+      Number(tip.meeting_id),
+  );
 
+  const tipDate =
+    meeting?.meeting_date || "";
+
+  const matchingDay =
+    tipDate === dayDates.tomorrow
+      ? "tomorrow"
+      : "today";
+
+  const normalisedType =
+    tip.type === "Place"
+      ? "Place"
+      : tip.type === "Each Way"
+        ? "Each Way"
+        : "Win";
+
+  const normalisedConfidence =
+    tip.confidence === "Medium"
+      ? "Medium"
+      : tip.confidence === "Low"
+        ? "Low"
+        : "High";
+
+  const timezone =
+    tip.race_timezone ||
+    "Australia/Perth";
+
+  setEditingTipId(tip.id);
+  setSelectedDay(matchingDay);
+  setSelectedMeetingId(
+    tip.meeting_id
+      ? String(tip.meeting_id)
+      : "",
+  );
+  setSelectedRaceId(
+    tip.race_id
+      ? String(tip.race_id)
+      : "",
+  );
+  setSelectedRunnerId(
+    tip.race_runner_id
+      ? String(tip.race_runner_id)
+      : "",
+  );
+
+  setTipType(
+    normalisedType as MaverickTipType,
+  );
+
+  setConfidence(
+    normalisedConfidence as MaverickConfidence,
+  );
+
+  setTag(tip.note || "Best Bet");
+  setTipAngle(tip.tip_angle || "");
+
+  setWinOdds(
+    tip.win_odds !== null &&
+      tip.win_odds !== undefined
+      ? String(tip.win_odds)
+      : "",
+  );
+
+  setPlaceOdds(
+    tip.place_odds !== null &&
+      tip.place_odds !== undefined
+      ? String(tip.place_odds)
+      : "",
+  );
+
+  setRaceTimezone(timezone);
+
+  setRaceTime(
+    formatRaceTimeForInput(
+      tip.race_start_at,
+      timezone,
+    ),
+  );
+
+  setTipperNotes("");
+  setCommentary(
+    tip.commentary || "",
+  );
+  setSendNotification(false);
+  setSuccessMessage("");
+  setErrorMessage("");
+  setGenerateError("");
+
+  window.setTimeout(() => {
+    document
+      .getElementById(
+        "mobile-maverick-tip-form",
+      )
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+  }, 50);
+}
+
+function deleteTip(tipId: number) {
+  setSuccessMessage("");
+  setErrorMessage("");
+
+  const formData = new FormData();
+  formData.set("id", String(tipId));
+
+  startDeleting(async () => {
+    try {
+      await deleteSuggestedTipAction(
+        formData,
+      );
+
+      if (editingTipId === tipId) {
+        clearTipForm();
+      }
+
+      setDeleteConfirmId(null);
+      setSuccessMessage(
+        "The active Maverick tip was deleted.",
+      );
+
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "The tip could not be deleted.",
+      );
+    }
+  });
+}
+
+async function generateCommentary() {
+  setIsGenerating(true);
+  setGenerateError("");
+
+  try {
+    if (
+      !selectedMeeting ||
+      !selectedRace ||
+      !selectedHorse
+    ) {
+      throw new Error(
+        "Select a meeting, race and runner first.",
+      );
+    }
+
+    const raceLabel = buildRaceLabel(
+      selectedRace,
+      selectedMeeting,
+    );
+
+    const response = await fetch(
+      "/api/generate-commentary",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          race: raceLabel,
+          horse:
+            selectedHorse.horse_name,
+          type: tipType,
+          confidence,
+          note: tag,
+          tipperNotes,
+        }),
+      },
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error ||
+          "Failed to generate commentary.",
+      );
+    }
+
+    setCommentary(
+      data.commentary || "",
+    );
+
+    const detectedTag =
+      detectBestTag({
+        confidence,
+        type: tipType,
+        notes: tipperNotes,
+      });
+
+    setTag(detectedTag);
+  } catch (error) {
+    setGenerateError(
+      error instanceof Error
+        ? error.message
+        : "Failed to generate commentary.",
+    );
+  } finally {
+    setIsGenerating(false);
+  }
+}
   function publishTip() {
     setSuccessMessage("");
     setErrorMessage("");
@@ -331,7 +677,12 @@ const [confidence, setConfidence] =
     }
 
     const formData = new FormData();
-
+if (editingTipId) {
+  formData.set(
+    "id",
+    String(editingTipId),
+  );
+}
     formData.set(
       "meeting_id",
       String(selectedMeeting.id),
@@ -405,11 +756,12 @@ if (requiresPlaceOdds(tipType)) {
       try {
         await upsertSuggestedTip(formData);
 
-        setSuccessMessage(
-          `${selectedHorse.horse_name} published as a ${tipType} tip.`,
-        );
-
-        clearSelectionAfterPublish();
+setSuccessMessage(
+  editingTipId
+    ? `${selectedHorse.horse_name} was updated successfully.`
+    : `${selectedHorse.horse_name} published as a ${tipType} tip.`,
+);
+clearTipForm();
         router.refresh();
       } catch (error) {
         setErrorMessage(
@@ -446,6 +798,146 @@ if (requiresPlaceOdds(tipType)) {
         </header>
 
         <main className="mt-4 space-y-4 pb-12">
+          <section className="rounded-[1.75rem] border border-amber-300/25 bg-black/75 p-4">
+  <button
+    type="button"
+    onClick={() =>
+      setActiveTipsOpen(
+        (current) => !current,
+      )
+    }
+    className="flex w-full items-center justify-between gap-3 text-left"
+    aria-expanded={activeTipsOpen}
+  >
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
+        Active Maverick Tips
+      </p>
+
+      <p className="mt-1 text-sm font-semibold text-zinc-400">
+        {activeTips.length} currently active
+      </p>
+    </div>
+
+    <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/5 text-lg font-black text-white">
+      {activeTipsOpen ? "−" : "+"}
+    </span>
+  </button>
+
+  {activeTipsOpen ? (
+    <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
+      {activeTips.length > 0 ? (
+        activeTips.map((tip) => (
+          <article
+            key={tip.id}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-[10px] font-black uppercase tracking-[0.12em] text-amber-200">
+                  {tip.race}
+                </p>
+
+                <h2 className="mt-1 truncate text-lg font-black text-white">
+                  {tip.horse}
+                </h2>
+              </div>
+
+              <span className="shrink-0 rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[9px] font-black uppercase text-amber-200">
+                {tip.type}
+              </span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <span className="rounded-full border border-sky-300/25 bg-sky-400/10 px-2.5 py-1 text-[9px] font-black text-sky-200">
+                {tip.confidence}
+              </span>
+
+              {tip.note ? (
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-black text-zinc-300">
+                  {tip.note}
+                </span>
+              ) : null}
+
+              {tip.win_odds ? (
+                <span className="rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2.5 py-1 text-[9px] font-black text-emerald-200">
+                  Win {tip.win_odds}
+                </span>
+              ) : null}
+
+              {tip.place_odds ? (
+                <span className="rounded-full border border-sky-300/25 bg-sky-400/10 px-2.5 py-1 text-[9px] font-black text-sky-200">
+                  Place {tip.place_odds}
+                </span>
+              ) : null}
+            </div>
+
+            {deleteConfirmId === tip.id ? (
+              <div className="mt-4 rounded-2xl border border-rose-300/25 bg-rose-400/10 p-3">
+                <p className="text-xs font-bold leading-5 text-rose-100">
+                  Delete this active Maverick tip?
+                </p>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDeleteConfirmId(null)
+                    }
+                    className="rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-[10px] font-black uppercase text-white"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() =>
+                      deleteTip(tip.id)
+                    }
+                    className="rounded-xl bg-rose-600 px-3 py-2.5 text-[10px] font-black uppercase text-white disabled:opacity-60"
+                  >
+                    {isDeleting
+                      ? "Deleting..."
+                      : "Delete Tip"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    editTip(tip)
+                  }
+                  className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-3 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200"
+                >
+                  Edit Tip
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDeleteConfirmId(
+                      tip.id,
+                    )
+                  }
+                  className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-3 py-3 text-[10px] font-black uppercase tracking-[0.1em] text-rose-200"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </article>
+        ))
+      ) : (
+        <p className="rounded-2xl border border-dashed border-white/15 p-5 text-center text-sm text-zinc-400">
+          No active Maverick tips.
+        </p>
+      )}
+    </div>
+  ) : null}
+</section>
           <section className="rounded-[1.75rem] border border-amber-300/20 bg-black/75 p-2">
             <div className="grid grid-cols-2 gap-2">
               {(
@@ -668,7 +1160,10 @@ if (requiresPlaceOdds(tipType)) {
           selectedHorse &&
           selectedRace &&
           selectedMeeting ? (
-            <section className="rounded-[1.75rem] border border-amber-300/30 bg-[linear-gradient(145deg,rgba(24,24,27,0.96),rgba(0,0,0,0.98))] p-4 shadow-2xl shadow-black/40">
+<section
+  id="mobile-maverick-tip-form"
+  className="scroll-mt-28 rounded-[1.75rem] border border-amber-300/30 bg-[linear-gradient(145deg,rgba(24,24,27,0.96),rgba(0,0,0,0.98))] p-4 shadow-2xl shadow-black/40"
+>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
                 4. Build Tip
               </p>
@@ -862,7 +1357,39 @@ if (requiresPlaceOdds(tipType)) {
                   </select>
                 </label>
               </div>
+<label className="mt-4 block text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
+  Maverick Notes for AI
+  <textarea
+    value={tipperNotes}
+    onChange={(event) =>
+      setTipperNotes(
+        event.target.value,
+      )
+    }
+    placeholder="Enter raw thoughts: map, tempo, value, previous run, barrier, track or race shape..."
+    className="mt-2 min-h-[130px] w-full rounded-2xl border border-white/15 bg-zinc-950 px-4 py-3 text-sm leading-6 text-white outline-none focus:border-amber-300"
+  />
+</label>
 
+<button
+  type="button"
+  onClick={generateCommentary}
+  disabled={
+    isGenerating ||
+    !tipperNotes.trim()
+  }
+  className="mt-3 w-full rounded-2xl border border-amber-300/35 bg-amber-300/10 px-4 py-3.5 text-xs font-black uppercase tracking-[0.1em] text-amber-200 transition active:scale-[0.99] disabled:opacity-50"
+>
+  {isGenerating
+    ? "Generating Commentary..."
+    : "Generate Maverick Commentary"}
+</button>
+
+{generateError ? (
+  <div className="mt-3 rounded-2xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-200">
+    {generateError}
+  </div>
+) : null}
               <label className="mt-4 block text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
                 Commentary
                 <textarea
@@ -910,10 +1437,24 @@ if (requiresPlaceOdds(tipType)) {
                 disabled={isPublishing}
                 className="mt-5 w-full rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-5 py-4 text-sm font-black uppercase tracking-[0.16em] text-black shadow-xl shadow-amber-500/25 transition active:scale-[0.99] disabled:opacity-60"
               >
-                {isPublishing
-                  ? "Publishing..."
-                  : "Publish Tip"}
+{isPublishing
+  ? editingTipId
+    ? "Updating..."
+    : "Publishing..."
+  : editingTipId
+    ? "Update Tip"
+    : "Publish Tip"}
               </button>
+  {editingTipId ? (
+  <button
+    type="button"
+    onClick={clearTipForm}
+    disabled={isPublishing}
+    className="mt-3 w-full rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-xs font-black uppercase tracking-[0.12em] text-zinc-200 disabled:opacity-60"
+  >
+    Cancel Edit
+  </button>
+) : null}
             </section>
           ) : null}
         </main>
