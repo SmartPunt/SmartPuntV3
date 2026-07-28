@@ -1913,20 +1913,25 @@ className={`grid w-full grid-cols-[78px_1fr_56px] items-center gap-2 rounded-2xl
                   <div className="rounded-[20px] border border-emerald-300/45 bg-[linear-gradient(135deg,rgba(6,78,59,0.55)_0%,rgba(2,6,23,0.96)_55%,rgba(0,0,0,0.98)_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-<div className="flex items-center gap-2.5">
-  <img
-    src="/maverick/maverick-shield.png"
-    alt=""
-    className="h-9 w-9 shrink-0 object-contain drop-shadow-[0_0_10px_rgba(251,191,36,0.35)]"
-  />
+<div className="inline-flex items-center gap-3 rounded-[18px] border border-amber-300/35 bg-[linear-gradient(135deg,rgba(251,191,36,0.16)_0%,rgba(0,0,0,0.52)_100%)] px-3.5 py-3 shadow-[0_0_22px_rgba(251,191,36,0.14)]">
+  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-200/45 bg-black/70 shadow-[0_0_20px_rgba(251,191,36,0.28)]">
+    <img
+      src="/maverick/maverick-shield.png"
+      alt="The Maverick"
+      className="h-full w-full object-contain p-1"
+    />
+  </div>
 
   <div>
-    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
+    <p className="text-[14px] font-black uppercase leading-none tracking-[0.18em] text-amber-200">
       The Maverick
     </p>
-    <p className="mt-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-emerald-200">
+
+    <p className="mt-2 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-200">
       Official Selection
     </p>
+
+    <div className="mt-2 h-px w-full bg-gradient-to-r from-amber-300/70 to-transparent" />
   </div>
 </div>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
