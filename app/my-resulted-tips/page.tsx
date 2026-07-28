@@ -1169,14 +1169,21 @@ const maverickPerformance =
   )}`}
 >
   {bet.source === "head_tipper" ? (
-    <img
-      src="/maverick/maverick-shield.png"
-      alt=""
-      className="h-4 w-4 object-contain"
-    />
-  ) : null}
+    <>
+      <img
+        src="/maverick/maverick-shield.png"
+        alt=""
+        aria-hidden="true"
+        className="h-5 w-5 shrink-0 object-contain"
+      />
 
-  {sourceLabel(bet.source)}
+      <span className="leading-none">
+        Official Maverick
+      </span>
+    </>
+  ) : (
+    sourceLabel(bet.source)
+  )}
 </span>
 
                         <span
