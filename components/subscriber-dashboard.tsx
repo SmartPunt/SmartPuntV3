@@ -1542,8 +1542,8 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
             <section className="min-w-0 overflow-hidden rounded-[2rem] border border-amber-300/25 bg-black/82 p-4 shadow-2xl shadow-black/40 sm:p-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-black uppercase tracking-tight text-white">⭐ Top Head Tipper Plays</h2>
-                  <p className="mt-1 text-sm text-zinc-400">{selectedDayLabel}'s strongest head tipper opportunities.</p>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-white">🛡️ Top Maverick Plays</h2>
+                  <p className="mt-1 text-sm text-zinc-400">{selectedDayLabel}'s strongest Maverick selections.</p>
                 </div>
                 <Link href="/smartpunt-calculator-live-picks" className="rounded-xl border border-amber-300/30 px-3 py-2 text-xs font-black text-amber-200 hover:bg-amber-300/10">All</Link>
               </div>
@@ -1553,7 +1553,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                   topHeadTipperPlays.map((tip, index) => renderHeadTipperCard(tip, index))
                 ) : (
                   <p className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/5 p-6 text-center text-sm text-zinc-400">
-                    No Head Tipper plays live for {selectedDayLabel.toLowerCase()}.
+                    No Maverick selections live for {selectedDayLabel.toLowerCase()}.
                   </p>
                 )}
               </div>
