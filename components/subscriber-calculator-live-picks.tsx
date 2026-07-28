@@ -199,7 +199,7 @@ function formatStartTime(value?: string | null) {
 
 function formatOfficialTipType(tip?: OfficialTip | null) {
   const rawValue = String(
-    tip?.type || tip?.bet_type || tip?.tip_type || "Official Tip",
+tip?.type || tip?.bet_type || tip?.tip_type || "Maverick Tip",
   )
     .replace(/_/g, " ")
     .trim();
@@ -216,7 +216,7 @@ function formatOfficialTipType(tip?: OfficialTip | null) {
       .split(" ")
       .filter(Boolean)
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(" ") || "Official Tip"
+.join(" ") || "Maverick Tip"
   );
 }
 
@@ -1723,11 +1723,19 @@ className={`grid w-full grid-cols-[78px_1fr_56px] items-center gap-2 rounded-2xl
                           : "border-white/10 bg-black/65 hover:border-amber-300/45 hover:bg-black/85"
                       }`}
                     >
-                      <span
-                        className={`rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses}`}
-                      >
-                        {item.source}
-                      </span>
+<span
+  className={`flex min-h-[26px] items-center justify-center rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses}`}
+>
+  {item.source === "HEAD" ? (
+    <img
+      src="/maverick/maverick-shield.png"
+      alt="The Maverick"
+      className="h-5 w-5 object-contain"
+    />
+  ) : (
+    item.source
+  )}
+</span>
                       <span className="min-w-0">
                         <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300">
                           <span>{item.raceLabel}</span>
@@ -1952,7 +1960,7 @@ Maverick agree
                             activeBet={activeHeadTipperUserBet}
                             isSaving={isSavingTip}
                             formAction={addUserBetFormAction}
-                            buttonLabel="Accept Tip"
+buttonLabel="Accept Maverick Tip"
                             hiddenFields={{
                               source: "head_tipper",
                               suggested_tip_id:
@@ -2433,7 +2441,7 @@ in the SmartPunt Calculator Top 3 above.
                                 <p className="mt-1 text-[10px] font-semibold text-zinc-500">
                                   Barrier {runner.barrier || "—"}{" "}
                                   {isOfficialTip
-                                    ? "• Official Tip"
+                                    ? "• Maverick Tip"
                                     : isCalculatorTip
                                       ? "• Calculator Tip"
                                       : ""}
@@ -2491,11 +2499,11 @@ in the SmartPunt Calculator Top 3 above.
                                         : "border-white/10 bg-white/10 text-zinc-300"
                                   }`}
                                 >
-                                  {isOfficialTip
-                                    ? "Official"
-                                    : isCalculatorTip
-                                      ? qualifiedTip?.type
-                                      : "No Bet"}
+{isOfficialTip
+  ? "Maverick"
+  : isCalculatorTip
+    ? qualifiedTip?.type
+    : "No Bet"}
                                 </span>
                               </td>
 
