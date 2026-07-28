@@ -1362,8 +1362,12 @@ const maverickPerformance =
               })
             ) : (
               <div className="rounded-[28px] border border-dashed border-white/15 bg-white/[0.04] p-8 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-300/10 text-2xl">
-                  📈
+                <div className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-amber-300/25 bg-black/70 p-1 shadow-[0_0_22px_rgba(251,191,36,0.18)]">
+                  <img
+                    src="/smartpunt-icon-512.png"
+                    alt="SmartPunt"
+                    className="h-full w-full object-cover"
+                  />
                 </div>
 
                 <h2 className="mt-4 text-2xl font-black">
