@@ -40,9 +40,8 @@ type SuggestedTipResult = {
   successful: boolean | null;
   finishing_position: number | null;
 
-  stake_points: number | string | null;
-  return_points: number | string | null;
-  profit_loss_points: number | string | null;
+  win_odds: number | string | null;
+  place_odds: number | string | null;
 
   settled_at: string | null;
 };
@@ -363,7 +362,119 @@ function isWithinRange(
 
   return dateKey >= from && dateKey <= to;
 }
+function getOfficialMaverickFinancialResult(
+  tip: SuggestedTipResult,
+) {
+  const betType = normaliseBetType(
+    tip.type,
+  );
 
+  const winOdds =
+    tip.win_odds !== null &&
+    tip.win_odds !== undefined &&
+    Number.isFinite(Number(tip.win_odds)) &&
+    Number(tip.win_odds) > 0
+      ? Number(tip.win_odds)
+      : null;
+
+  const placeOdds =
+    tip.place_odds !== null &&
+    tip.place_odds !== undefined &&
+    Number.isFinite(Number(tip.place_odds)) &&
+    Number(tip.place_odds) > 0
+      ? Number(tip.place_odds)
+      : null;
+
+  const finishingPosition =
+    tip.finishing_position !== null &&
+    tip.finishing_position !== undefined
+      ? Number(tip.finishing_position)
+      : null;
+
+  const wonRace =
+    finishingPosition === 1;
+
+  const successful =
+    tip.successful === true;
+
+  if (betType === "Win") {
+    if (winOdds === null) {
+      return {
+        hasOfficialOdds: false,
+        stake: 0,
+        returns: 0,
+      };
+    }
+
+    return {
+      hasOfficialOdds: true,
+      stake: 1,
+      returns:
+        wonRace || successful
+          ? winOdds
+          : 0,
+    };
+  }
+
+  if (betType === "Place") {
+    if (placeOdds === null) {
+      return {
+        hasOfficialOdds: false,
+        stake: 0,
+        returns: 0,
+      };
+    }
+
+    return {
+      hasOfficialOdds: true,
+      stake: 1,
+      returns:
+        successful
+          ? placeOdds
+          : 0,
+    };
+  }
+
+  if (betType === "Each Way") {
+    if (
+      winOdds === null ||
+      placeOdds === null
+    ) {
+      return {
+        hasOfficialOdds: false,
+        stake: 0,
+        returns: 0,
+      };
+    }
+
+    const winStake = 0.25;
+    const placeStake = 0.75;
+
+    const winReturn =
+      wonRace
+        ? winStake * winOdds
+        : 0;
+
+    const placeReturn =
+      successful
+        ? placeStake * placeOdds
+        : 0;
+
+    return {
+      hasOfficialOdds: true,
+      stake:
+        winStake + placeStake,
+      returns:
+        winReturn + placeReturn,
+    };
+  }
+
+  return {
+    hasOfficialOdds: false,
+    stake: 0,
+    returns: 0,
+  };
+}
 function isHeadTipperResultSuccessful(tip: SuggestedTipResult) {
   return tip.successful === true;
 }
@@ -392,40 +503,35 @@ function buildPublishedMaverickStats(
     isHeadTipperResultSuccessful,
   ).length;
 
+  const pricedTips = tips
+    .map((tip) =>
+      getOfficialMaverickFinancialResult(
+        tip,
+      ),
+    )
+    .filter(
+      (result) =>
+        result.hasOfficialOdds,
+    );
+
   const stake = roundMoney(
-    tips.reduce(
-      (sum, tip) =>
-        sum + toNumber(tip.stake_points),
+    pricedTips.reduce(
+      (sum, result) =>
+        sum + result.stake,
       0,
     ),
   );
 
   const returns = roundMoney(
-    tips.reduce(
-      (sum, tip) =>
-        sum + toNumber(tip.return_points),
+    pricedTips.reduce(
+      (sum, result) =>
+        sum + result.returns,
       0,
     ),
   );
 
-  const storedProfitLoss = roundMoney(
-    tips.reduce((sum, tip) => {
-      if (
-        tip.profit_loss_points !== null &&
-        tip.profit_loss_points !== undefined
-      ) {
-        return (
-          sum +
-          toNumber(tip.profit_loss_points)
-        );
-      }
-
-      return (
-        sum +
-        toNumber(tip.return_points) -
-        toNumber(tip.stake_points)
-      );
-    }, 0),
+  const profitLoss = roundMoney(
+    returns - stake,
   );
 
   return {
@@ -437,10 +543,10 @@ function buildPublishedMaverickStats(
         : 0,
     stake,
     returns,
-    profitLoss: storedProfitLoss,
+    profitLoss,
     roi:
       stake > 0
-        ? (storedProfitLoss / stake) * 100
+        ? (profitLoss / stake) * 100
         : 0,
   };
 }
@@ -757,9 +863,8 @@ export default async function Page({
   type,
   successful,
   finishing_position,
-  stake_points,
-  return_points,
-  profit_loss_points,
+  win_odds,
+  place_odds,
   settled_at
 `,
 )
