@@ -1621,7 +1621,7 @@ const raceQualifiedTip = getQualifiedCalculatorTip(raceScoredRunners, {
           raceLabel,
           horseName: officialSelection,
           betType: officialType,
-source: isConsensus ? "CONSENSUS" : "MAVERICK",
+source: isConsensus ? "CONSENSUS" : "HEAD",
           confidencePercent,
           confidenceTier,
           sortGroup: isConsensus ? 0 : 1,
