@@ -159,9 +159,28 @@ export default async function MobileAdminTipsPage() {
 
         supabase
           .from("suggested_tips")
-          .select(
-            "id, meeting_id, race_id, race_runner_id, horse_id, horse, race, type, confidence, tip_angle, settled_at",
-          )
+.select(
+  `
+  id,
+  meeting_id,
+  race_id,
+  race_runner_id,
+  horse_id,
+  horse,
+  race,
+  type,
+  confidence,
+  note,
+  tip_angle,
+  commentary,
+  win_odds,
+  place_odds,
+  race_start_at,
+  race_timezone,
+  settled_at,
+  created_at
+`,
+)
           .in("race_id", raceIds)
           .is("settled_at", null)
           .order("created_at", {
