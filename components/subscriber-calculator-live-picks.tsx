@@ -1705,7 +1705,7 @@ source: isConsensus ? "CONSENSUS" : "HEAD",
                   const sourceClasses =
                     item.source === "CONSENSUS"
                       ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
-: item.source === "MAVERICK"
+: item.source === "HEAD"
                         ? "border-amber-300/45 bg-amber-500/20 text-amber-100"
                         : "border-sky-300/45 bg-sky-500/20 text-sky-100";
                   const betClasses = item.betType.toLowerCase().includes("win")
