@@ -1210,10 +1210,21 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               {index + 1}
             </div>
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-300/80">
-                {meeting?.meeting_name || tip.race || "Race"} {race ? `R${race.race_number}` : ""}
-              </p>
+<div className="min-w-0 flex-1">
+  <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1">
+    <img
+      src="/maverick/maverick-shield.png"
+      alt="The Maverick"
+      className="h-4 w-4 object-contain"
+    />
+    <span className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-200">
+      The Maverick
+    </span>
+  </div>
+
+  <p className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-amber-300/80">
+    {meeting?.meeting_name || tip.race || "Race"} {race ? `R${race.race_number}` : ""}
+  </p>
               <h3 className="mt-1 truncate text-xl font-black leading-tight text-white">
                 <div className="flex items-center gap-2">
   {tip.runner_number ? (
