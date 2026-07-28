@@ -39,6 +39,11 @@ type SuggestedTipResult = {
   type: string | null;
   successful: boolean | null;
   finishing_position: number | null;
+
+  stake_points: number | string | null;
+  return_points: number | string | null;
+  profit_loss_points: number | string | null;
+
   settled_at: string | null;
 };
 
@@ -56,7 +61,15 @@ type PersonalStats = {
   strikeRate: number;
   roi: number;
 };
-
+type PublishedTipStats = {
+  total: number;
+  successful: number;
+  percentage: number;
+  stake: number;
+  returns: number;
+  profitLoss: number;
+  roi: number;
+};
 const PERTH_TIMEZONE = "Australia/Perth";
 
 function toNumber(value: number | string | null | undefined) {
@@ -205,7 +218,7 @@ function normaliseBetType(value: string | null | undefined) {
 function sourceLabel(source: string | null | undefined) {
   if (source === "calculator") return "Calculator";
   if (source === "subscriber") return "Build My Own";
-  return "Head Tipper";
+  return "The Maverick";
 }
 
 function sourceDescription(source: string | null | undefined) {
@@ -217,7 +230,7 @@ function sourceDescription(source: string | null | undefined) {
     return "Selection built by you";
   }
 
-  return "Official Head Tipper selection";
+return "Official Maverick selection";
 }
 
 function sourceClasses(source: string | null | undefined) {
@@ -370,6 +383,68 @@ function buildSuccessStats<T>(
   };
 }
 
+function buildPublishedMaverickStats(
+  tips: SuggestedTipResult[],
+): PublishedTipStats {
+  const total = tips.length;
+
+  const successful = tips.filter(
+    isHeadTipperResultSuccessful,
+  ).length;
+
+  const stake = roundMoney(
+    tips.reduce(
+      (sum, tip) =>
+        sum + toNumber(tip.stake_points),
+      0,
+    ),
+  );
+
+  const returns = roundMoney(
+    tips.reduce(
+      (sum, tip) =>
+        sum + toNumber(tip.return_points),
+      0,
+    ),
+  );
+
+  const storedProfitLoss = roundMoney(
+    tips.reduce((sum, tip) => {
+      if (
+        tip.profit_loss_points !== null &&
+        tip.profit_loss_points !== undefined
+      ) {
+        return (
+          sum +
+          toNumber(tip.profit_loss_points)
+        );
+      }
+
+      return (
+        sum +
+        toNumber(tip.return_points) -
+        toNumber(tip.stake_points)
+      );
+    }, 0),
+  );
+
+  return {
+    total,
+    successful,
+    percentage:
+      total > 0
+        ? (successful / total) * 100
+        : 0,
+    stake,
+    returns,
+    profitLoss: storedProfitLoss,
+    roi:
+      stake > 0
+        ? (storedProfitLoss / stake) * 100
+        : 0,
+  };
+}
+
 function ROINumber({
   value,
   className = "",
@@ -490,6 +565,9 @@ function SuccessCard({
   percentage,
   tone,
   description,
+  roi,
+  profitLoss,
+  showMaverickBadge = false,
 }: {
   label: string;
   successful: number;
@@ -497,6 +575,9 @@ function SuccessCard({
   percentage: number;
   tone: "gold" | "blue";
   description: string;
+  roi?: number;
+  profitLoss?: number;
+  showMaverickBadge?: boolean;
 }) {
   const toneClasses = {
     gold: "border-amber-300/30 bg-amber-400/10",
@@ -510,19 +591,82 @@ function SuccessCard({
 
   return (
     <div className={`rounded-[22px] border p-4 ${toneClasses}`}>
-      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-300">
-        {label}
-      </p>
+      {showMaverickBadge ? (
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-amber-300/30 bg-black/40 p-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-200/40 bg-black/70 shadow-[0_0_18px_rgba(251,191,36,0.24)]">
+            <img
+              src="/maverick/maverick-shield.png"
+              alt="The Maverick"
+              className="h-full w-full object-contain p-1"
+            />
+          </div>
 
-      <p className={`mt-2 text-4xl font-black ${numberClasses}`}>
-        {total > 0 ? `${percentage.toFixed(1)}%` : "—"}
-      </p>
+          <div>
+            <p className="text-[12px] font-black uppercase tracking-[0.16em] text-amber-200">
+              The Maverick
+            </p>
 
-      <p className="mt-2 text-xs font-black text-white">
+            <p className="mt-1 text-[8px] font-black uppercase tracking-[0.14em] text-zinc-400">
+              Official Performance
+            </p>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-300">
+          {label}
+        </p>
+      )}
+
+      <div
+        className={
+          roi !== undefined
+            ? "grid grid-cols-2 gap-3"
+            : ""
+        }
+      >
+        <div>
+          <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-400">
+            Success
+          </p>
+
+          <p className={`mt-2 text-3xl font-black ${numberClasses}`}>
+            {total > 0
+              ? `${percentage.toFixed(1)}%`
+              : "—"}
+          </p>
+        </div>
+
+        {roi !== undefined ? (
+          <div className="border-l border-white/10 pl-3">
+            <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-400">
+              ROI
+            </p>
+
+            <ROINumber
+              value={roi}
+              className="mt-2 text-3xl"
+            />
+          </div>
+        ) : null}
+      </div>
+
+      <p className="mt-3 text-xs font-black text-white">
         {successful}/{total} successful
       </p>
 
-      <p className="mt-1 text-[10px] font-semibold leading-4 text-zinc-400">
+      {profitLoss !== undefined ? (
+        <p
+          className={`mt-1 text-[11px] font-black ${
+            profitLoss >= 0
+              ? "text-emerald-200"
+              : "text-rose-200"
+          }`}
+        >
+          {formatSignedMoney(profitLoss)} profit / loss
+        </p>
+      ) : null}
+
+      <p className="mt-2 text-[10px] font-semibold leading-4 text-zinc-400">
         {description}
       </p>
     </div>
@@ -584,15 +728,18 @@ export default async function Page({
 
     supabase
       .from("suggested_tips")
-      .select(
-        `
-        id,
-        type,
-        successful,
-        finishing_position,
-        settled_at
-      `,
-      )
+.select(
+  `
+  id,
+  type,
+  successful,
+  finishing_position,
+  stake_points,
+  return_points,
+  profit_loss_points,
+  settled_at
+`,
+)
       .not("settled_at", "is", null)
       .gte("settled_at", rangeStartIso)
       .lt("settled_at", rangeEndExclusiveIso),
@@ -677,9 +824,9 @@ export default async function Page({
   const headTipperTips =
     (headTipperResults.data || []) as SuggestedTipResult[];
 
-  const headTipperSuccess = buildSuccessStats(
+const maverickPerformance =
+  buildPublishedMaverickStats(
     headTipperTips,
-    isHeadTipperResultSuccessful,
   );
 
   const calculatorSuccess = {
@@ -876,11 +1023,11 @@ export default async function Page({
             </p>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <SourceROICard
-                label="Head Tipper"
-                stats={selectedHeadTipperStats}
-                tone="gold"
-              />
+<SourceROICard
+  label="The Maverick"
+  stats={selectedHeadTipperStats}
+  tone="gold"
+/>
 
               <SourceROICard
                 label="Calculator"
@@ -896,25 +1043,28 @@ export default async function Page({
             </div>
           </section>
 
-          <section className="grid grid-cols-2 gap-3">
-            <SuccessCard
-              label="Head Tipper Success"
-              successful={headTipperSuccess.successful}
-              total={headTipperSuccess.total}
-              percentage={headTipperSuccess.percentage}
-              tone="gold"
-              description="All resulted Head Tipper tips in this period"
-            />
+<section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+  <SuccessCard
+    label="The Maverick"
+    successful={maverickPerformance.successful}
+    total={maverickPerformance.total}
+    percentage={maverickPerformance.percentage}
+    roi={maverickPerformance.roi}
+    profitLoss={maverickPerformance.profitLoss}
+    showMaverickBadge
+    tone="gold"
+    description="All officially published and resulted Maverick tips in this period"
+  />
 
-            <SuccessCard
-              label="Calculator Success"
-              successful={calculatorSuccess.successful}
-              total={calculatorSuccess.total}
-              percentage={calculatorSuccess.percentage}
-              tone="blue"
-              description="All resulted Calculator tips in this period"
-            />
-          </section>
+  <SuccessCard
+    label="Calculator Success"
+    successful={calculatorSuccess.successful}
+    total={calculatorSuccess.total}
+    percentage={calculatorSuccess.percentage}
+    tone="blue"
+    description="All resulted Calculator tips in this period"
+  />
+</section>
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3 px-1">
@@ -989,13 +1139,21 @@ export default async function Page({
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <span
-                          className={`rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses(
-                            bet.source,
-                          )}`}
-                        >
-                          {sourceLabel(bet.source)}
-                        </span>
+<span
+  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses(
+    bet.source,
+  )}`}
+>
+  {bet.source === "head_tipper" ? (
+    <img
+      src="/maverick/maverick-shield.png"
+      alt=""
+      className="h-4 w-4 object-contain"
+    />
+  ) : null}
+
+  {sourceLabel(bet.source)}
+</span>
 
                         <span
                           className={`rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] ${betTypeClasses(
