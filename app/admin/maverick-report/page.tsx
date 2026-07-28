@@ -599,23 +599,15 @@ const monthlyPerformance = Array.from(
 
             <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                <div className="relative mx-auto flex h-28 w-24 shrink-0 items-center justify-center sm:mx-0 lg:h-32 lg:w-28">
-                  <div className="absolute inset-0 rounded-[28px] border border-amber-200/60 bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700 shadow-[0_0_35px_rgba(251,191,36,0.28)] [clip-path:polygon(50%_0%,92%_18%,88%_70%,50%_100%,12%_70%,8%_18%)]" />
+                 <div className="relative mx-auto flex h-32 w-32 shrink-0 items-center justify-center sm:mx-0 lg:h-40 lg:w-40">
+                  <div className="absolute inset-3 rounded-full bg-amber-300/20 blur-2xl" />
 
-                  <div className="absolute inset-[5px] rounded-[24px] border border-black/60 bg-gradient-to-b from-zinc-800 via-zinc-950 to-black [clip-path:polygon(50%_0%,92%_18%,88%_70%,50%_100%,12%_70%,8%_18%)]" />
-
-                  <div className="relative text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-amber-200">
-                      The
-                    </p>
-
-                    <p className="mt-1 text-4xl font-black leading-none text-amber-300 lg:text-5xl">
-                      M
-                    </p>
-
-                    <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-amber-100">
-                      Maverick
-                    </p>
+                  <div className="relative flex h-full w-full items-center justify-center rounded-[30px] border border-amber-300/30 bg-black/45 p-2 shadow-[0_0_38px_rgba(251,191,36,0.24),0_18px_45px_rgba(0,0,0,0.45)]">
+                    <img
+                      src="/maverick/maverick-shield.png"
+                      alt="The Maverick"
+                      className="h-full w-full object-contain drop-shadow-[0_0_18px_rgba(251,191,36,0.32)]"
+                    />
                   </div>
                 </div>
 
