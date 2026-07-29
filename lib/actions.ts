@@ -4070,7 +4070,236 @@ export async function updateMeetingConditionAction(formData: FormData) {
     return { success: false, error: error.message };
   }
 
-  return { success: true };
+  revalidatePath("/current-races");
+  revalidatePath("/admin/calculator");
+  revalidatePath("/subscriber-dashboard");
+  revalidatePath("/smartpunt-calculator-live-picks");
+  revalidatePath("/admin/power-rating-race-card");
+
+  return { success: true, error: null };
+}
+
+export async function startRaceDayAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    await requireRacingAdmin();
+
+    const meetingDate = String(
+      formData.get("meeting_date") ?? "",
+    ).trim();
+
+    if (!meetingDate) {
+      return {
+        success: false,
+        error: "Race-day date is required.",
+      };
+    }
+
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!datePattern.test(meetingDate)) {
+      return {
+        success: false,
+        error: "A valid race-day date is required.",
+      };
+    }
+
+    const supabase = await createClient();
+
+    const { data: meetings, error: meetingsError } =
+      await supabase
+        .from("meetings")
+        .select(
+          "id, meeting_name, meeting_date, track_condition, calculator_released_at",
+        )
+        .eq("meeting_date", meetingDate)
+        .order("meeting_name", {
+          ascending: true,
+        });
+
+    if (meetingsError) {
+      return {
+        success: false,
+        error: meetingsError.message,
+      };
+    }
+
+    if (!meetings?.length) {
+      return {
+        success: false,
+        error: "No meetings were found for this race day.",
+      };
+    }
+
+    const missingConditions = meetings.filter(
+      (meeting) =>
+        !String(
+          meeting.track_condition || "",
+        ).trim(),
+    );
+
+    if (missingConditions.length > 0) {
+      return {
+        success: false,
+        error: `Set the track condition for: ${missingConditions
+          .map((meeting) => meeting.meeting_name)
+          .join(", ")}.`,
+      };
+    }
+
+    const meetingIds = meetings
+      .map((meeting) => Number(meeting.id))
+      .filter(Boolean);
+
+    const { data: races, error: racesError } =
+      await supabase
+        .from("races")
+        .select(
+          "id, meeting_id, race_number, race_name, status, place_terms",
+        )
+        .in("meeting_id", meetingIds)
+        .eq("status", "published")
+        .order("meeting_id", {
+          ascending: true,
+        })
+        .order("race_number", {
+          ascending: true,
+        });
+
+    if (racesError) {
+      return {
+        success: false,
+        error: racesError.message,
+      };
+    }
+
+    if (!races?.length) {
+      return {
+        success: false,
+        error:
+          "No published races were found for this race day.",
+      };
+    }
+
+    const invalidPlaceTerms = races.filter(
+      (race) =>
+        !["win_only", "top_2", "top_3"].includes(
+          String(race.place_terms || ""),
+        ),
+    );
+
+    if (invalidPlaceTerms.length > 0) {
+      return {
+        success: false,
+        error: `Check place terms for: ${invalidPlaceTerms
+          .map((race) => {
+            const meeting = meetings.find(
+              (item) =>
+                Number(item.id) ===
+                Number(race.meeting_id),
+            );
+
+            return `${
+              meeting?.meeting_name || "Meeting"
+            } R${race.race_number}`;
+          })
+          .join(", ")}.`,
+      };
+    }
+
+    const raceIds = races
+      .map((race) => Number(race.id))
+      .filter(Boolean);
+
+    const { data: runners, error: runnersError } =
+      await supabase
+        .from("race_runners")
+        .select("id, race_id, scratched")
+        .in("race_id", raceIds);
+
+    if (runnersError) {
+      return {
+        success: false,
+        error: runnersError.message,
+      };
+    }
+
+    const racesWithoutActiveRunners =
+      races.filter((race) => {
+        const activeRunnerCount = (
+          runners || []
+        ).filter(
+          (runner) =>
+            Number(runner.race_id) ===
+              Number(race.id) &&
+            runner.scratched !== true,
+        ).length;
+
+        return activeRunnerCount === 0;
+      });
+
+    if (racesWithoutActiveRunners.length > 0) {
+      return {
+        success: false,
+        error: `No active runners remain in: ${racesWithoutActiveRunners
+          .map((race) => {
+            const meeting = meetings.find(
+              (item) =>
+                Number(item.id) ===
+                Number(race.meeting_id),
+            );
+
+            return `${
+              meeting?.meeting_name || "Meeting"
+            } R${race.race_number}`;
+          })
+          .join(", ")}.`,
+      };
+    }
+
+    const releasedAt = new Date().toISOString();
+
+    const { error: releaseError } =
+      await supabase
+        .from("meetings")
+        .update({
+          calculator_released_at: releasedAt,
+          updated_at: releasedAt,
+        })
+        .in("id", meetingIds);
+
+    if (releaseError) {
+      return {
+        success: false,
+        error: releaseError.message,
+      };
+    }
+
+    revalidatePath("/");
+    revalidatePath("/current-races");
+    revalidatePath("/admin/calculator");
+    revalidatePath("/subscriber-dashboard");
+    revalidatePath(
+      "/smartpunt-calculator-live-picks",
+    );
+    revalidatePath(
+      "/admin/power-rating-race-card",
+    );
+
+    return {
+      success: true,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to start race day.",
+    };
+  }
 }
 
 export async function signOutAction() {
