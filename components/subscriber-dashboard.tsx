@@ -1409,7 +1409,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
   src="/maverick/maverick-watermark.png"
   alt=""
   aria-hidden="true"
-  className="absolute left-1/2 top-1/2 w-[240px] -translate-x-1/2 -translate-y-1/2 opacity-[0.16] sm:w-[340px] sm:opacity-[0.10] lg:w-[420px] select-none"
+  className="absolute left-1/2 top-1/2 w-[240px] -translate-x-1/2 -translate-y-1/2 opacity-[0.16] sm:w-[340px] sm:opacity-[0.10] lg:w-[840px] select-none"
 />
 
   <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
