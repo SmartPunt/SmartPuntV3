@@ -1404,8 +1404,18 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
         <main className="mt-4 space-y-5 pb-8">
           <section className="relative overflow-hidden rounded-[2rem] border border-amber-300/30 bg-black shadow-[0_28px_80px_rgba(0,0,0,0.65)]">
 
-            <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
-            <div className="pointer-events-none absolute bottom-0 right-0 h-px w-3/4 bg-gradient-to-l from-amber-300/60 to-transparent" />
+<div className="pointer-events-none absolute inset-0 overflow-hidden">
+  <img
+    src="/maverick/maverick-watermark.png"
+    alt=""
+    aria-hidden="true"
+    className="absolute -right-10 bottom-0 w-[200px] opacity-[0.06] sm:-right-12 sm:w-[300px] lg:w-[360px] select-none"
+  />
+
+  <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
+
+  <div className="absolute bottom-0 right-0 h-px w-3/4 bg-gradient-to-l from-amber-300/60 to-transparent" />
+</div>
 
             <div className="p-5 sm:p-8">
               <div className="flex flex-wrap items-center gap-2">
