@@ -4085,72 +4085,59 @@ export async function startRaceDayAction(
   try {
     await requireRacingAdmin();
 
-    const meetingDate = String(
-      formData.get("meeting_date") ?? "",
-    ).trim();
+    const meetingId = Number(
+      formData.get("meeting_id"),
+    );
 
-    if (!meetingDate) {
+    if (!meetingId) {
       return {
         success: false,
-        error: "Race-day date is required.",
-      };
-    }
-
-    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-
-    if (!datePattern.test(meetingDate)) {
-      return {
-        success: false,
-        error: "A valid race-day date is required.",
+        error: "Meeting is required.",
       };
     }
 
     const supabase = await createClient();
 
-    const { data: meetings, error: meetingsError } =
+    const { data: meeting, error: meetingError } =
       await supabase
         .from("meetings")
         .select(
           "id, meeting_name, meeting_date, track_condition, calculator_released_at",
         )
-        .eq("meeting_date", meetingDate)
-        .order("meeting_name", {
-          ascending: true,
-        });
+        .eq("id", meetingId)
+        .maybeSingle();
 
-    if (meetingsError) {
+    if (meetingError) {
       return {
         success: false,
-        error: meetingsError.message,
+        error: meetingError.message,
       };
     }
 
-    if (!meetings?.length) {
+    if (!meeting) {
       return {
         success: false,
-        error: "No meetings were found for this race day.",
+        error: "Meeting could not be found.",
       };
     }
 
-    const missingConditions = meetings.filter(
-      (meeting) =>
-        !String(
-          meeting.track_condition || "",
-        ).trim(),
-    );
-
-    if (missingConditions.length > 0) {
+    if (meeting.calculator_released_at) {
       return {
         success: false,
-        error: `Set the track condition for: ${missingConditions
-          .map((meeting) => meeting.meeting_name)
-          .join(", ")}.`,
+        error: `${meeting.meeting_name} has already been released.`,
       };
     }
 
-    const meetingIds = meetings
-      .map((meeting) => Number(meeting.id))
-      .filter(Boolean);
+    if (
+      !String(
+        meeting.track_condition || "",
+      ).trim()
+    ) {
+      return {
+        success: false,
+        error: `Set the track condition for ${meeting.meeting_name} before starting race day.`,
+      };
+    }
 
     const { data: races, error: racesError } =
       await supabase
@@ -4158,11 +4145,8 @@ export async function startRaceDayAction(
         .select(
           "id, meeting_id, race_number, race_name, status, place_terms",
         )
-        .in("meeting_id", meetingIds)
+        .eq("meeting_id", meetingId)
         .eq("status", "published")
-        .order("meeting_id", {
-          ascending: true,
-        })
         .order("race_number", {
           ascending: true,
         });
@@ -4177,8 +4161,7 @@ export async function startRaceDayAction(
     if (!races?.length) {
       return {
         success: false,
-        error:
-          "No published races were found for this race day.",
+        error: `No published races were found for ${meeting.meeting_name}.`,
       };
     }
 
@@ -4192,18 +4175,8 @@ export async function startRaceDayAction(
     if (invalidPlaceTerms.length > 0) {
       return {
         success: false,
-        error: `Check place terms for: ${invalidPlaceTerms
-          .map((race) => {
-            const meeting = meetings.find(
-              (item) =>
-                Number(item.id) ===
-                Number(race.meeting_id),
-            );
-
-            return `${
-              meeting?.meeting_name || "Meeting"
-            } R${race.race_number}`;
-          })
+        error: `Check place terms for ${meeting.meeting_name}: ${invalidPlaceTerms
+          .map((race) => `R${race.race_number}`)
           .join(", ")}.`,
       };
     }
@@ -4242,18 +4215,8 @@ export async function startRaceDayAction(
     if (racesWithoutActiveRunners.length > 0) {
       return {
         success: false,
-        error: `No active runners remain in: ${racesWithoutActiveRunners
-          .map((race) => {
-            const meeting = meetings.find(
-              (item) =>
-                Number(item.id) ===
-                Number(race.meeting_id),
-            );
-
-            return `${
-              meeting?.meeting_name || "Meeting"
-            } R${race.race_number}`;
-          })
+        error: `No active runners remain in ${meeting.meeting_name}: ${racesWithoutActiveRunners
+          .map((race) => `R${race.race_number}`)
           .join(", ")}.`,
       };
     }
@@ -4267,7 +4230,8 @@ export async function startRaceDayAction(
           calculator_released_at: releasedAt,
           updated_at: releasedAt,
         })
-        .in("id", meetingIds);
+        .eq("id", meetingId)
+        .is("calculator_released_at", null);
 
     if (releaseError) {
       return {
@@ -4290,6 +4254,7 @@ export async function startRaceDayAction(
     return {
       success: true,
       error: null,
+      meeting,
     };
   } catch (error) {
     return {
@@ -4301,7 +4266,6 @@ export async function startRaceDayAction(
     };
   }
 }
-
 export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
