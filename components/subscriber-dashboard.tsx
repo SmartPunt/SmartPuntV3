@@ -1402,15 +1402,24 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
         </header>
 
         <main className="mt-4 space-y-5 pb-8">
-          <section className="relative overflow-hidden rounded-[2rem] border border-amber-300/30 bg-[linear-gradient(135deg,rgba(0,0,0,0.98),rgba(24,24,27,0.98)_52%,rgba(120,53,15,0.5))] shadow-[0_28px_80px_rgba(0,0,0,0.65)]">
+          <section className="relative overflow-hidden rounded-[2rem] border border-amber-300/30 bg-black shadow-[0_28px_80px_rgba(0,0,0,0.65)]">
+            <picture className="pointer-events-none absolute inset-0">
+              <source
+                media="(max-width: 639px)"
+                srcSet="/images/hero/dashboard-hero-mobile.webp"
+              />
+
+              <img
+                src="/images/hero/dashboard-hero-desktop.webp"
+                alt=""
+                aria-hidden="true"
+                className="h-full w-full object-cover object-center"
+              />
+            </picture>
+
+            <div className="pointer-events-none absolute inset-0 bg-black/25 sm:bg-black/10" />
             <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
             <div className="pointer-events-none absolute bottom-0 right-0 h-px w-3/4 bg-gradient-to-l from-amber-300/60 to-transparent" />
-
-            <img
-              src="/maverick/maverick-shield.png"
-              alt=""
-              className="pointer-events-none absolute -bottom-8 -right-8 h-52 w-52 object-contain opacity-[0.08] sm:h-72 sm:w-72"
-            />
 
             <div className="relative p-5 sm:p-8">
               <div className="flex flex-wrap items-center gap-2">
