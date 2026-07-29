@@ -1405,12 +1405,12 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
           <section className="relative overflow-hidden rounded-[2rem] border border-amber-300/30 bg-black shadow-[0_28px_80px_rgba(0,0,0,0.65)]">
 
 <div className="pointer-events-none absolute inset-0 overflow-hidden">
-  <img
-    src="/maverick/maverick-watermark.png"
-    alt=""
-    aria-hidden="true"
-className="absolute -right-12 bottom-0 w-[280px] opacity-[0.18] sm:-right-12 sm:w-[320px] sm:opacity-[0.1] lg:w-[380px] select-none"
-  />
+<img
+  src="/maverick/maverick-watermark.png"
+  alt=""
+  aria-hidden="true"
+  className="absolute left-1/2 top-1/2 w-[240px] -translate-x-1/2 -translate-y-1/2 opacity-[0.16] sm:w-[340px] sm:opacity-[0.10] lg:w-[420px] select-none"
+/>
 
   <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
 
