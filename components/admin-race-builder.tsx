@@ -352,7 +352,7 @@ if (
 }
 
 if (
-  /\b(race|maiden|benchmark|handicap|stakes|plate|cup|classic|trophy|quality|ratings band|set weights)\b/i.test(
+  /\b(race|maiden|benchmark|handicap|stakes|plate|cup|trophy|quality|ratings band|set weights)\b/i.test(
     line,
   ) &&
   !/^r\d+\s+/i.test(line)
@@ -360,14 +360,19 @@ if (
   return true;
 }
 
-  if (
-    /^(last starts|trainer|age \/ sex|sire \/ dam|distance|track|trk\/dist|good|soft|heavy|firm|synthetic)\b/i.test(
-      line,
-    )
-  ) {
-    return true;
-  }
+if (
+  /^(last starts|trainer|age \/ sex|sire \/ dam|distance|track|trk\/dist)\b/i.test(
+    line,
+  )
+) {
+  return true;
+}
 
+if (
+  /^(good|soft|heavy|firm|synthetic)\s*[:\-]\s*/i.test(line)
+) {
+  return true;
+}
   if (
     /positioned|running|showed best work|well timed run|found one better|late fourth|came with|held on well|run down late|big task ahead|settling well back/i.test(
       lower,
@@ -414,9 +419,14 @@ function looksLikeHorseName(line: string, nextLines: string[] = []) {
 
   if (isNoiseLine(line)) return false;
   if (line.includes(":")) return false;
-  if (/\b(j|t|br|barrier|weight|last starts|trainer|colour|career|prize|gear changes)\b/i.test(line)) {
-    return false;
-  }
+if (
+  /^(?:j|t|br)\s*[:]\s*/i.test(line) ||
+  /^(?:barrier|weight|last starts|trainer|colour|career|prize|gear changes)\b/i.test(
+    line,
+  )
+) {
+  return false;
+}
   if (/[0-9]{1,2}-[A-Za-z]{3}-[0-9]{2}/.test(line)) return false;
   if (/^\d/.test(line)) return false;
 
