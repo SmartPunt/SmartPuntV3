@@ -938,7 +938,20 @@ clearTipForm();
     </div>
   ) : null}
 </section>
-          <section className="rounded-[1.75rem] border border-amber-300/20 bg-black/75 p-2">
+
+{successMessage ? (
+  <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200">
+    ✓ {successMessage}
+  </div>
+) : null}
+
+{errorMessage ? (
+  <div className="rounded-2xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-200">
+    {errorMessage}
+  </div>
+) : null}
+
+<section className="rounded-[1.75rem] border border-amber-300/20 bg-black/75 p-2">
             <div className="grid grid-cols-2 gap-2">
               {(
                 [
@@ -1418,18 +1431,6 @@ clearTipForm();
 
                 Send subscriber email notification
               </label>
-
-              {successMessage ? (
-                <div className="mt-4 rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-3 text-sm font-bold text-emerald-200">
-                  ✓ {successMessage}
-                </div>
-              ) : null}
-
-              {errorMessage ? (
-                <div className="mt-4 rounded-2xl border border-rose-300/30 bg-rose-400/10 px-4 py-3 text-sm font-bold text-rose-200">
-                  {errorMessage}
-                </div>
-              ) : null}
 
               <button
                 type="button"
