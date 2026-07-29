@@ -838,20 +838,19 @@ tier:
     return matchingHorses[0] || null;
   }, [horses, matchingHorses, search]);
 
-  const horseRace = useMemo(() => {
-    if (!selectedHorse) return null;
+const horseRace = useMemo(() => {
+  if (!selectedHorse) return null;
 
-    const publishedRaceIds = new Set(publishedRaces.map((race) => race.id));
-    const runner = runners.find(
-      (item) =>
-        item.horse_id === selectedHorse.id &&
-        publishedRaceIds.has(item.race_id),
-    );
+  const matchingRace = orderedPublishedRaces.find((race) =>
+    runners.some(
+      (runner) =>
+        Number(runner.horse_id) === Number(selectedHorse.id) &&
+        Number(runner.race_id) === Number(race.id),
+    ),
+  );
 
-    if (!runner) return null;
-
-    return publishedRaces.find((race) => race.id === runner.race_id) || null;
-  }, [publishedRaces, runners, selectedHorse]);
+  return matchingRace || null;
+}, [orderedPublishedRaces, runners, selectedHorse]);
 
   const activeRace = useMemo(() => {
     if (selectedRaceId) {
@@ -1551,7 +1550,10 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
                   <input
                     placeholder="Search horse name..."
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+ onChange={(e) => {
+  setSearch(e.target.value);
+  setSelectedRaceId("");
+}}
                     className="w-full rounded-2xl border border-amber-200/30 px-4 py-3 outline-none transition focus:border-amber-300"
                   />
                 </div>
@@ -1567,7 +1569,10 @@ qualifiesAsStrongPlace: qualifiedTip.qualifiesAsStrongPlace,
                       <button
                         key={horse.id}
                         type="button"
-                        onClick={() => setSearch(horse.horse_name)}
+onClick={() => {
+  setSearch(horse.horse_name);
+  setSelectedRaceId("");
+}}
                         className={`rounded-full px-3 py-2 text-sm font-semibold transition ${
                           selectedHorse?.id === horse.id
                             ? "bg-black text-amber-300"
