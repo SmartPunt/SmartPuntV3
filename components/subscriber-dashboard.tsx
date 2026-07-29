@@ -1402,81 +1402,153 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
         </header>
 
         <main className="mt-4 space-y-5 pb-8">
-          <section className="overflow-hidden rounded-[2rem] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.96),rgba(24,24,27,0.98),rgba(146,64,14,0.32))] shadow-[0_28px_80px_rgba(0,0,0,0.6)]">
+          <section className="relative overflow-hidden rounded-[2rem] border border-amber-300/30 bg-[linear-gradient(135deg,rgba(0,0,0,0.98),rgba(24,24,27,0.98)_52%,rgba(120,53,15,0.5))] shadow-[0_28px_80px_rgba(0,0,0,0.65)]">
+            <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
+            <div className="pointer-events-none absolute bottom-0 right-0 h-px w-3/4 bg-gradient-to-l from-amber-300/60 to-transparent" />
+
+            <img
+              src="/maverick/maverick-shield.png"
+              alt=""
+              className="pointer-events-none absolute -bottom-8 -right-8 h-52 w-52 object-contain opacity-[0.08] sm:h-72 sm:w-72"
+            />
+
             <div className="relative p-5 sm:p-8">
-              <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/12 blur-3xl" />
-              <div className="absolute bottom-0 right-0 h-px w-2/3 bg-gradient-to-l from-amber-300/50 to-transparent" />
-              <div className="relative">
-                <div className="flex flex-wrap items-center gap-2">
-                  {smallPill("Premium Member", "gold")}
-                  {smallPill(`${livePicksCount} Live Picks Today`, "green")}
+              <div className="flex flex-wrap items-center gap-2">
+                {smallPill("Premium Member", "gold")}
+                {smallPill(`${livePicksCount} Live Picks Today`, "green")}
+
+                {initialLiveFortuneFives.length > 0 ? (
+                  <span className="rounded-full border border-amber-200/40 bg-amber-300/15 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-amber-100">
+                    Fortune on 5 Live
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="mt-5 text-[11px] font-black uppercase tracking-[0.24em] text-amber-200/80">
+                Welcome back, {displayName}
+              </p>
+
+              <h2 className="mt-2 max-w-3xl text-4xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl">
+                Today&apos;s Edge
+                <span className="block text-amber-300">
+                  Starts Here.
+                </span>
+              </h2>
+
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-200 sm:text-base">
+                Your premium racing intelligence for today&apos;s meetings,
+                Maverick selections, Calculator plays and active bets.
+              </p>
+
+              <div className="mt-6 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-black/35 p-3 backdrop-blur-sm sm:max-w-xl">
+                <div className="text-center">
+                  <p className="text-2xl font-black text-white">
+                    {meetingSummary.length}
+                  </p>
+                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                    Meetings
+                  </p>
                 </div>
-                <p className="mt-5 text-[11px] font-black uppercase tracking-[0.24em] text-amber-200/80">
-                  Welcome back, {displayName}
-                </p>
-                <h2 className="mt-2 max-w-3xl text-4xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl">
-                  Your Racing <span className="text-amber-300">Command Centre</span>
-                </h2>
-                <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-200 sm:text-base">
-                  Fast access to today's SmartPunt plays, your active bets, race cards and personal strike rate.
-                </p>
-                <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
-                  <Link href="/smartpunt-calculator-live-picks" className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-black shadow-lg shadow-amber-500/25 transition hover:brightness-110">
-                    Open Live Picks
-                  </Link>
-                  <Link href="/my-active-tips" className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/15">
-                    My Active Tips
-                  </Link>
-                  <Link
-  href="/the-vault"
-  className="rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-300/15"
->
-  The Vault
-</Link>
+
+                <div className="border-x border-white/10 text-center">
+                  <p className="text-2xl font-black text-white">
+                    {selectedDayRaces.length}
+                  </p>
+                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                    Races
+                  </p>
                 </div>
+
+                <div className="text-center">
+                  <p className="text-2xl font-black text-amber-300">
+                    {livePicksCount}
+                  </p>
+                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                    Opportunities
+                  </p>
+                </div>
+              </div>
+
+              {initialLiveFortuneFives.length > 0 ? (
+                <Link
+                  href="/fortune-on-5"
+                  className="group mt-5 block max-w-2xl rounded-[1.5rem] border border-amber-300/35 bg-[linear-gradient(135deg,rgba(120,53,15,0.42),rgba(0,0,0,0.65))] p-4 transition hover:border-amber-200/60 hover:bg-amber-300/10"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-200/35 bg-black/65 shadow-[0_0_22px_rgba(251,191,36,0.2)]">
+                      <img
+                        src="/maverick/maverick-shield.png"
+                        alt="The Maverick"
+                        className="h-full w-full object-contain p-1"
+                      />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-200">
+                        Created by The Maverick
+                      </p>
+
+                      <h3 className="mt-1 truncate text-xl font-black text-white">
+                        {initialLiveFortuneFives[0]?.title ||
+                          "Fortune on 5"}
+                      </h3>
+
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-amber-50/70">
+                        {initialLiveFortuneFives[0]?.description ||
+                          "The Maverick’s premium daily five-leg multi is ready."}
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 text-xl font-black text-amber-300 transition group-hover:translate-x-1">
+                      →
+                    </span>
+                  </div>
+                </Link>
+              ) : (
+                <div className="mt-5 max-w-2xl rounded-[1.5rem] border border-dashed border-white/15 bg-black/25 p-4">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/maverick/maverick-shield.png"
+                      alt="The Maverick"
+                      className="h-10 w-10 object-contain opacity-70"
+                    />
+
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                        The Maverick
+                      </p>
+                      <p className="mt-1 text-sm font-bold text-zinc-300">
+                        Today&apos;s Fortune on 5 has not been published yet.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
+                <Link
+                  href="/smartpunt-calculator-live-picks"
+                  className="rounded-2xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-black shadow-lg shadow-amber-500/25 transition hover:brightness-110"
+                >
+                  Open Live Picks
+                </Link>
+
+                <Link
+                  href="/my-active-tips"
+                  className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/15"
+                >
+                  My Active Tips
+                </Link>
+
+                <Link
+                  href="/the-vault"
+                  className="rounded-2xl border border-amber-300/25 bg-amber-300/10 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-300/15"
+                >
+                  The Vault
+                </Link>
               </div>
             </div>
           </section>
-
-          {initialLiveFortuneFives.length > 0 ? (
-            <Link
-              href="/fortune-on-5"
-              className="group relative block overflow-hidden rounded-[2rem] border border-amber-300/35 bg-[linear-gradient(135deg,rgba(0,0,0,0.96),rgba(69,26,3,0.86),rgba(180,83,9,0.42))] p-5 shadow-[0_24px_70px_rgba(0,0,0,0.5)] transition active:scale-[0.99] hover:border-amber-200/60 sm:p-6"
-            >
-              <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-amber-300/20 blur-3xl transition group-hover:bg-amber-300/30" />
-              <div className="absolute bottom-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
-
-              <div className="relative flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-amber-200/40 bg-amber-300/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-100">
-                      Fortune On 5
-                    </span>
-                    <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-200">
-                      {initialLiveFortuneFives.length} Live
-                    </span>
-                  </div>
-
-                  <h2 className="mt-3 truncate text-2xl font-black tracking-tight text-white sm:text-3xl">
-                    {initialLiveFortuneFives[0]?.title || "Today’s 5-Leg Multi"}
-                  </h2>
-
-                  <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-amber-50/75">
-                    {initialLiveFortuneFives[0]?.description ||
-                      "Five SmartPunt selections are ready. View the full multi and enter your accepted odds."}
-                  </p>
-
-                  <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-amber-200">
-                    View Fortune On 5 →
-                  </p>
-                </div>
-
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-amber-200/30 bg-black/35 text-3xl shadow-lg shadow-black/30">
-                  🏆
-                </div>
-              </div>
-            </Link>
-          ) : null}
 
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {renderStatCard({
