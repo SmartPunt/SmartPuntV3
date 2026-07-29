@@ -1376,7 +1376,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">SmartPunt</p>
-                <h1 className="mt-0.5 truncate text-xl font-black tracking-tight text-white sm:text-2xl">My Dashboard</h1>
+                <h1 className="mt-0.5 truncate text-xl font-black tracking-tight text-white sm:text-2xl">Member Dashboard</h1>
               </div>
             </div>
 
