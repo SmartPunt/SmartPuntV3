@@ -81,10 +81,8 @@ function getTodayPerthDate() {
 
 function getWeekStart(dateValue: string) {
   const [year, month, day] = dateValue.split("-").map(Number);
-
   const date = new Date(year, month - 1, day);
   const dayOfWeek = date.getDay();
-
   const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
 
   date.setDate(date.getDate() + mondayOffset);
@@ -102,7 +100,6 @@ function getWeekEnd(dateValue: string) {
     .map(Number);
 
   const date = new Date(year, month - 1, day);
-
   date.setDate(date.getDate() + 6);
 
   const yyyy = date.getFullYear();
@@ -114,8 +111,11 @@ function getWeekEnd(dateValue: string) {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
+
   const date = new Date(`${value}T12:00:00+08:00`);
+
   if (Number.isNaN(date.getTime())) return "—";
+
   return new Intl.DateTimeFormat("en-AU", {
     timeZone: PERTH_TIMEZONE,
     weekday: "short",
@@ -135,26 +135,51 @@ function statusBadge(fortune: FortuneFive, accepted?: UserFortuneFive | null) {
   if (accepted?.settled_at && accepted.won === false) return <Badge tone="rose">Lost</Badge>;
   if (fortune.settled_at && fortune.won === true) return <Badge tone="green">Won</Badge>;
   if (fortune.settled_at && fortune.won === false) return <Badge tone="rose">Lost</Badge>;
-  if (accepted) return <Badge tone="blue">Accepted</Badge>;
+  if (accepted) return <Badge tone="blue">You&apos;re On</Badge>;
   return <Badge tone="amber">Available</Badge>;
 }
 
 function finalResultText(fortune: FortuneFive) {
   if (fortune.status === "void") return "Void";
-  if (fortune.won === true) return "Won";
-  if (fortune.won === false) return "Lost";
+  if (fortune.won === true) return "Winner";
+  if (fortune.won === false) return "Unlucky Today";
   return "Pending";
 }
 
-function legStatusBadge(leg: FortuneFiveLeg) {
-  const status =
+function normaliseLegStatus(leg: FortuneFiveLeg) {
+  return (
     leg.leg_status ||
-    (leg.won === true ? "won" : leg.won === false ? "lost" : "pending");
+    (leg.won === true ? "won" : leg.won === false ? "lost" : "pending")
+  );
+}
+
+function legStatusBadge(leg: FortuneFiveLeg) {
+  const status = normaliseLegStatus(leg);
 
   if (status === "won") return <Badge tone="green">✓ Won</Badge>;
   if (status === "lost") return <Badge tone="rose">✕ Lost</Badge>;
   if (status === "scratched") return <Badge tone="slate">Scratched</Badge>;
   return <Badge tone="amber">Pending</Badge>;
+}
+
+function getLegProgress(legs: FortuneFiveLeg[]) {
+  const won = legs.filter((leg) => normaliseLegStatus(leg) === "won").length;
+  const lost = legs.filter((leg) => normaliseLegStatus(leg) === "lost").length;
+  const scratched = legs.filter(
+    (leg) => normaliseLegStatus(leg) === "scratched",
+  ).length;
+  const completed = won + lost + scratched;
+  const total = Math.max(legs.length, 5);
+  const progressPercent = Math.min(100, Math.round((completed / total) * 100));
+
+  return {
+    won,
+    lost,
+    scratched,
+    completed,
+    total,
+    progressPercent,
+  };
 }
 
 function FortuneFiveCard({
@@ -167,77 +192,168 @@ function FortuneFiveCard({
   accepted: UserFortuneFive | null;
 }) {
   const isSettled = Boolean(fortune.settled_at) || fortune.status === "void";
+  const progress = getLegProgress(legs);
+  const stake = accepted ? toNumber(accepted.stake_points) : 1;
+  const potentialReturn = accepted
+    ? toNumber(accepted.odds_taken) * Math.max(stake, 1)
+    : 0;
 
   return (
-    <Panel className="bg-white/95">
-      <div className="space-y-5 p-6 text-zinc-950">
+    <article className="overflow-hidden rounded-[28px] border border-amber-300/25 bg-white shadow-2xl shadow-black/20">
+      <div className="border-b border-amber-200/40 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.22),transparent_36%),linear-gradient(135deg,#09090b,#18181b_60%,#27272a)] p-5 text-white sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
-              {formatDate(fortune.published_date)}
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">
+              Fortune on 5 · {formatDate(fortune.published_date)}
             </p>
-            <h2 className="mt-1 text-2xl font-black">{fortune.title}</h2>
+
+            <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+              {fortune.title}
+            </h2>
+
             {fortune.description ? (
-              <p className="mt-2 text-sm leading-6 text-zinc-600">
+              <p className="mt-2 max-w-xl text-sm leading-6 text-zinc-300">
                 {fortune.description}
               </p>
             ) : null}
           </div>
-          {statusBadge(fortune, accepted)}
+
+          <div className="shrink-0">{statusBadge(fortune, accepted)}</div>
         </div>
 
-        {isSettled ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
-              Final multi result
-            </p>
-            <p className="mt-2 text-2xl font-black text-zinc-950">
-              {finalResultText(fortune)}
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.05] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                Multi progress
+              </p>
+              <p className="mt-1 text-sm font-bold text-white">
+                {progress.won} of {progress.total} legs successful
+              </p>
+            </div>
+
+            <p className="text-xs font-black text-amber-300">
+              {progress.completed}/{progress.total}
             </p>
           </div>
-        ) : null}
 
-        <div className="space-y-2">
-          {legs.map((leg) => (
-            <div key={leg.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                    Leg {leg.leg_number} · {leg.bet_type}
-                  </p>
-                  <p className="mt-1 text-base font-bold">{leg.horse}</p>
-                  <p className="mt-1 text-sm text-zinc-500">{leg.race}</p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-300 to-yellow-500 transition-all"
+              style={{ width: `${progress.progressPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {isSettled ? (
+        <div
+          className={`border-b px-5 py-5 sm:px-6 ${
+            fortune.status === "void"
+              ? "border-zinc-200 bg-zinc-100"
+              : fortune.won === true
+                ? "border-emerald-200 bg-emerald-50"
+                : "border-rose-200 bg-rose-50"
+          }`}
+        >
+          <p className="text-center text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+            Final multi result
+          </p>
+          <p className="mt-2 text-center text-3xl font-black uppercase tracking-tight text-zinc-950">
+            {finalResultText(fortune)}
+          </p>
+        </div>
+      ) : null}
+
+      <div className="space-y-3 p-5 sm:p-6">
+        {legs.map((leg) => (
+          <div
+            key={leg.id}
+            className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+          >
+            <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-300 to-yellow-500" />
+
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-black text-sm font-black text-amber-300">
+                {leg.leg_number}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                      Leg {leg.leg_number}
+                    </p>
+
+                    <h3 className="mt-1 text-lg font-black text-zinc-950 sm:text-xl">
+                      {leg.horse}
+                    </h3>
+
+                    <p className="mt-1 text-sm leading-5 text-zinc-500">
+                      {leg.race}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0">{legStatusBadge(leg)}</div>
                 </div>
 
-                {legStatusBadge(leg)}
+                <div className="mt-3">
+                  <span className="inline-flex rounded-full border border-amber-300/40 bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-amber-900">
+                    {leg.bet_type}
+                  </span>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
 
         {accepted ? (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
-              Your accepted odds
+          <div className="rounded-2xl border border-amber-300/40 bg-[linear-gradient(135deg,#fffbeb,#fef3c7)] p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-900">
+              Your bet
             </p>
-            <p className="mt-2 text-2xl font-black text-zinc-950">
-              {toNumber(accepted.odds_taken).toFixed(2)}
-            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-amber-200 bg-white/80 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                  Odds taken
+                </p>
+                <p className="mt-1 text-2xl font-black text-zinc-950">
+                  {toNumber(accepted.odds_taken).toFixed(2)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-white/80 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                  Potential return
+                </p>
+                <p className="mt-1 text-2xl font-black text-zinc-950">
+                  {potentialReturn.toFixed(2)} pts
+                </p>
+              </div>
+            </div>
+
             {accepted.settled_at ? (
-              <p className="mt-2 text-sm font-semibold text-zinc-700">
-                Return {toNumber(accepted.return_points).toFixed(2)} pts · P/L{" "}
-                {toNumber(accepted.profit_loss_points).toFixed(2)} pts
-              </p>
+              <div className="mt-3 rounded-xl border border-amber-200 bg-white/80 p-3">
+                <p className="text-sm font-bold text-zinc-800">
+                  Return {toNumber(accepted.return_points).toFixed(2)} pts · P/L{" "}
+                  {toNumber(accepted.profit_loss_points).toFixed(2)} pts
+                </p>
+              </div>
             ) : (
-              <p className="mt-2 text-sm text-zinc-600">
-                Waiting for the multi to be resulted.
+              <p className="mt-3 text-sm font-semibold text-zinc-600">
+                You&apos;re on. We&apos;ll track every leg and result the multi automatically.
               </p>
             )}
           </div>
         ) : !isSettled ? (
-          <form action={acceptFortuneFiveAction} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+          <form
+            action={acceptFortuneFiveAction}
+            className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
+          >
             <input type="hidden" name="fortune_five_id" value={fortune.id} />
-            <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-600">
+
+            <label className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">
               Odds you got for the full multi
               <input
                 type="number"
@@ -246,19 +362,20 @@ function FortuneFiveCard({
                 step="0.01"
                 required
                 placeholder="e.g. 18.50"
-                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-3 text-sm font-semibold outline-none transition focus:border-amber-300"
+                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base font-black text-zinc-950 outline-none transition focus:border-amber-300"
               />
             </label>
+
             <button
               type="submit"
-              className="mt-3 w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+              className="mt-3 w-full rounded-xl bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 px-4 py-3.5 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:brightness-105"
             >
-              Accept Fortune on 5
+              I&apos;m On
             </button>
           </form>
         ) : null}
       </div>
-    </Panel>
+    </article>
   );
 }
 
@@ -282,6 +399,7 @@ export default async function Page() {
           .lte("published_date", weekEnd)
           .order("published_date", { ascending: true })
           .range(from, to);
+
         return { data: result.data ?? [], error: result.error };
       },
     }),
@@ -292,6 +410,7 @@ export default async function Page() {
           .select("*")
           .order("leg_number", { ascending: true })
           .range(from, to);
+
         return { data: result.data ?? [], error: result.error };
       },
     }),
@@ -302,12 +421,14 @@ export default async function Page() {
           .select("*")
           .eq("user_id", profile.id)
           .range(from, to);
+
         return { data: result.data ?? [], error: result.error };
       },
     }),
   ]);
 
   const legsByFortuneId = new Map<number, FortuneFiveLeg[]>();
+
   for (const leg of fortuneFiveLegs) {
     const existing = legsByFortuneId.get(leg.fortune_five_id) || [];
     existing.push(leg);
@@ -315,6 +436,7 @@ export default async function Page() {
   }
 
   const acceptedByFortuneId = new Map<number, UserFortuneFive>();
+
   for (const accepted of userFortuneFives) {
     acceptedByFortuneId.set(accepted.fortune_five_id, accepted);
   }
@@ -327,86 +449,135 @@ export default async function Page() {
     (fortune) => fortune.settled_at || fortune.status === "void",
   );
 
-  const acceptedTotal = userFortuneFives.length;
-  const acceptedWins = userFortuneFives.filter((item) => item.won === true).length;
-  const profitLoss = userFortuneFives.reduce(
+  const acceptedThisWeek = userFortuneFives.filter((item) =>
+    fortuneFives.some((fortune) => fortune.id === item.fortune_five_id),
+  );
+
+  const acceptedTotal = acceptedThisWeek.length;
+  const acceptedWins = acceptedThisWeek.filter((item) => item.won === true).length;
+  const settledAccepted = acceptedThisWeek.filter((item) => item.settled_at);
+  const strikeRate =
+    settledAccepted.length > 0
+      ? (acceptedWins / settledAccepted.length) * 100
+      : 0;
+
+  const profitLoss = acceptedThisWeek.reduce(
     (sum, item) => sum + toNumber(item.profit_loss_points),
     0,
   );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.18),transparent_25%),linear-gradient(180deg,#020617_0%,#111827_52%,#020617_100%)] text-white">
-      <div className="relative overflow-hidden border-b border-white/10 bg-black">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.18),transparent_28%),linear-gradient(180deg,#020617_0%,#111827_52%,#020617_100%)] text-white">
+      <header className="relative overflow-hidden border-b border-amber-300/20 bg-black">
         <img
           src="/header-logo.png"
           alt="Fortune on 5"
-          className="pointer-events-none absolute left-1/2 top-1/2 w-[360px] -translate-x-1/2 -translate-y-1/2 opacity-20 sm:w-[620px] lg:w-[1000px]"
+          className="pointer-events-none absolute left-1/2 top-1/2 w-[420px] -translate-x-1/2 -translate-y-1/2 opacity-15 sm:w-[720px] lg:w-[1100px]"
         />
 
-        <div className="relative z-10 flex items-center justify-between px-4 py-4 lg:px-8">
-          <div>
-            <h1 className="text-xl font-black tracking-tight sm:text-3xl">
-              Fortune on 5
-            </h1>
-            <p className="mt-1 text-sm text-amber-100/75">
-              The daily 5-leg SmartPunt multi. Week runs Monday to Sunday.
-            </p>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.18),transparent_32%),linear-gradient(180deg,rgba(0,0,0,0.28),rgba(0,0,0,0.88))]" />
+
+        <div className="relative z-10 mx-auto flex min-h-[250px] max-w-7xl flex-col justify-between gap-8 px-4 py-6 sm:min-h-[300px] sm:px-6 lg:px-8">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
+                SmartPunt Premium
+              </p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-5xl">
+                Fortune on 5
+              </h1>
+            </div>
+
+            <Link
+              href="/"
+              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-black uppercase tracking-[0.1em] text-white backdrop-blur transition hover:bg-white/10 sm:px-4 sm:py-2.5"
+            >
+              Dashboard
+            </Link>
           </div>
 
-          <Link
-            href="/"
-            className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur transition hover:bg-white/20"
-          >
-            Back to Dashboard
-          </Link>
-        </div>
-      </div>
+          <div>
+            <p className="max-w-2xl text-base font-semibold leading-7 text-zinc-200 sm:text-lg">
+              Five selections. One payout. Fortune favours the bold.
+            </p>
 
-      <div className="mx-auto max-w-7xl space-y-6 p-4 lg:p-8">
-        <div className="grid gap-4 md:grid-cols-4">
+            <p className="mt-2 text-sm text-amber-100/70">
+              A fresh SmartPunt multi each race day. Weekly performance runs Monday to Sunday.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
+        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Panel className="bg-white/95">
-            <div className="p-5 text-zinc-950">
-              <p className="text-sm text-zinc-500">This Week</p>
-              <p className="mt-2 text-lg font-bold">
+            <div className="p-4 text-zinc-950 sm:p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                This week
+              </p>
+              <p className="mt-2 text-sm font-black sm:text-base">
                 {formatDate(weekStart)} – {formatDate(weekEnd)}
               </p>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
-            <div className="p-5 text-zinc-950">
-              <p className="text-sm text-zinc-500">Accepted</p>
-              <p className="mt-2 text-2xl font-bold text-amber-700">{acceptedTotal}</p>
+            <div className="p-4 text-zinc-950 sm:p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                Accepted
+              </p>
+              <p className="mt-2 text-3xl font-black text-amber-700">
+                {acceptedTotal}
+              </p>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
-            <div className="p-5 text-zinc-950">
-              <p className="text-sm text-zinc-500">Winners</p>
-              <p className="mt-2 text-2xl font-bold text-emerald-700">{acceptedWins}</p>
+            <div className="p-4 text-zinc-950 sm:p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                Strike rate
+              </p>
+              <p className="mt-2 text-3xl font-black text-emerald-700">
+                {strikeRate.toFixed(0)}%
+              </p>
             </div>
           </Panel>
 
           <Panel className="bg-white/95">
-            <div className="p-5 text-zinc-950">
-              <p className="text-sm text-zinc-500">P/L Points</p>
-              <p className={`mt-2 text-2xl font-bold ${profitLoss >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+            <div className="p-4 text-zinc-950 sm:p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+                P/L points
+              </p>
+              <p
+                className={`mt-2 text-3xl font-black ${
+                  profitLoss >= 0 ? "text-emerald-700" : "text-rose-700"
+                }`}
+              >
+                {profitLoss >= 0 ? "+" : ""}
                 {profitLoss.toFixed(2)}
               </p>
             </div>
           </Panel>
-        </div>
+        </section>
 
         {fortuneFives.length > 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <section className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-black">Live / Active Fortune on 5</h2>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
+                    Today&apos;s feature
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black">
+                    Live Fortune on 5
+                  </h2>
+                </div>
+
                 <Badge tone="amber">{liveFortuneFives.length} live</Badge>
               </div>
 
               {liveFortuneFives.length > 0 ? (
-                <div className="grid gap-5 lg:grid-cols-2">
+                <div className="grid gap-6 lg:grid-cols-2">
                   {liveFortuneFives.map((fortune) => (
                     <FortuneFiveCard
                       key={fortune.id}
@@ -418,9 +589,12 @@ export default async function Page() {
                 </div>
               ) : (
                 <Panel className="bg-white/95">
-                  <div className="p-6 text-center text-zinc-950">
-                    <p className="text-sm text-zinc-500">
+                  <div className="p-8 text-center text-zinc-950">
+                    <p className="text-lg font-black">
                       No live Fortune on 5 multis remain this week.
+                    </p>
+                    <p className="mt-2 text-sm text-zinc-500">
+                      Finished multis are available in the results section below.
                     </p>
                   </div>
                 </Panel>
@@ -428,12 +602,23 @@ export default async function Page() {
             </section>
 
             {resultedFortuneFives.length > 0 ? (
-              <details className="rounded-[24px] border border-white/10 bg-white/95 p-5 text-zinc-950">
-                <summary className="cursor-pointer text-xl font-black">
-                  Resulted / Finished Multis ({resultedFortuneFives.length})
+              <details className="group rounded-[28px] border border-white/10 bg-white/95 p-5 text-zinc-950 sm:p-6">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                      Weekly history
+                    </p>
+                    <h2 className="mt-1 text-xl font-black">
+                      Resulted Multis ({resultedFortuneFives.length})
+                    </h2>
+                  </div>
+
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-300 bg-white text-xl font-black transition group-open:rotate-45">
+                    +
+                  </span>
                 </summary>
 
-                <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <div className="mt-6 grid gap-6 border-t border-zinc-200 pt-6 lg:grid-cols-2">
                   {resultedFortuneFives.map((fortune) => (
                     <FortuneFiveCard
                       key={fortune.id}
@@ -448,15 +633,20 @@ export default async function Page() {
           </div>
         ) : (
           <Panel className="bg-white/95">
-            <div className="p-8 text-center text-zinc-950">
-              <h2 className="text-2xl font-bold">No Fortune on 5 posted yet this week.</h2>
-              <p className="mt-2 text-sm text-zinc-500">
-                Once the daily 5-leg multi is published, it’ll appear here.
+            <div className="p-10 text-center text-zinc-950">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">
+                Fortune on 5
+              </p>
+              <h2 className="mt-2 text-2xl font-black">
+                No multi has been posted yet this week.
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-zinc-500">
+                Once the daily five-leg multi is published, it will appear here ready to follow.
               </p>
             </div>
           </Panel>
         )}
-      </div>
+      </main>
     </div>
   );
 }
