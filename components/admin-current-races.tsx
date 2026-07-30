@@ -13,9 +13,10 @@ import {
   toggleRacePublishAction,
   toggleRaceRunnerScratchAction,
   updateRaceRunnerDetailsAction,
-updateMeetingConditionAction,
-updateMeetingDetailsAction,
-updateRaceDetailsAction,
+  startRaceDayAction,
+  updateMeetingConditionAction,
+  updateMeetingDetailsAction,
+  updateRaceDetailsAction,
 } from "@/lib/actions";
 
 type Horse = {
@@ -33,6 +34,7 @@ type Meeting = {
   meeting_name: string;
   meeting_date: string;
   track_condition: string | null;
+  calculator_released_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -1103,7 +1105,36 @@ function handleScratchMissingResults(raceId: number) {
       [raceId]: [],
     }));
   }
+function handleStartRaceDay(meeting: Meeting) {
+  const confirmed = window.confirm(
+    `Start race day for ${meeting.meeting_name}?\n\n` +
+      "This will make this meeting's Calculator predictions visible to subscribers.\n\n" +
+      "Please confirm that:\n" +
+      "• Track condition is correct\n" +
+      "• Scratchings are entered\n" +
+      "• Place terms are correct",
+  );
 
+  if (!confirmed) return;
+
+  startTransition(async () => {
+    const formData = new FormData();
+    formData.set("meeting_id", String(meeting.id));
+
+    const result = await startRaceDayAction(formData);
+
+    if (!result.success) {
+      setError(result.error || "Failed to start race day.");
+      return;
+    }
+
+    setSuccess(
+      `${meeting.meeting_name} Calculator predictions are now live.`,
+    );
+
+    router.refresh();
+  });
+}
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
@@ -1563,7 +1594,85 @@ function handleScratchMissingResults(raceId: number) {
                               ) : null}
                             </div>
                           </div>
+{isAdmin ? (
+  <div
+    className={`mt-5 rounded-[24px] border p-5 ${
+      meeting.calculator_released_at
+        ? "border-emerald-200 bg-emerald-50"
+        : meeting.track_condition
+          ? "border-amber-200 bg-amber-50"
+          : "border-red-200 bg-red-50"
+    }`}
+  >
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+          Calculator release
+        </p>
 
+        <h4 className="mt-2 text-lg font-bold text-zinc-950">
+          {meeting.calculator_released_at
+            ? "Meeting released"
+            : meeting.track_condition
+              ? "Ready for final checks"
+              : "Waiting for track condition"}
+        </h4>
+
+        <p className="mt-2 text-sm text-zinc-600">
+          {meeting.calculator_released_at
+            ? "Calculator predictions for this meeting are visible to subscribers."
+            : meeting.track_condition
+              ? "Confirm scratchings and place terms, then release this meeting."
+              : "Set the official track condition before releasing this meeting."}
+        </p>
+
+        {meeting.calculator_released_at ? (
+          <p className="mt-3 text-sm font-semibold text-emerald-800">
+            Released{" "}
+            {new Date(meeting.calculator_released_at).toLocaleString(
+              "en-AU",
+              {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                timeZone: "Australia/Perth",
+              },
+            )}
+          </p>
+        ) : null}
+      </div>
+
+      {meeting.calculator_released_at ? (
+        <Badge tone="green">Live</Badge>
+      ) : (
+        <button
+          type="button"
+          onClick={() => handleStartRaceDay(meeting)}
+          disabled={isPending || !meeting.track_condition}
+          className="rounded-2xl bg-black px-5 py-3 text-sm font-black text-amber-300 transition hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isPending
+            ? "Starting..."
+            : `Start ${meeting.meeting_name} Race Day`}
+        </button>
+      )}
+    </div>
+
+    {!meeting.calculator_released_at ? (
+      <div className="mt-4 grid gap-2 border-t border-black/10 pt-4 text-sm text-zinc-700 sm:grid-cols-3">
+        <p>
+          {meeting.track_condition ? "✓" : "○"} Track condition
+        </p>
+        <p>✓ {meeting.races.length} published races</p>
+        <p>○ Confirm scratchings and place terms</p>
+      </div>
+    ) : null}
+  </div>
+) : null}
+
+                          <div className="mt-5 space-y-5">
                           <div className="mt-5 space-y-5">
                             {meeting.races.map((race) => {
                               const raceRunners = runnersForRace(race.id);
