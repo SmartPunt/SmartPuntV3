@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { addUserBetAction, signOutAction } from "@/lib/actions";
 import { TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
@@ -283,8 +291,9 @@ initialVaultMatchCount?: number;
   >("Win");
   const [customBetMessage, setCustomBetMessage] = useState("");
   const [customBetError, setCustomBetError] = useState("");
-  const router = useRouter();
-  const [, startTransition] = useTransition();
+const router = useRouter();
+const searchParams = useSearchParams();
+const [, startTransition] = useTransition();
 
   const allTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
@@ -408,6 +417,67 @@ const todayRaces = useMemo(
     today,
   ],
 );
+  useEffect(() => {
+  const requestedRaceId =
+    searchParams.get("raceId");
+
+  const requestedRunnerId =
+    searchParams.get("runnerId");
+
+  if (
+    !requestedRaceId ||
+    !requestedRunnerId
+  ) {
+    return;
+  }
+
+  const matchingRace = todayRaces.find(
+    (race) =>
+      String(race.id) ===
+      requestedRaceId,
+  );
+
+  if (!matchingRace) {
+    return;
+  }
+
+  const matchingRunner =
+    initialPublishedRunners.find(
+      (runner) =>
+        String(runner.id) ===
+          requestedRunnerId &&
+        Number(runner.race_id) ===
+          Number(matchingRace.id) &&
+        runner.scratched !== true,
+    );
+
+  if (!matchingRunner) {
+    return;
+  }
+
+  setCustomRaceId(
+    String(matchingRace.id),
+  );
+
+  setCustomRunnerId(
+    String(matchingRunner.id),
+  );
+
+  window.setTimeout(() => {
+    document
+      .getElementById(
+        "build-my-own-pick",
+      )
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+  }, 100);
+}, [
+  initialPublishedRunners,
+  searchParams,
+  todayRaces,
+]);
 const allSelectedDaySuggestedTips = useMemo(
   () =>
     allTips.filter((tip) => {
@@ -1062,7 +1132,10 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
     const selectedHorse = selectedRunner ? horseMap.get(Number(selectedRunner.horse_id)) || null : null;
 
     return (
-      <section className="rounded-[2rem] border border-amber-300/25 bg-[linear-gradient(145deg,rgba(0,0,0,0.9),rgba(24,24,27,0.88))] p-5 text-white shadow-2xl shadow-black/40 sm:p-6">
+<section
+  id="build-my-own-pick"
+  className="scroll-mt-28 rounded-[2rem] border border-amber-300/25 bg-[linear-gradient(145deg,rgba(0,0,0,0.9),rgba(24,24,27,0.88))] p-5 text-white shadow-2xl shadow-black/40 sm:p-6"
+>
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-300">My Pick Builder</p>
