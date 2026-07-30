@@ -106,9 +106,12 @@ if (
     resultedUserBetsQuery,
     liveFortuneFivesQuery,
   ] = await Promise.all([
-    loadSubscriberLivePicksData({
-      userId: profile.id,
-    }),
+loadSubscriberLivePicksData({
+  userId: profile.id,
+  includeScoringHistory: false,
+  includeJockeyProfiles: false,
+  includeCalculatorPredictions: false,
+}),
 
     fetchAllRows<any>({
       getPage: async (from, to) => {
@@ -341,20 +344,11 @@ if (
         initialPublishedRunners={
           livePicksData.currentRunners
         }
-        initialScoringRaces={
-          livePicksData.races
-        }
-        initialScoringRunners={
-          livePicksData.runners
-        }
         initialHorses={
           livePicksData.horses
         }
         initialMeetings={
           livePicksData.meetings
-        }
-        initialJockeyProfiles={
-          livePicksData.jockeyProfiles
         }
         initialResultedUserBets={
           resultedUserBetsQuery.data ?? []
