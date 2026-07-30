@@ -472,6 +472,12 @@ const releasedMeetingIds = uniqueNumbers(
         (race) => race.id,
       ),
     );
+  const subscriberCurrentRaces = currentRaces.filter(
+  (race) =>
+    releasedMeetingIds.includes(
+      Number(race.meeting_id),
+    ),
+);
 const releasedRaceIds = uniqueNumbers(
   currentRaces
     .filter((race) =>
@@ -1168,10 +1174,17 @@ raceIds:
       tomorrow,
     },
     currentMeetings,
-    currentRaces,
+currentRaces: subscriberCurrentRaces,
     currentRaceIds,
     currentRunners,
-    races,
+races: includeScoringHistory
+  ? races.filter(
+      (race) =>
+        releasedMeetingIds.includes(
+          Number(race.meeting_id),
+        ),
+    )
+  : subscriberCurrentRaces,
     runners,
     horses,
     meetings,
