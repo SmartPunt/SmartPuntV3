@@ -2125,7 +2125,7 @@ const isResulted = finishingPosition !== null;
       `/subscriber-dashboard?raceId=${activeRace.id}&runnerId=${runner.id}`,
     );
   }}
-  className={`relative min-h-[150px] cursor-pointer overflow-hidden rounded-2xl border p-3 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-xl ${ overflow-hidden rounded-2xl border p-3 ${
+className={`relative min-h-[150px] cursor-pointer overflow-hidden rounded-2xl border p-3 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-xl ${
                             isWinTip
                               ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-400/20"
                               : isPlaceTip
@@ -2192,9 +2192,6 @@ const isResulted = finishingPosition !== null;
   onClick={(event) => event.stopPropagation()}
 >
   <TipAcceptanceControl
-    ...
-  />
-</div>
                               tipKey={`calculator-${activeRace?.id}-${runner.id}`}
                               activeKey={acceptingTipKey}
                               setActiveKey={setAcceptingTipKey}
@@ -2212,8 +2209,9 @@ const isResulted = finishingPosition !== null;
                                 race: activeRaceLabel,
                                 bet_type: calculatorTipType,
                               }}
-                            />
-                          ) : null}
+  />
+</div>
+) : null}
                         </div>
                       );
                     })}
