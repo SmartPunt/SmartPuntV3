@@ -2099,21 +2099,18 @@ const finishingPosition = formatFinishingPosition(
 const isResulted = finishingPosition !== null;
 
                       return (
-<div
-  key={runner.id}
-  onClick={() => {
-<div
-  key={runner.id}
-  className={`relative min-h-[150px] overflow-hidden rounded-2xl border p-3 ${
-    isWinTip
-      ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-400/20"
-      : isPlaceTip
-        ? "border-zinc-200 bg-zinc-800"
-        : index === 2
-          ? "border-orange-400/60 bg-zinc-950"
-          : "border-zinc-700 bg-zinc-950"
-  }`}
->
+                        <div
+                          key={runner.id}
+                          className={`relative min-h-[150px] overflow-hidden rounded-2xl border p-3 ${
+                            isWinTip
+                              ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-400/20"
+                              : isPlaceTip
+                                ? "border-zinc-200 bg-zinc-800"
+                                : index === 2
+                                  ? "border-orange-400/60 bg-zinc-950"
+                                  : "border-zinc-700 bg-zinc-950"
+                          }`}
+                        >
                           <div
                             className={`absolute left-0 top-0 flex h-10 w-10 items-start justify-start bg-gradient-to-br ${
                               index === 0
