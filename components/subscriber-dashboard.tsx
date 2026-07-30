@@ -6,7 +6,6 @@ import { useMemo, useState, useTransition } from "react";
 import { addUserBetAction, signOutAction } from "@/lib/actions";
 import { TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
-import { getSubscriberCalculatorPlays } from "@/lib/calculator/subscriber-calculator-plays";
 
 type Meeting = {
   id: number;
@@ -537,89 +536,81 @@ const suggestedTips = useMemo(
   ],
 );
 
-  const allCalculatorTips = useMemo(() => {
-    const calculationStartedAt =
-      performance.now();
+const selectedDayRaceIdSet = useMemo(
+  () =>
+    new Set(
+      selectedDayRaces
+        .map((race) => Number(race.id))
+        .filter(Boolean),
+    ),
+  [selectedDayRaces],
+);
 
-    const calculatedTips =
-      getSubscriberCalculatorPlays({
-races: selectedDayRaces,
-        scoringRaces:
-          initialScoringRaces.length
-            ? initialScoringRaces
-            : initialPublishedRaces,
-        runners: initialPublishedRunners,
-        scoringRunners:
-          initialScoringRunners.length
-            ? initialScoringRunners
-            : initialPublishedRunners,
-        horses: initialHorses,
-        meetings: initialMeetings,
-        jockeyProfiles:
-          initialJockeyProfiles,
-      }).filter((tip) => {
-        if (!tip.race_runner_id) {
-          return true;
-        }
+const allCalculatorTips = useMemo(
+  () =>
+    initialCalculatorTips.filter((tip) => {
+      const raceId = Number(tip.race_id);
 
-        const linkedRunner =
-          runnerMap.get(
-            Number(tip.race_runner_id),
-          );
+      if (
+        !raceId ||
+        !selectedDayRaceIdSet.has(raceId)
+      ) {
+        return false;
+      }
 
-        if (!linkedRunner) {
-          return true;
-        }
-
-        return (
-          linkedRunner.scratched !== true
-        );
-      });
-
-    console.info("[SmartPunt Performance]", {
-      area: "subscriber-dashboard-client",
-      stage:
-        "calculate subscriber calculator plays",
-      durationMs: Math.round(
-        performance.now() -
-          calculationStartedAt,
-      ),
-selectedDayRaceCount:
-  selectedDayRaces.length,
-      scoringRaceCount:
-        initialScoringRaces.length,
-      scoringRunnerCount:
-        initialScoringRunners.length,
-      calculatedTipCount:
-        calculatedTips.length,
-    });
-
-    return calculatedTips;
-  }, [
-selectedDayRaces,
-    initialPublishedRaces,
-    initialPublishedRunners,
-    initialScoringRaces,
-    initialScoringRunners,
-    initialHorses,
-    initialMeetings,
-    initialJockeyProfiles,
-    runnerMap,
-  ]);
-  const calculatorTips = useMemo(
-    () =>
-      allCalculatorTips.filter((tip) => {
-        if (
-          tip.race_runner_id &&
-          activeCalculatorRunnerIdSet.has(Number(tip.race_runner_id))
-        ) {
-          return false;
-        }
-
+      if (!tip.race_runner_id) {
         return true;
-      }),
-    [activeCalculatorRunnerIdSet, allCalculatorTips],
-  );
+      }
+
+      const linkedRunner = runnerMap.get(
+        Number(tip.race_runner_id),
+      );
+
+      if (!linkedRunner) {
+        return true;
+      }
+
+      return linkedRunner.scratched !== true;
+    }),
+  [
+    initialCalculatorTips,
+    runnerMap,
+    selectedDayRaceIdSet,
+  ],
+);
+const calculatorTips = useMemo(
+  () =>
+    allCalculatorTips.filter((tip) => {
+      const calculatorTipId = Number(
+        tip.calculator_tip_id ?? tip.id,
+      );
+
+      if (
+        calculatorTipId &&
+        activeCalculatorTipIdSet.has(
+          calculatorTipId,
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        tip.race_runner_id &&
+        activeCalculatorRunnerIdSet.has(
+          Number(tip.race_runner_id),
+        )
+      ) {
+        return false;
+      }
+
+      return true;
+    }),
+  [
+    activeCalculatorRunnerIdSet,
+    activeCalculatorTipIdSet,
+    allCalculatorTips,
+  ],
+);
 
   const topHeadTipperPlays = useMemo(
     () =>
