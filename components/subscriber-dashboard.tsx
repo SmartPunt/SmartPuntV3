@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { addUserBetAction, signOutAction } from "@/lib/actions";
 import { TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
+import { getSubscriberCalculatorPlays } from "@/lib/calculator/subscriber-calculator-plays";
 
 type Meeting = {
   id: number;
@@ -536,28 +537,27 @@ const suggestedTips = useMemo(
   ],
 );
 
-const selectedDayRaceIdSet = useMemo(
-  () =>
-    new Set(
-      selectedDayRaces
-        .map((race) => Number(race.id))
-        .filter(Boolean),
-    ),
-  [selectedDayRaces],
-);
+const allCalculatorTips = useMemo(() => {
+  const calculationStartedAt =
+    performance.now();
 
-const allCalculatorTips = useMemo(
-  () =>
-    initialCalculatorTips.filter((tip) => {
-      const raceId = Number(tip.race_id);
-
-      if (
-        !raceId ||
-        !selectedDayRaceIdSet.has(raceId)
-      ) {
-        return false;
-      }
-
+  const calculatedTips =
+    getSubscriberCalculatorPlays({
+      races: selectedDayRaces,
+      scoringRaces:
+        initialScoringRaces.length
+          ? initialScoringRaces
+          : initialPublishedRaces,
+      runners: initialPublishedRunners,
+      scoringRunners:
+        initialScoringRunners.length
+          ? initialScoringRunners
+          : initialPublishedRunners,
+      horses: initialHorses,
+      meetings: initialMeetings,
+      jockeyProfiles:
+        initialJockeyProfiles,
+    }).filter((tip) => {
       if (!tip.race_runner_id) {
         return true;
       }
@@ -571,13 +571,38 @@ const allCalculatorTips = useMemo(
       }
 
       return linkedRunner.scratched !== true;
-    }),
-  [
-    initialCalculatorTips,
-    runnerMap,
-    selectedDayRaceIdSet,
-  ],
-);
+    });
+
+  console.info("[SmartPunt Performance]", {
+    area: "subscriber-dashboard-client",
+    stage:
+      "calculate subscriber calculator plays",
+    durationMs: Math.round(
+      performance.now() -
+        calculationStartedAt,
+    ),
+    selectedDayRaceCount:
+      selectedDayRaces.length,
+    scoringRaceCount:
+      initialScoringRaces.length,
+    scoringRunnerCount:
+      initialScoringRunners.length,
+    calculatedTipCount:
+      calculatedTips.length,
+  });
+
+  return calculatedTips;
+}, [
+  selectedDayRaces,
+  initialPublishedRaces,
+  initialPublishedRunners,
+  initialScoringRaces,
+  initialScoringRunners,
+  initialHorses,
+  initialMeetings,
+  initialJockeyProfiles,
+  runnerMap,
+]);
 const calculatorTips = useMemo(
   () =>
     allCalculatorTips.filter((tip) => {
