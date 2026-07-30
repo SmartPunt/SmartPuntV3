@@ -1672,9 +1672,8 @@ function handleStartRaceDay(meeting: Meeting) {
   </div>
 ) : null}
 
-                          <div className="mt-5 space-y-5">
-                          <div className="mt-5 space-y-5">
-                            {meeting.races.map((race) => {
+<div className="mt-5 space-y-5">
+  {meeting.races.map((race) => {
                               const raceRunners = runnersForRace(race.id);
                               const activeRunnerCount = getActiveRunnerCount(race.id);
                               const settledCount = getSettledCount(race.id);
