@@ -108,9 +108,6 @@ if (
   ] = await Promise.all([
 loadSubscriberLivePicksData({
   userId: profile.id,
-  includeScoringHistory: false,
-  includeJockeyProfiles: false,
-  includeCalculatorPredictions: false,
 }),
 
     fetchAllRows<any>({
@@ -344,6 +341,15 @@ loadSubscriberLivePicksData({
         initialPublishedRunners={
           livePicksData.currentRunners
         }
+        initialScoringRaces={
+  livePicksData.races
+}
+initialScoringRunners={
+  livePicksData.runners
+}
+initialJockeyProfiles={
+  livePicksData.jockeyProfiles
+}
         initialHorses={
           livePicksData.horses
         }
