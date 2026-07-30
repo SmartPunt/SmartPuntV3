@@ -1185,7 +1185,15 @@ currentRaces: subscriberCurrentRaces,
     currentRaceIds,
     currentRunners,
 races: includeScoringHistory
-  ? races
+  ? [
+      ...subscriberCurrentRaces,
+      ...races.filter(
+        (race) =>
+          !currentRaceIds.includes(
+            Number(race.id),
+          ),
+      ),
+    ]
   : subscriberCurrentRaces,
     runners,
     horses,
