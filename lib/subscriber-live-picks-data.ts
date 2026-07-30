@@ -407,7 +407,14 @@ export async function loadSubscriberLivePicksData({
         (meeting: any) => meeting.id,
       ),
     );
-
+const releasedMeetingIds = uniqueNumbers(
+  currentMeetings
+    .filter(
+      (meeting: any) =>
+        meeting.calculator_released_at,
+    )
+    .map((meeting: any) => meeting.id),
+);
   logStage(
     "load current meetings",
     currentMeetingsStartedAt,
@@ -465,7 +472,15 @@ export async function loadSubscriberLivePicksData({
         (race) => race.id,
       ),
     );
-
+const releasedRaceIds = uniqueNumbers(
+  currentRaces
+    .filter((race) =>
+      releasedMeetingIds.includes(
+        Number(race.meeting_id),
+      ),
+    )
+    .map((race) => race.id),
+);
   logStage(
     "load current races",
     currentRacesStartedAt,
@@ -828,8 +843,8 @@ export async function loadSubscriberLivePicksData({
               table:
                 "smartpunt_calculator_tips",
               select: "*",
-              raceIds:
-                currentRaceIds,
+raceIds:
+  releasedRaceIds,
               order:
                 "published_at.desc",
             },
@@ -975,8 +990,8 @@ export async function loadSubscriberLivePicksData({
               table:
                 "suggested_tips",
               select: "*",
-              raceIds:
-                currentRaceIds,
+raceIds:
+  releasedRaceIds,
               order:
                 "created_at.desc",
             },
