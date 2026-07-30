@@ -2099,9 +2099,33 @@ const finishingPosition = formatFinishingPosition(
 const isResulted = finishingPosition !== null;
 
                       return (
-                        <div
-                          key={runner.id}
-                          className={`relative min-h-[150px] overflow-hidden rounded-2xl border p-3 ${
+<div
+  key={runner.id}
+  onClick={() => {
+    if (!activeRace || isClosedRace) return;
+
+    router.push(
+      `/subscriber-dashboard?raceId=${activeRace.id}&runnerId=${runner.id}`,
+    );
+  }}
+  role={!isClosedRace ? "button" : undefined}
+  tabIndex={!isClosedRace ? 0 : undefined}
+  onKeyDown={(event) => {
+    if (
+      isClosedRace ||
+      !activeRace ||
+      (event.key !== "Enter" && event.key !== " ")
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    router.push(
+      `/subscriber-dashboard?raceId=${activeRace.id}&runnerId=${runner.id}`,
+    );
+  }}
+  className={`relative min-h-[150px] cursor-pointer overflow-hidden rounded-2xl border p-3 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-xl ${ overflow-hidden rounded-2xl border p-3 ${
                             isWinTip
                               ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-400/20"
                               : isPlaceTip
@@ -2164,7 +2188,13 @@ const isResulted = finishingPosition !== null;
                           </div>
 
                           {calculatorTipType && !isClosedRace ? (
-                            <TipAcceptanceControl
+<div
+  onClick={(event) => event.stopPropagation()}
+>
+  <TipAcceptanceControl
+    ...
+  />
+</div>
                               tipKey={`calculator-${activeRace?.id}-${runner.id}`}
                               activeKey={acceptingTipKey}
                               setActiveKey={setAcceptingTipKey}
