@@ -407,12 +407,21 @@ export async function loadSubscriberLivePicksData({
         (meeting: any) => meeting.id,
       ),
     );
-const releasedMeetingIds = uniqueNumbers(
+const subscriberVisibleMeetingIds = uniqueNumbers(
   currentMeetings
-    .filter(
-      (meeting: any) =>
+    .filter((meeting: any) => {
+      const meetingDate = String(
+        meeting.meeting_date || "",
+      );
+
+      if (meetingDate === yesterday) {
+        return true;
+      }
+
+      return Boolean(
         meeting.calculator_released_at,
-    )
+      );
+    })
     .map((meeting: any) => meeting.id),
 );
   logStage(
@@ -472,21 +481,19 @@ const releasedMeetingIds = uniqueNumbers(
         (race) => race.id,
       ),
     );
-  const subscriberCurrentRaces = currentRaces.filter(
-  (race) =>
-    releasedMeetingIds.includes(
+const subscriberCurrentRaces =
+  currentRaces.filter((race) =>
+    subscriberVisibleMeetingIds.includes(
       Number(race.meeting_id),
     ),
-);
-const releasedRaceIds = uniqueNumbers(
-  currentRaces
-    .filter((race) =>
-      releasedMeetingIds.includes(
-        Number(race.meeting_id),
-      ),
-    )
-    .map((race) => race.id),
-);
+  );
+
+const subscriberVisibleRaceIds =
+  uniqueNumbers(
+    subscriberCurrentRaces.map(
+      (race) => race.id,
+    ),
+  );
   logStage(
     "load current races",
     currentRacesStartedAt,
@@ -842,15 +849,15 @@ const releasedRaceIds = uniqueNumbers(
     const calculatorTipsStartedAt =
       Date.now();
 
-    calculatorTips =
-      currentRaceIds.length
+calculatorTips =
+  subscriberVisibleRaceIds.length
         ? await fetchServiceRoleRowsByRaceIds<any>(
             {
               table:
                 "smartpunt_calculator_tips",
               select: "*",
 raceIds:
-  releasedRaceIds,
+  subscriberVisibleRaceIds,
               order:
                 "published_at.desc",
             },
@@ -989,15 +996,15 @@ raceIds:
     const officialTipsStartedAt =
       Date.now();
 
-    const loadedOfficialTips =
-      currentRaceIds.length
+const loadedOfficialTips =
+  subscriberVisibleRaceIds.length
         ? await fetchServiceRoleRowsByRaceIds<any>(
             {
               table:
                 "suggested_tips",
               select: "*",
 raceIds:
-  releasedRaceIds,
+  subscriberVisibleRaceIds,
               order:
                 "created_at.desc",
             },
@@ -1178,12 +1185,7 @@ currentRaces: subscriberCurrentRaces,
     currentRaceIds,
     currentRunners,
 races: includeScoringHistory
-  ? races.filter(
-      (race) =>
-        releasedMeetingIds.includes(
-          Number(race.meeting_id),
-        ),
-    )
+  ? races
   : subscriberCurrentRaces,
     runners,
     horses,
