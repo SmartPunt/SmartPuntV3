@@ -2102,39 +2102,18 @@ const isResulted = finishingPosition !== null;
 <div
   key={runner.id}
   onClick={() => {
-    if (!activeRace || isClosedRace) return;
-
-    router.push(
-      `/subscriber-dashboard?raceId=${activeRace.id}&runnerId=${runner.id}`,
-    );
-  }}
-  role={!isClosedRace ? "button" : undefined}
-  tabIndex={!isClosedRace ? 0 : undefined}
-  onKeyDown={(event) => {
-    if (
-      isClosedRace ||
-      !activeRace ||
-      (event.key !== "Enter" && event.key !== " ")
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-
-    router.push(
-      `/subscriber-dashboard?raceId=${activeRace.id}&runnerId=${runner.id}`,
-    );
-  }}
-className={`relative min-h-[150px] cursor-pointer overflow-hidden rounded-2xl border p-3 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-xl ${
-                            isWinTip
-                              ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-400/20"
-                              : isPlaceTip
-                                ? "border-zinc-200 bg-zinc-800"
-                                : index === 2
-                                  ? "border-orange-400/60 bg-zinc-950"
-                                  : "border-zinc-700 bg-zinc-950"
-                          }`}
-                        >
+<div
+  key={runner.id}
+  className={`relative min-h-[150px] overflow-hidden rounded-2xl border p-3 ${
+    isWinTip
+      ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-400/20"
+      : isPlaceTip
+        ? "border-zinc-200 bg-zinc-800"
+        : index === 2
+          ? "border-orange-400/60 bg-zinc-950"
+          : "border-zinc-700 bg-zinc-950"
+  }`}
+>
                           <div
                             className={`absolute left-0 top-0 flex h-10 w-10 items-start justify-start bg-gradient-to-br ${
                               index === 0
@@ -2187,30 +2166,39 @@ className={`relative min-h-[150px] cursor-pointer overflow-hidden rounded-2xl bo
                                 : "⊘ No Bet"}
                           </div>
 
-                          {calculatorTipType && !isClosedRace ? (
-<div
-  onClick={(event) => event.stopPropagation()}
->
+{calculatorTipType && !isClosedRace ? (
   <TipAcceptanceControl
-                              tipKey={`calculator-${activeRace?.id}-${runner.id}`}
-                              activeKey={acceptingTipKey}
-                              setActiveKey={setAcceptingTipKey}
-                              activeBet={activeCalculatorUserBet}
-                              isSaving={isSavingTip}
-                              formAction={addUserBetFormAction}
-                              buttonLabel={`Accept ${calculatorTipType} Tip`}
-                              hiddenFields={{
-                                source: "calculator",
-                                calculator_tip_id: calculatorRaceTip?.id || "",
-                                race_id: activeRace?.id || "",
-                                race_runner_id: runner.id,
-                                horse_id: runner.horse_id || "",
-                                horse: runner.horse_name || "",
-                                race: activeRaceLabel,
-                                bet_type: calculatorTipType,
-                              }}
+    tipKey={`calculator-${activeRace?.id}-${runner.id}`}
+    activeKey={acceptingTipKey}
+    setActiveKey={setAcceptingTipKey}
+    activeBet={activeCalculatorUserBet}
+    isSaving={isSavingTip}
+    formAction={addUserBetFormAction}
+    buttonLabel={`Accept ${calculatorTipType} Tip`}
+    hiddenFields={{
+      source: "calculator",
+      calculator_tip_id: calculatorRaceTip?.id || "",
+      race_id: activeRace?.id || "",
+      race_runner_id: runner.id,
+      horse_id: runner.horse_id || "",
+      horse: runner.horse_name || "",
+      race: activeRaceLabel,
+      bet_type: calculatorTipType,
+    }}
   />
-</div>
+) : null}
+
+{!isClosedRace && activeRace ? (
+  <Link
+    href={`/subscriber-dashboard?raceId=${encodeURIComponent(
+      String(activeRace.id),
+    )}&runnerId=${encodeURIComponent(
+      String(runner.id),
+    )}`}
+    className="mt-3 flex w-full items-center justify-center rounded-xl border border-amber-300/45 bg-amber-400/10 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20"
+  >
+    Build My Own Bet →
+  </Link>
 ) : null}
                         </div>
                       );
