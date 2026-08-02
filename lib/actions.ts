@@ -3689,6 +3689,10 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
   const updates: Array<{
     id: number;
+    meeting_id: number | null;
+    race_id: number;
+    horse_id: number | null;
+    race_runner_id: number;
     finishing_position: number | null;
     successful: boolean | null;
     settled_at: string;
@@ -3702,16 +3706,52 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
     let matchedRunner: any | null = null;
 
-    if (tip.race_runner_id && runnerIds.includes(Number(tip.race_runner_id))) {
+    if (
+      tip.race_runner_id &&
+      runnerIds.includes(
+        Number(tip.race_runner_id),
+      )
+    ) {
       matchedRunner =
         activeRunnerRows.find(
-          (runner: any) => Number(runner.id) === Number(tip.race_runner_id),
+          (runner: any) =>
+            Number(runner.id) ===
+            Number(tip.race_runner_id),
         ) || null;
     }
 
+    /*
+     * Self-healing Maverick tip link.
+     *
+     * If the runner link is missing but the race and horse links remain,
+     * recover the exact runner using race_id + horse_id before attempting
+     * any text-based matching.
+     */
+    if (
+      !matchedRunner &&
+      Number(tip.race_id) === Number(raceId) &&
+      tip.horse_id
+    ) {
+      matchedRunner =
+        activeRunnerRows.find(
+          (runner: any) =>
+            Number(runner.horse_id) ===
+            Number(tip.horse_id),
+        ) || null;
+    }
+
+    /*
+     * Final fallback for older orphaned tips whose relationship IDs were
+     * cleared when race data was deleted or rebuilt.
+     */
     if (!matchedRunner) {
-      const tipHorse = normaliseHorseName(String(tip.horse || ""));
-      const tipRace = normaliseText(String(tip.race || ""));
+      const tipHorse = normaliseHorseName(
+        String(tip.horse || ""),
+      );
+
+      const tipRace = normaliseText(
+        String(tip.race || ""),
+      );
 
       if (!tipHorse || !tipRace) continue;
 
@@ -3759,6 +3799,25 @@ async function autoFinaliseMatchingSuggestedTipsForRace(raceId: number) {
 
     updates.push({
       id: Number(tip.id),
+
+      meeting_id:
+        raceData.meeting_id !== null &&
+        raceData.meeting_id !== undefined
+          ? Number(raceData.meeting_id)
+          : null,
+
+      race_id: Number(raceId),
+
+      horse_id:
+        matchedRunner.horse_id !== null &&
+        matchedRunner.horse_id !== undefined
+          ? Number(matchedRunner.horse_id)
+          : null,
+
+      race_runner_id: Number(
+        matchedRunner.id,
+      ),
+
       finishing_position: finishingPosition,
       successful,
       settled_at: new Date().toISOString(),
@@ -3769,12 +3828,22 @@ for (const update of updates) {
   const { error } = await supabase
     .from("suggested_tips")
     .update({
-      finishing_position: update.finishing_position,
+      meeting_id: update.meeting_id,
+      race_id: update.race_id,
+      horse_id: update.horse_id,
+      race_runner_id:
+        update.race_runner_id,
+
+      finishing_position:
+        update.finishing_position,
+
       successful: update.successful,
       settled_at: update.settled_at,
-      updated_at: new Date().toISOString(),
+      updated_at:
+        new Date().toISOString(),
     })
-    .eq("id", update.id);
+    .eq("id", update.id)
+    .is("settled_at", null);
 
   if (error) {
     throw new Error(error.message);
