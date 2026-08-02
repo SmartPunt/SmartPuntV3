@@ -6290,9 +6290,20 @@ const runnerNumberValue = runnerNumberRaw ? Number(runnerNumberRaw) : null;
         apprenticeClaimValue !== null && !Number.isNaN(apprenticeClaimValue)
           ? apprenticeClaimValue
           : null,
-form_last_6: horseMasterFormLast6,
-track_form_last_6: trackFormLast6 || null,
-distance_form_last_6: distanceFormLast6 || null,
+form_last_6:
+  formLast6
+    ? normaliseImportedForm(formLast6)
+    : horseMasterFormLast6,
+
+track_form_last_6:
+  trackFormLast6 ||
+  horseMasterTrackFormLast6 ||
+  null,
+
+distance_form_last_6:
+  distanceFormLast6 ||
+  horseMasterDistanceFormLast6 ||
+  null,
 scratched: false,
       created_by: profile.id,
       updated_at: new Date().toISOString(),
