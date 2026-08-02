@@ -9,6 +9,7 @@ import {
   abandonMeetingAction,
   abandonRaceAction,
   bulkScratchRaceRunnersAction,
+  createRaceRunnerAction,
   settleRaceRunnersAction,
   toggleRacePublishAction,
   toggleRaceRunnerScratchAction,
@@ -92,7 +93,37 @@ type RunnerEditState = {
   track_form_last_6: string;
   distance_form_last_6: string;
 };
+type MissingRunnerState = {
+  horse_name: string;
+  runner_number: string;
+  jockey_name: string;
+  trainer_name: string;
+  barrier: string;
+  market_price: string;
+  weight_kg: string;
+  is_apprentice: string;
+  apprentice_claim_kg: string;
+  form_last_6: string;
+  track_form_last_6: string;
+  distance_form_last_6: string;
+};
 
+function emptyMissingRunnerState(): MissingRunnerState {
+  return {
+    horse_name: "",
+    runner_number: "",
+    jockey_name: "",
+    trainer_name: "",
+    barrier: "",
+    market_price: "",
+    weight_kg: "",
+    is_apprentice: "false",
+    apprentice_claim_kg: "",
+    form_last_6: "",
+    track_form_last_6: "",
+    distance_form_last_6: "",
+  };
+}
 type ParsedResultRow = {
   horse_name: string;
   finishing_position: number;
@@ -397,8 +428,23 @@ const [resultPreviewRaceId, setResultPreviewRaceId] = useState<number | null>(
     Record<number, Record<number, { finishingPosition: string; startingPrice: string }>>
   >({});
 
-  const [editingRunnerId, setEditingRunnerId] = useState<number | null>(null);
-  const [runnerEditState, setRunnerEditState] = useState<Record<number, RunnerEditState>>({});
+  const [editingRunnerId, setEditingRunnerId] =
+    useState<number | null>(null);
+
+  const [runnerEditState, setRunnerEditState] =
+    useState<Record<number, RunnerEditState>>({});
+
+  const [
+    addingRunnerRaceId,
+    setAddingRunnerRaceId,
+  ] = useState<number | null>(null);
+
+  const [
+    missingRunnerState,
+    setMissingRunnerState,
+  ] = useState<
+    Record<number, MissingRunnerState>
+  >({});
 
   const [resultImportTextByRace, setResultImportTextByRace] = useState<Record<number, string>>({});
   const [parsedResultsByRace, setParsedResultsByRace] = useState<Record<number, ParsedResultRow[]>>(
@@ -602,7 +648,171 @@ function handleRaceResultChange(
       router.refresh();
     });
   }
+  function openMissingRunnerForm(raceId: number) {
+    setAddingRunnerRaceId(raceId);
 
+    setMissingRunnerState((current) => ({
+      ...current,
+      [raceId]:
+        current[raceId] ||
+        emptyMissingRunnerState(),
+    }));
+  }
+
+  function closeMissingRunnerForm() {
+    setAddingRunnerRaceId(null);
+  }
+
+  function updateMissingRunnerField(
+    raceId: number,
+    field: keyof MissingRunnerState,
+    value: string,
+  ) {
+    setMissingRunnerState((current) => ({
+      ...current,
+      [raceId]: {
+        ...(
+          current[raceId] ||
+          emptyMissingRunnerState()
+        ),
+        [field]: value,
+      },
+    }));
+  }
+
+  function handleAddMissingRunner(
+    raceId: number,
+  ) {
+    const values =
+      missingRunnerState[raceId] ||
+      emptyMissingRunnerState();
+
+    const horseName =
+      values.horse_name
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!horseName) {
+      setError("Enter or select a horse.");
+      return;
+    }
+
+    const normalisedEnteredName =
+      normaliseHorseName(horseName);
+
+    const existingHorse =
+      initialHorses.find(
+        (horse) =>
+          normaliseHorseName(
+            horse.horse_name,
+          ) === normalisedEnteredName,
+      ) || null;
+
+    startTransition(async () => {
+      const formData = new FormData();
+
+      formData.set(
+        "race_id",
+        String(raceId),
+      );
+
+      formData.set(
+        "selected_horse_id",
+        existingHorse
+          ? String(existingHorse.id)
+          : "",
+      );
+
+      formData.set(
+        "horse_name",
+        horseName,
+      );
+
+      formData.set(
+        "runner_number",
+        values.runner_number,
+      );
+
+      formData.set(
+        "jockey_name",
+        values.jockey_name,
+      );
+
+      formData.set(
+        "trainer_name",
+        values.trainer_name,
+      );
+
+      formData.set(
+        "barrier",
+        values.barrier,
+      );
+
+      formData.set(
+        "market_price",
+        values.market_price,
+      );
+
+      formData.set(
+        "weight_kg",
+        values.weight_kg,
+      );
+
+      formData.set(
+        "is_apprentice",
+        values.is_apprentice,
+      );
+
+      formData.set(
+        "apprentice_claim_kg",
+        values.apprentice_claim_kg,
+      );
+
+      formData.set(
+        "form_last_6",
+        values.form_last_6,
+      );
+
+      formData.set(
+        "track_form_last_6",
+        values.track_form_last_6,
+      );
+
+      formData.set(
+        "distance_form_last_6",
+        values.distance_form_last_6,
+      );
+
+      const result =
+        await createRaceRunnerAction(
+          formData,
+        );
+
+      if (!result.success) {
+        setError(
+          result.error ||
+            "Failed to add runner.",
+        );
+        return;
+      }
+
+      setAddingRunnerRaceId(null);
+
+      setMissingRunnerState(
+        (current) => ({
+          ...current,
+          [raceId]:
+            emptyMissingRunnerState(),
+        }),
+      );
+
+      setSuccess(
+        `${horseName} added. The meeting has been returned to pre-release status for review.`,
+      );
+
+      router.refresh();
+    });
+  }
   function handleToggleScratch(runner: Runner) {
     startTransition(async () => {
       const formData = new FormData();
@@ -1819,6 +2029,16 @@ function handleStartRaceDay(meeting: Meeting) {
   <>
 {isAdmin ? (
   <div className="mt-4 flex flex-wrap gap-2">
+        <button
+      type="button"
+      onClick={() =>
+        openMissingRunnerForm(race.id)
+      }
+      disabled={isPending}
+      className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-black uppercase tracking-[0.1em] text-amber-900 transition hover:bg-amber-100 disabled:opacity-60"
+    >
+      Add Missing Runner
+    </button>
     <button
       type="button"
       onClick={() => handleMoveBackToBuilder(race.id)}
@@ -1847,7 +2067,249 @@ function handleStartRaceDay(meeting: Meeting) {
     </button>
   </div>
 ) : null}
+{isAdmin &&
+addingRunnerRaceId === race.id ? (
+  <div className="mt-4 rounded-[22px] border border-amber-300 bg-amber-50 p-5 text-zinc-950">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h4 className="text-lg font-bold">
+          Add Missing Runner
+        </h4>
 
+        <p className="mt-1 text-sm text-zinc-600">
+          Add one horse without rebuilding or replacing the existing field.
+        </p>
+      </div>
+
+      <Badge tone="amber">
+        Field correction
+      </Badge>
+    </div>
+
+    <datalist id={`horse-options-${race.id}`}>
+      {initialHorses.map((horse) => (
+        <option
+          key={horse.id}
+          value={horse.horse_name}
+        />
+      ))}
+    </datalist>
+
+    <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="md:col-span-2">
+        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          Horse
+        </label>
+
+        <input
+          type="text"
+          list={`horse-options-${race.id}`}
+          value={
+            missingRunnerState[race.id]
+              ?.horse_name || ""
+          }
+          onChange={(event) =>
+            updateMissingRunnerField(
+              race.id,
+              "horse_name",
+              event.target.value,
+            )
+          }
+          placeholder="Search or enter horse name"
+          className="mt-2 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 outline-none transition focus:border-amber-400"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          Runner number
+        </label>
+
+        <input
+          type="number"
+          min="1"
+          value={
+            missingRunnerState[race.id]
+              ?.runner_number || ""
+          }
+          onChange={(event) =>
+            updateMissingRunnerField(
+              race.id,
+              "runner_number",
+              event.target.value,
+            )
+          }
+          className="mt-2 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 outline-none transition focus:border-amber-400"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          Barrier
+        </label>
+
+        <input
+          type="number"
+          min="1"
+          value={
+            missingRunnerState[race.id]
+              ?.barrier || ""
+          }
+          onChange={(event) =>
+            updateMissingRunnerField(
+              race.id,
+              "barrier",
+              event.target.value,
+            )
+          }
+          className="mt-2 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 outline-none transition focus:border-amber-400"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          Weight
+        </label>
+
+        <input
+          type="number"
+          step="0.5"
+          value={
+            missingRunnerState[race.id]
+              ?.weight_kg || ""
+          }
+          onChange={(event) =>
+            updateMissingRunnerField(
+              race.id,
+              "weight_kg",
+              event.target.value,
+            )
+          }
+          className="mt-2 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 outline-none transition focus:border-amber-400"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          Market price
+        </label>
+
+        <input
+          type="number"
+          step="0.01"
+          value={
+            missingRunnerState[race.id]
+              ?.market_price || ""
+          }
+          onChange={(event) =>
+            updateMissingRunnerField(
+              race.id,
+              "market_price",
+              event.target.value,
+            )
+          }
+          className="mt-2 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 outline-none transition focus:border-amber-400"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          Jockey
+        </label>
+
+        <input
+          type="text"
+          value={
+            missingRunnerState[race.id]
+              ?.jockey_name || ""
+          }
+          onChange={(event) =>
+            updateMissingRunnerField(
+              race.id,
+              "jockey_name",
+              event.target.value,
+            )
+          }
+          className="mt-2 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 outline-none transition focus:border-amber-400"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          Trainer
+        </label>
+
+        <input
+          type="text"
+          value={
+            missingRunnerState[race.id]
+              ?.trainer_name || ""
+          }
+          onChange={(event) =>
+            updateMissingRunnerField(
+              race.id,
+              "trainer_name",
+              event.target.value,
+            )
+          }
+          className="mt-2 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 outline-none transition focus:border-amber-400"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          Last 6
+        </label>
+
+        <input
+          type="text"
+          value={
+            missingRunnerState[race.id]
+              ?.form_last_6 || ""
+          }
+          onChange={(event) =>
+            updateMissingRunnerField(
+              race.id,
+              "form_last_6",
+              event.target.value,
+            )
+          }
+          className="mt-2 w-full rounded-2xl border border-amber-200 bg-white px-4 py-3 outline-none transition focus:border-amber-400"
+        />
+      </div>
+    </div>
+
+    <div className="mt-5 rounded-2xl border border-amber-200 bg-white p-4 text-sm text-zinc-700">
+      Adding a runner changes the race field. If this meeting was already released, SmartPunt will hide its Calculator predictions until the meeting is reviewed and started again.
+    </div>
+
+    <div className="mt-5 flex flex-wrap gap-3">
+      <button
+        type="button"
+        onClick={() =>
+          handleAddMissingRunner(
+            race.id,
+          )
+        }
+        disabled={isPending}
+        className="rounded-2xl bg-black px-5 py-3 text-sm font-black text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+      >
+        {isPending
+          ? "Adding..."
+          : "Add Runner to Race"}
+      </button>
+
+      <button
+        type="button"
+        onClick={closeMissingRunnerForm}
+        disabled={isPending}
+        className="rounded-2xl border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+) : null}
 {isAdmin && resultPreviewRaceId === race.id
   ? (() => {
       const validation = validateRaceResults(race.id);
