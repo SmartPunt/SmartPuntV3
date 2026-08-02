@@ -6308,10 +6308,63 @@ scratched: false,
       return { success: false, error: error.message };
     }
 
+    const { data: linkedRace, error: linkedRaceError } =
+      await supabase
+        .from("races")
+        .select("meeting_id")
+        .eq("id", raceId)
+        .maybeSingle();
+
+    if (linkedRaceError) {
+      return {
+        success: false,
+        error: linkedRaceError.message,
+      };
+    }
+
+    /*
+     * A changed field invalidates the released Calculator view.
+     * The meeting must be reviewed and started again before
+     * subscribers receive updated predictions.
+     */
+    if (linkedRace?.meeting_id) {
+      const { error: releaseResetError } =
+        await supabase
+          .from("meetings")
+          .update({
+            calculator_released_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            Number(linkedRace.meeting_id),
+          );
+
+      if (releaseResetError) {
+        return {
+          success: false,
+          error: releaseResetError.message,
+        };
+      }
+    }
+
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/admin/horses");
-    return { success: true, error: null };
+    revalidatePath("/admin/calculator");
+    revalidatePath("/subscriber-dashboard");
+    revalidatePath(
+      "/smartpunt-calculator-live-picks",
+    );
+    revalidatePath(
+      "/admin/power-rating-race-card",
+    );
+    revalidatePath("/");
+
+    return {
+      success: true,
+      error: null,
+    };
   } catch (error) {
     return {
       success: false,
