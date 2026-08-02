@@ -1752,27 +1752,233 @@ const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
     };
   }
 }
-async function clearSuggestedTipLinksForRaceIds(raceIds: number[]) {
-  if (!raceIds.length) return;
+async function getRaceDeletionBlockReason(
+  raceIds: number[],
+): Promise<string | null> {
+  const safeRaceIds = Array.from(
+    new Set(
+      raceIds
+        .map(Number)
+        .filter(Boolean),
+    ),
+  );
 
-  await serviceRolePatch(`suggested_tips?race_id=${buildInFilter(raceIds)}`, {
-    meeting_id: null,
-    race_id: null,
-    horse_id: null,
-    race_runner_id: null,
-    updated_at: new Date().toISOString(),
-  });
+  if (!safeRaceIds.length) {
+    return null;
+  }
+
+  const raceFilter =
+    buildInFilter(safeRaceIds);
+
+  const [
+    maverickTips,
+    calculatorTips,
+    subscriberBets,
+    calculatorPredictions,
+    powerPredictions,
+    researchPredictions,
+    componentSnapshots,
+    resultedRunners,
+  ] = await Promise.all([
+    serviceRoleSelect(
+      `suggested_tips?select=id&race_id=${raceFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `smartpunt_calculator_tips?select=id&race_id=${raceFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `user_bets?select=id&race_id=${raceFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `calculator_predictions?select=id&race_id=${raceFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `power_rating_predictions?select=id&race_id=${raceFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `race_prediction_snapshot_runners?select=id&race_id=${raceFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `runner_component_snapshots?select=id&race_id=${raceFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `race_runners?select=id&race_id=${raceFilter}&finishing_position=not.is.null&limit=1`,
+    ),
+  ]);
+
+  const blockers: string[] = [];
+
+  if (
+    Array.isArray(maverickTips) &&
+    maverickTips.length > 0
+  ) {
+    blockers.push("published Maverick tips");
+  }
+
+  if (
+    Array.isArray(calculatorTips) &&
+    calculatorTips.length > 0
+  ) {
+    blockers.push("Calculator tips");
+  }
+
+  if (
+    Array.isArray(subscriberBets) &&
+    subscriberBets.length > 0
+  ) {
+    blockers.push("subscriber bets");
+  }
+
+  if (
+    Array.isArray(resultedRunners) &&
+    resultedRunners.length > 0
+  ) {
+    blockers.push("saved race results");
+  }
+
+  if (
+    (Array.isArray(calculatorPredictions) &&
+      calculatorPredictions.length > 0) ||
+    (Array.isArray(powerPredictions) &&
+      powerPredictions.length > 0) ||
+    (Array.isArray(researchPredictions) &&
+      researchPredictions.length > 0) ||
+    (Array.isArray(componentSnapshots) &&
+      componentSnapshots.length > 0)
+  ) {
+    blockers.push("Calculator or research snapshots");
+  }
+
+  if (!blockers.length) {
+    return null;
+  }
+
+  return (
+    "This race cannot be deleted because it contains " +
+    blockers.join(", ") +
+    ". Abandon or archive it instead so SmartPunt's history remains intact."
+  );
 }
 
-async function clearSuggestedTipLinksForRunnerIds(runnerIds: number[]) {
-  if (!runnerIds.length) return;
+async function getRunnerDeletionBlockReason(
+  runnerIds: number[],
+): Promise<string | null> {
+  const safeRunnerIds = Array.from(
+    new Set(
+      runnerIds
+        .map(Number)
+        .filter(Boolean),
+    ),
+  );
 
-  await serviceRolePatch(
-    `suggested_tips?race_runner_id=${buildInFilter(runnerIds)}`,
-    {
-      race_runner_id: null,
-      updated_at: new Date().toISOString(),
-    },
+  if (!safeRunnerIds.length) {
+    return null;
+  }
+
+  const runnerFilter =
+    buildInFilter(safeRunnerIds);
+
+  const [
+    maverickTips,
+    calculatorTips,
+    subscriberBets,
+    calculatorPredictions,
+    powerPredictions,
+    researchPredictions,
+    componentSnapshots,
+    resultedRunners,
+  ] = await Promise.all([
+    serviceRoleSelect(
+      `suggested_tips?select=id&race_runner_id=${runnerFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `smartpunt_calculator_tips?select=id&race_runner_id=${runnerFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `user_bets?select=id&race_runner_id=${runnerFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `calculator_predictions?select=id&runner_id=${runnerFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `power_rating_predictions?select=id&runner_id=${runnerFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `race_prediction_snapshot_runners?select=id&runner_id=${runnerFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `runner_component_snapshots?select=id&runner_id=${runnerFilter}&limit=1`,
+    ),
+
+    serviceRoleSelect(
+      `race_runners?select=id&id=${runnerFilter}&finishing_position=not.is.null&limit=1`,
+    ),
+  ]);
+
+  const blockers: string[] = [];
+
+  if (
+    Array.isArray(maverickTips) &&
+    maverickTips.length > 0
+  ) {
+    blockers.push("a Maverick tip");
+  }
+
+  if (
+    Array.isArray(calculatorTips) &&
+    calculatorTips.length > 0
+  ) {
+    blockers.push("a Calculator tip");
+  }
+
+  if (
+    Array.isArray(subscriberBets) &&
+    subscriberBets.length > 0
+  ) {
+    blockers.push("subscriber bets");
+  }
+
+  if (
+    Array.isArray(resultedRunners) &&
+    resultedRunners.length > 0
+  ) {
+    blockers.push("a saved result");
+  }
+
+  if (
+    (Array.isArray(calculatorPredictions) &&
+      calculatorPredictions.length > 0) ||
+    (Array.isArray(powerPredictions) &&
+      powerPredictions.length > 0) ||
+    (Array.isArray(researchPredictions) &&
+      researchPredictions.length > 0) ||
+    (Array.isArray(componentSnapshots) &&
+      componentSnapshots.length > 0)
+  ) {
+    blockers.push("Calculator or research history");
+  }
+
+  if (!blockers.length) {
+    return null;
+  }
+
+  return (
+    "This runner cannot be deleted because it is linked to " +
+    blockers.join(", ") +
+    ". Edit or scratch the runner instead."
   );
 }
 // SmartPunt horse master form seed active
@@ -5298,19 +5504,31 @@ export async function deleteMeetingAction(
       .filter(Boolean);
 
     if (raceIds.length > 0) {
-      const runners = (await serviceRoleSelect(
-        `race_runners?race_id=${buildInFilter(raceIds)}&select=id`,
-      )) as Array<{ id: number }> | null;
+      const deletionBlockReason =
+        await getRaceDeletionBlockReason(
+          raceIds,
+        );
 
-      const runnerIds = (runners || [])
-        .map((runner) => Number(runner.id))
-        .filter(Boolean);
+      if (deletionBlockReason) {
+        return {
+          success: false,
+          error:
+            "This meeting cannot be deleted. " +
+            deletionBlockReason,
+        };
+      }
 
-      await clearSuggestedTipLinksForRaceIds(raceIds);
-      await clearSuggestedTipLinksForRunnerIds(runnerIds);
+      await serviceRoleDelete(
+        `race_runners?race_id=${buildInFilter(
+          raceIds,
+        )}`,
+      );
 
-      await serviceRoleDelete(`race_runners?race_id=${buildInFilter(raceIds)}`);
-      await serviceRoleDelete(`races?id=${buildInFilter(raceIds)}`);
+      await serviceRoleDelete(
+        `races?id=${buildInFilter(
+          raceIds,
+        )}`,
+      );
     }
 
     await serviceRoleDelete(`meetings?id=eq.${meetingId}`);
@@ -5857,19 +6075,25 @@ export async function deleteRaceAction(
       return { success: false, error: "Race is required." };
     }
 
-    const runners = (await serviceRoleSelect(
-      `race_runners?race_id=eq.${raceId}&select=id`,
-    )) as Array<{ id: number }> | null;
+    const deletionBlockReason =
+      await getRaceDeletionBlockReason([
+        raceId,
+      ]);
 
-    const runnerIds = (runners || [])
-      .map((runner) => Number(runner.id))
-      .filter(Boolean);
+    if (deletionBlockReason) {
+      return {
+        success: false,
+        error: deletionBlockReason,
+      };
+    }
 
-    await clearSuggestedTipLinksForRaceIds([raceId]);
-    await clearSuggestedTipLinksForRunnerIds(runnerIds);
+    await serviceRoleDelete(
+      `race_runners?race_id=eq.${raceId}`,
+    );
 
-    await serviceRoleDelete(`race_runners?race_id=eq.${raceId}`);
-    await serviceRoleDelete(`races?id=eq.${raceId}`);
+    await serviceRoleDelete(
+      `races?id=eq.${raceId}`,
+    );
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
@@ -6623,9 +6847,21 @@ export async function removeAllRaceRunnersAction(
       .map((runner) => Number(runner.id))
       .filter(Boolean);
 
-    await clearSuggestedTipLinksForRunnerIds(runnerIds);
+    const deletionBlockReason =
+      await getRunnerDeletionBlockReason(
+        runnerIds,
+      );
 
-    await serviceRoleDelete(`race_runners?race_id=eq.${raceId}`);
+    if (deletionBlockReason) {
+      return {
+        success: false,
+        error: deletionBlockReason,
+      };
+    }
+
+    await serviceRoleDelete(
+      `race_runners?race_id=eq.${raceId}`,
+    );
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
@@ -6657,8 +6893,21 @@ export async function deleteRaceRunnerAction(
       return { success: false, error: "Runner is required." };
     }
 
-    await clearSuggestedTipLinksForRunnerIds([runnerId]);
-    await serviceRoleDelete(`race_runners?id=eq.${runnerId}`);
+    const deletionBlockReason =
+      await getRunnerDeletionBlockReason([
+        runnerId,
+      ]);
+
+    if (deletionBlockReason) {
+      return {
+        success: false,
+        error: deletionBlockReason,
+      };
+    }
+
+    await serviceRoleDelete(
+      `race_runners?id=eq.${runnerId}`,
+    );
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
