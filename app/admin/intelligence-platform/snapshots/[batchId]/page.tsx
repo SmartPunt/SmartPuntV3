@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { getResearchBatch } from "@/lib/research/actions";
 import SnapshotExplorerHeader from "../../components/snapshot-explorer-header";
 import SnapshotRunnerTable from "../../components/snapshot-runner-table";
+import ResearchRaceAnalysisCard from "../../components/research-race-analysis-card";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +108,12 @@ export default async function SnapshotExplorerPage({
             </Panel>
           </div>
         )}
+
+        <div className="mt-6">
+          <ResearchRaceAnalysisCard
+            analysis={details.analysis}
+          />
+        </div>
 
         <div className="mt-6">
           <SnapshotRunnerTable
