@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   publishSmartPuntCalculatorTipAction,
   signOutAction,
@@ -1077,6 +1077,83 @@ const tipThresholds = useMemo(
     raceConfidence,
     scoredRunners,
     topWinChance?.track_condition,
+  ]);
+    useEffect(() => {
+    if (!activeRace || !topWinChance) return;
+
+    const meeting =
+      meetings.find(
+        (item) =>
+          Number(item.id) ===
+          Number(activeRace.meeting_id),
+      ) || null;
+
+    console.info("[SmartPunt Calculator Parity]", {
+      source: "ADMIN_CALCULATOR_LAB",
+
+      raceId: Number(activeRace.id),
+      meetingId: Number(activeRace.meeting_id),
+      meetingName: meeting?.meeting_name || null,
+      meetingDate: meeting?.meeting_date || null,
+      raceNumber: Number(activeRace.race_number || 0),
+      raceName: activeRace.race_name || null,
+      raceStatus: activeRace.status || null,
+
+      totalRunnerRowsProvided: runners.length,
+      currentRaceRunnerRows: runners.filter(
+        (runner) =>
+          Number(runner.race_id) ===
+          Number(activeRace.id),
+      ).length,
+      scoredRunnerCount: scoredRunners.length,
+
+      topRunnerId: Number(topWinChance.id),
+      topHorseId: Number(topWinChance.horse_id),
+      topHorse: topWinChance.horse_name,
+      topScore: Number(topWinChance.score || 0),
+      topWinPercent: Number(topWinChance.winPercent || 0),
+      topPlacePercent: Number(topWinChance.placePercent || 0),
+
+      confidencePercent:
+        raceConfidence?.confidencePercent ?? null,
+      confidenceTier:
+        raceConfidence?.tier ?? null,
+      confidenceGap:
+        raceConfidence?.gap ?? null,
+
+      qualifiedTip:
+        qualifiedTip?.type || "No Bet",
+      qualifiedRunnerId:
+        qualifiedTip?.runner
+          ? Number(qualifiedTip.runner.id)
+          : null,
+      qualifiedHorse:
+        qualifiedTip?.runner?.horse_name || null,
+      qualifiedGap:
+        qualifiedTip?.gap ?? null,
+
+      topThree: scoredRunners
+        .slice(0, 3)
+        .map((runner) => ({
+          runnerId: Number(runner.id),
+          horse: runner.horse_name,
+          score: Number(runner.score || 0),
+          winPercent: Number(
+            runner.winPercent || 0,
+          ),
+          placePercent: Number(
+            runner.placePercent || 0,
+          ),
+        })),
+    });
+  }, [
+    activeRace,
+    meetings,
+    qualifiedTip,
+    raceConfidence,
+    runners,
+    scoredRunners,
+    topWinChance,
   ]);
   const activeRaceIndex = activeRace
     ? orderedPublishedRaces.findIndex(
