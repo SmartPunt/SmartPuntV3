@@ -5273,11 +5273,11 @@ const { data: tip, error: tipError } = await supabase
   if (tip?.race_start_at) {
     const raceStart = new Date(tip.race_start_at);
 
-    if (raceStart <= now) {
-      throw new Error(
-        "This tip is locked because the race has already started.",
-      );
-    }
+if (raceStart <= now) {
+  throw new Error(
+    "This Maverick tip cannot be cancelled because the scheduled race time has already passed. The tip must remain in SmartPunt so its result and performance history stay accurate.",
+  );
+}
   }
 
   const { error } = await supabase
