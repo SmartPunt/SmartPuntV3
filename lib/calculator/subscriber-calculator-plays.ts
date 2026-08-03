@@ -119,11 +119,30 @@ export function getSubscriberCalculatorPlays({
       if (!scoredRunners.length) return null;
 
       const topRunner = scoredRunners[0] || null;
-      const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
-        trackCondition: topRunner?.track_condition || null,
-        raceName: race.race_name || "",
-        placeTerms: race.place_terms || "top_3",
-      });
+const meeting =
+  meetingMap.get(
+    Number(race.meeting_id),
+  ) || null;
+
+const qualifiedTip =
+  getQualifiedCalculatorTip(
+    scoredRunners,
+    {
+      trackCondition:
+        topRunner?.track_condition ||
+        meeting?.track_condition ||
+        null,
+
+      raceName:
+        race.race_name || "",
+
+      placeTerms:
+        race.place_terms || "top_3",
+
+      meetingDate:
+        meeting?.meeting_date || null,
+    },
+  );
 
       if (!qualifiedTip) return null;
 
