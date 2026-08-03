@@ -144,16 +144,11 @@ const qualifiedTip =
     },
   );
 
-      if (!qualifiedTip) return null;
+if (!qualifiedTip) return null;
 
-      const runner = qualifiedTip.runner;
+const runner = qualifiedTip.runner;
 
-      const meeting =
-        meetingMap.get(
-          Number(race.meeting_id),
-        ) || null;
-
-      return {
+return {
         id: Number(race.id) * 100000 + Number(runner.id),
         race_id: Number(race.id),
         race_runner_id: Number(runner.id),
