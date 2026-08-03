@@ -119,6 +119,76 @@ export type ResearchBatchRunner = {
 
   hasComponentSnapshot: boolean;
 };
+export type ResearchEvidenceSource =
+  | "smartpunt_history"
+  | "stored_evidence"
+  | "imported_evidence"
+  | "neutral"
+  | "fallback"
+  | "unknown";
+
+export type ResearchEvidenceMix = {
+  smartpuntHistoryCount: number;
+  storedEvidenceCount: number;
+  importedEvidenceCount: number;
+  neutralCount: number;
+  fallbackCount: number;
+  unknownCount: number;
+
+  observationCount: number;
+
+  smartpuntHistoryPercent: number;
+  storedEvidencePercent: number;
+  importedEvidencePercent: number;
+  neutralPercent: number;
+  fallbackPercent: number;
+  unknownPercent: number;
+};
+
+export type ResearchCompetitionAnalysis = {
+  runnerCount: number;
+
+  topScore: number | null;
+  secondScore: number | null;
+  thirdScore: number | null;
+  lowestScore: number | null;
+
+  averageScore: number | null;
+  medianScore: number | null;
+  scoreStandardDeviation: number | null;
+
+  topGap: number | null;
+  secondGap: number | null;
+  topThreeSpread: number | null;
+  fieldSpread: number | null;
+  averageAdjacentGap: number | null;
+
+  competitionIndex: number | null;
+
+  competitionBand:
+    | "Dominant"
+    | "Two-Horse"
+    | "Competitive"
+    | "Compressed"
+    | "Wide-Open"
+    | "Insufficient Data";
+};
+
+export type ResearchRaceAnalysis = {
+  analysisVersion: "race-analysis-v1";
+
+  snapshotBatchId: string;
+  raceId: number;
+  meetingId: number | null;
+
+  scoringVersion: string | null;
+  classifierVersion: string | null;
+
+  competition: ResearchCompetitionAnalysis;
+  evidence: ResearchEvidenceMix;
+
+  analysedAt: string;
+};
 export type ResearchBatchSummary = {
   snapshotBatchId: string;
 
@@ -185,6 +255,8 @@ export type ResearchBatchDetails = {
   componentSnapshots: ResearchRunnerComponentSnapshot[];
 
   runners: ResearchBatchRunner[];
+
+  analysis: ResearchRaceAnalysis | null;
 
   classificationCount: number;
   predictionRunnerCount: number;
@@ -343,7 +415,612 @@ function uniqueNumbers(
     ),
   );
 }
+function roundResearchNumber(
+  value: number,
+  digits = 2,
+) {
+  const factor = 10 ** digits;
 
+  return Math.round(value * factor) / factor;
+}
+
+function clampResearchNumber(
+  value: number,
+  minimum: number,
+  maximum: number,
+) {
+  return Math.min(
+    Math.max(value, minimum),
+    maximum,
+  );
+}
+
+function averageResearchNumbers(
+  values: number[],
+): number | null {
+  if (!values.length) return null;
+
+  return (
+    values.reduce(
+      (total, value) => total + value,
+      0,
+    ) / values.length
+  );
+}
+
+function medianResearchNumbers(
+  values: number[],
+): number | null {
+  if (!values.length) return null;
+
+  const ordered = [...values].sort(
+    (a, b) => a - b,
+  );
+
+  const middleIndex = Math.floor(
+    ordered.length / 2,
+  );
+
+  if (ordered.length % 2 === 1) {
+    return ordered[middleIndex];
+  }
+
+  return (
+    ordered[middleIndex - 1] +
+    ordered[middleIndex]
+  ) / 2;
+}
+
+function standardDeviationResearchNumbers(
+  values: number[],
+): number | null {
+  if (!values.length) return null;
+
+  const average =
+    averageResearchNumbers(values);
+
+  if (average === null) return null;
+
+  const variance =
+    values.reduce(
+      (total, value) =>
+        total +
+        (value - average) ** 2,
+      0,
+    ) / values.length;
+
+  return Math.sqrt(variance);
+}
+
+function normaliseEvidenceText(
+  value: unknown,
+) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function classifyEvidenceSource(
+  section: unknown,
+): ResearchEvidenceSource {
+  if (
+    !section ||
+    typeof section !== "object"
+  ) {
+    return "unknown";
+  }
+
+  const sectionRecord =
+    section as Record<string, unknown>;
+
+  const details = Array.isArray(
+    sectionRecord.details,
+  )
+    ? sectionRecord.details
+        .map(normaliseEvidenceText)
+        .join(" ")
+    : "";
+
+  const decisionLog = Array.isArray(
+    sectionRecord.decisionLog,
+  )
+    ? sectionRecord.decisionLog
+        .map(normaliseEvidenceText)
+        .join(" ")
+    : "";
+
+  const summary = normaliseEvidenceText(
+    sectionRecord.summary,
+  );
+
+  const status = normaliseEvidenceText(
+    sectionRecord.status,
+  );
+
+  const combinedText = [
+    details,
+    decisionLog,
+    summary,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  /*
+   * Prefer an explicitly selected evidence source.
+   * This mirrors the Evidence Engine wording already
+   * captured in scoring_audit.
+   */
+  if (
+    combinedText.includes(
+      "selected source: smartpunt history",
+    ) ||
+    combinedText.includes(
+      "smartpunt history was selected",
+    ) ||
+    combinedText.includes(
+      "exact smartpunt history used",
+    )
+  ) {
+    return "smartpunt_history";
+  }
+
+  if (
+    combinedText.includes(
+      "selected source: stored record",
+    ) ||
+    combinedText.includes(
+      "stored evidence was selected",
+    ) ||
+    combinedText.includes(
+      "selected the stored record",
+    )
+  ) {
+    return "stored_evidence";
+  }
+
+  if (
+    combinedText.includes(
+      "selected source: imported",
+    ) ||
+    combinedText.includes(
+      "imported evidence was selected",
+    ) ||
+    combinedText.includes(
+      "imported form used",
+    )
+  ) {
+    return "imported_evidence";
+  }
+
+  if (
+    status === "fallback" ||
+    combinedText.includes("fallback")
+  ) {
+    return "fallback";
+  }
+
+  if (
+    status === "neutral" ||
+    combinedText.includes(
+      "neutral applied",
+    )
+  ) {
+    return "neutral";
+  }
+
+  return "unknown";
+}
+
+function buildEvidenceMix(
+  componentSnapshots:
+    ResearchRunnerComponentSnapshot[],
+): ResearchEvidenceMix {
+  const counts: Record<
+    ResearchEvidenceSource,
+    number
+  > = {
+    smartpunt_history: 0,
+    stored_evidence: 0,
+    imported_evidence: 0,
+    neutral: 0,
+    fallback: 0,
+    unknown: 0,
+  };
+
+  for (const component of componentSnapshots) {
+    const scoringAudit =
+      component.scoring_audit;
+
+    if (
+      !scoringAudit ||
+      typeof scoringAudit !== "object"
+    ) {
+      counts.unknown += 1;
+      continue;
+    }
+
+    const sectionsValue =
+      (
+        scoringAudit as Record<
+          string,
+          unknown
+        >
+      ).sections;
+
+    if (
+      !sectionsValue ||
+      typeof sectionsValue !== "object"
+    ) {
+      counts.unknown += 1;
+      continue;
+    }
+
+    const sections =
+      sectionsValue as Record<
+        string,
+        unknown
+      >;
+
+    for (const section of Object.values(
+      sections,
+    )) {
+      const source =
+        classifyEvidenceSource(section);
+
+      counts[source] += 1;
+    }
+  }
+
+  const observationCount =
+    Object.values(counts).reduce(
+      (total, count) => total + count,
+      0,
+    );
+
+  function toPercent(count: number) {
+    if (!observationCount) return 0;
+
+    return roundResearchNumber(
+      (count / observationCount) * 100,
+      1,
+    );
+  }
+
+  return {
+    smartpuntHistoryCount:
+      counts.smartpunt_history,
+
+    storedEvidenceCount:
+      counts.stored_evidence,
+
+    importedEvidenceCount:
+      counts.imported_evidence,
+
+    neutralCount: counts.neutral,
+    fallbackCount: counts.fallback,
+    unknownCount: counts.unknown,
+
+    observationCount,
+
+    smartpuntHistoryPercent:
+      toPercent(
+        counts.smartpunt_history,
+      ),
+
+    storedEvidencePercent:
+      toPercent(
+        counts.stored_evidence,
+      ),
+
+    importedEvidencePercent:
+      toPercent(
+        counts.imported_evidence,
+      ),
+
+    neutralPercent:
+      toPercent(counts.neutral),
+
+    fallbackPercent:
+      toPercent(counts.fallback),
+
+    unknownPercent:
+      toPercent(counts.unknown),
+  };
+}
+
+function buildCompetitionAnalysis(
+  predictionSnapshots:
+    ResearchPredictionRunnerSnapshot[],
+): ResearchCompetitionAnalysis {
+  const orderedScores =
+    predictionSnapshots
+      .map((snapshot) =>
+        Number(snapshot.score),
+      )
+      .filter((score) =>
+        Number.isFinite(score),
+      )
+      .sort((a, b) => b - a);
+
+  const runnerCount =
+    orderedScores.length;
+
+  if (runnerCount < 2) {
+    return {
+      runnerCount,
+
+      topScore:
+        orderedScores[0] ?? null,
+
+      secondScore: null,
+      thirdScore: null,
+
+      lowestScore:
+        orderedScores[0] ?? null,
+
+      averageScore:
+        orderedScores[0] ?? null,
+
+      medianScore:
+        orderedScores[0] ?? null,
+
+      scoreStandardDeviation: null,
+
+      topGap: null,
+      secondGap: null,
+      topThreeSpread: null,
+      fieldSpread: null,
+      averageAdjacentGap: null,
+
+      competitionIndex: null,
+      competitionBand:
+        "Insufficient Data",
+    };
+  }
+
+  const topScore =
+    orderedScores[0];
+
+  const secondScore =
+    orderedScores[1];
+
+  const thirdScore =
+    orderedScores[2] ?? null;
+
+  const lowestScore =
+    orderedScores[
+      orderedScores.length - 1
+    ];
+
+  const topGap =
+    topScore - secondScore;
+
+  const secondGap =
+    thirdScore !== null
+      ? secondScore - thirdScore
+      : null;
+
+  const topThreeSpread =
+    thirdScore !== null
+      ? topScore - thirdScore
+      : null;
+
+  const fieldSpread =
+    topScore - lowestScore;
+
+  const adjacentGaps: number[] = [];
+
+  for (
+    let index = 0;
+    index < orderedScores.length - 1;
+    index += 1
+  ) {
+    adjacentGaps.push(
+      orderedScores[index] -
+        orderedScores[index + 1],
+    );
+  }
+
+  const averageScore =
+    averageResearchNumbers(
+      orderedScores,
+    );
+
+  const medianScore =
+    medianResearchNumbers(
+      orderedScores,
+    );
+
+  const scoreStandardDeviation =
+    standardDeviationResearchNumbers(
+      orderedScores,
+    );
+
+  const averageAdjacentGap =
+    averageResearchNumbers(
+      adjacentGaps,
+    );
+
+  /*
+   * Provisional research-only index.
+   *
+   * A high value means the field is tightly grouped.
+   * A low value means there is greater separation.
+   *
+   * These weights are deliberately versioned as V1
+   * and will later be calibrated against historical
+   * winners and tipping performance.
+   */
+  const rawCompetitionIndex =
+    100 -
+    topGap * 7 -
+    (topThreeSpread ?? topGap) * 2.5 -
+    (scoreStandardDeviation ?? 0) * 2;
+
+  const competitionIndex =
+    roundResearchNumber(
+      clampResearchNumber(
+        rawCompetitionIndex,
+        0,
+        100,
+      ),
+      1,
+    );
+
+  let competitionBand:
+    ResearchCompetitionAnalysis["competitionBand"];
+
+  if (
+    topGap >= 8 &&
+    fieldSpread >= 12
+  ) {
+    competitionBand = "Dominant";
+  } else if (
+    thirdScore !== null &&
+    topGap <= 3 &&
+    (secondGap ?? 0) >= 6
+  ) {
+    competitionBand = "Two-Horse";
+  } else if (
+    competitionIndex >= 82
+  ) {
+    competitionBand = "Wide-Open";
+  } else if (
+    competitionIndex >= 68
+  ) {
+    competitionBand = "Compressed";
+  } else {
+    competitionBand = "Competitive";
+  }
+
+  return {
+    runnerCount,
+
+    topScore:
+      roundResearchNumber(topScore),
+
+    secondScore:
+      roundResearchNumber(secondScore),
+
+    thirdScore:
+      thirdScore !== null
+        ? roundResearchNumber(
+            thirdScore,
+          )
+        : null,
+
+    lowestScore:
+      roundResearchNumber(
+        lowestScore,
+      ),
+
+    averageScore:
+      averageScore !== null
+        ? roundResearchNumber(
+            averageScore,
+          )
+        : null,
+
+    medianScore:
+      medianScore !== null
+        ? roundResearchNumber(
+            medianScore,
+          )
+        : null,
+
+    scoreStandardDeviation:
+      scoreStandardDeviation !== null
+        ? roundResearchNumber(
+            scoreStandardDeviation,
+          )
+        : null,
+
+    topGap:
+      roundResearchNumber(topGap),
+
+    secondGap:
+      secondGap !== null
+        ? roundResearchNumber(
+            secondGap,
+          )
+        : null,
+
+    topThreeSpread:
+      topThreeSpread !== null
+        ? roundResearchNumber(
+            topThreeSpread,
+          )
+        : null,
+
+    fieldSpread:
+      roundResearchNumber(
+        fieldSpread,
+      ),
+
+    averageAdjacentGap:
+      averageAdjacentGap !== null
+        ? roundResearchNumber(
+            averageAdjacentGap,
+          )
+        : null,
+
+    competitionIndex,
+    competitionBand,
+  };
+}
+
+export function analyseResearchBatch({
+  batch,
+  predictionSnapshots,
+  componentSnapshots,
+}: {
+  batch: ResearchBatchSummary | null;
+
+  predictionSnapshots:
+    ResearchPredictionRunnerSnapshot[];
+
+  componentSnapshots:
+    ResearchRunnerComponentSnapshot[];
+}): ResearchRaceAnalysis | null {
+  if (
+    !batch ||
+    !batch.snapshotBatchId ||
+    predictionSnapshots.length === 0
+  ) {
+    return null;
+  }
+
+  return {
+    analysisVersion:
+      "race-analysis-v1",
+
+    snapshotBatchId:
+      batch.snapshotBatchId,
+
+    raceId: batch.raceId,
+    meetingId: batch.meetingId,
+
+    scoringVersion:
+      batch.scoringVersion,
+
+    classifierVersion:
+      batch.classifierVersion,
+
+    competition:
+      buildCompetitionAnalysis(
+        predictionSnapshots,
+      ),
+
+    evidence:
+      buildEvidenceMix(
+        componentSnapshots,
+      ),
+
+    analysedAt:
+      new Date().toISOString(),
+  };
+}
 function toBatchSummary(
   snapshot: ResearchClassificationSnapshot,
 ): ResearchBatchSummary | null {
@@ -794,7 +1471,12 @@ export async function getResearchBatch(
           component !== null,
       };
     });
-
+  const analysis =
+    analyseResearchBatch({
+      batch,
+      predictionSnapshots,
+      componentSnapshots,
+    });
   const runnerCountMatches =
     expectedRunnerCount > 0 &&
     predictionRunnerCount ===
@@ -884,6 +1566,7 @@ export async function getResearchBatch(
     componentSnapshots,
 
     runners,
+    analysis,
 
     classificationCount:
       classificationSnapshots.length,
