@@ -302,11 +302,23 @@ const [openTipIds, setOpenTipIds] = useState<Record<string, boolean>>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
 
-  const [watchRace, setWatchRace] = useState("");
-  const [watchHorse, setWatchHorse] = useState("");
-  const [watchLabel, setWatchLabel] = useState("Horse to Watch");
-  const [watchCommentary, setWatchCommentary] = useState("");
-  const [isWatchPending, startWatchTransition] = useTransition();
+const [watchRace, setWatchRace] = useState("");
+const [watchHorse, setWatchHorse] = useState("");
+
+const [watchSelectedRaceId, setWatchSelectedRaceId] =
+  useState("");
+
+const [watchSelectedRunnerId, setWatchSelectedRunnerId] =
+  useState("");
+
+const [watchLabel, setWatchLabel] =
+  useState("Horse to Watch");
+
+const [watchCommentary, setWatchCommentary] =
+  useState("");
+
+const [isWatchPending, startWatchTransition] =
+  useTransition();
 
   const [userState, createUserFormAction] = useActionState(createSubscriberUserAction, {
     error: null,
@@ -346,7 +358,75 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
   const selectedRaceMeeting = selectedPublishedRace
     ? meetingMap.get(selectedPublishedRace.meeting_id) || null
     : null;
+const watchSelectedRace = useMemo(() => {
+  return (
+    initialPublishedRaces.find(
+      (race) =>
+        String(race.id) ===
+        watchSelectedRaceId,
+    ) || null
+  );
+}, [
+  initialPublishedRaces,
+  watchSelectedRaceId,
+]);
 
+const watchRunnersForRace = useMemo(() => {
+  if (!watchSelectedRace) {
+    return [];
+  }
+
+  return initialPublishedRunners
+    .filter(
+      (runner) =>
+        Number(runner.race_id) ===
+          Number(watchSelectedRace.id) &&
+        runner.scratched !== true,
+    )
+    .sort((a, b) => {
+      const aBarrier =
+        a.barrier ?? 999;
+
+      const bBarrier =
+        b.barrier ?? 999;
+
+      return aBarrier - bBarrier;
+    });
+}, [
+  initialPublishedRunners,
+  watchSelectedRace,
+]);
+
+const watchSelectedRunner = useMemo(() => {
+  return (
+    watchRunnersForRace.find(
+      (runner) =>
+        String(runner.id) ===
+        watchSelectedRunnerId,
+    ) || null
+  );
+}, [
+  watchRunnersForRace,
+  watchSelectedRunnerId,
+]);
+
+const watchSelectedHorse =
+  watchSelectedRunner
+    ? horseMap.get(
+        Number(
+          watchSelectedRunner.horse_id,
+        ),
+      ) || null
+    : null;
+
+const watchSelectedMeeting =
+  watchSelectedRace
+    ? meetingMap.get(
+        Number(
+          watchSelectedRace.meeting_id,
+        ),
+      ) || null
+    : null;
   function syncTipFromSelection(race: Race | null, runner: Runner | null) {
     if (!race || !runner) return;
 
@@ -412,21 +492,42 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
     setGenerateError("");
   }
 
-  function loadWatchIntoForm(item: any) {
-    setWatchEdit(item);
-    setWatchRace(item.race || "");
-    setWatchHorse(item.horse || "");
-    setWatchLabel(item.label || "Horse to Watch");
-    setWatchCommentary(item.commentary || "");
-  }
+function loadWatchIntoForm(item: any) {
+  setWatchEdit(item);
 
-  function clearWatchForm() {
-    setWatchEdit(null);
-    setWatchRace("");
-    setWatchHorse("");
-    setWatchLabel("Horse to Watch");
-    setWatchCommentary("");
-  }
+  setWatchSelectedRaceId(
+    item.race_id
+      ? String(item.race_id)
+      : "",
+  );
+
+  setWatchSelectedRunnerId(
+    item.race_runner_id
+      ? String(item.race_runner_id)
+      : "",
+  );
+
+  setWatchRace(item.race || "");
+  setWatchHorse(item.horse || "");
+
+  setWatchLabel(
+    item.label || "Horse to Watch",
+  );
+
+  setWatchCommentary(
+    item.commentary || "",
+  );
+}
+
+function clearWatchForm() {
+  setWatchEdit(null);
+  setWatchSelectedRaceId("");
+  setWatchSelectedRunnerId("");
+  setWatchRace("");
+  setWatchHorse("");
+  setWatchLabel("Horse to Watch");
+  setWatchCommentary("");
+}
 
   async function generateCommentary() {
     setIsGenerating(true);
@@ -1450,25 +1551,186 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                     </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Race">
-                      <Input
-                        name="race"
-                        placeholder="Belmont R2"
-                        value={watchRace}
-                        onChange={setWatchRace}
-                      />
-                    </Field>
+<input
+  type="hidden"
+  name="meeting_id"
+  value={
+    watchSelectedMeeting?.id || ""
+  }
+  readOnly
+/>
 
-                    <Field label="Horse / Focus">
-                      <Input
-                        name="horse"
-                        placeholder="River Charge"
-                        value={watchHorse}
-                        onChange={setWatchHorse}
-                      />
-                    </Field>
-                  </div>
+<input
+  type="hidden"
+  name="race_id"
+  value={
+    watchSelectedRace?.id || ""
+  }
+  readOnly
+/>
+
+<input
+  type="hidden"
+  name="race_runner_id"
+  value={
+    watchSelectedRunner?.id || ""
+  }
+  readOnly
+/>
+
+<input
+  type="hidden"
+  name="horse_id"
+  value={
+    watchSelectedHorse?.id || ""
+  }
+  readOnly
+/>
+
+<input
+  type="hidden"
+  name="race"
+  value={watchRace}
+  readOnly
+/>
+
+<input
+  type="hidden"
+  name="horse"
+  value={watchHorse}
+  readOnly
+/>
+
+<div className="grid gap-4 md:grid-cols-2">
+  <Field label="Published race">
+    <select
+      value={watchSelectedRaceId}
+      onChange={(e) => {
+        const nextRaceId =
+          e.target.value;
+
+        setWatchSelectedRaceId(
+          nextRaceId,
+        );
+
+        setWatchSelectedRunnerId("");
+        setWatchHorse("");
+
+        const race =
+          initialPublishedRaces.find(
+            (item) =>
+              String(item.id) ===
+              nextRaceId,
+          ) || null;
+
+        if (!race) {
+          setWatchRace("");
+          return;
+        }
+
+        const meeting =
+          meetingMap.get(
+            Number(race.meeting_id),
+          ) || null;
+
+        setWatchRace(
+          buildRaceLabel(
+            race,
+            meeting,
+          ),
+        );
+      }}
+      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+    >
+      <option value="">
+        Select published race
+      </option>
+
+      {initialPublishedRaces.map(
+        (race) => (
+          <option
+            key={race.id}
+            value={String(race.id)}
+          >
+            {buildRaceLabel(
+              race,
+              meetingMap.get(
+                race.meeting_id,
+              ) || null,
+            )}
+          </option>
+        ),
+      )}
+    </select>
+  </Field>
+
+  <Field label="Horse">
+    <select
+      value={watchSelectedRunnerId}
+      disabled={!watchSelectedRace}
+      onChange={(e) => {
+        const nextRunnerId =
+          e.target.value;
+
+        setWatchSelectedRunnerId(
+          nextRunnerId,
+        );
+
+        const runner =
+          watchRunnersForRace.find(
+            (item) =>
+              String(item.id) ===
+              nextRunnerId,
+          ) || null;
+
+        const horse = runner
+          ? horseMap.get(
+              Number(
+                runner.horse_id,
+              ),
+            ) || null
+          : null;
+
+        setWatchHorse(
+          horse?.horse_name || "",
+        );
+      }}
+      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300 disabled:bg-zinc-100 disabled:text-zinc-400"
+    >
+      <option value="">
+        {watchSelectedRace
+          ? "Select horse"
+          : "Select race first"}
+      </option>
+
+      {watchRunnersForRace.map(
+        (runner) => {
+          const horse =
+            horseMap.get(
+              Number(
+                runner.horse_id,
+              ),
+            );
+
+          return (
+            <option
+              key={runner.id}
+              value={String(
+                runner.id,
+              )}
+            >
+              {horse?.horse_name ||
+                "Unknown horse"}
+              {runner.barrier
+                ? ` — Barrier ${runner.barrier}`
+                : ""}
+            </option>
+          );
+        },
+      )}
+    </select>
+  </Field>
+</div>
 
                   <Field label="Watch label">
                     <select
@@ -1493,9 +1755,12 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
                   </Field>
 
                   <div className="flex flex-wrap gap-3">
-                    <button
-                      type="submit"
-                      disabled={isWatchPending}
+disabled={
+  isWatchPending ||
+  !watchSelectedRace ||
+  !watchSelectedRunner ||
+  !watchSelectedHorse
+}
                       className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
                     >
                       {watchEdit ? "Update Watch Item" : "Publish Watch Item"}
