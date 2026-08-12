@@ -1161,17 +1161,15 @@ if (includeGetOnEarlyBets) {
    * An active Get On Early remains visible until its
    * scheduled race start time.
    */
-  const nowIso =
-    new Date().toISOString();
+const todayDate =
+  getPerthDate(0);
 
-  getOnEarlyBets =
-    await fetchServiceRoleRows<any>(
-      `long_term_bets?select=*` +
-        `&race_start_at=gt.${encodeURIComponent(
-          nowIso,
-        )}` +
-        `&order=race_start_at.asc`,
-    );
+getOnEarlyBets =
+  await fetchServiceRoleRows<any>(
+    `long_term_bets?select=*` +
+      `&race_date=gte.${todayDate}` +
+      `&order=race_date.asc`,
+  );
 
   logStage(
     "load active Get On Early",
