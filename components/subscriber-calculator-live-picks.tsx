@@ -107,6 +107,21 @@ type GetOnEarlyBet = {
   bet_type?: string | null;
   odds?: string | null;
 };
+type MaverickExoticTip = {
+  id: number;
+  race_id: number;
+  bet_type: "quinella" | "trifecta";
+  mode?: "all_ways" | "positional" | null;
+  selections?: Array<{
+    race_runner_id?: number | null;
+    horse_id?: number | null;
+    horse?: string | null;
+    runner_number?: number | null;
+    positions?: number[];
+  }> | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
 type UserBet = {
   id: number;
   source: string | null;
@@ -928,6 +943,7 @@ calculatorPredictions = [],
 officialTips = [],
 watchSuggestions = [],
 getOnEarlyBets = [],
+maverickExoticTips = [],
 activeUserBets = [],
 dayDates,
   initialRaceId = "",
@@ -943,6 +959,7 @@ calculatorPredictions?: CalculatorPrediction[];
 officialTips?: OfficialTip[];
 watchSuggestions?: WatchSuggestion[];
 getOnEarlyBets?: GetOnEarlyBet[];
+maverickExoticTips?: MaverickExoticTip[];
 activeUserBets?: UserBet[];
   initialRaceId?: string;
   dayDates?: DayDates;
@@ -1934,7 +1951,176 @@ return (
         })}
       </div>
     ) : null}
+    {maverickExoticTips.length > 0 ? (
+      <div className="mb-2 space-y-1.5">
+        {maverickExoticTips
+          .map((tip) => {
+            const race =
+              races.find(
+                (item) =>
+                  Number(item.id) ===
+                  Number(tip.race_id),
+              ) || null;
 
+            const meeting = race
+              ? meetings.find(
+                  (item) =>
+                    Number(item.id) ===
+                    Number(race.meeting_id),
+                ) || null
+              : null;
+
+            if (!race || !meeting) {
+              return null;
+            }
+
+            const selections =
+              Array.isArray(tip.selections)
+                ? tip.selections
+                : [];
+
+            const selectionLabel =
+              tip.bet_type === "quinella"
+                ? selections
+                    .map((selection) =>
+                      selection.runner_number
+                        ? `#${selection.runner_number}`
+                        : selection.horse || "",
+                    )
+                    .filter(Boolean)
+                    .join(" / ")
+                : tip.mode === "positional"
+                  ? selections
+                      .map((selection) => {
+                        const positions =
+                          Array.isArray(selection.positions)
+                            ? selection.positions
+                                .map((position) =>
+                                  position === 1
+                                    ? "1st"
+                                    : position === 2
+                                      ? "2nd"
+                                      : "3rd",
+                                )
+                                .join("/")
+                            : "";
+
+                        const runnerLabel =
+                          selection.runner_number
+                            ? `#${selection.runner_number}`
+                            : selection.horse || "";
+
+                        return positions
+                          ? `${runnerLabel} ${positions}`
+                          : runnerLabel;
+                      })
+                      .filter(Boolean)
+                      .join(" · ")
+                  : selections
+                      .map((selection) =>
+                        selection.runner_number
+                          ? `#${selection.runner_number}`
+                          : selection.horse || "",
+                      )
+                      .filter(Boolean)
+                      .join(" / ");
+
+            return {
+              tip,
+              race,
+              meeting,
+              selectionLabel,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => {
+            const meetingCompare =
+              String(a!.meeting.meeting_name || "").localeCompare(
+                String(b!.meeting.meeting_name || ""),
+                "en-AU",
+                {
+                  sensitivity: "base",
+                },
+              );
+
+            if (meetingCompare !== 0) {
+              return meetingCompare;
+            }
+
+            return (
+              Number(a!.race.race_number || 0) -
+              Number(b!.race.race_number || 0)
+            );
+          })
+          .map((item) => {
+            if (!item) return null;
+
+            const {
+              tip,
+              race,
+              meeting,
+              selectionLabel,
+            } = item;
+
+            const isSelected =
+              activeRace &&
+              Number(activeRace.id) ===
+                Number(race.id);
+
+            const betLabel =
+              tip.bet_type === "quinella"
+                ? "Quinella"
+                : tip.mode === "all_ways"
+                  ? "Trifecta · All Ways"
+                  : "Trifecta";
+
+            return (
+              <button
+                key={`exotic-${tip.id}`}
+                type="button"
+                onClick={() =>
+                  setSelectedRaceId(
+                    String(race.id),
+                  )
+                }
+                className={`grid w-full grid-cols-[94px_1fr_auto] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
+                  isSelected
+                    ? "border-fuchsia-300 bg-fuchsia-300/15 shadow-[0_0_0_1px_rgba(217,70,239,0.25)_inset]"
+                    : "border-fuchsia-300/25 bg-fuchsia-500/[0.07] hover:border-fuchsia-300/45 hover:bg-fuchsia-500/[0.11]"
+                }`}
+              >
+                <span className="flex min-h-[34px] items-center justify-center gap-1 rounded-full border border-fuchsia-300/35 bg-fuchsia-500/10 px-2 py-1 text-center">
+                  <img
+                    src="/maverick/maverick-shield.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-[26px] w-[26px] shrink-0 object-contain"
+                  />
+
+                  <span className="text-[7px] font-black uppercase tracking-[0.07em] text-fuchsia-100">
+                    Maverick
+                  </span>
+                </span>
+
+                <span className="min-w-0">
+                  <span className="block text-[9px] font-black uppercase tracking-[0.1em] text-fuchsia-200">
+                    {meeting.meeting_name || "Meeting"} R
+                    {race.race_number || "—"}
+                  </span>
+
+                  <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white">
+                    {selectionLabel || "Exotic Selection"}
+                  </span>
+                </span>
+
+                <span className="shrink-0 rounded-full border border-fuchsia-300/35 bg-fuchsia-500/10 px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.08em] text-fuchsia-100">
+                  {betLabel}
+                </span>
+              </button>
+            );
+          })}
+      </div>
+    ) : null}
     {bestOpportunities.length ? (
       bestOpportunities.map((item) => {
                   const isSelected =
