@@ -320,6 +320,17 @@ const [watchCommentary, setWatchCommentary] =
 const [isWatchPending, startWatchTransition] =
   useTransition();
 
+const [deletingWatchIds, setDeletingWatchIds] =
+  useState<Set<number>>(new Set());
+
+const [
+  deletingGetOnEarlyIds,
+  setDeletingGetOnEarlyIds,
+] = useState<Set<number>>(new Set());
+
+const [deleteError, setDeleteError] =
+  useState("");
+
   const [userState, createUserFormAction] = useActionState(createSubscriberUserAction, {
     error: null,
     success: null,
@@ -528,7 +539,75 @@ function clearWatchForm() {
   setWatchLabel("Horse to Watch");
   setWatchCommentary("");
 }
+async function handleDeleteWatchItem(
+  id: number,
+) {
+  setDeleteError("");
 
+  setDeletingWatchIds((current) => {
+    const next = new Set(current);
+    next.add(id);
+    return next;
+  });
+
+  try {
+    const formData = new FormData();
+    formData.set("id", String(id));
+
+    await deleteWatchItemAction(
+      formData,
+    );
+  } catch (error) {
+    setDeletingWatchIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+
+    setDeleteError(
+      error instanceof Error
+        ? error.message
+        : "Failed to delete Watch item.",
+    );
+  }
+}
+
+async function handleDeleteGetOnEarly(
+  id: number,
+) {
+  setDeleteError("");
+
+  setDeletingGetOnEarlyIds(
+    (current) => {
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    },
+  );
+
+  try {
+    const formData = new FormData();
+    formData.set("id", String(id));
+
+    await deleteLongTermBetAction(
+      formData,
+    );
+  } catch (error) {
+    setDeletingGetOnEarlyIds(
+      (current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      },
+    );
+
+    setDeleteError(
+      error instanceof Error
+        ? error.message
+        : "Failed to delete Get On Early item.",
+    );
+  }
+}
   async function generateCommentary() {
     setIsGenerating(true);
     setGenerateError("");
@@ -658,6 +737,11 @@ function clearWatchForm() {
           </div>
 
           <div className="space-y-8">
+            {deleteError ? (
+  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+    {deleteError}
+  </div>
+) : null}
             <div className="grid gap-4 md:grid-cols-4">
               <Panel className="bg-white/95">
                 <div className="p-6 text-zinc-950">
@@ -1786,7 +1870,14 @@ function clearWatchForm() {
                 <div className="p-6 text-zinc-950">
                   <h3 className="text-xl font-semibold">Manage watchlist items</h3>
                   <div className="mt-5 space-y-4">
-                    {watchlistItems.map((item: any) => (
+{watchlistItems
+  .filter(
+    (item: any) =>
+      !deletingWatchIds.has(
+        Number(item.id),
+      ),
+  )
+  .map((item: any) => (
                       <div
                         key={item.id}
                         className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
@@ -1814,12 +1905,24 @@ function clearWatchForm() {
                             Edit
                           </button>
 
-                          <form action={deleteWatchItemAction}>
-                            <input type="hidden" name="id" value={item.id} />
-                            <button className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500">
-                              Delete
-                            </button>
-                          </form>
+<button
+  type="button"
+  onClick={() =>
+    handleDeleteWatchItem(
+      Number(item.id),
+    )
+  }
+  disabled={deletingWatchIds.has(
+    Number(item.id),
+  )}
+  className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+>
+  {deletingWatchIds.has(
+    Number(item.id),
+  )
+    ? "Deleting..."
+    : "Delete"}
+</button>
                         </div>
                       </div>
                     ))}
@@ -1950,7 +2053,14 @@ function clearWatchForm() {
                 <div className="p-6 text-zinc-950">
                   <h3 className="text-xl font-semibold">Manage Get On Early</h3>
                   <div className="mt-5 space-y-4">
-                    {getOnEarlyItems.map((item: any) => (
+{getOnEarlyItems
+  .filter(
+    (item: any) =>
+      !deletingGetOnEarlyIds.has(
+        Number(item.id),
+      ),
+  )
+  .map((item: any) => (
                       <div
                         key={item.id}
                         className="rounded-[24px] border border-amber-200/30 bg-white p-5 shadow-sm"
@@ -1976,12 +2086,24 @@ function clearWatchForm() {
                             Edit
                           </button>
 
-                          <form action={deleteLongTermBetAction}>
-                            <input type="hidden" name="id" value={item.id} />
-                            <button className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500">
-                              Delete
-                            </button>
-                          </form>
+<button
+  type="button"
+  onClick={() =>
+    handleDeleteGetOnEarly(
+      Number(item.id),
+    )
+  }
+  disabled={deletingGetOnEarlyIds.has(
+    Number(item.id),
+  )}
+  className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-60"
+>
+  {deletingGetOnEarlyIds.has(
+    Number(item.id),
+  )
+    ? "Deleting..."
+    : "Delete"}
+</button>
                         </div>
                       </div>
                     ))}
