@@ -5494,73 +5494,169 @@ export async function deleteWatchItemAction(formData: FormData): Promise<void> {
   revalidatePath("/");
 }
 
-export async function upsertLongTermBet(formData: FormData): Promise<void> {
+export async function upsertLongTermBet(
+  formData: FormData,
+): Promise<void> {
   const profile = await requireAdmin();
-  const id = String(formData.get("id") ?? "");
+
+  const id = String(
+    formData.get("id") ?? "",
+  ).trim();
+
   const isNew = !id;
 
-  const raceDate = String(formData.get("race_date") ?? "");
-  const raceTime = String(formData.get("race_time") ?? "");
-  const raceTimezone = String(
-    formData.get("race_timezone") ?? "Australia/Perth",
-  );
-  const raceStartAt = zonedDateTimeToUtcIso(raceDate, raceTime, raceTimezone);
+  const horse = String(
+    formData.get("horse") ?? "",
+  ).trim();
 
-  const raceNumberRaw = String(formData.get("race_number") ?? "").trim();
-  const raceNumber = raceNumberRaw ? Number(raceNumberRaw) : null;
+  const meeting = String(
+    formData.get("meeting") ?? "",
+  ).trim();
+
+  const raceNumberRaw = String(
+    formData.get("race_number") ?? "",
+  ).trim();
+
+  const raceDate = String(
+    formData.get("race_date") ?? "",
+  ).trim();
+
+  const betType = String(
+    formData.get("bet_type") ?? "Win",
+  ).trim();
+
+  const odds = String(
+    formData.get("odds") ?? "",
+  ).trim();
+
+  const raceNumber = raceNumberRaw
+    ? Number(raceNumberRaw)
+    : null;
+
+  if (!horse) {
+    throw new Error(
+      "Horse is required.",
+    );
+  }
+
+  if (!meeting) {
+    throw new Error(
+      "Meeting is required.",
+    );
+  }
+
+  if (
+    raceNumber === null ||
+    !Number.isInteger(raceNumber) ||
+    raceNumber < 1
+  ) {
+    throw new Error(
+      "Enter a valid race number.",
+    );
+  }
+
+  if (!raceDate) {
+    throw new Error(
+      "Race date is required.",
+    );
+  }
+
+  if (!betType) {
+    throw new Error(
+      "Bet type is required.",
+    );
+  }
+
+  if (!odds) {
+    throw new Error(
+      "Odds are required.",
+    );
+  }
 
   const payload = {
-    title: String(formData.get("title") ?? ""),
-    horse: String(formData.get("horse") ?? ""),
-    meeting: String(formData.get("meeting") ?? "").trim() || null,
-    race_number:
-      raceNumber !== null && !Number.isNaN(raceNumber) ? raceNumber : null,
-    race_start_at: raceStartAt,
-    race_timezone: raceTimezone || null,
-    bet_type: String(formData.get("bet_type") ?? "Win"),
-    odds: String(formData.get("odds") ?? ""),
-    commentary: String(formData.get("commentary") ?? ""),
+    /*
+     * Keep legacy fields present but no longer
+     * depend on them for the new Get On Early flow.
+     */
+    title: "",
+    commentary: "",
+
+    horse,
+    meeting,
+    race_number: raceNumber,
+    race_date: raceDate,
+
+    race_start_at: null,
+    race_timezone: null,
+
+    bet_type: betType,
+    odds,
+
     created_by: profile.id,
-    updated_at: new Date().toISOString(),
+    updated_at:
+      new Date().toISOString(),
   };
 
-  const supabase = await createClient();
+  const supabase =
+    await createClient();
 
   if (id) {
-    const { error } = await supabase
-      .from("long_term_bets")
-      .update(payload)
-      .eq("id", Number(id));
+    const { error } =
+      await supabase
+        .from("long_term_bets")
+        .update(payload)
+        .eq("id", Number(id));
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      throw new Error(
+        error.message,
+      );
+    }
   } else {
-    const { data, error } = await supabase
-      .from("long_term_bets")
-      .insert(payload)
-      .select()
-      .single();
+    const { data, error } =
+      await supabase
+        .from("long_term_bets")
+        .insert(payload)
+        .select()
+        .single();
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      throw new Error(
+        error.message,
+      );
+    }
 
     if (isNew && data) {
       try {
         await sendGetOnEarlyNotifications({
-          title: data.title || payload.title,
-          horse: data.horse || payload.horse,
-          betType: data.bet_type || payload.bet_type,
-          odds: data.odds || payload.odds,
-          commentary: data.commentary || payload.commentary,
+          title:
+            `${horse} — ${meeting} R${raceNumber}`,
+          horse,
+          betType,
+          odds,
+          commentary: "",
         });
-      } catch (notificationError) {
-        console.error(notificationError);
+      } catch (
+        notificationError
+      ) {
+        console.error(
+          notificationError,
+        );
       }
     }
   }
 
   revalidatePath("/");
-  revalidatePath("/long-term-bets");
+  revalidatePath(
+    "/long-term-bets",
+  );
+  revalidatePath(
+    "/subscriber-dashboard",
+  );
+  revalidatePath(
+    "/smartpunt-calculator-live-picks",
+  );
 }
-
 export async function deleteLongTermBetAction(
   formData: FormData,
 ): Promise<void> {
