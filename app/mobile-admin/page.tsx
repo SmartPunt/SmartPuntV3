@@ -158,6 +158,23 @@ export default async function MobileAdminPage() {
   featured
 />
 
+<AdminLink
+  href="/mobile-admin/watch"
+  eyebrow="The Maverick"
+  title="Watch Suggestions"
+  description="Flag a runner from the current race program for subscribers to watch."
+  icon="👁"
+  featured
+/>
+
+<AdminLink
+  href="/mobile-admin/get-on-early"
+  eyebrow="Early Opportunities"
+  title="Get On Early"
+  description="Publish an upcoming selection with meeting, race, date, bet type and odds."
+  icon="⚡"
+/>
+
           <AdminLink
             href="/admin/maverick-report"
             eyebrow="Performance"
