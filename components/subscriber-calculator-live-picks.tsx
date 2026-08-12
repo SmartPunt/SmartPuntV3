@@ -1847,10 +1847,50 @@ source: isConsensus ? "CONSENSUS" : "HEAD",
             </Link>
           </div>
 
-          {showBestOpportunities ? (
-            <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
-              {bestOpportunities.length ? (
-                bestOpportunities.map((item) => {
+{showBestOpportunities ? (
+  <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
+    {getOnEarlyBets.length > 0 ? (
+      <div className="mb-2 space-y-1.5">
+        {getOnEarlyBets.map((bet) => {
+          const raceDate =
+            bet.race_start_at
+              ? new Intl.DateTimeFormat("en-AU", {
+                  timeZone: "Australia/Perth",
+                  day: "numeric",
+                  month: "short",
+                }).format(new Date(bet.race_start_at))
+              : "";
+
+          return (
+            <div
+              key={bet.id}
+              className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] px-3 py-2"
+            >
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
+                  Get On Early
+                </span>
+
+                <span className="min-w-0 truncate text-[10px] font-bold text-zinc-200">
+                  <span className="font-black text-white">
+                    {bet.horse || "Selection"}
+                  </span>
+                  {" · "}
+                  {bet.meeting || "Meeting"}
+                  {bet.race_number
+                    ? ` R${bet.race_number}`
+                    : ""}
+                  {raceDate ? ` · ${raceDate}` : ""}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : null}
+
+    {bestOpportunities.length ? (
+      bestOpportunities.map((item) => {
                   const isSelected =
                     activeRace && Number(activeRace.id) === Number(item.raceId);
                   const sourceClasses =
