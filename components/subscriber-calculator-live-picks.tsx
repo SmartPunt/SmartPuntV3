@@ -2201,25 +2201,26 @@ Maverick Insight
                       </div>
                     ) : null}
                   </div>
-                ) : null}
+) : null}
 
-                <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#0b1120_58%,#050505_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
-                  {activeRaceWatchSuggestions.length > 0 ? (
-  <div className="rounded-[20px] border border-violet-300/35 bg-[linear-gradient(135deg,rgba(76,29,149,0.32)_0%,rgba(2,6,23,0.97)_55%,rgba(0,0,0,0.98)_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
-    <div className="flex items-center justify-between gap-3">
+{activeRaceWatchSuggestions.length > 0 ? (
+  <div className="rounded-[20px] border border-amber-300/35 bg-[linear-gradient(135deg,rgba(0,0,0,0.96)_0%,rgba(24,24,27,0.96)_65%,rgba(120,53,15,0.18)_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.35)]">
+    <div className="flex items-center gap-3">
+      <img
+        src="/maverick/maverick-shield.png"
+        alt="The Maverick"
+        className="h-10 w-10 shrink-0 object-contain"
+      />
+
       <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-200">
-          SmartPunt Watch
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
+          The Maverick — Watch Alert
         </p>
 
-        <p className="mt-1 text-[11px] font-semibold text-zinc-400">
-          A SmartPunt Watch Suggestion is racing today.
+        <p className="mt-1 text-[10px] font-semibold text-zinc-400">
+          A horse on The Maverick&apos;s watch list is racing today.
         </p>
       </div>
-
-      <span className="rounded-full border border-violet-300/35 bg-violet-400/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-violet-100">
-        Watch
-      </span>
     </div>
 
     <div className="mt-3 space-y-2">
@@ -2227,29 +2228,20 @@ Maverick Insight
         (suggestion) => (
           <div
             key={suggestion.id}
-            className="rounded-2xl border border-white/10 bg-black/40 p-3"
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-base font-black text-white">
-                  {suggestion.horse ||
-                    "Watch Selection"}
-                </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-black text-white">
+                {suggestion.horse || "Watch Selection"}
+              </p>
 
-                {suggestion.label ? (
-                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.14em] text-violet-200">
-                    {suggestion.label}
-                  </p>
-                ) : null}
-              </div>
-
-              <span className="shrink-0 rounded-full border border-violet-300/30 bg-violet-400/10 px-2.5 py-1 text-[8px] font-black uppercase text-violet-100">
+              <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
                 Watch
               </span>
             </div>
 
             {suggestion.commentary ? (
-              <p className="mt-3 text-[12px] font-semibold leading-5 text-zinc-300">
+              <p className="mt-2 text-[11px] font-semibold leading-5 text-zinc-300">
                 {suggestion.commentary}
               </p>
             ) : null}
@@ -2259,7 +2251,9 @@ Maverick Insight
     </div>
   </div>
 ) : null}
-                  <div className="flex items-center justify-between gap-3">
+
+<div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#0b1120_58%,#050505_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+  <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
                         🏆 SmartPunt Calculator Top 3
