@@ -20,6 +20,7 @@ export type SubscriberLivePicksData = {
 officialTips: any[];
 watchSuggestions: any[];
 getOnEarlyBets: any[];
+maverickExoticTips: any[];
 activeUserBets: any[];
 };
 
@@ -1186,6 +1187,26 @@ getOnEarlyBets =
   );
 }
 
+let maverickExoticTips: any[] = [];
+
+const maverickExoticTipsStartedAt =
+  Date.now();
+
+maverickExoticTips =
+  await fetchServiceRoleRows<any>(
+    `maverick_exotic_tips?select=*` +
+      `&order=created_at.desc`,
+  );
+
+logStage(
+  "load Maverick exotic tips",
+  maverickExoticTipsStartedAt,
+  {
+    rowCount:
+      maverickExoticTips.length,
+  },
+);
+
 let activeUserBets: any[] = [];
 
   if (includeActiveUserBets) {
@@ -1292,6 +1313,7 @@ races: includeScoringHistory
 officialTips,
 watchSuggestions,
 getOnEarlyBets,
+maverickExoticTips,
 activeUserBets,
   };
 }
