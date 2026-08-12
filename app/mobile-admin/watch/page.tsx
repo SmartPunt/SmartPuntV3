@@ -196,9 +196,27 @@ export default async function MobileAdminWatchPage() {
         error: null,
       };
 
-  if (horsesError) {
+if (horsesError) {
     throw new Error(
       horsesError.message,
+    );
+  }
+
+  const {
+    data: watchItems,
+    error: watchItemsError,
+  } = await supabase
+    .from("watchlist_items")
+    .select(
+      "id, label, horse, race, commentary, meeting_id, race_id, race_runner_id, horse_id, created_at",
+    )
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (watchItemsError) {
+    throw new Error(
+      watchItemsError.message,
     );
   }
 
@@ -214,11 +232,12 @@ export default async function MobileAdminWatchPage() {
           </Link>
         </div>
 
-        <MobileAdminWatch
+<MobileAdminWatch
           meetings={meetings || []}
           races={races || []}
           runners={runners || []}
           horses={horses || []}
+          watchItems={watchItems || []}
           dayDates={{
             today,
             tomorrow,
