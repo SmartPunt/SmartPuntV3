@@ -37,6 +37,7 @@ export default async function Page({
 officialTips={livePicksData.officialTips}
 watchSuggestions={livePicksData.watchSuggestions}
 getOnEarlyBets={livePicksData.getOnEarlyBets}
+maverickExoticTips={livePicksData.maverickExoticTips}
 activeUserBets={livePicksData.activeUserBets}
   dayDates={livePicksData.dayDates}
 initialRaceId={resolvedSearchParams?.raceId ?? ""}
