@@ -34,8 +34,9 @@ export default async function Page({
   jockeyProfiles={livePicksData.jockeyProfiles}
   calculatorTips={livePicksData.calculatorTips}
   calculatorPredictions={livePicksData.calculatorPredictions}
-  officialTips={livePicksData.officialTips}
-  activeUserBets={livePicksData.activeUserBets}
+officialTips={livePicksData.officialTips}
+watchSuggestions={livePicksData.watchSuggestions}
+activeUserBets={livePicksData.activeUserBets}
   dayDates={livePicksData.dayDates}
 initialRaceId={resolvedSearchParams?.raceId ?? ""}
 />
