@@ -210,21 +210,32 @@ const [
     },
   }),
 ]);
-  const publishedRunners = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
-        .from("race_runners")
-        .select("*")
-        .order("race_id", { ascending: true })
-        .order("barrier", { ascending: true, nullsFirst: false })
-        .range(from, to);
+  const publishedRaceIds = publishedRaces
+  .map((race: any) => Number(race.id))
+  .filter(Boolean);
+const publishedRunners = publishedRaceIds.length
+  ? await fetchAllRows({
+      getPage: async (from, to) => {
+        const result = await supabase
+          .from("race_runners")
+          .select("*")
+          .in("race_id", publishedRaceIds)
+          .order("race_id", {
+            ascending: true,
+          })
+          .order("barrier", {
+            ascending: true,
+            nullsFirst: false,
+          })
+          .range(from, to);
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
-  });
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
+      },
+    })
+  : [];
 
   const horses = await fetchAllRows({
     getPage: async (from, to) => {
