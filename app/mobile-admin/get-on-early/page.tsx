@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import MobileAdminGetOnEarly from "@/components/mobile-admin-get-on-early";
 
 export const dynamic = "force-dynamic";
@@ -12,11 +13,35 @@ export default async function MobileAdminGetOnEarlyPage() {
     redirect("/login");
   }
 
-  if (
+if (
     profile.status !== "active" ||
     profile.role !== "admin"
   ) {
     redirect("/mobile-admin");
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: getOnEarlyItems,
+    error: getOnEarlyError,
+  } = await supabase
+    .from("long_term_bets")
+    .select(
+      "id, horse, meeting, race_number, race_date, bet_type, odds, created_at",
+    )
+    .order("race_date", {
+      ascending: true,
+      nullsFirst: false,
+    })
+    .order("created_at", {
+      ascending: false,
+    });
+
+  if (getOnEarlyError) {
+    throw new Error(
+      getOnEarlyError.message,
+    );
   }
 
   return (
@@ -31,7 +56,11 @@ export default async function MobileAdminGetOnEarlyPage() {
           </Link>
         </div>
 
-        <MobileAdminGetOnEarly />
+<MobileAdminGetOnEarly
+  getOnEarlyItems={
+    getOnEarlyItems || []
+  }
+/>
       </div>
     </div>
   );
