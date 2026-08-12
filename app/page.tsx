@@ -236,37 +236,67 @@ const publishedRunners = publishedRaceIds.length
       },
     })
   : [];
+const publishedHorseIds = Array.from(
+  new Set(
+    publishedRunners
+      .map((runner: any) =>
+        Number(runner.horse_id),
+      )
+      .filter(Boolean),
+  ),
+);
 
-  const horses = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
-        .from("horses")
-        .select("*")
-        .order("horse_name", { ascending: true })
-        .range(from, to);
+const publishedMeetingIds = Array.from(
+  new Set(
+    publishedRaces
+      .map((race: any) =>
+        Number(race.meeting_id),
+      )
+      .filter(Boolean),
+  ),
+);
+const horses = publishedHorseIds.length
+  ? await fetchAllRows({
+      getPage: async (from, to) => {
+        const result = await supabase
+          .from("horses")
+          .select("*")
+          .in("id", publishedHorseIds)
+          .order("horse_name", {
+            ascending: true,
+          })
+          .range(from, to);
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
-  });
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
+      },
+    })
+  : [];
 
-  const meetings = await fetchAllRows({
-    getPage: async (from, to) => {
-      const result = await supabase
-        .from("meetings")
-        .select("*")
-        .order("meeting_date", { ascending: false })
-        .order("meeting_name", { ascending: true })
-        .range(from, to);
+const meetings = publishedMeetingIds.length
+  ? await fetchAllRows({
+      getPage: async (from, to) => {
+        const result = await supabase
+          .from("meetings")
+          .select("*")
+          .in("id", publishedMeetingIds)
+          .order("meeting_date", {
+            ascending: false,
+          })
+          .order("meeting_name", {
+            ascending: true,
+          })
+          .range(from, to);
 
-      return {
-        data: result.data ?? [],
-        error: result.error,
-      };
-    },
-  });
+        return {
+          data: result.data ?? [],
+          error: result.error,
+        };
+      },
+    })
+  : [];
 
   const subscriberProfiles =
     profile.role === "admin"
