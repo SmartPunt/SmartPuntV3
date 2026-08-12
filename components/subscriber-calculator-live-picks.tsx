@@ -2140,8 +2140,7 @@ const exoticTextClasses =
     >
       {betLabel}
     </span>
-  </button>
-);
+</button>
             );
           })}
       </div>
