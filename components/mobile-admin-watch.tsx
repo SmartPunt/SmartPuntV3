@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
+import { useRouter } from "next/navigation";
 import {
   deleteWatchItemAction,
   upsertWatchItem,
@@ -41,17 +47,32 @@ type DayDates = {
   tomorrow: string;
 };
 
+type WatchItem = {
+  id: number;
+  label?: string | null;
+  horse?: string | null;
+  race?: string | null;
+  commentary?: string | null;
+  meeting_id?: number | null;
+  race_id?: number | null;
+  race_runner_id?: number | null;
+  horse_id?: number | null;
+  created_at?: string | null;
+};
+
 export default function MobileAdminWatch({
   meetings,
   races,
   runners,
   horses,
+  watchItems,
   dayDates,
 }: {
   meetings: Meeting[];
   races: Race[];
   runners: Runner[];
   horses: Horse[];
+  watchItems: WatchItem[];
   dayDates: DayDates;
 }) {
   const [selectedDay, setSelectedDay] =
@@ -78,8 +99,23 @@ export default function MobileAdminWatch({
   const [error, setError] =
     useState("");
 
-  const [isPending, startTransition] =
+const [isPending, startTransition] =
     useTransition();
+
+  const [editingId, setEditingId] =
+    useState<number | null>(null);
+
+  const [visibleWatchItems, setVisibleWatchItems] =
+    useState<WatchItem[]>(watchItems);
+
+  const [deletingIds, setDeletingIds] =
+    useState<Set<number>>(new Set());
+
+  const router = useRouter();
+
+  useEffect(() => {
+    setVisibleWatchItems(watchItems);
+  }, [watchItems]);
 
   const selectedDate =
     selectedDay === "today"
@@ -211,7 +247,117 @@ export default function MobileAdminWatch({
   function resetBelowRace() {
     setSelectedRunnerId("");
   }
+function clearForm() {
+    setEditingId(null);
+    setSelectedMeetingId("");
+    setSelectedRaceId("");
+    setSelectedRunnerId("");
+    setLabel("Horse to Watch");
+    setCommentary("");
+    setMessage("");
+    setError("");
+  }
 
+  function loadWatchIntoForm(item: WatchItem) {
+    setMessage("");
+    setError("");
+
+    const meeting = meetings.find(
+      (entry) =>
+        Number(entry.id) ===
+        Number(item.meeting_id),
+    );
+
+    const race = races.find(
+      (entry) =>
+        Number(entry.id) ===
+        Number(item.race_id),
+    );
+
+    const runner = runners.find(
+      (entry) =>
+        Number(entry.id) ===
+        Number(item.race_runner_id),
+    );
+
+    if (!meeting || !race || !runner) {
+      setError(
+        "This Watch Suggestion is no longer part of the current race program. It can still be deleted, but cannot be edited from this mobile race selector.",
+      );
+      return;
+    }
+
+    const day =
+      meeting.meeting_date === dayDates.tomorrow
+        ? "tomorrow"
+        : "today";
+
+    setSelectedDay(day);
+    setSelectedMeetingId(String(meeting.id));
+    setSelectedRaceId(String(race.id));
+    setSelectedRunnerId(String(runner.id));
+    setLabel(item.label || "Horse to Watch");
+    setCommentary(item.commentary || "");
+    setEditingId(Number(item.id));
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function handleDelete(itemId: number) {
+    setMessage("");
+    setError("");
+
+    setDeletingIds((current) => {
+      const next = new Set(current);
+      next.add(itemId);
+      return next;
+    });
+
+    setVisibleWatchItems((current) =>
+      current.filter(
+        (item) =>
+          Number(item.id) !== itemId,
+      ),
+    );
+
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+
+        formData.set(
+          "id",
+          String(itemId),
+        );
+
+        await deleteWatchItemAction(
+          formData,
+        );
+
+        if (editingId === itemId) {
+          clearForm();
+        }
+      } catch (deleteError) {
+        setVisibleWatchItems(
+          watchItems,
+        );
+
+        setError(
+          deleteError instanceof Error
+            ? deleteError.message
+            : "Failed to delete Watch Suggestion.",
+        );
+      } finally {
+        setDeletingIds((current) => {
+          const next = new Set(current);
+          next.delete(itemId);
+          return next;
+        });
+      }
+    });
+  }
   function handleSubmit() {
     setMessage("");
     setError("");
@@ -228,8 +374,15 @@ export default function MobileAdminWatch({
       return;
     }
 
-    const formData =
+const formData =
       new FormData();
+
+    if (editingId) {
+      formData.set(
+        "id",
+        String(editingId),
+      );
+    }
 
     formData.set(
       "meeting_id",
@@ -276,15 +429,20 @@ export default function MobileAdminWatch({
             formData,
           );
 
-          setMessage(
-            "Watch Suggestion published.",
+setMessage(
+            editingId
+              ? "Watch Suggestion updated."
+              : "Watch Suggestion published.",
           );
 
+          setEditingId(null);
           setSelectedRunnerId("");
           setCommentary("");
           setLabel(
             "Horse to Watch",
           );
+
+          router.refresh();
         } catch (submitError) {
           setError(
             submitError instanceof Error
@@ -595,9 +753,13 @@ export default function MobileAdminWatch({
         }
         className="w-full rounded-[1.4rem] bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-300 px-4 py-4 text-sm font-black uppercase tracking-[0.13em] text-black shadow-[0_18px_45px_rgba(245,158,11,0.18)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {isPending
-          ? "Publishing..."
-          : "Publish Watch Suggestion"}
+{isPending
+          ? editingId
+            ? "Updating..."
+            : "Publishing..."
+          : editingId
+            ? "Update Watch Suggestion"
+            : "Publish Watch Suggestion"}
       </button>
     </div>
   );
