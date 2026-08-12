@@ -1754,17 +1754,19 @@ function clearWatchForm() {
                     />
                   </Field>
 
-                  <div className="flex flex-wrap gap-3">
-disabled={
-  isWatchPending ||
-  !watchSelectedRace ||
-  !watchSelectedRunner ||
-  !watchSelectedHorse
-}
-                      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
-                    >
-                      {watchEdit ? "Update Watch Item" : "Publish Watch Item"}
-                    </button>
+                 <div className="flex flex-wrap gap-3">
+  <button
+    type="submit"
+    disabled={
+      isWatchPending ||
+      !watchSelectedRace ||
+      !watchSelectedRunner ||
+      !watchSelectedHorse
+    }
+    className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900 disabled:opacity-60"
+  >
+    {watchEdit ? "Update Watch Item" : "Publish Watch Item"}
+  </button>
 
                     {(watchEdit || watchRace || watchHorse || watchCommentary) ? (
                       <button
