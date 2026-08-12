@@ -1494,14 +1494,18 @@ formData.set("place_terms", racePlaceTerms);
       router.refresh();
     });
   }
-  function handleDeleteAllRunners(raceId: number) {
-    if (
-      !window.confirm(
-        "Remove ALL runners from this race? This cannot be undone.",
-      )
-    ) {
-      return;
-    }
+function handleDeleteAllRunners(raceId: number) {
+  if (
+    !window.confirm(
+      "Rebuild this race field?\n\n" +
+        "This will remove ALL runners from the race. " +
+        "For a draft race, any disposable Calculator and research prediction snapshots will also be cleared so the field can be imported again.\n\n" +
+        "Maverick tips, published Calculator tips, subscriber bets and saved results remain protected and will block the rebuild.\n\n" +
+        "Continue?",
+    )
+  ) {
+    return;
+  }
 
     startTransition(async () => {
       const formData = new FormData();
