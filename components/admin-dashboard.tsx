@@ -1830,93 +1830,120 @@ function clearWatchForm() {
 
             <div className="grid gap-6 xl:grid-cols-2">
               <Panel className="bg-white/95">
-                <form action={upsertLongTermBet} className="space-y-5 p-6 text-zinc-950">
-                  <input type="hidden" name="id" value={getOnEarlyEdit?.id || ""} readOnly />
+<form action={upsertLongTermBet} className="space-y-5 p-6 text-zinc-950">
+  <input
+    type="hidden"
+    name="id"
+    value={getOnEarlyEdit?.id || ""}
+    readOnly
+  />
 
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl font-semibold">Get On Early</h3>
-                      <p className="text-sm text-zinc-500">
-                        Enter futures and longer-range betting opportunities.
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getOnEarlyEdit ? <Badge tone="blue">Editing</Badge> : null}
-                      <Badge tone="rose">{getOnEarlyItems.length} published</Badge>
-                    </div>
-                  </div>
+  <div className="flex items-center justify-between gap-3">
+    <div>
+      <h3 className="text-xl font-semibold">Get On Early</h3>
+      <p className="text-sm text-zinc-500">
+        Build a simple early tip for an upcoming race.
+      </p>
+    </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Get On Early title">
-                      <input
-                        name="title"
-                        defaultValue={getOnEarlyEdit?.title || ""}
-                        placeholder="Autumn futures"
-                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                      />
-                    </Field>
+    <div className="flex items-center gap-2">
+      {getOnEarlyEdit ? <Badge tone="blue">Editing</Badge> : null}
+      <Badge tone="rose">{getOnEarlyItems.length} published</Badge>
+    </div>
+  </div>
 
-                    <Field label="Horse / Selection">
-                      <input
-                        name="horse"
-                        defaultValue={getOnEarlyEdit?.horse || ""}
-                        placeholder="Ocean Ember"
-                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                      />
-                    </Field>
-                  </div>
+  <div className="grid gap-4 md:grid-cols-2">
+    <Field label="Horse">
+      <input
+        name="horse"
+        required
+        defaultValue={getOnEarlyEdit?.horse || ""}
+        placeholder="Attractiveness (NZ)"
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      />
+    </Field>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="Bet type">
-                      <select
-                        name="bet_type"
-                        defaultValue={getOnEarlyEdit?.bet_type || "Win"}
-                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                      >
-                        <option>Win</option>
-                        <option>Place</option>
-                        <option>All Up</option>
-                      </select>
-                    </Field>
+    <Field label="Meeting">
+      <input
+        name="meeting"
+        required
+        defaultValue={getOnEarlyEdit?.meeting || ""}
+        placeholder="Rosehill"
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      />
+    </Field>
+  </div>
 
-                    <Field label="Current odds">
-                      <input
-                        name="odds"
-                        defaultValue={getOnEarlyEdit?.odds || ""}
-                        placeholder="$12"
-                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                      />
-                    </Field>
-                  </div>
+  <div className="grid gap-4 md:grid-cols-2">
+    <Field label="Race number">
+      <input
+        name="race_number"
+        type="number"
+        min="1"
+        required
+        defaultValue={getOnEarlyEdit?.race_number || ""}
+        placeholder="1"
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      />
+    </Field>
 
-                  <Field label="Commentary">
-                    <textarea
-                      name="commentary"
-                      defaultValue={getOnEarlyEdit?.commentary || ""}
-                      placeholder="Add your Get On Early angle here."
-                      className="min-h-[120px] w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                    />
-                  </Field>
+    <Field label="Race date">
+      <input
+        name="race_date"
+        type="date"
+        required
+        defaultValue={getOnEarlyEdit?.race_date || ""}
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      />
+    </Field>
+  </div>
 
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="submit"
-                      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
-                    >
-                      {getOnEarlyEdit ? "Update Get On Early" : "Publish Get On Early"}
-                    </button>
+  <div className="grid gap-4 md:grid-cols-2">
+    <Field label="Bet type">
+      <select
+        name="bet_type"
+        required
+        defaultValue={getOnEarlyEdit?.bet_type || "Win"}
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      >
+        <option>Win</option>
+        <option>Place</option>
+        <option>Each Way</option>
+      </select>
+    </Field>
 
-                    {getOnEarlyEdit ? (
-                      <button
-                        type="button"
-                        onClick={() => setGetOnEarlyEdit(null)}
-                        className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
-                      >
-                        Cancel Edit
-                      </button>
-                    ) : null}
-                  </div>
-                </form>
+    <Field label="Odds">
+      <input
+        name="odds"
+        required
+        defaultValue={getOnEarlyEdit?.odds || ""}
+        placeholder="12.00"
+        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+      />
+    </Field>
+  </div>
+
+  <div className="flex flex-wrap gap-3">
+    <button
+      type="submit"
+      className="rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+    >
+      {getOnEarlyEdit
+        ? "Update Get On Early"
+        : "Publish Get On Early"}
+    </button>
+
+    {getOnEarlyEdit ? (
+      <button
+        type="button"
+        onClick={() => setGetOnEarlyEdit(null)}
+        className="rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
+      >
+        Cancel Edit
+      </button>
+    ) : null}
+  </div>
+</form>
               </Panel>
 
               <Panel className="bg-white/95">
