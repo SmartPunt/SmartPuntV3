@@ -1192,18 +1192,57 @@ let maverickExoticTips: any[] = [];
 const maverickExoticTipsStartedAt =
   Date.now();
 
-maverickExoticTips =
-  await fetchServiceRoleRows<any>(
-    `maverick_exotic_tips?select=*` +
-      `&order=created_at.desc`,
+/*
+ * Maverick Exotics are race-day editorial tips only.
+ *
+ * They remain visible while their linked race is
+ * published. As soon as the race is closed/resulted,
+ * it drops out of the subscriber Live Picks feed.
+ *
+ * The database record itself is retained, but no
+ * settlement or performance reporting is required.
+ */
+const activeExoticRaceIds =
+  uniqueNumbers(
+    subscriberCurrentRaces
+      .filter(
+        (race) =>
+          String(
+            race.status || "",
+          )
+            .trim()
+            .toLowerCase() ===
+          "published",
+      )
+      .map(
+        (race) =>
+          race.id,
+      ),
   );
 
+maverickExoticTips =
+  activeExoticRaceIds.length
+    ? await fetchServiceRoleRowsByRaceIds<any>(
+        {
+          table:
+            "maverick_exotic_tips",
+          select: "*",
+          raceIds:
+            activeExoticRaceIds,
+          order:
+            "created_at.desc",
+        },
+      )
+    : [];
+
 logStage(
-  "load Maverick exotic tips",
+  "load active Maverick exotic tips",
   maverickExoticTipsStartedAt,
   {
     rowCount:
       maverickExoticTips.length,
+    activeRaceCount:
+      activeExoticRaceIds.length,
   },
 );
 
