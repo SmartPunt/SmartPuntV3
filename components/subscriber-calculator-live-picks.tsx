@@ -98,6 +98,13 @@ type WatchSuggestion = {
   created_at?: string | null;
   updated_at?: string | null;
 };
+type GetOnEarlyBet = {
+  id: number;
+  meeting?: string | null;
+  race_number?: number | null;
+  horse?: string | null;
+  race_start_at?: string | null;
+};
 type UserBet = {
   id: number;
   source: string | null;
@@ -918,6 +925,7 @@ export default function SubscriberCalculatorLivePicks({
 calculatorPredictions = [],
 officialTips = [],
 watchSuggestions = [],
+getOnEarlyBets = [],
 activeUserBets = [],
 dayDates,
   initialRaceId = "",
@@ -932,6 +940,7 @@ dayDates,
 calculatorPredictions?: CalculatorPrediction[];
 officialTips?: OfficialTip[];
 watchSuggestions?: WatchSuggestion[];
+getOnEarlyBets?: GetOnEarlyBet[];
 activeUserBets?: UserBet[];
   initialRaceId?: string;
   dayDates?: DayDates;
