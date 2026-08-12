@@ -1522,7 +1522,9 @@ function handleDeleteAllRunners(raceId: number) {
         prev.filter((runner) => runner.race_id !== raceId),
       );
 
-      setSuccess("All runners removed from race.");
+setSuccess(
+  "Race field cleared successfully. You can now import the corrected runners.",
+);
       router.refresh();
     });
   }
