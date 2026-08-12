@@ -17,8 +17,9 @@ export type SubscriberLivePicksData = {
   jockeyProfiles: any[];
   calculatorTips: any[];
   calculatorPredictions: any[];
-  officialTips: any[];
-  activeUserBets: any[];
+officialTips: any[];
+watchSuggestions: any[];
+activeUserBets: any[];
 };
 
 type SubscriberLivePicksDataOptions = {
@@ -27,8 +28,9 @@ type SubscriberLivePicksDataOptions = {
   includeJockeyProfiles?: boolean;
   includeCalculatorTips?: boolean;
   includeCalculatorPredictions?: boolean;
-  includeOfficialTips?: boolean;
-  includeActiveUserBets?: boolean;
+includeOfficialTips?: boolean;
+includeWatchSuggestions?: boolean;
+includeActiveUserBets?: boolean;
 };
 
 export function getPerthDate(offsetDays = 0) {
@@ -323,8 +325,9 @@ export async function loadSubscriberLivePicksData({
   includeJockeyProfiles = true,
   includeCalculatorTips = true,
   includeCalculatorPredictions = false,
-  includeOfficialTips = true,
-  includeActiveUserBets = true,
+includeOfficialTips = true,
+includeWatchSuggestions = true,
+includeActiveUserBets = true,
 }: SubscriberLivePicksDataOptions): Promise<SubscriberLivePicksData> {
   const totalStartedAt = Date.now();
 
@@ -1099,7 +1102,47 @@ raceIds:
       Date.now(),
     );
   }
+let watchSuggestions: any[] = [];
 
+if (includeWatchSuggestions) {
+  const watchSuggestionsStartedAt =
+    Date.now();
+
+  /*
+   * Watch Suggestions are global SmartPunt editorial
+   * selections created by admin.
+   *
+   * Only load suggestions attached to races currently
+   * visible to subscribers. This keeps the Live Picks
+   * payload small and prevents old Watch records from
+   * surfacing against unrelated historical races.
+   */
+  watchSuggestions =
+    subscriberVisibleRaceIds.length
+      ? await fetchServiceRoleRowsByRaceIds<any>({
+          table: "watchlist_items",
+          select: "*",
+          raceIds:
+            subscriberVisibleRaceIds,
+          order:
+            "updated_at.desc",
+        })
+      : [];
+
+  logStage(
+    "load Watch Suggestions",
+    watchSuggestionsStartedAt,
+    {
+      rowCount:
+        watchSuggestions.length,
+    },
+  );
+} else {
+  logStage(
+    "skip Watch Suggestions",
+    Date.now(),
+  );
+}
   let activeUserBets: any[] = [];
 
   if (includeActiveUserBets) {
@@ -1201,7 +1244,8 @@ races: includeScoringHistory
     jockeyProfiles,
     calculatorTips,
     calculatorPredictions,
-    officialTips,
-    activeUserBets,
+officialTips,
+watchSuggestions,
+activeUserBets,
   };
 }
