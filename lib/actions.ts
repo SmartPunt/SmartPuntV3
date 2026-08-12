@@ -5301,28 +5301,183 @@ if (tip?.settled_at) {
 }
 }
 
-export async function upsertWatchItem(formData: FormData): Promise<void> {
+export async function upsertWatchItem(
+  formData: FormData,
+): Promise<void> {
   const profile = await requireAdmin();
-  const id = String(formData.get("id") ?? "");
+
+  const id = String(
+    formData.get("id") ?? "",
+  ).trim();
+
+  const meetingId = Number(
+    formData.get("meeting_id") || 0,
+  );
+
+  const raceId = Number(
+    formData.get("race_id") || 0,
+  );
+
+  const raceRunnerId = Number(
+    formData.get("race_runner_id") || 0,
+  );
+
+  const horseId = Number(
+    formData.get("horse_id") || 0,
+  );
+
+  if (
+    !meetingId ||
+    !raceId ||
+    !raceRunnerId ||
+    !horseId
+  ) {
+    throw new Error(
+      "A Watch Suggestion must be linked to a published race and horse.",
+    );
+  }
+
+  const supabase =
+    await createClient();
+
+  /*
+   * Validate the full relationship so a stale
+   * browser selection cannot save the wrong horse
+   * against the wrong race.
+   */
+  const {
+    data: linkedRunner,
+    error: linkedRunnerError,
+  } = await supabase
+    .from("race_runners")
+    .select(`
+      id,
+      race_id,
+      horse_id,
+      races!inner (
+        id,
+        meeting_id,
+        status
+      )
+    `)
+    .eq("id", raceRunnerId)
+    .eq("race_id", raceId)
+    .eq("horse_id", horseId)
+    .eq(
+      "races.meeting_id",
+      meetingId,
+    )
+    .maybeSingle();
+
+  if (linkedRunnerError) {
+    throw new Error(
+      linkedRunnerError.message,
+    );
+  }
+
+  if (!linkedRunner) {
+    throw new Error(
+      "The selected horse no longer matches this race. Refresh the page and try again.",
+    );
+  }
+
+  const raceRows =
+    await serviceRoleSelect(
+      `races?select=id,meeting_id,race_number,race_name,distance_m&id=eq.${raceId}&limit=1`,
+    ) as Array<any> | null;
+
+  const meetingRows =
+    await serviceRoleSelect(
+      `meetings?select=id,meeting_name,meeting_date&id=eq.${meetingId}&limit=1`,
+    ) as Array<any> | null;
+
+  const horseRows =
+    await serviceRoleSelect(
+      `horses?select=id,horse_name&id=eq.${horseId}&limit=1`,
+    ) as Array<any> | null;
+
+  const race =
+    raceRows?.[0] || null;
+
+  const meeting =
+    meetingRows?.[0] || null;
+
+  const horse =
+    horseRows?.[0] || null;
+
+  if (
+    !race ||
+    !meeting ||
+    !horse
+  ) {
+    throw new Error(
+      "The selected Watch Suggestion could not be fully resolved.",
+    );
+  }
+
+  const raceLabel =
+    `${meeting.meeting_name} R${race.race_number} ` +
+    `${race.race_name}` +
+    `${
+      race.distance_m
+        ? ` — ${race.distance_m}m`
+        : ""
+    }`;
 
   const payload = {
-    race: String(formData.get("race") ?? ""),
-    horse: String(formData.get("horse") ?? ""),
-    label: String(formData.get("label") ?? "Horse to Watch"),
-    commentary: String(formData.get("commentary") ?? ""),
+    meeting_id: meetingId,
+    race_id: raceId,
+    race_runner_id: raceRunnerId,
+    horse_id: horseId,
+
+    race: raceLabel,
+
+    horse:
+      String(
+        horse.horse_name || "",
+      ),
+
+    label: String(
+      formData.get("label") ??
+        "Horse to Watch",
+    ),
+
+    commentary: String(
+      formData.get("commentary") ??
+        "",
+    ),
+
     created_by: profile.id,
-    updated_at: new Date().toISOString(),
+
+    updated_at:
+      new Date().toISOString(),
   };
 
-  const supabase = await createClient();
   const query = id
-    ? supabase.from("watchlist_items").update(payload).eq("id", Number(id))
-    : supabase.from("watchlist_items").insert(payload);
+    ? supabase
+        .from("watchlist_items")
+        .update(payload)
+        .eq("id", Number(id))
+    : supabase
+        .from("watchlist_items")
+        .insert(payload);
 
-  const { error } = await query;
-  if (error) throw new Error(error.message);
+  const { error } =
+    await query;
+
+  if (error) {
+    throw new Error(
+      error.message,
+    );
+  }
 
   revalidatePath("/");
+  revalidatePath(
+    "/subscriber-dashboard",
+  );
+  revalidatePath(
+    "/smartpunt-calculator-live-picks",
+  );
 }
 
 export async function deleteWatchItemAction(formData: FormData): Promise<void> {
