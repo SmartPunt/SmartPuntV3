@@ -174,7 +174,13 @@ export default async function MobileAdminPage() {
   description="Publish an upcoming selection with meeting, race, date, bet type and odds."
   icon="⚡"
 />
-
+<AdminLink
+  href="/mobile-admin/exotics"
+  eyebrow="The Maverick"
+  title="Exotic Tips"
+  description="Build a Quinella or Trifecta from the current race program."
+  icon="🎯"
+/>
           <AdminLink
             href="/admin/maverick-report"
             eyebrow="Performance"
