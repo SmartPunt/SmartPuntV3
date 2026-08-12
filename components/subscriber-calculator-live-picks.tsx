@@ -1894,9 +1894,9 @@ return (
 
       <span className="shrink-0 rounded-full border border-sky-300/40 bg-sky-500/15 px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.08em] text-sky-100">
         {bet.bet_type || "Win"}
-        {bet.odds
-          ? ` · ${bet.odds}`
-          : ""}
+{bet.odds
+  ? ` · $${String(bet.odds).replace(/^\$/, "")}`
+  : ""}
       </span>
     </div>
   </div>
