@@ -103,6 +103,7 @@ type GetOnEarlyBet = {
   meeting?: string | null;
   race_number?: number | null;
   horse?: string | null;
+  race_date?: string | null;
   race_start_at?: string | null;
 };
 type UserBet = {
@@ -1852,14 +1853,17 @@ source: isConsensus ? "CONSENSUS" : "HEAD",
     {getOnEarlyBets.length > 0 ? (
       <div className="mb-2 space-y-1.5">
         {getOnEarlyBets.map((bet) => {
-          const raceDate =
-            bet.race_start_at
-              ? new Intl.DateTimeFormat("en-AU", {
-                  timeZone: "Australia/Perth",
-                  day: "numeric",
-                  month: "short",
-                }).format(new Date(bet.race_start_at))
-              : "";
+const raceDate =
+  bet.race_date
+    ? new Intl.DateTimeFormat("en-AU", {
+        day: "numeric",
+        month: "short",
+      }).format(
+        new Date(
+          `${bet.race_date}T12:00:00`,
+        ),
+      )
+    : "";
 
           return (
             <div
