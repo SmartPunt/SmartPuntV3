@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { upsertWatchItem } from "@/lib/actions";
+import {
+  deleteWatchItemAction,
+  upsertWatchItem,
+} from "@/lib/actions";
 
 type Meeting = {
   id: number;
