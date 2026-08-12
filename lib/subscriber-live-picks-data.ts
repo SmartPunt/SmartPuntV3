@@ -19,6 +19,7 @@ export type SubscriberLivePicksData = {
   calculatorPredictions: any[];
 officialTips: any[];
 watchSuggestions: any[];
+getOnEarlyBets: any[];
 activeUserBets: any[];
 };
 
@@ -30,6 +31,7 @@ type SubscriberLivePicksDataOptions = {
   includeCalculatorPredictions?: boolean;
 includeOfficialTips?: boolean;
 includeWatchSuggestions?: boolean;
+includeGetOnEarlyBets?: boolean;
 includeActiveUserBets?: boolean;
 };
 
@@ -327,6 +329,7 @@ export async function loadSubscriberLivePicksData({
   includeCalculatorPredictions = false,
 includeOfficialTips = true,
 includeWatchSuggestions = true,
+includeGetOnEarlyBets = true,
 includeActiveUserBets = true,
 }: SubscriberLivePicksDataOptions): Promise<SubscriberLivePicksData> {
   const totalStartedAt = Date.now();
@@ -1143,7 +1146,49 @@ if (includeWatchSuggestions) {
     Date.now(),
   );
 }
-  let activeUserBets: any[] = [];
+
+let getOnEarlyBets: any[] = [];
+
+if (includeGetOnEarlyBets) {
+  const getOnEarlyStartedAt =
+    Date.now();
+
+  /*
+   * Get On Early selections can be for races beyond
+   * the Live Picks three-day race window, so load
+   * them independently from subscriberVisibleRaceIds.
+   *
+   * An active Get On Early remains visible until its
+   * scheduled race start time.
+   */
+  const nowIso =
+    new Date().toISOString();
+
+  getOnEarlyBets =
+    await fetchServiceRoleRows<any>(
+      `long_term_bets?select=*` +
+        `&race_start_at=gt.${encodeURIComponent(
+          nowIso,
+        )}` +
+        `&order=race_start_at.asc`,
+    );
+
+  logStage(
+    "load active Get On Early",
+    getOnEarlyStartedAt,
+    {
+      rowCount:
+        getOnEarlyBets.length,
+    },
+  );
+} else {
+  logStage(
+    "skip Get On Early",
+    Date.now(),
+  );
+}
+
+let activeUserBets: any[] = [];
 
   if (includeActiveUserBets) {
     const activeUserBetsStartedAt =
@@ -1198,8 +1243,10 @@ if (includeWatchSuggestions) {
       includeJockeyProfiles,
       includeCalculatorTips,
       includeCalculatorPredictions,
-      includeOfficialTips,
-      includeActiveUserBets,
+includeOfficialTips,
+includeWatchSuggestions,
+includeGetOnEarlyBets,
+includeActiveUserBets,
       currentMeetingCount:
         currentMeetings.length,
       currentRaceCount:
@@ -1246,6 +1293,7 @@ races: includeScoringHistory
     calculatorPredictions,
 officialTips,
 watchSuggestions,
+getOnEarlyBets,
 activeUserBets,
   };
 }
