@@ -5684,7 +5684,517 @@ export async function deleteLongTermBetAction(
     throw new Error(error.message);
   }
 }
+type MaverickExoticSelectionInput = {
+  race_runner_id: number;
+  positions?: number[];
+};
 
+export async function upsertMaverickExoticTipAction(
+  formData: FormData,
+): Promise<void> {
+  const profile = await requireAdmin();
+
+  const id = Number(
+    formData.get("id") || 0,
+  );
+
+  const raceId = Number(
+    formData.get("race_id") || 0,
+  );
+
+  const rawBetType = String(
+    formData.get("bet_type") || "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const rawMode = String(
+    formData.get("mode") || "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const selectionsJson = String(
+    formData.get("selections") || "[]",
+  );
+
+  if (!raceId) {
+    throw new Error(
+      "Select a race first.",
+    );
+  }
+
+  if (
+    rawBetType !== "quinella" &&
+    rawBetType !== "trifecta"
+  ) {
+    throw new Error(
+      "Bet type must be Quinella or Trifecta.",
+    );
+  }
+
+  const betType:
+    | "quinella"
+    | "trifecta" =
+    rawBetType;
+
+  let mode:
+    | "all_ways"
+    | "positional"
+    | null = null;
+
+  if (betType === "trifecta") {
+    if (
+      rawMode !== "all_ways" &&
+      rawMode !== "positional"
+    ) {
+      throw new Error(
+        "Choose All Ways or Set Positions for the Trifecta.",
+      );
+    }
+
+    mode = rawMode;
+  }
+
+  let suppliedSelections:
+    MaverickExoticSelectionInput[] = [];
+
+  try {
+    const parsed =
+      JSON.parse(selectionsJson);
+
+    if (!Array.isArray(parsed)) {
+      throw new Error(
+        "Selections must be an array.",
+      );
+    }
+
+    suppliedSelections =
+      parsed.map((selection) => ({
+        race_runner_id: Number(
+          selection?.race_runner_id,
+        ),
+
+        positions:
+          Array.isArray(
+            selection?.positions,
+          )
+            ? selection.positions
+                .map(Number)
+                .filter(
+                  (position: number) =>
+                    [1, 2, 3].includes(
+                      position,
+                    ),
+                )
+            : [],
+      }));
+  } catch {
+    throw new Error(
+      "The exotic selections could not be read.",
+    );
+  }
+
+  const runnerIds = Array.from(
+    new Set(
+      suppliedSelections
+        .map((selection) =>
+          Number(
+            selection.race_runner_id,
+          ),
+        )
+        .filter(Boolean),
+    ),
+  );
+
+  if (
+    runnerIds.length !==
+    suppliedSelections.length
+  ) {
+    throw new Error(
+      "Each selected horse must be unique.",
+    );
+  }
+
+  if (
+    betType === "quinella" &&
+    runnerIds.length !== 2
+  ) {
+    throw new Error(
+      "A Quinella requires exactly 2 horses.",
+    );
+  }
+
+  if (
+    betType === "trifecta" &&
+    (
+      runnerIds.length < 3 ||
+      runnerIds.length > 8
+    )
+  ) {
+    throw new Error(
+      "A Trifecta requires between 3 and 8 horses.",
+    );
+  }
+
+  if (
+    betType === "trifecta" &&
+    mode === "positional"
+  ) {
+    const hasFirst =
+      suppliedSelections.some(
+        (selection) =>
+          selection.positions?.includes(
+            1,
+          ),
+      );
+
+    const hasSecond =
+      suppliedSelections.some(
+        (selection) =>
+          selection.positions?.includes(
+            2,
+          ),
+      );
+
+    const hasThird =
+      suppliedSelections.some(
+        (selection) =>
+          selection.positions?.includes(
+            3,
+          ),
+      );
+
+    if (
+      !hasFirst ||
+      !hasSecond ||
+      !hasThird
+    ) {
+      throw new Error(
+        "A positional Trifecta needs at least one horse available for 1st, 2nd and 3rd.",
+      );
+    }
+
+    const horseWithoutPosition =
+      suppliedSelections.find(
+        (selection) =>
+          !selection.positions?.length,
+      );
+
+    if (horseWithoutPosition) {
+      throw new Error(
+        "Every horse in a positional Trifecta must have at least one finishing position selected.",
+      );
+    }
+  }
+
+  const supabase =
+    await createClient();
+
+  const {
+    data: race,
+    error: raceError,
+  } = await supabase
+    .from("races")
+    .select(
+      "id, status",
+    )
+    .eq("id", raceId)
+    .maybeSingle();
+
+  if (raceError) {
+    throw new Error(
+      raceError.message,
+    );
+  }
+
+  if (!race) {
+    throw new Error(
+      "The selected race could not be found.",
+    );
+  }
+
+  if (
+    String(race.status || "") !==
+    "published"
+  ) {
+    throw new Error(
+      "Exotic tips can only be published against a published race.",
+    );
+  }
+
+  const {
+    data: runnerRows,
+    error: runnerError,
+  } = await supabase
+    .from("race_runners")
+    .select(
+      "id, race_id, horse_id, runner_number, scratched",
+    )
+    .in("id", runnerIds)
+    .eq("race_id", raceId);
+
+  if (runnerError) {
+    throw new Error(
+      runnerError.message,
+    );
+  }
+
+  if (
+    (runnerRows || []).length !==
+    runnerIds.length
+  ) {
+    throw new Error(
+      "One or more selected horses no longer belong to this race. Refresh and try again.",
+    );
+  }
+
+  if (
+    (runnerRows || []).some(
+      (runner) =>
+        runner.scratched === true,
+    )
+  ) {
+    throw new Error(
+      "A scratched horse cannot be included in an exotic tip.",
+    );
+  }
+
+  const horseIds = Array.from(
+    new Set(
+      (runnerRows || [])
+        .map((runner) =>
+          Number(runner.horse_id),
+        )
+        .filter(Boolean),
+    ),
+  );
+
+  const {
+    data: horseRows,
+    error: horseError,
+  } = horseIds.length
+    ? await supabase
+        .from("horses")
+        .select(
+          "id, horse_name",
+        )
+        .in("id", horseIds)
+    : {
+        data: [],
+        error: null,
+      };
+
+  if (horseError) {
+    throw new Error(
+      horseError.message,
+    );
+  }
+
+  const horseMap =
+    new Map(
+      (horseRows || []).map(
+        (horse) => [
+          Number(horse.id),
+          horse,
+        ],
+      ),
+    );
+
+  const suppliedByRunnerId =
+    new Map(
+      suppliedSelections.map(
+        (selection) => [
+          Number(
+            selection.race_runner_id,
+          ),
+          selection,
+        ],
+      ),
+    );
+
+  const selections =
+    runnerIds.map(
+      (runnerId) => {
+        const runner =
+          (runnerRows || []).find(
+            (row) =>
+              Number(row.id) ===
+              runnerId,
+          );
+
+        if (!runner) {
+          throw new Error(
+            "A selected runner could not be resolved.",
+          );
+        }
+
+        const horse =
+          horseMap.get(
+            Number(
+              runner.horse_id,
+            ),
+          );
+
+        if (!horse) {
+          throw new Error(
+            "A selected horse could not be resolved.",
+          );
+        }
+
+        const supplied =
+          suppliedByRunnerId.get(
+            runnerId,
+          );
+
+        return {
+          race_runner_id:
+            Number(runner.id),
+
+          horse_id:
+            Number(
+              runner.horse_id,
+            ),
+
+          horse:
+            String(
+              horse.horse_name ||
+                "",
+            ),
+
+          runner_number:
+            runner.runner_number !==
+              null &&
+            runner.runner_number !==
+              undefined
+              ? Number(
+                  runner.runner_number,
+                )
+              : null,
+
+          ...(
+            betType ===
+              "trifecta" &&
+            mode === "positional"
+              ? {
+                  positions:
+                    Array.from(
+                      new Set(
+                        supplied
+                          ?.positions ||
+                          [],
+                      ),
+                    ).sort(
+                      (
+                        a,
+                        b,
+                      ) =>
+                        a - b,
+                    ),
+                }
+              : {}
+          ),
+        };
+      },
+    );
+
+  const payload = {
+    race_id: raceId,
+
+    bet_type: betType,
+
+    mode:
+      betType === "trifecta"
+        ? mode
+        : null,
+
+    selections,
+
+    created_by:
+      profile.id,
+
+    updated_at:
+      new Date().toISOString(),
+  };
+
+  if (id) {
+    const { error } =
+      await supabase
+        .from(
+          "maverick_exotic_tips",
+        )
+        .update(payload)
+        .eq("id", id);
+
+    if (error) {
+      throw new Error(
+        error.message,
+      );
+    }
+  } else {
+    const { error } =
+      await supabase
+        .from(
+          "maverick_exotic_tips",
+        )
+        .insert(payload);
+
+    if (error) {
+      throw new Error(
+        error.message,
+      );
+    }
+  }
+
+  revalidatePath(
+    "/smartpunt-calculator-live-picks",
+  );
+
+  revalidatePath(
+    "/mobile-admin/exotics",
+  );
+}
+
+export async function deleteMaverickExoticTipAction(
+  formData: FormData,
+): Promise<void> {
+  await requireAdmin();
+
+  const id = Number(
+    formData.get("id") || 0,
+  );
+
+  if (!id) {
+    throw new Error(
+      "Exotic tip is required.",
+    );
+  }
+
+  const supabase =
+    await createClient();
+
+  const { error } =
+    await supabase
+      .from(
+        "maverick_exotic_tips",
+      )
+      .delete()
+      .eq("id", id);
+
+  if (error) {
+    throw new Error(
+      error.message,
+    );
+  }
+
+  revalidatePath(
+    "/smartpunt-calculator-live-picks",
+  );
+
+  revalidatePath(
+    "/mobile-admin/exotics",
+  );
+}
 export async function createMeetingAction(
   formData: FormData,
 ): Promise<ActionResult> {
