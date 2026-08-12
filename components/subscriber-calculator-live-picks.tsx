@@ -85,7 +85,19 @@ type OfficialTip = {
   created_at?: string | null;
   published_at?: string | null;
 };
-
+type WatchSuggestion = {
+  id: number;
+  meeting_id?: number | null;
+  race_id?: number | null;
+  race_runner_id?: number | null;
+  horse_id?: number | null;
+  race?: string | null;
+  horse?: string | null;
+  label?: string | null;
+  commentary?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
 type UserBet = {
   id: number;
   source: string | null;
@@ -903,10 +915,11 @@ export default function SubscriberCalculatorLivePicks({
   meetings,
   jockeyProfiles,
   calculatorTips = [],
-  calculatorPredictions = [],
-  officialTips = [],
-  activeUserBets = [],
-  dayDates,
+calculatorPredictions = [],
+officialTips = [],
+watchSuggestions = [],
+activeUserBets = [],
+dayDates,
   initialRaceId = "",
 }: {
   currentUser: any;
@@ -916,9 +929,10 @@ export default function SubscriberCalculatorLivePicks({
   meetings: Meeting[];
   jockeyProfiles: JockeyProfile[];
   calculatorTips?: CalculatorTip[];
-  calculatorPredictions?: CalculatorPrediction[];
-  officialTips?: OfficialTip[];
-  activeUserBets?: UserBet[];
+calculatorPredictions?: CalculatorPrediction[];
+officialTips?: OfficialTip[];
+watchSuggestions?: WatchSuggestion[];
+activeUserBets?: UserBet[];
   initialRaceId?: string;
   dayDates?: DayDates;
 }) {
@@ -1398,7 +1412,57 @@ const qualifiedTip = useMemo(() => {
       scoredRunners,
     ],
   );
+const activeRaceWatchSuggestions =
+  useMemo(() => {
+    if (
+      !activeRace ||
+      raceDayFilter !== "today"
+    ) {
+      return [];
+    }
 
+    return watchSuggestions.filter(
+      (suggestion) =>
+        Number(
+          suggestion.race_id || 0,
+        ) === Number(activeRace.id),
+    );
+  }, [
+    activeRace,
+    raceDayFilter,
+    watchSuggestions,
+  ]);
+
+const watchSuggestionRunnerIds =
+  useMemo(
+    () =>
+      new Set(
+        activeRaceWatchSuggestions
+          .map((suggestion) =>
+            Number(
+              suggestion.race_runner_id ||
+                0,
+            ),
+          )
+          .filter(Boolean),
+      ),
+    [activeRaceWatchSuggestions],
+  );
+
+const watchSuggestionHorseIds =
+  useMemo(
+    () =>
+      new Set(
+        activeRaceWatchSuggestions
+          .map((suggestion) =>
+            Number(
+              suggestion.horse_id || 0,
+            ),
+          )
+          .filter(Boolean),
+      ),
+    [activeRaceWatchSuggestions],
+  );
   const officialRaceTip = useMemo(() => {
     if (!activeRace) return null;
 
@@ -2140,6 +2204,61 @@ Maverick Insight
                 ) : null}
 
                 <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#0b1120_58%,#050505_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+                  {activeRaceWatchSuggestions.length > 0 ? (
+  <div className="rounded-[20px] border border-violet-300/35 bg-[linear-gradient(135deg,rgba(76,29,149,0.32)_0%,rgba(2,6,23,0.97)_55%,rgba(0,0,0,0.98)_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-violet-200">
+          SmartPunt Watch
+        </p>
+
+        <p className="mt-1 text-[11px] font-semibold text-zinc-400">
+          A SmartPunt Watch Suggestion is racing today.
+        </p>
+      </div>
+
+      <span className="rounded-full border border-violet-300/35 bg-violet-400/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-violet-100">
+        Watch
+      </span>
+    </div>
+
+    <div className="mt-3 space-y-2">
+      {activeRaceWatchSuggestions.map(
+        (suggestion) => (
+          <div
+            key={suggestion.id}
+            className="rounded-2xl border border-white/10 bg-black/40 p-3"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-base font-black text-white">
+                  {suggestion.horse ||
+                    "Watch Selection"}
+                </p>
+
+                {suggestion.label ? (
+                  <p className="mt-1 text-[9px] font-black uppercase tracking-[0.14em] text-violet-200">
+                    {suggestion.label}
+                  </p>
+                ) : null}
+              </div>
+
+              <span className="shrink-0 rounded-full border border-violet-300/30 bg-violet-400/10 px-2.5 py-1 text-[8px] font-black uppercase text-violet-100">
+                Watch
+              </span>
+            </div>
+
+            {suggestion.commentary ? (
+              <p className="mt-3 text-[12px] font-semibold leading-5 text-zinc-300">
+                {suggestion.commentary}
+              </p>
+            ) : null}
+          </div>
+        ),
+      )}
+    </div>
+  </div>
+) : null}
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
@@ -2489,7 +2608,13 @@ in the SmartPunt Calculator Top 3 above.
                             officialRaceTipRunner &&
                             Number(officialRaceTipRunner.id) ===
                               Number(runner.id);
-
+const isWatchSuggestion =
+  watchSuggestionRunnerIds.has(
+    Number(runner.id),
+  ) ||
+  watchSuggestionHorseIds.has(
+    Number(runner.horse_id),
+  );
                           return (
                             <tr
                               key={runner.id}
@@ -2541,14 +2666,21 @@ in the SmartPunt Calculator Top 3 above.
     {runner.horse_name}
   </p>
 </div>
-                                <p className="mt-1 text-[10px] font-semibold text-zinc-500">
-                                  Barrier {runner.barrier || "—"}{" "}
-                                  {isOfficialTip
-                                    ? "• Maverick Tip"
-                                    : isCalculatorTip
-                                      ? "• Calculator Tip"
-                                      : ""}
-                                </p>
+<p className="mt-1 text-[10px] font-semibold text-zinc-500">
+  Barrier {runner.barrier || "—"}{" "}
+  {isOfficialTip
+    ? "• Maverick Tip"
+    : isCalculatorTip
+      ? "• Calculator Tip"
+      : isWatchSuggestion
+        ? "• WATCH"
+        : ""}
+</p>
+  {isWatchSuggestion ? (
+  <span className="mt-1 inline-flex rounded-full border border-violet-300/35 bg-violet-400/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-violet-200">
+    SmartPunt Watch
+  </span>
+) : null}
                               </td>
                               <td className="px-3 py-3 font-semibold text-zinc-300">
                                 {(runner as any).jockey_name || "—"}
