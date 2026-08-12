@@ -2120,8 +2120,10 @@ className="text-[7px] font-black uppercase tracking-[0.07em] text-current"
                   </span>
                 </span>
 
-                <span className="min-w-0">
-className={`block text-[9px] font-black uppercase tracking-[0.1em] ${exoticTextClasses}`}
+<span className="min-w-0">
+  <span
+    className={`block text-[9px] font-black uppercase tracking-[0.1em] ${exoticTextClasses}`}
+  >
                     {meeting.meeting_name || "Meeting"} R
                     {race.race_number || "—"}
                   </span>
