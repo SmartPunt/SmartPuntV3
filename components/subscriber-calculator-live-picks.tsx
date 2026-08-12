@@ -100,11 +100,12 @@ type WatchSuggestion = {
 };
 type GetOnEarlyBet = {
   id: number;
+  horse?: string | null;
   meeting?: string | null;
   race_number?: number | null;
-  horse?: string | null;
   race_date?: string | null;
-  race_start_at?: string | null;
+  bet_type?: string | null;
+  odds?: string | null;
 };
 type UserBet = {
   id: number;
@@ -1865,30 +1866,41 @@ const raceDate =
       )
     : "";
 
-          return (
-            <div
-              key={bet.id}
-              className="rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] px-3 py-2"
-            >
-              <div className="flex items-center gap-2">
-                <span className="shrink-0 rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
-                  Get On Early
-                </span>
+return (
+  <div
+    key={bet.id}
+    className="rounded-2xl border border-sky-300/30 bg-sky-500/[0.08] px-2.5 py-2"
+  >
+    <div className="grid grid-cols-[82px_1fr_auto] items-center gap-2">
+      <span className="flex min-h-[34px] items-center justify-center rounded-full border border-sky-300/40 bg-sky-500/15 px-2 py-1 text-center text-[7px] font-black uppercase tracking-[0.08em] text-sky-100">
+        Get On Early
+      </span>
 
-                <span className="min-w-0 truncate text-[10px] font-bold text-zinc-200">
-                  <span className="font-black text-white">
-                    {bet.horse || "Selection"}
-                  </span>
-                  {" · "}
-                  {bet.meeting || "Meeting"}
-                  {bet.race_number
-                    ? ` R${bet.race_number}`
-                    : ""}
-                  {raceDate ? ` · ${raceDate}` : ""}
-                </span>
-              </div>
-            </div>
-          );
+      <span className="min-w-0">
+        <span className="block text-[9px] font-black uppercase tracking-[0.1em] text-sky-200">
+          {bet.meeting || "Meeting"}
+          {bet.race_number
+            ? ` R${bet.race_number}`
+            : ""}
+          {raceDate
+            ? ` · ${raceDate}`
+            : ""}
+        </span>
+
+        <span className="mt-0.5 block truncate text-[12px] font-black leading-tight text-white">
+          {bet.horse || "Selection"}
+        </span>
+      </span>
+
+      <span className="shrink-0 rounded-full border border-sky-300/40 bg-sky-500/15 px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.08em] text-sky-100">
+        {bet.bet_type || "Win"}
+        {bet.odds
+          ? ` · ${bet.odds}`
+          : ""}
+      </span>
+    </div>
+  </div>
+);
         })}
       </div>
     ) : null}
