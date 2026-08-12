@@ -2067,12 +2067,34 @@ return (
               Number(activeRace.id) ===
                 Number(race.id);
 
-            const betLabel =
-              tip.bet_type === "quinella"
-                ? "Quinella"
-                : tip.mode === "all_ways"
-                  ? "Trifecta · All Ways"
-                  : "Trifecta";
+const isTrifecta =
+  tip.bet_type === "trifecta";
+
+const betLabel =
+  tip.bet_type === "quinella"
+    ? "✦ Quinella ✦"
+    : tip.mode === "all_ways"
+      ? "✦ Trifecta · All Ways ✦"
+      : "✦ Trifecta ✦";
+
+const exoticRowClasses =
+  isTrifecta
+    ? isSelected
+      ? "border-yellow-200/80 bg-[linear-gradient(135deg,rgba(120,83,10,0.42),rgba(250,204,21,0.18),rgba(120,83,10,0.28))] shadow-[0_0_18px_rgba(250,204,21,0.20)]"
+      : "border-yellow-300/45 bg-[linear-gradient(135deg,rgba(113,63,18,0.30),rgba(250,204,21,0.10),rgba(69,26,3,0.28))] shadow-[inset_0_1px_0_rgba(254,240,138,0.15)] hover:border-yellow-200/70"
+    : isSelected
+      ? "border-rose-200/80 bg-[linear-gradient(135deg,rgba(136,19,55,0.34),rgba(251,113,133,0.17),rgba(120,53,15,0.22))] shadow-[0_0_18px_rgba(251,113,133,0.16)]"
+      : "border-rose-300/40 bg-[linear-gradient(135deg,rgba(136,19,55,0.23),rgba(251,113,133,0.08),rgba(120,53,15,0.18))] shadow-[inset_0_1px_0_rgba(254,205,211,0.14)] hover:border-rose-200/65";
+
+const exoticAccentClasses =
+  isTrifecta
+    ? "border-yellow-200/55 bg-yellow-300/10 text-yellow-100"
+    : "border-rose-200/50 bg-rose-300/10 text-rose-100";
+
+const exoticTextClasses =
+  isTrifecta
+    ? "text-yellow-200"
+    : "text-rose-200";
 
             return (
               <button
@@ -2083,13 +2105,9 @@ return (
                     String(race.id),
                   )
                 }
-                className={`grid w-full grid-cols-[94px_1fr_auto] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
-                  isSelected
-                    ? "border-fuchsia-300 bg-fuchsia-300/15 shadow-[0_0_0_1px_rgba(217,70,239,0.25)_inset]"
-                    : "border-fuchsia-300/25 bg-fuchsia-500/[0.07] hover:border-fuchsia-300/45 hover:bg-fuchsia-500/[0.11]"
-                }`}
+className={`grid w-full grid-cols-[94px_1fr_auto] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${exoticRowClasses}`}
               >
-                <span className="flex min-h-[34px] items-center justify-center gap-1 rounded-full border border-fuchsia-300/35 bg-fuchsia-500/10 px-2 py-1 text-center">
+className={`flex min-h-[34px] items-center justify-center gap-1 rounded-full border px-2 py-1 text-center ${exoticAccentClasses}`}
                   <img
                     src="/maverick/maverick-shield.png"
                     alt=""
@@ -2097,13 +2115,13 @@ return (
                     className="h-[26px] w-[26px] shrink-0 object-contain"
                   />
 
-                  <span className="text-[7px] font-black uppercase tracking-[0.07em] text-fuchsia-100">
+className="text-[7px] font-black uppercase tracking-[0.07em] text-current"
                     Maverick
                   </span>
                 </span>
 
                 <span className="min-w-0">
-                  <span className="block text-[9px] font-black uppercase tracking-[0.1em] text-fuchsia-200">
+className={`block text-[9px] font-black uppercase tracking-[0.1em] ${exoticTextClasses}`}
                     {meeting.meeting_name || "Meeting"} R
                     {race.race_number || "—"}
                   </span>
@@ -2113,7 +2131,7 @@ return (
                   </span>
                 </span>
 
-                <span className="shrink-0 rounded-full border border-fuchsia-300/35 bg-fuchsia-500/10 px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.08em] text-fuchsia-100">
+className={`shrink-0 rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.08em] ${exoticAccentClasses}`}
                   {betLabel}
                 </span>
               </button>
