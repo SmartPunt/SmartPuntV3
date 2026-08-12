@@ -140,31 +140,6 @@ export default async function HomePage() {
     },
   });
 
-  const calculatorTips = await fetchServiceRoleRows<{
-    id: number;
-    race_id: number | null;
-    race_runner_id: number | null;
-    horse_id: number | null;
-    race: string | null;
-    horse: string | null;
-    bet_type: string | null;
-    confidence: string | null;
-    score: number | string | null;
-    win_percent: number | string | null;
-    place_percent: number | string | null;
-    race_gap: number | string | null;
-    race_confidence_percent: number | string | null;
-    race_confidence_tier: string | null;
-    status: string | null;
-    finishing_position: number | null;
-    won: boolean | null;
-    placed: boolean | null;
-    settled_at: string | null;
-    published_at: string | null;
-  }>(
-    "smartpunt_calculator_tips?select=*&settled_at=is.null&status=eq.active&order=published_at.desc",
-  );
-
   const watchlistItems = await fetchAllRows({
     getPage: async (from, to) => {
       const result = await supabase
@@ -297,6 +272,31 @@ export default async function HomePage() {
       </AppEntryLoader>
     );
   }
+
+const calculatorTips = await fetchServiceRoleRows<{
+  id: number;
+  race_id: number | null;
+  race_runner_id: number | null;
+  horse_id: number | null;
+  race: string | null;
+  horse: string | null;
+  bet_type: string | null;
+  confidence: string | null;
+  score: number | string | null;
+  win_percent: number | string | null;
+  place_percent: number | string | null;
+  race_gap: number | string | null;
+  race_confidence_percent: number | string | null;
+  race_confidence_tier: string | null;
+  status: string | null;
+  finishing_position: number | null;
+  won: boolean | null;
+  placed: boolean | null;
+  settled_at: string | null;
+  published_at: string | null;
+}>(
+  "smartpunt_calculator_tips?select=*&settled_at=is.null&status=eq.active&order=published_at.desc",
+);
 
 const activeUserBetsQuery = await supabase
   .from("user_bets")
