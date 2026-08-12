@@ -2115,10 +2115,10 @@ className={`flex min-h-[34px] items-center justify-center gap-1 rounded-full bor
                     className="h-[26px] w-[26px] shrink-0 object-contain"
                   />
 
-className="text-[7px] font-black uppercase tracking-[0.07em] text-current"
-                    Maverick
-                  </span>
-                </span>
+<span className="text-[7px] font-black uppercase tracking-[0.07em] text-current">
+  Maverick
+</span>
+</span>
 
 <span className="min-w-0">
   <span
