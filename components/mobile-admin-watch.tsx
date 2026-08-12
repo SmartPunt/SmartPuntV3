@@ -761,6 +761,121 @@ setMessage(
             ? "Update Watch Suggestion"
             : "Publish Watch Suggestion"}
       </button>
+      {editingId ? (
+        <button
+          type="button"
+          onClick={clearForm}
+          disabled={isPending}
+          className="w-full rounded-[1.4rem] border border-white/15 bg-white/5 px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-zinc-300 transition hover:bg-white/10 disabled:opacity-40"
+        >
+          Cancel Edit
+        </button>
+      ) : null}
+      <section className="rounded-[2rem] border border-white/10 bg-black/75 p-4 shadow-xl shadow-black/30">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">
+              Current Watch Suggestions
+            </p>
+
+            <p className="mt-1 text-xs font-semibold text-zinc-500">
+              Manage The Maverick&apos;s published Watch items.
+            </p>
+          </div>
+
+          <span className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[9px] font-black text-amber-200">
+            {visibleWatchItems.length}
+          </span>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {visibleWatchItems.length ? (
+            visibleWatchItems.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-base font-black text-white">
+                      {item.horse ||
+                        "Watch Selection"}
+                    </p>
+
+                    <p className="mt-1 text-[11px] font-semibold leading-5 text-zinc-400">
+                      {item.race ||
+                        "Race details unavailable"}
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
+                    {item.label ||
+                      "Watch"}
+                  </span>
+                </div>
+
+                {item.commentary ? (
+                  <p className="mt-3 text-sm font-semibold leading-6 text-zinc-300">
+                    {item.commentary}
+                  </p>
+                ) : null}
+
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      loadWatchIntoForm(
+                        item,
+                      )
+                    }
+                    disabled={
+                      deletingIds.has(
+                        Number(
+                          item.id,
+                        ),
+                      )
+                    }
+                    className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15 disabled:opacity-40"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDelete(
+                        Number(
+                          item.id,
+                        ),
+                      )
+                    }
+                    disabled={
+                      deletingIds.has(
+                        Number(
+                          item.id,
+                        ),
+                      )
+                    }
+                    className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.1em] text-rose-200 transition hover:bg-rose-400/15 disabled:opacity-40"
+                  >
+                    {deletingIds.has(
+                      Number(
+                        item.id,
+                      ),
+                    )
+                      ? "Deleting..."
+                      : "Delete"}
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-5 text-center text-sm font-semibold text-zinc-500">
+              No Watch Suggestions published.
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
