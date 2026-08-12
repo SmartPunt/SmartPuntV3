@@ -5482,16 +5482,23 @@ export async function upsertWatchItem(
 
 export async function deleteWatchItemAction(formData: FormData): Promise<void> {
   await requireAdmin();
+
   const id = Number(formData.get("id"));
+
+  if (!id) {
+    throw new Error("Watch item is required.");
+  }
+
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("watchlist_items")
     .delete()
     .eq("id", id);
-  if (error) throw new Error(error.message);
 
-  revalidatePath("/");
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function upsertLongTermBet(
@@ -5661,13 +5668,23 @@ export async function deleteLongTermBetAction(
   formData: FormData,
 ): Promise<void> {
   await requireAdmin();
+
   const id = Number(formData.get("id"));
+
+  if (!id) {
+    throw new Error("Get On Early item is required.");
+  }
+
   const supabase = await createClient();
 
-  const { error } = await supabase.from("long_term_bets").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  const { error } = await supabase
+    .from("long_term_bets")
+    .delete()
+    .eq("id", id);
 
-  revalidatePath("/");
+  if (error) {
+    throw new Error(error.message);
+  }
 }
 
 export async function createMeetingAction(
