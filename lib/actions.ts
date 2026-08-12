@@ -6900,35 +6900,215 @@ export async function removeAllRaceRunnersAction(
     const raceId = Number(formData.get("race_id"));
 
     if (!raceId) {
-      return { success: false, error: "Race is required." };
+      return {
+        success: false,
+        error: "Race is required.",
+      };
+    }
+
+    /*
+     * Load the race first.
+     *
+     * Draft races are allowed to use the controlled
+     * field-rebuild pathway below. Published/closed
+     * races continue to use the normal deletion
+     * safeguards.
+     */
+    const raceRows = (await serviceRoleSelect(
+      `races?select=id,meeting_id,status&id=eq.${raceId}&limit=1`,
+    )) as Array<{
+      id: number;
+      meeting_id: number | null;
+      status: string | null;
+    }> | null;
+
+    const race = raceRows?.[0] || null;
+
+    if (!race) {
+      return {
+        success: false,
+        error: "Race could not be found.",
+      };
     }
 
     const runners = (await serviceRoleSelect(
-      `race_runners?race_id=eq.${raceId}&select=id`,
-    )) as Array<{ id: number }> | null;
+      `race_runners?race_id=eq.${raceId}&select=id,finishing_position`,
+    )) as Array<{
+      id: number;
+      finishing_position: number | null;
+    }> | null;
 
     const runnerIds = (runners || [])
       .map((runner) => Number(runner.id))
       .filter(Boolean);
 
-    const deletionBlockReason =
-      await getRunnerDeletionBlockReason(
-        runnerIds,
+    /*
+     * Normal protection remains unchanged for anything
+     * that is not a draft race.
+     */
+    if (String(race.status || "") !== "draft") {
+      const deletionBlockReason =
+        await getRunnerDeletionBlockReason(
+          runnerIds,
+        );
+
+      if (deletionBlockReason) {
+        return {
+          success: false,
+          error: deletionBlockReason,
+        };
+      }
+
+      await serviceRoleDelete(
+        `race_runners?race_id=eq.${raceId}`,
       );
 
-    if (deletionBlockReason) {
+      revalidatePath("/admin/race-builder");
+      revalidatePath("/current-races");
+
       return {
-        success: false,
-        error: deletionBlockReason,
+        success: true,
+        error: null,
       };
     }
 
+    /*
+     * DRAFT FIELD REBUILD
+     *
+     * Draft Calculator/research snapshots are derived
+     * data and may safely be regenerated.
+     *
+     * Real user-facing records remain hard blockers.
+     */
+    const [
+      maverickTips,
+      calculatorTips,
+      subscriberBets,
+    ] = await Promise.all([
+      serviceRoleSelect(
+        `suggested_tips?select=id&race_id=eq.${raceId}&limit=1`,
+      ),
+
+      serviceRoleSelect(
+        `smartpunt_calculator_tips?select=id&race_id=eq.${raceId}&limit=1`,
+      ),
+
+      serviceRoleSelect(
+        `user_bets?select=id&race_id=eq.${raceId}&limit=1`,
+      ),
+    ]);
+
+    const blockers: string[] = [];
+
+    if (
+      Array.isArray(maverickTips) &&
+      maverickTips.length > 0
+    ) {
+      blockers.push("a Maverick tip");
+    }
+
+    if (
+      Array.isArray(calculatorTips) &&
+      calculatorTips.length > 0
+    ) {
+      blockers.push("a Calculator tip");
+    }
+
+    if (
+      Array.isArray(subscriberBets) &&
+      subscriberBets.length > 0
+    ) {
+      blockers.push("subscriber bets");
+    }
+
+    const hasSavedResult =
+      (runners || []).some(
+        (runner) =>
+          runner.finishing_position !== null &&
+          runner.finishing_position !== undefined,
+      );
+
+    if (hasSavedResult) {
+      blockers.push("saved race results");
+    }
+
+    if (blockers.length > 0) {
+      return {
+        success: false,
+        error:
+          "This draft field cannot be rebuilt because it is linked to " +
+          blockers.join(", ") +
+          ". These records must remain intact.",
+      };
+    }
+
+    /*
+     * Clear disposable Calculator/research data created
+     * from the incorrect draft field.
+     */
+    await Promise.all([
+      serviceRoleDelete(
+        `calculator_predictions?race_id=eq.${raceId}`,
+      ),
+
+      serviceRoleDelete(
+        `power_rating_predictions?race_id=eq.${raceId}`,
+      ),
+
+      serviceRoleDelete(
+        `race_prediction_snapshot_runners?race_id=eq.${raceId}`,
+      ),
+
+      serviceRoleDelete(
+        `runner_component_snapshots?race_id=eq.${raceId}`,
+      ),
+
+      serviceRoleDelete(
+        `race_classification_snapshots?race_id=eq.${raceId}`,
+      ),
+
+      serviceRoleDelete(
+        `calculator_tip_evolution?race_id=eq.${raceId}`,
+      ),
+    ]);
+
+    /*
+     * Now the incorrect draft runners can safely go.
+     */
     await serviceRoleDelete(
       `race_runners?race_id=eq.${raceId}`,
     );
 
+    /*
+     * A changed field invalidates any previous subscriber
+     * Calculator release for the meeting.
+     */
+    if (race.meeting_id) {
+      await serviceRolePatch(
+        `meetings?id=eq.${Number(
+          race.meeting_id,
+        )}`,
+        {
+          calculator_released_at: null,
+          updated_at:
+            new Date().toISOString(),
+        },
+      );
+    }
+
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
+    revalidatePath("/admin/calculator");
+    revalidatePath(
+      "/admin/power-rating-race-card",
+    );
+    revalidatePath(
+      "/subscriber-dashboard",
+    );
+    revalidatePath(
+      "/smartpunt-calculator-live-picks",
+    );
+    revalidatePath("/");
 
     return {
       success: true,
