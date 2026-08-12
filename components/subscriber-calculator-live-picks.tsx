@@ -1797,16 +1797,46 @@ source: isConsensus ? "CONSENSUS" : "HEAD",
       }
     });
 
-    return items
-      .sort((a, b) => {
-        if (a.sortGroup !== b.sortGroup) return a.sortGroup - b.sortGroup;
-        if (b.confidencePercent !== a.confidencePercent) {
-          return b.confidencePercent - a.confidencePercent;
-        }
-        const meetingCompare = a.meetingName.localeCompare(b.meetingName);
-        if (meetingCompare !== 0) return meetingCompare;
-        return a.raceNumber - b.raceNumber;
-      });
+return items.sort((a, b) => {
+  const meetingCompare =
+    a.meetingName.localeCompare(
+      b.meetingName,
+      "en-AU",
+      {
+        sensitivity: "base",
+      },
+    );
+
+  if (meetingCompare !== 0) {
+    return meetingCompare;
+  }
+
+  const raceCompare =
+    Number(a.raceNumber || 0) -
+    Number(b.raceNumber || 0);
+
+  if (raceCompare !== 0) {
+    return raceCompare;
+  }
+
+  /*
+   * If The Maverick and Calculator both have
+   * selections in the same race, keep The Maverick
+   * first, followed by Calculator.
+   *
+   * Consensus remains a single combined row.
+   */
+  const sourceOrder = {
+    CONSENSUS: 0,
+    HEAD: 1,
+    CALC: 2,
+  } as const;
+
+  return (
+    sourceOrder[a.source] -
+    sourceOrder[b.source]
+  );
+});
   }, [
     horses,
     jockeyProfiles,
