@@ -1,9 +1,32 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { upsertLongTermBet } from "@/lib/actions";
+import {
+  useEffect,
+  useState,
+  useTransition,
+} from "react";
+import { useRouter } from "next/navigation";
+import {
+  deleteLongTermBetAction,
+  upsertLongTermBet,
+} from "@/lib/actions";
 
-export default function MobileAdminGetOnEarly() {
+type GetOnEarlyItem = {
+  id: number;
+  horse?: string | null;
+  meeting?: string | null;
+  race_number?: number | null;
+  race_date?: string | null;
+  bet_type?: string | null;
+  odds?: string | null;
+  created_at?: string | null;
+};
+
+export default function MobileAdminGetOnEarly({
+  getOnEarlyItems,
+}: {
+  getOnEarlyItems: GetOnEarlyItem[];
+}) {
   const [horse, setHorse] = useState("");
   const [meeting, setMeeting] = useState("");
   const [raceNumber, setRaceNumber] = useState("");
@@ -14,8 +37,165 @@ export default function MobileAdminGetOnEarly() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const [isPending, startTransition] =
+const [isPending, startTransition] =
     useTransition();
+
+  const [editingId, setEditingId] =
+    useState<number | null>(null);
+
+  const [
+    visibleGetOnEarlyItems,
+    setVisibleGetOnEarlyItems,
+  ] = useState<GetOnEarlyItem[]>(
+    getOnEarlyItems,
+  );
+
+  const [
+    deletingIds,
+    setDeletingIds,
+  ] = useState<Set<number>>(
+    new Set(),
+  );
+
+  const router = useRouter();
+
+  useEffect(() => {
+    setVisibleGetOnEarlyItems(
+      getOnEarlyItems,
+    );
+  }, [getOnEarlyItems]);
+
+  function clearForm() {
+    setEditingId(null);
+    setHorse("");
+    setMeeting("");
+    setRaceNumber("");
+    setRaceDate("");
+    setBetType("Win");
+    setOdds("");
+    setMessage("");
+    setError("");
+  }
+
+  function loadGetOnEarlyIntoForm(
+    item: GetOnEarlyItem,
+  ) {
+    setMessage("");
+    setError("");
+
+    setEditingId(
+      Number(item.id),
+    );
+
+    setHorse(
+      item.horse || "",
+    );
+
+    setMeeting(
+      item.meeting || "",
+    );
+
+    setRaceNumber(
+      item.race_number
+        ? String(
+            item.race_number,
+          )
+        : "",
+    );
+
+    setRaceDate(
+      item.race_date || "",
+    );
+
+    setBetType(
+      item.bet_type || "Win",
+    );
+
+    setOdds(
+      item.odds || "",
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function handleDelete(
+    itemId: number,
+  ) {
+    setMessage("");
+    setError("");
+
+    setDeletingIds(
+      (current) => {
+        const next =
+          new Set(current);
+
+        next.add(itemId);
+
+        return next;
+      },
+    );
+
+    setVisibleGetOnEarlyItems(
+      (current) =>
+        current.filter(
+          (item) =>
+            Number(item.id) !==
+            itemId,
+        ),
+    );
+
+    startTransition(
+      async () => {
+        try {
+          const formData =
+            new FormData();
+
+          formData.set(
+            "id",
+            String(itemId),
+          );
+
+          await deleteLongTermBetAction(
+            formData,
+          );
+
+          if (
+            editingId === itemId
+          ) {
+            clearForm();
+          }
+        } catch (
+          deleteError
+        ) {
+          setVisibleGetOnEarlyItems(
+            getOnEarlyItems,
+          );
+
+          setError(
+            deleteError instanceof Error
+              ? deleteError.message
+              : "Failed to delete Get On Early.",
+          );
+        } finally {
+          setDeletingIds(
+            (current) => {
+              const next =
+                new Set(current);
+
+              next.delete(
+                itemId,
+              );
+
+              return next;
+            },
+          );
+        }
+      },
+    );
+  }
 
   function handleSubmit() {
     setMessage("");
@@ -35,7 +215,14 @@ export default function MobileAdminGetOnEarly() {
       return;
     }
 
-    const formData = new FormData();
+const formData = new FormData();
+
+    if (editingId) {
+      formData.set(
+        "id",
+        String(editingId),
+      );
+    }
 
     formData.set(
       "horse",
@@ -73,16 +260,21 @@ export default function MobileAdminGetOnEarly() {
           formData,
         );
 
-        setMessage(
-          "Get On Early published.",
+setMessage(
+          editingId
+            ? "Get On Early updated."
+            : "Get On Early published.",
         );
 
+        setEditingId(null);
         setHorse("");
         setMeeting("");
         setRaceNumber("");
         setRaceDate("");
         setBetType("Win");
         setOdds("");
+
+        router.refresh();
       } catch (submitError) {
         setError(
           submitError instanceof Error
@@ -275,10 +467,141 @@ export default function MobileAdminGetOnEarly() {
         }
         className="w-full rounded-[1.4rem] bg-gradient-to-r from-sky-300 via-cyan-300 to-sky-300 px-4 py-4 text-sm font-black uppercase tracking-[0.13em] text-black shadow-[0_18px_45px_rgba(14,165,233,0.18)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {isPending
-          ? "Publishing..."
-          : "Publish Get On Early"}
+{isPending
+          ? editingId
+            ? "Updating..."
+            : "Publishing..."
+          : editingId
+            ? "Update Get On Early"
+            : "Publish Get On Early"}
       </button>
+      {editingId ? (
+        <button
+          type="button"
+          onClick={clearForm}
+          disabled={isPending}
+          className="w-full rounded-[1.4rem] border border-white/15 bg-white/5 px-4 py-3 text-sm font-black uppercase tracking-[0.12em] text-zinc-300 transition hover:bg-white/10 disabled:opacity-40"
+        >
+          Cancel Edit
+        </button>
+      ) : null}
+      <section className="rounded-[2rem] border border-white/10 bg-black/75 p-4 shadow-xl shadow-black/30">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-300">
+              Current Get On Early
+            </p>
+
+            <p className="mt-1 text-xs font-semibold text-zinc-500">
+              Manage currently published early selections.
+            </p>
+          </div>
+
+          <span className="rounded-full border border-sky-300/25 bg-sky-300/10 px-2.5 py-1 text-[9px] font-black text-sky-200">
+            {
+              visibleGetOnEarlyItems.length
+            }
+          </span>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {visibleGetOnEarlyItems.length ? (
+            visibleGetOnEarlyItems.map(
+              (item) => (
+                <div
+                  key={item.id}
+                  className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-base font-black text-white">
+                        {item.horse ||
+                          "Selection"}
+                      </p>
+
+                      <p className="mt-1 text-[11px] font-semibold text-zinc-400">
+                        {item.meeting ||
+                          "Meeting"}
+                        {item.race_number
+                          ? ` R${item.race_number}`
+                          : ""}
+                        {item.race_date
+                          ? ` · ${item.race_date}`
+                          : ""}
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 rounded-full border border-sky-300/25 bg-sky-300/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-sky-200">
+                      {item.bet_type ||
+                        "Win"}
+                      {item.odds
+                        ? ` · $${String(
+                            item.odds,
+                          ).replace(
+                            /^\$/,
+                            "",
+                          )}`
+                        : ""}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        loadGetOnEarlyIntoForm(
+                          item,
+                        )
+                      }
+                      disabled={
+                        deletingIds.has(
+                          Number(
+                            item.id,
+                          ),
+                        )
+                      }
+                      className="rounded-xl border border-sky-300/30 bg-sky-300/10 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.1em] text-sky-200 transition hover:bg-sky-300/15 disabled:opacity-40"
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDelete(
+                          Number(
+                            item.id,
+                          ),
+                        )
+                      }
+                      disabled={
+                        deletingIds.has(
+                          Number(
+                            item.id,
+                          ),
+                        )
+                      }
+                      className="rounded-xl border border-rose-300/30 bg-rose-400/10 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.1em] text-rose-200 transition hover:bg-rose-400/15 disabled:opacity-40"
+                    >
+                      {deletingIds.has(
+                        Number(
+                          item.id,
+                        ),
+                      )
+                        ? "Deleting..."
+                        : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              ),
+            )
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-5 text-center text-sm font-semibold text-zinc-500">
+              No Get On Early selections published.
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
