@@ -2096,47 +2096,52 @@ const exoticTextClasses =
     ? "text-yellow-200"
     : "text-rose-200";
 
-            return (
-              <button
-                key={`exotic-${tip.id}`}
-                type="button"
-                onClick={() =>
-                  setSelectedRaceId(
-                    String(race.id),
-                  )
-                }
-className={`grid w-full grid-cols-[94px_1fr_auto] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${exoticRowClasses}`}
-              >
-className={`flex min-h-[34px] items-center justify-center gap-1 rounded-full border px-2 py-1 text-center ${exoticAccentClasses}`}
-                  <img
-                    src="/maverick/maverick-shield.png"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-[26px] w-[26px] shrink-0 object-contain"
-                  />
-
-<span className="text-[7px] font-black uppercase tracking-[0.07em] text-current">
-  Maverick
-</span>
-</span>
-
-<span className="min-w-0">
-  <span
-    className={`block text-[9px] font-black uppercase tracking-[0.1em] ${exoticTextClasses}`}
+           return (
+  <button
+    key={`exotic-${tip.id}`}
+    type="button"
+    onClick={() =>
+      setSelectedRaceId(
+        String(race.id),
+      )
+    }
+    className={`grid w-full grid-cols-[94px_1fr_auto] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${exoticRowClasses}`}
   >
-                    {meeting.meeting_name || "Meeting"} R
-                    {race.race_number || "—"}
-                  </span>
+    <span
+      className={`flex min-h-[34px] items-center justify-center gap-1 rounded-full border px-2 py-1 text-center ${exoticAccentClasses}`}
+    >
+      <img
+        src="/maverick/maverick-shield.png"
+        alt=""
+        aria-hidden="true"
+        className="h-[26px] w-[26px] shrink-0 object-contain"
+      />
 
-                  <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white">
-                    {selectionLabel || "Exotic Selection"}
-                  </span>
-                </span>
+      <span className="text-[7px] font-black uppercase tracking-[0.07em] text-current">
+        Maverick
+      </span>
+    </span>
 
-className={`shrink-0 rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.08em] ${exoticAccentClasses}`}
-                  {betLabel}
-                </span>
-              </button>
+    <span className="min-w-0">
+      <span
+        className={`block text-[9px] font-black uppercase tracking-[0.1em] ${exoticTextClasses}`}
+      >
+        {meeting.meeting_name || "Meeting"} R
+        {race.race_number || "—"}
+      </span>
+
+      <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white">
+        {selectionLabel || "Exotic Selection"}
+      </span>
+    </span>
+
+    <span
+      className={`shrink-0 rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.08em] ${exoticAccentClasses}`}
+    >
+      {betLabel}
+    </span>
+  </button>
+);
             );
           })}
       </div>
