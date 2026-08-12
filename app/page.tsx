@@ -123,14 +123,25 @@ export default async function HomePage() {
 
   const supabase = await createClient();
 
-  const suggestedTips = await fetchAllRows({
+const [
+  suggestedTips,
+  watchlistItems,
+  longTermBets,
+  publishedRaces,
+] = await Promise.all([
+  fetchAllRows({
     getPage: async (from, to) => {
       const result = await supabase
         .from("suggested_tips")
         .select("*")
         .is("settled_at", null)
-        .order("race_start_at", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false })
+        .order("race_start_at", {
+          ascending: true,
+          nullsFirst: false,
+        })
+        .order("created_at", {
+          ascending: false,
+        })
         .range(from, to);
 
       return {
@@ -138,14 +149,16 @@ export default async function HomePage() {
         error: result.error,
       };
     },
-  });
+  }),
 
-  const watchlistItems = await fetchAllRows({
+  fetchAllRows({
     getPage: async (from, to) => {
       const result = await supabase
         .from("watchlist_items")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("created_at", {
+          ascending: false,
+        })
         .range(from, to);
 
       return {
@@ -153,15 +166,20 @@ export default async function HomePage() {
         error: result.error,
       };
     },
-  });
+  }),
 
-  const longTermBets = await fetchAllRows({
+  fetchAllRows({
     getPage: async (from, to) => {
       const result = await supabase
         .from("long_term_bets")
         .select("*")
-        .order("race_start_at", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false })
+        .order("race_date", {
+          ascending: true,
+          nullsFirst: false,
+        })
+        .order("created_at", {
+          ascending: false,
+        })
         .range(from, to);
 
       return {
@@ -169,16 +187,20 @@ export default async function HomePage() {
         error: result.error,
       };
     },
-  });
+  }),
 
-  const publishedRaces = await fetchAllRows({
+  fetchAllRows({
     getPage: async (from, to) => {
       const result = await supabase
         .from("races")
         .select("*")
         .eq("status", "published")
-        .order("meeting_id", { ascending: false })
-        .order("race_number", { ascending: true })
+        .order("meeting_id", {
+          ascending: false,
+        })
+        .order("race_number", {
+          ascending: true,
+        })
         .range(from, to);
 
       return {
@@ -186,8 +208,8 @@ export default async function HomePage() {
         error: result.error,
       };
     },
-  });
-
+  }),
+]);
   const publishedRunners = await fetchAllRows({
     getPage: async (from, to) => {
       const result = await supabase
