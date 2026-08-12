@@ -5381,20 +5381,23 @@ export async function upsertWatchItem(
     );
   }
 
-  const raceRows =
-    await serviceRoleSelect(
-      `races?select=id,meeting_id,race_number,race_name,distance_m&id=eq.${raceId}&limit=1`,
-    ) as Array<any> | null;
+const [
+  raceRows,
+  meetingRows,
+  horseRows,
+] = await Promise.all([
+  serviceRoleSelect(
+    `races?select=id,meeting_id,race_number,race_name,distance_m&id=eq.${raceId}&limit=1`,
+  ) as Promise<Array<any> | null>,
 
-  const meetingRows =
-    await serviceRoleSelect(
-      `meetings?select=id,meeting_name,meeting_date&id=eq.${meetingId}&limit=1`,
-    ) as Array<any> | null;
+  serviceRoleSelect(
+    `meetings?select=id,meeting_name,meeting_date&id=eq.${meetingId}&limit=1`,
+  ) as Promise<Array<any> | null>,
 
-  const horseRows =
-    await serviceRoleSelect(
-      `horses?select=id,horse_name&id=eq.${horseId}&limit=1`,
-    ) as Array<any> | null;
+  serviceRoleSelect(
+    `horses?select=id,horse_name&id=eq.${horseId}&limit=1`,
+  ) as Promise<Array<any> | null>,
+]);
 
   const race =
     raceRows?.[0] || null;
@@ -5471,13 +5474,12 @@ export async function upsertWatchItem(
     );
   }
 
-  revalidatePath("/");
-  revalidatePath(
-    "/subscriber-dashboard",
-  );
-  revalidatePath(
-    "/smartpunt-calculator-live-picks",
-  );
+revalidatePath(
+  "/subscriber-dashboard",
+);
+revalidatePath(
+  "/smartpunt-calculator-live-picks",
+);
 }
 
 export async function deleteWatchItemAction(formData: FormData): Promise<void> {
@@ -5633,36 +5635,32 @@ export async function upsertLongTermBet(
       );
     }
 
-    if (isNew && data) {
-      try {
-        await sendGetOnEarlyNotifications({
-          title:
-            `${horse} — ${meeting} R${raceNumber}`,
-          horse,
-          betType,
-          odds,
-          commentary: "",
-        });
-      } catch (
-        notificationError
-      ) {
-        console.error(
-          notificationError,
-        );
-      }
-    }
+if (isNew && data) {
+  sendGetOnEarlyNotifications({
+    title:
+      `${horse} — ${meeting} R${raceNumber}`,
+    horse,
+    betType,
+    odds,
+    commentary: "",
+  }).catch((notificationError) => {
+    console.error(
+      "Get On Early notification failed:",
+      notificationError,
+    );
+  });
+}
   }
 
-  revalidatePath("/");
-  revalidatePath(
-    "/long-term-bets",
-  );
-  revalidatePath(
-    "/subscriber-dashboard",
-  );
-  revalidatePath(
-    "/smartpunt-calculator-live-picks",
-  );
+revalidatePath(
+  "/long-term-bets",
+);
+revalidatePath(
+  "/subscriber-dashboard",
+);
+revalidatePath(
+  "/smartpunt-calculator-live-picks",
+);
 }
 export async function deleteLongTermBetAction(
   formData: FormData,
