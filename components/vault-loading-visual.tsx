@@ -69,14 +69,13 @@ export default function VaultLoadingVisual({
               transform-origin: center;
             }
 
-            .vault-final-flash {
-              animation:
-                vault-final-flash
-                650ms
-                ease-out
-                forwards;
-            }
-
+.vault-final-flash {
+  animation:
+    vault-final-flash
+    700ms
+    ease-out
+    forwards;
+}
             .vault-ambient-glow {
               animation:
                 vault-ambient-glow
