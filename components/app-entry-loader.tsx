@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import VaultLoadingVisual from "@/components/vault-loading-visual";
 
 function getCookie(name: string) {
   if (typeof document === "undefined") return null;
@@ -35,7 +36,7 @@ export default function AppEntryLoader({
   const [useDesktopCover, setUseDesktopCover] = useState(false);
 const [isReady, setIsReady] = useState(false);
 const [showVaultIntro, setShowVaultIntro] = useState(false);
-const [vaultOpening, setVaultOpening] = useState(false);
+const [vaultFinishing, setVaultFinishing] = useState(false);
 const [vaultFadeOut, setVaultFadeOut] = useState(false);
 const [vaultProgress, setVaultProgress] = useState(0);
 
@@ -81,7 +82,7 @@ useEffect(() => {
   if (!vaultIntro) return;
 
   setShowVaultIntro(true);
-  setVaultOpening(false);
+  setVaultFinishing(false);
   setVaultFadeOut(false);
   setVaultProgress(0);
 
@@ -92,29 +93,31 @@ useEffect(() => {
 
     const progress = Math.min(
       99,
-      Math.floor((elapsed / minimumDisplayMs) * 100),
+      Math.floor(
+        (elapsed / minimumDisplayMs) * 100,
+      ),
     );
 
     setVaultProgress(progress);
   }, 40);
 
-  const openingTimer = window.setTimeout(() => {
+  const finishTimer = window.setTimeout(() => {
     window.clearInterval(progressTimer);
     setVaultProgress(100);
-    setVaultOpening(true);
+    setVaultFinishing(true);
   }, minimumDisplayMs);
 
   const fadeTimer = window.setTimeout(() => {
     setVaultFadeOut(true);
-  }, minimumDisplayMs + 800);
+  }, minimumDisplayMs + 650);
 
   const removeTimer = window.setTimeout(() => {
     setShowVaultIntro(false);
-  }, minimumDisplayMs + 1300);
+  }, minimumDisplayMs + 1150);
 
   return () => {
     window.clearInterval(progressTimer);
-    window.clearTimeout(openingTimer);
+    window.clearTimeout(finishTimer);
     window.clearTimeout(fadeTimer);
     window.clearTimeout(removeTimer);
   };
@@ -159,7 +162,9 @@ if (!isReady) {
 if (vaultIntro && showVaultIntro) {
   return (
     <>
-      <div className="min-h-screen">{children}</div>
+      <div className="min-h-screen">
+        {children}
+      </div>
 
       <div
         className={`fixed inset-0 z-[9999] overflow-hidden bg-black transition-opacity duration-500 ${
@@ -168,185 +173,15 @@ if (vaultIntro && showVaultIntro) {
             : "opacity-100"
         }`}
       >
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-              @keyframes vault-entry-wheel {
-                0% {
-                  transform: rotate(-10deg);
-                }
-
-                45% {
-                  transform: rotate(22deg);
-                }
-
-                100% {
-                  transform: rotate(92deg);
-                }
-              }
-
-              @keyframes vault-entry-glow {
-                0%, 100% {
-                  opacity: 0.35;
-                  transform: translate(-50%, -50%) scale(0.96);
-                }
-
-                50% {
-                  opacity: 0.9;
-                  transform: translate(-50%, -50%) scale(1.05);
-                }
-              }
-@keyframes vault-door-open {
-  0% {
-    transform:
-      perspective(900px)
-      rotateY(0deg)
-      translateX(0);
-    opacity: 1;
-  }
-
-  25% {
-    transform:
-      perspective(900px)
-      rotateY(-8deg)
-      translateX(-2%);
-    opacity: 1;
-  }
-
-  100% {
-    transform:
-      perspective(900px)
-      rotateY(-78deg)
-      translateX(-42%);
-    opacity: 0.15;
-  }
-}
-
-@keyframes vault-opening-light {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.55);
-  }
-
-  35% {
-    opacity: 0.55;
-  }
-
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.45);
-  }
-}
-
-@keyframes vault-background-release {
-  0% {
-    opacity: 1;
-  }
-
-  45% {
-    opacity: 0.82;
-  }
-
-  100% {
-    opacity: 0;
-  }
-}
-              .vault-entry-wheel {
-                animation:
-                  vault-entry-wheel
-                  2.7s
-                  cubic-bezier(0.22, 1, 0.36, 1)
-                  infinite
-                  alternate;
-                transform-origin: center;
-              }
-
-              .vault-entry-glow {
-                animation:
-                  vault-entry-glow
-                  2.6s
-                  ease-in-out
-                  infinite;
-              }
-.vault-door-opening {
-  animation:
-    vault-door-open
-    800ms
-    cubic-bezier(0.22, 1, 0.36, 1)
-    forwards !important;
-  transform-origin: left center;
-}
-
-.vault-opening-light {
-  animation:
-    vault-opening-light
-    800ms
-    ease-out
-    forwards;
-}
-
-.vault-background-release {
-  animation:
-    vault-background-release
-    800ms
-    ease-out
-    forwards;
-}
-              @media (prefers-reduced-motion: reduce) {
-                .vault-entry-wheel,
-                .vault-door-opening,
-.vault-opening-light,
-.vault-background-release,
-                .vault-entry-glow {
-                  animation: none !important;
-                }
-              }
-            `,
-          }}
+        <VaultLoadingVisual
+          progress={vaultProgress}
+          animateWheel
+          finishFlash={vaultFinishing}
         />
-
-        <div className="absolute inset-0 flex justify-center bg-black">
-          <div className="relative h-full w-full max-w-[430px] overflow-hidden bg-black">
-<img
-  src="/vault/vault-loading-base.png"
-  alt=""
-  aria-hidden="true"
-  className="absolute inset-0 h-full w-full object-cover"
-/>
-<div className="pointer-events-none absolute left-1/2 top-[39.5%] aspect-square w-[76%] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border border-amber-300/20 bg-[radial-gradient(circle_at_center,rgba(120,53,15,0.32)_0%,rgba(24,24,27,0.99)_34%,rgba(3,3,3,1)_72%)] shadow-[inset_0_0_70px_rgba(0,0,0,0.98),0_0_38px_rgba(245,158,11,0.15)]">
-  <div className="absolute inset-[8%] rounded-full bg-black shadow-[inset_0_0_50px_rgba(245,158,11,0.10)]" />
-</div>
-{vaultOpening ? (
-  <div className="vault-opening-light pointer-events-none absolute left-1/2 top-[39.5%] h-[42%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.95)_0%,rgba(251,191,36,0.52)_28%,rgba(245,158,11,0.16)_55%,transparent_72%)] blur-[18px]" />
-) : null}
-            <div className="vault-entry-glow pointer-events-none absolute left-1/2 top-[39.5%] h-[44%] w-[88%] rounded-full bg-amber-400/10 blur-[55px]" />
-<div className="pointer-events-none absolute left-1/2 top-[82.2%] flex aspect-square w-[23%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#050403]">
-  <span className="bg-gradient-to-b from-amber-100 via-yellow-300 to-amber-500 bg-clip-text text-2xl font-black tabular-nums text-transparent">
-    {vaultProgress}%
-  </span>
-</div>
-<div className="pointer-events-none absolute left-1/2 top-[39.5%] aspect-square w-[76%] -translate-x-1/2 -translate-y-1/2">
-  <div
-    className={`h-full w-full ${
-      vaultOpening
-        ? "vault-door-opening"
-        : "vault-entry-wheel"
-    }`}
-  >
-    <img
-      src="/vault/vault-complete-door.png"
-      alt="The Vault"
-      className="h-full w-full object-contain drop-shadow-[0_0_24px_rgba(251,191,36,0.28)]"
-    />
-  </div>
-</div>
-          </div>
-        </div>
       </div>
     </>
   );
 }
-
 if (!showIntro) {
   return <>{children}</>;
 }
