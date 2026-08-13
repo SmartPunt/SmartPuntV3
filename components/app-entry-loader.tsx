@@ -101,19 +101,19 @@ useEffect(() => {
     setVaultProgress(progress);
   }, 40);
 
-  const finishTimer = window.setTimeout(() => {
-    window.clearInterval(progressTimer);
-    setVaultProgress(100);
-    setVaultFinishing(true);
-  }, minimumDisplayMs);
+const finishTimer = window.setTimeout(() => {
+  window.clearInterval(progressTimer);
+  setVaultProgress(100);
+  setVaultFinishing(true);
+}, minimumDisplayMs);
 
-  const blackoutTimer = window.setTimeout(() => {
-    setVaultBlackout(true);
-  }, minimumDisplayMs + 700);
+const blackoutTimer = window.setTimeout(() => {
+  setVaultBlackout(true);
+}, minimumDisplayMs + 250);
 
-  const removeTimer = window.setTimeout(() => {
-    setShowVaultIntro(false);
-  }, minimumDisplayMs + 1200);
+const removeTimer = window.setTimeout(() => {
+  setShowVaultIntro(false);
+}, minimumDisplayMs + 850);
 
   return () => {
     window.clearInterval(progressTimer);
@@ -176,7 +176,6 @@ if (vaultIntro && showVaultIntro) {
 <VaultLoadingVisual
   progress={vaultProgress}
   animateWheel
-  finishFlash={vaultFinishing}
   blackout={vaultBlackout}
 />
       </div>
