@@ -304,12 +304,13 @@ if (vaultIntro && showVaultIntro) {
   src="/vault/vault-loading-base.png"
   alt=""
   aria-hidden="true"
-  className={`absolute inset-0 h-full w-full object-cover ${
-    vaultOpening
-      ? "vault-background-release"
-      : ""
-  }`}
+  className="absolute inset-0 h-full w-full object-cover"
 />
+            {vaultOpening ? (
+  <div className="pointer-events-none absolute left-1/2 top-[39.5%] aspect-square w-[76%] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border border-amber-300/20 bg-[radial-gradient(circle_at_center,rgba(120,53,15,0.38)_0%,rgba(24,24,27,0.98)_34%,rgba(3,3,3,1)_72%)] shadow-[inset_0_0_70px_rgba(0,0,0,0.95),0_0_38px_rgba(245,158,11,0.18)]">
+    <div className="absolute inset-[8%] rounded-full bg-black shadow-[inset_0_0_50px_rgba(245,158,11,0.10)]" />
+  </div>
+) : null}
 {vaultOpening ? (
   <div className="vault-opening-light pointer-events-none absolute left-1/2 top-[39.5%] h-[42%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.95)_0%,rgba(251,191,36,0.52)_28%,rgba(245,158,11,0.16)_55%,transparent_72%)] blur-[18px]" />
 ) : null}
