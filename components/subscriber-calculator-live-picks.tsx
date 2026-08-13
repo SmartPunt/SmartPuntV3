@@ -2137,64 +2137,73 @@ return (
       bestOpportunities.map((item) => {
                   const isSelected =
                     activeRace && Number(activeRace.id) === Number(item.raceId);
-                  const sourceClasses =
-                    item.source === "CONSENSUS"
-                      ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
-: item.source === "HEAD"
-                        ? "border-amber-300/45 bg-amber-500/20 text-amber-100"
-                        : "border-sky-300/45 bg-sky-500/20 text-sky-100";
-                  const betClasses = item.betType.toLowerCase().includes("win")
-                    ? "border-emerald-300/45 bg-emerald-500/20 text-emerald-100"
-                    : "border-sky-300/45 bg-sky-500/20 text-sky-100";
+const tipArtwork =
+  item.source === "CONSENSUS"
+    ? "/maverick/consensus-tip-strip.png"
+    : item.source === "HEAD"
+      ? "/maverick/maverick-tip-strip.png"
+      : "/maverick/smartpunt-tip-strip.png";
 
-                  return (
-                    <button
-                      key={`${item.source}-${item.raceId}-${item.horseName}`}
-                      type="button"
-                      onClick={() => setSelectedRaceId(String(item.raceId))}
-className={`grid w-full grid-cols-[94px_1fr_56px] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
-                        isSelected
-                          ? "border-amber-300 bg-amber-300/20 shadow-[0_0_0_1px_rgba(251,191,36,0.35)_inset]"
-                          : "border-white/10 bg-black/65 hover:border-amber-300/45 hover:bg-black/85"
-                      }`}
-                    >
-<span
-  className={`flex min-h-[34px] items-center justify-center rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${sourceClasses}`}
->
-  {item.source === "HEAD" ? (
-    <span className="flex items-center justify-center gap-1">
-      <img
-        src="/maverick/maverick-shield.png"
-        alt=""
-        aria-hidden="true"
-        className="h-[30px] w-[30px] shrink-0 object-contain"
-      />
+const tipArtworkAlt =
+  item.source === "CONSENSUS"
+    ? "SmartPunt and The Maverick Consensus"
+    : item.source === "HEAD"
+      ? "The Maverick Tip"
+      : "SmartPunt Tip";
 
-      <span className="text-[7px] font-black uppercase tracking-[0.08em] text-amber-100">
-        Maverick
+const meetingTextClasses =
+  item.source === "CONSENSUS"
+    ? "text-emerald-100"
+    : item.source === "HEAD"
+      ? "text-zinc-100"
+      : "text-emerald-100";
+
+return (
+  <button
+    key={`${item.source}-${item.raceId}-${item.horseName}`}
+    type="button"
+    onClick={() =>
+      setSelectedRaceId(String(item.raceId))
+    }
+    className="group relative block w-full overflow-hidden rounded-[16px] text-left transition active:scale-[0.995]"
+  >
+    <img
+      src={tipArtwork}
+      alt={tipArtworkAlt}
+      className="block h-auto w-full object-contain transition group-hover:brightness-110"
+    />
+
+    <span className="pointer-events-none absolute inset-y-0 left-[23%] right-[23%] flex min-w-0 flex-col justify-center px-2">
+      <span
+        className={`block truncate text-[9px] font-black uppercase tracking-[0.11em] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[10px] ${meetingTextClasses}`}
+      >
+        {item.raceLabel}
+      </span>
+
+      <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[12px]">
+        {item.horseName}
       </span>
     </span>
-  ) : (
-    item.source
-  )}
-</span>
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-300">
-                          <span>{item.raceLabel}</span>
-                          <span className="text-[8px] tracking-normal text-amber-200/80">
-                            {getConfidenceStars(item.confidencePercent)}
-                          </span>
-                        </span>
-                        <span className="mt-0.5 block truncate text-[12px] font-black leading-tight text-white">
-                          {item.horseName}
-                        </span>
-                      </span>
-                      <span
-                        className={`rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.1em] ${betClasses}`}
-                      >
-                        {item.betType}
-                      </span>
-                    </button>
+
+    <span className="pointer-events-none absolute inset-y-0 right-[3%] flex w-[19%] items-center justify-center">
+      <span className="text-center text-[8px] font-black uppercase leading-tight tracking-[0.08em] text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] sm:text-[9px]">
+        {item.betType}
+      </span>
+    </span>
+
+    {isSelected ? (
+      <span
+        className={`pointer-events-none absolute inset-0 rounded-[16px] border-2 ${
+          item.source === "CONSENSUS"
+            ? "border-amber-200/90 shadow-[inset_0_0_18px_rgba(250,204,21,0.28)]"
+            : item.source === "HEAD"
+              ? "border-zinc-100/80 shadow-[inset_0_0_18px_rgba(255,255,255,0.20)]"
+              : "border-emerald-200/80 shadow-[inset_0_0_18px_rgba(52,211,153,0.24)]"
+        }`}
+      />
+    ) : null}
+  </button>
+);
                   );
                 })
               ) : (
