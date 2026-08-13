@@ -4,10 +4,12 @@ export default function VaultLoadingVisual({
   progress,
   animateWheel = false,
   finishFlash = false,
+  blackout = false,
 }: {
   progress?: number | null;
   animateWheel?: boolean;
   finishFlash?: boolean;
+  blackout?: boolean;
 }) {
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black">
@@ -139,7 +141,13 @@ export default function VaultLoadingVisual({
         </div>
 
 {finishFlash ? (
-  <div className="vault-final-flash pointer-events-none fixed inset-0 z-50 bg-[radial-gradient(circle_at_center,#fff8dc_0%,#fde68a_18%,#fbbf24_42%,#d97706_72%,#78350f_100%)]" />
+  <div
+    className={`vault-final-flash pointer-events-none fixed inset-0 z-50 transition-colors duration-300 ${
+      blackout
+        ? "bg-black"
+        : "bg-[radial-gradient(circle_at_center,#fff8dc_0%,#fde68a_18%,#fbbf24_42%,#d97706_72%,#78350f_100%)]"
+    }`}
+  />
 ) : null}
       </div>
     </div>
