@@ -1898,69 +1898,7 @@ return items.sort((a, b) => {
 
 {showBestOpportunities ? (
   <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
-    {getOnEarlyBets.length > 0 ? (
-      <div className="mb-2 space-y-1.5">
-        {getOnEarlyBets.map((bet) => {
-const raceDate =
-  bet.race_date
-    ? new Intl.DateTimeFormat("en-AU", {
-        day: "numeric",
-        month: "short",
-      }).format(
-        new Date(
-          `${bet.race_date}T12:00:00`,
-        ),
-      )
-    : "";
-
-return (
-  <div
-    key={bet.id}
-    className="relative block w-full overflow-hidden rounded-[16px]"
-  >
-    <img
-      src="/maverick/get-on-early-strip.png"
-      alt="Get On Early"
-      className="block h-auto w-full object-contain"
-    />
-
-    <span className="pointer-events-none absolute inset-y-0 left-[36%] right-[4%] flex min-w-0 items-center">
-      <span className="grid w-full grid-cols-[1fr_auto] items-center gap-2 px-2">
-        <span className="min-w-0 text-center">
-          <span className="block truncate text-[9px] font-black uppercase tracking-[0.11em] text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[10px]">
-            {bet.meeting || "Meeting"}
-            {bet.race_number
-              ? ` R${bet.race_number}`
-              : ""}
-            {raceDate
-              ? ` · ${raceDate}`
-              : ""}
-          </span>
-
-          <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] sm:text-[12px]">
-            {bet.horse || "Selection"}
-          </span>
-        </span>
-
-        <span className="shrink-0 rounded-full border border-amber-200/50 bg-black/55 px-2 py-1 text-center text-[8px] font-black uppercase leading-tight tracking-[0.08em] text-amber-100 shadow-[0_0_10px_rgba(251,191,36,0.16)]">
-          {bet.bet_type || "Win"}
-          {bet.odds
-            ? (
-              <>
-                <br />
-                ${String(bet.odds).replace(/^\$/, "")}
-              </>
-            )
-            : null}
-        </span>
-      </span>
-    </span>
-  </div>
-);
-        })}
-      </div>
-    ) : null}
-    {maverickExoticTips.length > 0 ? (
+{maverickExoticTips.length > 0 ? (
       <div className="mb-2 space-y-1.5">
         {maverickExoticTips
           .map((tip) => {
@@ -2220,6 +2158,67 @@ return (
                   review every live race.
                 </div>
               )}
+
+              {getOnEarlyBets.length > 0 ? (
+                <div className="mt-2 space-y-1.5">
+                  {getOnEarlyBets.map((bet) => {
+                    const raceDate =
+                      bet.race_date
+                        ? new Intl.DateTimeFormat("en-AU", {
+                            day: "numeric",
+                            month: "short",
+                          }).format(
+                            new Date(
+                              `${bet.race_date}T12:00:00`,
+                            ),
+                          )
+                        : "";
+
+                    return (
+                      <div
+                        key={bet.id}
+                        className="relative block w-full overflow-hidden rounded-[16px]"
+                      >
+                        <img
+                          src="/maverick/get-on-early-strip.png"
+                          alt="Get On Early"
+                          className="block h-auto w-full object-contain"
+                        />
+
+                        <span className="pointer-events-none absolute inset-y-0 left-[36%] right-[4%] flex min-w-0 items-center">
+                          <span className="grid w-full grid-cols-[1fr_auto] items-center gap-2 px-2">
+                            <span className="min-w-0 text-center">
+                              <span className="block truncate text-[9px] font-black uppercase tracking-[0.11em] text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[10px]">
+                                {bet.meeting || "Meeting"}
+                                {bet.race_number
+                                  ? ` R${bet.race_number}`
+                                  : ""}
+                                {raceDate
+                                  ? ` · ${raceDate}`
+                                  : ""}
+                              </span>
+
+                              <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] sm:text-[12px]">
+                                {bet.horse || "Selection"}
+                              </span>
+                            </span>
+
+                            <span className="shrink-0 rounded-full border border-amber-200/50 bg-black/55 px-2 py-1 text-center text-[8px] font-black uppercase leading-tight tracking-[0.08em] text-amber-100 shadow-[0_0_10px_rgba(251,191,36,0.16)]">
+                              {bet.bet_type || "Win"}
+                              {bet.odds ? (
+                                <>
+                                  <br />
+                                  ${String(bet.odds).replace(/^\$/, "")}
+                                </>
+                              ) : null}
+                            </span>
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
