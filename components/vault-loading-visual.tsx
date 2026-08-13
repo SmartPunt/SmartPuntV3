@@ -32,22 +32,23 @@ export default function VaultLoadingVisual({
               }
             }
 
-            @keyframes vault-final-flash {
-              0% {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(0.72);
-              }
+@keyframes vault-final-flash {
+  0% {
+    opacity: 0;
+  }
 
-              35% {
-                opacity: 1;
-                transform: translate(-50%, -50%) scale(1.05);
-              }
+  18% {
+    opacity: 1;
+  }
 
-              100% {
-                opacity: 0;
-                transform: translate(-50%, -50%) scale(1.55);
-              }
-            }
+  42% {
+    opacity: 0.92;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
 
             @keyframes vault-ambient-glow {
               0%, 100% {
