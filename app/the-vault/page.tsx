@@ -114,7 +114,10 @@ const enabledAlertCount = alerts.filter(
 ).length;
 
   return (
-    <AppEntryLoader>
+<AppEntryLoader
+  vaultIntro
+  minimumDisplayMs={2500}
+>
       <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,rgba(245,158,11,0.2),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(217,119,6,0.12),transparent_26%),linear-gradient(180deg,#030303_0%,#09090b_45%,#020617_100%)] text-white">
         <div className="mx-auto max-w-5xl px-3 py-4 sm:px-5 lg:px-8">
           <header className="sticky top-2 z-20 rounded-[1.75rem] border border-amber-300/20 bg-black/82 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:p-4">
