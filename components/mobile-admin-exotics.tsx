@@ -409,17 +409,17 @@ export default function MobileAdminExotics({
       return;
     }
 
-    if (
-      betType ===
-        "quinella" &&
-      selectedRunners.length >=
-        2
-    ) {
-      setError(
-        "A Quinella can only contain 2 horses.",
-      );
-      return;
-    }
+if (
+  betType ===
+    "quinella" &&
+  selectedRunners.length >=
+    4
+) {
+  setError(
+    "A Quinella can contain a maximum of 4 horses.",
+  );
+  return;
+}
 
     if (
       betType ===
@@ -555,14 +555,18 @@ export default function MobileAdminExotics({
       return "Select a race first.";
     }
 
-    if (
-      betType ===
-        "quinella" &&
-      selectedRunners.length !==
-        2
-    ) {
-      return "A Quinella requires exactly 2 horses.";
-    }
+if (
+  betType ===
+    "quinella" &&
+  (
+    selectedRunners.length <
+      2 ||
+    selectedRunners.length >
+      4
+  )
+) {
+  return "A Quinella requires between 2 and 4 horses.";
+}
 
     if (
       betType ===
@@ -1202,10 +1206,10 @@ export default function MobileAdminExotics({
             </p>
 
             <p className="mt-1 text-xs font-semibold text-zinc-500">
-              {betType ===
-              "quinella"
-                ? "Choose exactly 2 runners."
-                : "Choose between 3 and 8 runners."}
+{betType ===
+"quinella"
+  ? "Choose between 2 and 4 runners."
+  : "Choose between 3 and 8 runners."}
             </p>
           </div>
 
