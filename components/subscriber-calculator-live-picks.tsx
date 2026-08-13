@@ -2105,6 +2105,21 @@ const meetingTextClasses =
       ? "text-zinc-100"
       : "text-emerald-100";
 
+const normalisedDropdownBetType = String(item.betType || "")
+  .trim()
+  .toLowerCase()
+  .replace(/_/g, " ");
+
+const betTypeArtwork =
+  normalisedDropdownBetType === "each way" ||
+  normalisedDropdownBetType === "eachway"
+    ? "/tip-types/bet-type-each-way.png"
+    : normalisedDropdownBetType.includes("place")
+      ? "/tip-types/bet-type-place.png"
+      : normalisedDropdownBetType.includes("win")
+        ? "/tip-types/bet-type-win.png"
+        : null;
+
 return (
   <button
     key={`${item.source}-${item.raceId}-${item.horseName}`}
@@ -2132,11 +2147,19 @@ return (
       </span>
     </span>
 
-    <span className="pointer-events-none absolute inset-y-0 right-[3%] flex w-[19%] items-center justify-center">
-      <span className="text-center text-[8px] font-black uppercase leading-tight tracking-[0.08em] text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] sm:text-[9px]">
-        {item.betType}
-      </span>
+<span className="pointer-events-none absolute inset-y-0 right-[1.5%] flex w-[22%] items-center justify-center">
+  {betTypeArtwork ? (
+    <img
+      src={betTypeArtwork}
+      alt={item.betType}
+      className="max-h-[78%] max-w-full object-contain drop-shadow-[0_1px_4px_rgba(0,0,0,0.75)]"
+    />
+  ) : (
+    <span className="text-center text-[8px] font-black uppercase leading-tight tracking-[0.08em] text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] sm:text-[9px]">
+      {item.betType}
     </span>
+  )}
+</span>
 
     {isSelected ? (
       <span
