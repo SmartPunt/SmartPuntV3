@@ -37,6 +37,7 @@ export default function AppEntryLoader({
 const [isReady, setIsReady] = useState(vaultIntro);
 const [showVaultIntro, setShowVaultIntro] = useState(vaultIntro);
 const [vaultFinishing, setVaultFinishing] = useState(false);
+const [vaultBlackout, setVaultBlackout] = useState(false);
 const [vaultFadeOut, setVaultFadeOut] = useState(false);
 const [vaultProgress, setVaultProgress] = useState(0);
 
@@ -83,6 +84,7 @@ useEffect(() => {
 
   setShowVaultIntro(true);
   setVaultFinishing(false);
+  setVaultBlackout(false);
   setVaultFadeOut(false);
   setVaultProgress(0);
 
@@ -93,9 +95,7 @@ useEffect(() => {
 
     const progress = Math.min(
       99,
-      Math.floor(
-        (elapsed / minimumDisplayMs) * 100,
-      ),
+      Math.floor((elapsed / minimumDisplayMs) * 100),
     );
 
     setVaultProgress(progress);
@@ -107,13 +107,18 @@ useEffect(() => {
     setVaultFinishing(true);
   }, minimumDisplayMs);
 
-const removeTimer = window.setTimeout(() => {
-  setShowVaultIntro(false);
-}, minimumDisplayMs + 1150);
+  const blackoutTimer = window.setTimeout(() => {
+    setVaultBlackout(true);
+  }, minimumDisplayMs + 700);
+
+  const removeTimer = window.setTimeout(() => {
+    setShowVaultIntro(false);
+  }, minimumDisplayMs + 1200);
 
   return () => {
     window.clearInterval(progressTimer);
     window.clearTimeout(finishTimer);
+    window.clearTimeout(blackoutTimer);
     window.clearTimeout(removeTimer);
   };
 }, [minimumDisplayMs, vaultIntro]);
@@ -168,11 +173,12 @@ if (vaultIntro && showVaultIntro) {
             : "opacity-100"
         }`}
       >
-        <VaultLoadingVisual
-          progress={vaultProgress}
-          animateWheel
-          finishFlash={vaultFinishing}
-        />
+<VaultLoadingVisual
+  progress={vaultProgress}
+  animateWheel
+  finishFlash={vaultFinishing}
+  blackout={vaultBlackout}
+/>
       </div>
     </>
   );
