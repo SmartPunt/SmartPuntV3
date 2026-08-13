@@ -2173,7 +2173,7 @@ return (
       className="block h-auto w-full object-contain transition group-hover:brightness-110"
     />
 
-    <span className="pointer-events-none absolute inset-y-0 left-[23%] right-[23%] flex min-w-0 flex-col justify-center px-2">
+<span className="pointer-events-none absolute inset-y-0 left-[30%] right-[20%] flex min-w-0 flex-col items-center justify-center px-2 text-center">
       <span
         className={`block truncate text-[9px] font-black uppercase tracking-[0.11em] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[10px] ${meetingTextClasses}`}
       >
