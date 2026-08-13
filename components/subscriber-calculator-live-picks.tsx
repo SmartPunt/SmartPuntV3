@@ -1674,7 +1674,20 @@ const watchSuggestionHorseIds =
       (activeRace as any)?.jump_time ||
       null,
   );
+const activeTrackCondition = String(
+  activeMeeting?.track_condition || "",
+)
+  .trim()
+  .toLowerCase();
 
+const raceConditionBackground =
+  activeTrackCondition.startsWith("soft")
+    ? "/race-conditions/soft.png"
+    : activeTrackCondition.startsWith("heavy")
+      ? "/race-conditions/heavy.png"
+      : activeTrackCondition.startsWith("synthetic")
+        ? "/race-conditions/synthetic.png"
+        : "/race-conditions/good.png";
   const bestOpportunities = useMemo(() => {
     const items: Array<{
       raceId: number;
@@ -2319,7 +2332,17 @@ return (
                   </div>
                 </div>
 
-                <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#05070c_0%,#0b1220_58%,#05070c_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+<div className="relative overflow-hidden rounded-[22px] border border-amber-400/45 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+  <img
+    src={raceConditionBackground}
+    alt=""
+    aria-hidden="true"
+    className="absolute inset-0 h-full w-full object-cover"
+  />
+
+  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,12,0.94)_0%,rgba(2,6,12,0.82)_42%,rgba(2,6,12,0.46)_72%,rgba(2,6,12,0.30)_100%)]" />
+
+  <div className="relative z-10">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="rounded-2xl border border-amber-400/40 bg-black px-4 py-3 text-3xl font-black text-amber-300">
@@ -2380,6 +2403,7 @@ return (
                     </button>
                   </div>
                 </div>
+              </div>
                 {closedRaceSnapshotMissing ? (
                   <div className="rounded-[20px] border border-rose-300/45 bg-rose-950/70 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-200">
