@@ -2284,55 +2284,7 @@ return (
 
               {activeRace ? (
                 <>
-                  <div className="rounded-[18px] border border-zinc-300 bg-white p-3">
-                  <label className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-700">
-                    Choose {selectedRaceDayLabel.toLowerCase()} race
-                  </label>
-                  <select
-                    value={String(activeRace.id)}
-                    onChange={(event) => setSelectedRaceId(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-xs font-black text-zinc-950 outline-none"
-                  >
-                    {orderedPublishedRaces.map((race) => {
-                      const meeting = meetings.find(
-                        (item) => item.id === race.meeting_id,
-                      );
-
-                      return (
-                        <option key={race.id} value={String(race.id)}>
-                          {meeting?.meeting_name || "Meeting"} · R
-                          {race.race_number} {race.race_name}
-                        </option>
-                      );
-                    })}
-                  </select>
-
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      disabled={!previousRace}
-                      onClick={() =>
-                        previousRace &&
-                        setSelectedRaceId(String(previousRace.id))
-                      }
-                      className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-[11px] font-black text-zinc-800 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      ◀ Previous Race
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!nextRace}
-                      onClick={() =>
-                        nextRace && setSelectedRaceId(String(nextRace.id))
-                      }
-                      className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-[11px] font-black text-zinc-800 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Next Race ▶
-                    </button>
-                  </div>
-                </div>
-
-<div className="relative overflow-hidden rounded-[22px] border border-amber-400/45 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+<div className="relative overflow-hidden rounded-[24px] border border-amber-400/45 shadow-[0_18px_45px_rgba(0,0,0,0.50)]">
   <img
     src={raceConditionBackground}
     alt=""
@@ -2340,70 +2292,133 @@ return (
     className="absolute inset-0 h-full w-full object-cover"
   />
 
-  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,12,0.94)_0%,rgba(2,6,12,0.82)_42%,rgba(2,6,12,0.46)_72%,rgba(2,6,12,0.30)_100%)]" />
+  <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,12,0.96)_0%,rgba(2,6,12,0.88)_42%,rgba(2,6,12,0.58)_72%,rgba(2,6,12,0.38)_100%)]" />
 
-  <div className="relative z-10">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-2xl border border-amber-400/40 bg-black px-4 py-3 text-3xl font-black text-amber-300">
-                        R{activeRace.race_number}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
-                          {activeMeeting?.meeting_name || "Meeting"} ·{" "}
-                          {activeMeeting?.meeting_date || ""}
-                        </p>
-                        <h2 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white">
-                          {activeRace.race_name}
-                        </h2>
-                        <p className="mt-1 text-xs font-semibold text-zinc-300">
-                          {activeRace.distance_m || "—"}m ·{" "}
-                          {activeMeeting?.track_condition || "Track not set"} ·{" "}
-                          {placeTermsLabel(activeRace.place_terms)}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] ${
-                        qualifiedTip
-                          ? qualifiedTip.type === "Win"
-                            ? "border-emerald-300/50 bg-emerald-500/20 text-emerald-100"
-                            : "border-sky-300/50 bg-sky-500/20 text-sky-100"
-                          : "border-amber-300/50 bg-amber-500/15 text-amber-100"
-                      }`}
-                    >
-                      {bettingVerdictLabel}
-                    </span>
-                  </div>
+  <div className="relative z-10 p-4">
+    <div>
+      <label className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-300">
+        Choose {selectedRaceDayLabel.toLowerCase()} race
+      </label>
 
-                  <div className="mt-3 grid grid-cols-[1fr_54px_1fr] overflow-hidden rounded-2xl border border-amber-400/30 bg-black/45 text-[11px] font-black uppercase tracking-[0.12em] text-amber-200">
-                    <button
-                      type="button"
-                      disabled={!previousRace}
-                      onClick={() =>
-                        previousRace &&
-                        setSelectedRaceId(String(previousRace.id))
-                      }
-                      className="px-2 py-2 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-35"
-                    >
-                      ‹ Prev
-                    </button>
-                    <div className="border-x border-amber-400/20 px-2 py-2 text-center text-white">
-                      {activeRaceIndex >= 0 ? `${activeRaceIndex + 1}` : "—"}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={!nextRace}
-                      onClick={() =>
-                        nextRace && setSelectedRaceId(String(nextRace.id))
-                      }
-                      className="px-2 py-2 transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-35"
-                    >
-                      Next ›
-                    </button>
-                  </div>
-                </div>
-              </div>
+      <select
+        value={String(activeRace.id)}
+        onChange={(event) => setSelectedRaceId(event.target.value)}
+        className="mt-2 w-full rounded-xl border border-white/20 bg-black/65 px-3 py-2.5 text-xs font-black text-white shadow-lg outline-none backdrop-blur-md focus:border-amber-300"
+      >
+        {orderedPublishedRaces.map((race) => {
+          const meeting = meetings.find(
+            (item) => item.id === race.meeting_id,
+          );
+
+          return (
+            <option
+              key={race.id}
+              value={String(race.id)}
+              className="bg-zinc-950 text-white"
+            >
+              {meeting?.meeting_name || "Meeting"} · R
+              {race.race_number} {race.race_name}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+
+    <div className="my-4 h-px bg-gradient-to-r from-amber-300/50 via-white/15 to-transparent" />
+
+    <div className="flex items-start gap-3">
+      <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-[18px] border border-amber-300/45 bg-black/75 shadow-[0_8px_22px_rgba(0,0,0,0.45)]">
+        <span className="text-[30px] font-black leading-none text-amber-300">
+          R{activeRace.race_number}
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-black uppercase tracking-[0.17em] text-amber-300">
+              {activeMeeting?.meeting_name || "Meeting"}
+            </p>
+
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-300">
+              {activeMeeting?.meeting_date || ""}
+              {raceStartTime !== "—" ? ` · ${raceStartTime}` : ""}
+            </p>
+          </div>
+
+          <span className="shrink-0 rounded-full border border-amber-200/45 bg-black/60 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100 shadow-lg backdrop-blur-md">
+            {activeMeeting?.track_condition || "Track not set"}
+          </span>
+        </div>
+
+        <h2 className="mt-2 line-clamp-2 text-[17px] font-black leading-[1.15] text-white drop-shadow-[0_2px_5px_rgba(0,0,0,0.9)]">
+          {activeRace.race_name}
+        </h2>
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-3 overflow-hidden rounded-[16px] border border-white/15 bg-black/55 shadow-lg backdrop-blur-md">
+      <div className="px-2 py-3 text-center">
+        <p className="text-[15px] font-black leading-none text-white">
+          {activeRace.distance_m || "—"}m
+        </p>
+        <p className="mt-1.5 text-[8px] font-black uppercase tracking-[0.14em] text-zinc-400">
+          Distance
+        </p>
+      </div>
+
+      <div className="border-x border-white/10 px-2 py-3 text-center">
+        <p className="truncate text-[13px] font-black leading-none text-amber-200">
+          {activeMeeting?.track_condition || "—"}
+        </p>
+        <p className="mt-1.5 text-[8px] font-black uppercase tracking-[0.14em] text-zinc-400">
+          Track
+        </p>
+      </div>
+
+      <div className="px-2 py-3 text-center">
+        <p className="text-[11px] font-black leading-none text-white">
+          {placeTermsLabel(activeRace.place_terms)}
+        </p>
+        <p className="mt-1.5 text-[8px] font-black uppercase tracking-[0.14em] text-zinc-400">
+          Place Terms
+        </p>
+      </div>
+    </div>
+
+    <div className="mt-3 grid grid-cols-[1fr_auto_1fr] overflow-hidden rounded-[14px] border border-amber-300/25 bg-black/60 text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 backdrop-blur-md">
+      <button
+        type="button"
+        disabled={!previousRace}
+        onClick={() =>
+          previousRace &&
+          setSelectedRaceId(String(previousRace.id))
+        }
+        className="px-3 py-2.5 text-left transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        ‹ Previous
+      </button>
+
+      <div className="border-x border-amber-300/20 px-4 py-2.5 text-center text-white">
+        {activeRaceIndex >= 0
+          ? `${activeRaceIndex + 1} / ${orderedPublishedRaces.length}`
+          : "—"}
+      </div>
+
+      <button
+        type="button"
+        disabled={!nextRace}
+        onClick={() =>
+          nextRace &&
+          setSelectedRaceId(String(nextRace.id))
+        }
+        className="px-3 py-2.5 text-right transition hover:bg-amber-400/10 disabled:cursor-not-allowed disabled:opacity-30"
+      >
+        Next ›
+      </button>
+    </div>
+  </div>
+</div>
                 {closedRaceSnapshotMissing ? (
                   <div className="rounded-[20px] border border-rose-300/45 bg-rose-950/70 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-200">
