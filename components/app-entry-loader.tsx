@@ -34,8 +34,8 @@ export default function AppEntryLoader({
   const [fadeOut, setFadeOut] = useState(false);
   const [videoFailed, setVideoFailed] = useState(false);
   const [useDesktopCover, setUseDesktopCover] = useState(false);
-const [isReady, setIsReady] = useState(false);
-const [showVaultIntro, setShowVaultIntro] = useState(false);
+const [isReady, setIsReady] = useState(vaultIntro);
+const [showVaultIntro, setShowVaultIntro] = useState(vaultIntro);
 const [vaultFinishing, setVaultFinishing] = useState(false);
 const [vaultFadeOut, setVaultFadeOut] = useState(false);
 const [vaultProgress, setVaultProgress] = useState(0);
