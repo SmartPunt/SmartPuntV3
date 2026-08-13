@@ -323,23 +323,27 @@ if (vaultIntro && showVaultIntro) {
       : ""
   }`}
 >
-  <img
-    src="/vault/vault-wheel-handles.png"
-    alt=""
-    aria-hidden="true"
-    className={`h-full w-full object-contain drop-shadow-[0_0_22px_rgba(251,191,36,0.24)] ${
+  <div
+    className={`relative h-full w-full ${
       vaultOpening
         ? ""
         : "vault-entry-wheel"
     }`}
-  />
-
-  <div className="absolute left-1/2 top-1/2 aspect-[350/455] w-[50%] -translate-x-1/2 -translate-y-1/2">
+  >
     <img
-      src="/vault/vault-shield.png"
-      alt="The Vault"
-      className="h-full w-full object-contain drop-shadow-[0_0_18px_rgba(251,191,36,0.22)]"
+      src="/vault/vault-wheel-handles.png"
+      alt=""
+      aria-hidden="true"
+      className="h-full w-full object-contain drop-shadow-[0_0_22px_rgba(251,191,36,0.24)]"
     />
+
+    <div className="absolute left-1/2 top-1/2 aspect-[350/455] w-[50%] -translate-x-1/2 -translate-y-1/2">
+      <img
+        src="/vault/vault-shield.png"
+        alt="The Vault"
+        className="h-full w-full object-contain drop-shadow-[0_0_18px_rgba(251,191,36,0.22)]"
+      />
+    </div>
   </div>
 </div>
           </div>
