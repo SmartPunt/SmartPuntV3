@@ -189,7 +189,6 @@ if (vaultIntro && showVaultIntro) {
 @keyframes vault-door-open {
   0% {
     transform:
-      translate(-50%, -50%)
       perspective(900px)
       rotateY(0deg)
       translateX(0);
@@ -198,7 +197,6 @@ if (vaultIntro && showVaultIntro) {
 
   25% {
     transform:
-      translate(-50%, -50%)
       perspective(900px)
       rotateY(-8deg)
       translateX(-2%);
@@ -207,7 +205,6 @@ if (vaultIntro && showVaultIntro) {
 
   100% {
     transform:
-      translate(-50%, -50%)
       perspective(900px)
       rotateY(-78deg)
       translateX(-42%);
@@ -313,19 +310,25 @@ if (vaultIntro && showVaultIntro) {
   <div className="vault-opening-light pointer-events-none absolute left-1/2 top-[39.5%] h-[42%] w-[80%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(254,240,138,0.95)_0%,rgba(251,191,36,0.52)_28%,rgba(245,158,11,0.16)_55%,transparent_72%)] blur-[18px]" />
 ) : null}
             <div className="vault-entry-glow pointer-events-none absolute left-1/2 top-[39.5%] h-[44%] w-[88%] rounded-full bg-amber-400/10 blur-[55px]" />
-
-<div
-  className={`pointer-events-none absolute left-1/2 top-[39.5%] aspect-square w-[76%] -translate-x-1/2 -translate-y-1/2 ${
-    vaultOpening
-      ? "vault-door-opening"
-      : "vault-entry-wheel"
-  }`}
->
-  <img
-    src="/vault/vault-complete-door.png"
-    alt="The Vault"
-    className="h-full w-full object-contain drop-shadow-[0_0_24px_rgba(251,191,36,0.28)]"
-  />
+<div className="pointer-events-none absolute left-1/2 top-[82.2%] flex aspect-square w-[23%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#050403]">
+  <span className="bg-gradient-to-b from-amber-100 via-yellow-300 to-amber-500 bg-clip-text text-[12px] font-black uppercase tracking-[0.16em] text-transparent">
+    Loading
+  </span>
+</div>
+<div className="pointer-events-none absolute left-1/2 top-[39.5%] aspect-square w-[76%] -translate-x-1/2 -translate-y-1/2">
+  <div
+    className={`h-full w-full ${
+      vaultOpening
+        ? "vault-door-opening"
+        : "vault-entry-wheel"
+    }`}
+  >
+    <img
+      src="/vault/vault-complete-door.png"
+      alt="The Vault"
+      className="h-full w-full object-contain drop-shadow-[0_0_24px_rgba(251,191,36,0.28)]"
+    />
+  </div>
 </div>
           </div>
         </div>
