@@ -2070,33 +2070,11 @@ return (
 const isTrifecta =
   tip.bet_type === "trifecta";
 
-const betLabel =
-  tip.bet_type === "quinella"
-    ? "✦ Quinella ✦"
-    : tip.mode === "all_ways"
-      ? "✦ Trifecta · All Ways ✦"
-      : "✦ Trifecta ✦";
+const exoticArtwork = isTrifecta
+  ? "/maverick/maverick-trifecta-strip.png"
+  : "/maverick/maverick-quinella-strip.png";
 
-const exoticRowClasses =
-  isTrifecta
-    ? isSelected
-      ? "border-yellow-200/80 bg-[linear-gradient(135deg,rgba(120,83,10,0.42),rgba(250,204,21,0.18),rgba(120,83,10,0.28))] shadow-[0_0_18px_rgba(250,204,21,0.20)]"
-      : "border-yellow-300/45 bg-[linear-gradient(135deg,rgba(113,63,18,0.30),rgba(250,204,21,0.10),rgba(69,26,3,0.28))] shadow-[inset_0_1px_0_rgba(254,240,138,0.15)] hover:border-yellow-200/70"
-    : isSelected
-      ? "border-rose-200/80 bg-[linear-gradient(135deg,rgba(136,19,55,0.34),rgba(251,113,133,0.17),rgba(120,53,15,0.22))] shadow-[0_0_18px_rgba(251,113,133,0.16)]"
-      : "border-rose-300/40 bg-[linear-gradient(135deg,rgba(136,19,55,0.23),rgba(251,113,133,0.08),rgba(120,53,15,0.18))] shadow-[inset_0_1px_0_rgba(254,205,211,0.14)] hover:border-rose-200/65";
-
-const exoticAccentClasses =
-  isTrifecta
-    ? "border-yellow-200/55 bg-yellow-300/10 text-yellow-100"
-    : "border-rose-200/50 bg-rose-300/10 text-rose-100";
-
-const exoticTextClasses =
-  isTrifecta
-    ? "text-yellow-200"
-    : "text-rose-200";
-
-           return (
+return (
   <button
     key={`exotic-${tip.id}`}
     type="button"
@@ -2105,43 +2083,53 @@ const exoticTextClasses =
         String(race.id),
       )
     }
-    className={`grid w-full grid-cols-[94px_1fr_auto] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${exoticRowClasses}`}
+    className="group relative block w-full overflow-hidden rounded-[16px] text-left transition active:scale-[0.995]"
   >
-    <span
-      className={`flex min-h-[34px] items-center justify-center gap-1 rounded-full border px-2 py-1 text-center ${exoticAccentClasses}`}
-    >
-      <img
-        src="/maverick/maverick-shield.png"
-        alt=""
-        aria-hidden="true"
-        className="h-[26px] w-[26px] shrink-0 object-contain"
-      />
+    <img
+      src={exoticArtwork}
+      alt={
+        isTrifecta
+          ? "The Maverick Trifecta"
+          : "The Maverick Quinella"
+      }
+      className="block h-auto w-full object-contain transition group-hover:brightness-110"
+    />
 
-      <span className="text-[7px] font-black uppercase tracking-[0.07em] text-current">
-        Maverick
-      </span>
-    </span>
-
-    <span className="min-w-0">
+    <span className="pointer-events-none absolute inset-y-0 left-[23%] right-[25%] flex min-w-0 flex-col justify-center px-2">
       <span
-        className={`block text-[9px] font-black uppercase tracking-[0.1em] ${exoticTextClasses}`}
+        className={`block truncate text-[9px] font-black uppercase tracking-[0.11em] sm:text-[10px] ${
+          isTrifecta
+            ? "text-yellow-200"
+            : "text-rose-100"
+        }`}
       >
         {meeting.meeting_name || "Meeting"} R
         {race.race_number || "—"}
       </span>
 
-      <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white">
+      <span className="mt-0.5 block truncate text-[10px] font-black leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[11px]">
         {selectionLabel || "Exotic Selection"}
       </span>
+
+      {isTrifecta &&
+      tip.mode === "all_ways" ? (
+        <span className="mt-0.5 block text-[7px] font-black uppercase tracking-[0.1em] text-yellow-100/80">
+          All Ways
+        </span>
+      ) : null}
     </span>
 
-    <span
-      className={`shrink-0 rounded-full border px-2 py-1 text-center text-[8px] font-black uppercase tracking-[0.08em] ${exoticAccentClasses}`}
-    >
-      {betLabel}
-    </span>
-</button>
-            );
+    {isSelected ? (
+      <span
+        className={`pointer-events-none absolute inset-0 rounded-[16px] border-2 ${
+          isTrifecta
+            ? "border-yellow-200/80 shadow-[inset_0_0_15px_rgba(250,204,21,0.30)]"
+            : "border-rose-200/80 shadow-[inset_0_0_15px_rgba(251,113,133,0.25)]"
+        }`}
+      />
+    ) : null}
+  </button>
+);
           })}
       </div>
     ) : null}
