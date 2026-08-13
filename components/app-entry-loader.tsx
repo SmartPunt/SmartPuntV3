@@ -65,15 +65,16 @@ const [vaultFadeOut, setVaultFadeOut] = useState(false);
   }, []);
 
   
-const shouldPlayIntro = false;
+useEffect(() => {
+  const shouldPlayIntro = false;
 
-    if (shouldPlayIntro) {
-      clearCookie("smartpunt_play_intro");
-    }
+  if (shouldPlayIntro) {
+    clearCookie("smartpunt_play_intro");
+  }
 
-    setShowIntro(shouldPlayIntro);
-    setIsReady(true);
-  }, []);
+  setShowIntro(shouldPlayIntro);
+  setIsReady(true);
+}, []);
 useEffect(() => {
   if (!vaultIntro) return;
 
