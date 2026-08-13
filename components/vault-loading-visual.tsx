@@ -37,19 +37,14 @@ export default function VaultLoadingVisual({
     opacity: 0;
   }
 
-  18% {
+  30% {
     opacity: 1;
   }
 
-  42% {
-    opacity: 0.92;
-  }
-
   100% {
-    opacity: 0;
+    opacity: 1;
   }
 }
-
             @keyframes vault-ambient-glow {
               0%, 100% {
                 opacity: 0.28;
@@ -144,7 +139,7 @@ export default function VaultLoadingVisual({
         </div>
 
 {finishFlash ? (
-  <div className="vault-final-flash pointer-events-none fixed inset-0 z-50 bg-[radial-gradient(circle_at_center,rgba(255,252,225,1)_0%,rgba(254,240,138,0.98)_18%,rgba(251,191,36,0.86)_40%,rgba(245,158,11,0.52)_62%,rgba(120,53,15,0.18)_82%,transparent_100%)]" />
+  <div className="vault-final-flash pointer-events-none fixed inset-0 z-50 bg-[radial-gradient(circle_at_center,#fff8dc_0%,#fde68a_18%,#fbbf24_42%,#d97706_72%,#78350f_100%)]" />
 ) : null}
       </div>
     </div>
