@@ -37,6 +37,7 @@ const [isReady, setIsReady] = useState(false);
 const [showVaultIntro, setShowVaultIntro] = useState(false);
 const [vaultOpening, setVaultOpening] = useState(false);
 const [vaultFadeOut, setVaultFadeOut] = useState(false);
+const [vaultProgress, setVaultProgress] = useState(0);
 
   useEffect(() => {
     function updateViewportMode() {
@@ -82,19 +83,27 @@ useEffect(() => {
   setShowVaultIntro(true);
   setVaultOpening(false);
   setVaultFadeOut(false);
+  setVaultProgress(0);
 
-  /*
-   * Hold the locked Vault on screen first.
-   * Then play the unlock/open sequence.
-   */
+  const startedAt = Date.now();
+
+  const progressTimer = window.setInterval(() => {
+    const elapsed = Date.now() - startedAt;
+
+    const progress = Math.min(
+      99,
+      Math.floor((elapsed / minimumDisplayMs) * 100),
+    );
+
+    setVaultProgress(progress);
+  }, 40);
+
   const openingTimer = window.setTimeout(() => {
+    window.clearInterval(progressTimer);
+    setVaultProgress(100);
     setVaultOpening(true);
   }, minimumDisplayMs);
 
-  /*
-   * Give the door-opening animation time to play
-   * before fading the final overlay.
-   */
   const fadeTimer = window.setTimeout(() => {
     setVaultFadeOut(true);
   }, minimumDisplayMs + 800);
@@ -104,6 +113,7 @@ useEffect(() => {
   }, minimumDisplayMs + 1300);
 
   return () => {
+    window.clearInterval(progressTimer);
     window.clearTimeout(openingTimer);
     window.clearTimeout(fadeTimer);
     window.clearTimeout(removeTimer);
@@ -311,8 +321,8 @@ if (vaultIntro && showVaultIntro) {
 ) : null}
             <div className="vault-entry-glow pointer-events-none absolute left-1/2 top-[39.5%] h-[44%] w-[88%] rounded-full bg-amber-400/10 blur-[55px]" />
 <div className="pointer-events-none absolute left-1/2 top-[82.2%] flex aspect-square w-[23%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#050403]">
-  <span className="bg-gradient-to-b from-amber-100 via-yellow-300 to-amber-500 bg-clip-text text-[12px] font-black uppercase tracking-[0.16em] text-transparent">
-    Loading
+  <span className="bg-gradient-to-b from-amber-100 via-yellow-300 to-amber-500 bg-clip-text text-2xl font-black tabular-nums text-transparent">
+    {vaultProgress}%
   </span>
 </div>
 <div className="pointer-events-none absolute left-1/2 top-[39.5%] aspect-square w-[76%] -translate-x-1/2 -translate-y-1/2">
