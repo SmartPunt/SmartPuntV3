@@ -107,13 +107,13 @@ useEffect(() => {
     setVaultFinishing(true);
   }, minimumDisplayMs);
 
-  const fadeTimer = window.setTimeout(() => {
-    setVaultFadeOut(true);
-  }, minimumDisplayMs + 650);
+const fadeTimer = window.setTimeout(() => {
+  setVaultFadeOut(false);
+}, minimumDisplayMs + 650);
 
-  const removeTimer = window.setTimeout(() => {
-    setShowVaultIntro(false);
-  }, minimumDisplayMs + 1150);
+const removeTimer = window.setTimeout(() => {
+  setShowVaultIntro(false);
+}, minimumDisplayMs + 1150);
 
   return () => {
     window.clearInterval(progressTimer);
