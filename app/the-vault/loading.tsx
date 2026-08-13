@@ -64,7 +64,11 @@ export default function TheVaultLoading() {
           />
 
           <div className="vault-loading-glow pointer-events-none absolute left-1/2 top-[39.5%] h-[44%] w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400/10 blur-[55px]" />
-
+<div className="pointer-events-none absolute left-1/2 top-[82.2%] flex aspect-square w-[23%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#050403]">
+  <span className="bg-gradient-to-b from-amber-100 via-yellow-300 to-amber-500 bg-clip-text text-[12px] font-black uppercase tracking-[0.16em] text-transparent">
+    Loading
+  </span>
+</div>
           <div className="pointer-events-none absolute left-1/2 top-[39.5%] aspect-square w-[76%] -translate-x-1/2 -translate-y-1/2">
             <img
               src="/vault/vault-complete-door.png"
