@@ -143,9 +143,9 @@ export default function VaultLoadingVisual({
           )}
         </div>
 
-        {finishFlash ? (
-          <div className="vault-final-flash pointer-events-none absolute left-1/2 top-[39.5%] h-[58%] w-[110%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,250,210,1)_0%,rgba(253,224,71,0.82)_18%,rgba(245,158,11,0.38)_42%,transparent_70%)] blur-[12px]" />
-        ) : null}
+{finishFlash ? (
+  <div className="vault-final-flash pointer-events-none fixed inset-0 z-50 bg-[radial-gradient(circle_at_center,rgba(255,252,225,1)_0%,rgba(254,240,138,0.98)_18%,rgba(251,191,36,0.86)_40%,rgba(245,158,11,0.52)_62%,rgba(120,53,15,0.18)_82%,transparent_100%)]" />
+) : null}
       </div>
     </div>
   );
