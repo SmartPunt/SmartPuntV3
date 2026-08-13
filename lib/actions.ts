@@ -5816,14 +5816,17 @@ export async function upsertMaverickExoticTipAction(
     );
   }
 
-  if (
-    betType === "quinella" &&
-    runnerIds.length !== 2
-  ) {
-    throw new Error(
-      "A Quinella requires exactly 2 horses.",
-    );
-  }
+if (
+  betType === "quinella" &&
+  (
+    runnerIds.length < 2 ||
+    runnerIds.length > 4
+  )
+) {
+  throw new Error(
+    "A Quinella requires between 2 and 4 horses.",
+  );
+}
 
   if (
     betType === "trifecta" &&
