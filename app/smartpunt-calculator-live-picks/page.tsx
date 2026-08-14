@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import SubscriberCalculatorLivePicks from "@/components/subscriber-calculator-live-picks";
 import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
+import { syncVaultNotifications } from "@/lib/vault-matching";
 
 export const dynamic = "force-dynamic";
 
@@ -19,12 +20,26 @@ export default async function Page({
     redirect("/login");
   }
 
-  const livePicksData = await loadSubscriberLivePicksData({
-    userId: profile.id,
-    includeCalculatorPredictions: true,
-  });
+const livePicksData = await loadSubscriberLivePicksData({
+  userId: profile.id,
+  includeCalculatorPredictions: true,
+});
 
-  return (
+const vaultResult = await syncVaultNotifications({
+  userId: profile.id,
+  liveData: {
+    dayDates: {
+      today: livePicksData.dayDates.today,
+      tomorrow: livePicksData.dayDates.tomorrow,
+    },
+    currentMeetings: livePicksData.meetings,
+    currentRaces: livePicksData.races,
+    currentRunners: livePicksData.runners,
+    horses: livePicksData.horses,
+  },
+});
+
+return (
 <SubscriberCalculatorLivePicks
   currentUser={profile}
   races={livePicksData.races}
@@ -39,7 +54,8 @@ watchSuggestions={livePicksData.watchSuggestions}
 getOnEarlyBets={livePicksData.getOnEarlyBets}
 maverickExoticTips={livePicksData.maverickExoticTips}
 activeUserBets={livePicksData.activeUserBets}
-  dayDates={livePicksData.dayDates}
+vaultMatches={vaultResult.matches}
+dayDates={livePicksData.dayDates}
 initialRaceId={resolvedSearchParams?.raceId ?? ""}
 />
   );
