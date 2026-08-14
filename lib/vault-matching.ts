@@ -406,10 +406,16 @@ liveMatches.push({
     }
   }
 
-  const { data: existingNotifications, error: existingError } =
-    await supabase
-      .from("vault_notifications")
-      .select("id, alert_id, race_runner_id");
+const { data: existingNotifications, error: existingError } =
+  alertIds.length
+    ? await supabase
+        .from("vault_notifications")
+        .select("id, alert_id, race_runner_id")
+        .in("alert_id", alertIds)
+    : {
+        data: [],
+        error: null,
+      };
 
   if (existingError) {
     throw new Error(existingError.message);
