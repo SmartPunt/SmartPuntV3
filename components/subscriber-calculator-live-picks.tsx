@@ -11,6 +11,7 @@ import {
 } from "react";
 import { addUserBetAction } from "@/lib/actions";
 import VaultDoorIcon from "@/components/vault-door-icon";
+import type { VaultLiveMatch } from "@/lib/vault-matching";
 import {
   buildHorseHistory,
   calculateRaceConfidence,
@@ -945,8 +946,9 @@ watchSuggestions = [],
 getOnEarlyBets = [],
 maverickExoticTips = [],
 activeUserBets = [],
+vaultMatches = [],
 dayDates,
-  initialRaceId = "",
+initialRaceId = "",
 }: {
   currentUser: any;
   races: Race[];
@@ -961,8 +963,9 @@ watchSuggestions?: WatchSuggestion[];
 getOnEarlyBets?: GetOnEarlyBet[];
 maverickExoticTips?: MaverickExoticTip[];
 activeUserBets?: UserBet[];
-  initialRaceId?: string;
-  dayDates?: DayDates;
+vaultMatches?: VaultLiveMatch[];
+initialRaceId?: string;
+dayDates?: DayDates;
 }) {
 const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
   const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
@@ -1415,9 +1418,41 @@ const qualifiedTip = useMemo(() => {
       ? orderedPublishedRaces[activeRaceIndex + 1]
       : null;
 
-  const activePlaceTerms = activeRace?.place_terms || "top_3";
+const activePlaceTerms = activeRace?.place_terms || "top_3";
 
-  const activeSpecialistAlerts = useMemo(
+const activeRaceVaultMatches = useMemo(() => {
+  if (!activeRace) {
+    return [];
+  }
+
+  return vaultMatches.filter(
+    (match) =>
+      Number(match.raceId) ===
+      Number(activeRace.id),
+  );
+}, [activeRace, vaultMatches]);
+
+const activeRaceVaultRunnerIds = useMemo(
+  () =>
+    new Set(
+      activeRaceVaultMatches.map(
+        (match) => Number(match.raceRunnerId),
+      ),
+    ),
+  [activeRaceVaultMatches],
+);
+
+const activeRaceVaultHorseIds = useMemo(
+  () =>
+    new Set(
+      activeRaceVaultMatches.map(
+        (match) => Number(match.horseId),
+      ),
+    ),
+  [activeRaceVaultMatches],
+);
+
+const activeSpecialistAlerts = useMemo(
     () =>
       activeRace
         ? buildSetupMatchedSpecialistAlerts({
@@ -2419,6 +2454,81 @@ return (
     </div>
   </div>
 </div>
+
+{activeRaceVaultMatches.length > 0 ? (
+  <div className="overflow-hidden rounded-[20px] border border-amber-300/45 bg-[linear-gradient(135deg,rgba(8,8,8,0.98)_0%,rgba(24,18,8,0.98)_58%,rgba(120,53,15,0.24)_100%)] shadow-[0_14px_35px_rgba(0,0,0,0.38)]">
+    <div className="flex items-center gap-3 border-b border-amber-300/20 px-4 py-3">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-300/35 bg-black/60">
+        <VaultDoorIcon className="h-7 w-7 text-amber-200" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+          From Your Vault
+        </p>
+
+        <p className="mt-1 text-[10px] font-semibold text-zinc-400">
+          {activeRaceVaultMatches.length === 1
+            ? "One of your saved Vault alerts matches this race."
+            : `${activeRaceVaultMatches.length} of your saved Vault alerts match this race.`}
+        </p>
+      </div>
+
+      <span className="shrink-0 rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[9px] font-black text-amber-200">
+        {activeRaceVaultMatches.length}
+      </span>
+    </div>
+
+    <div className="space-y-2 p-3">
+      {activeRaceVaultMatches.map((match) => (
+        <div
+          key={match.notificationId}
+          className="rounded-[16px] border border-white/10 bg-black/45 px-3 py-3"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">
+                {match.alertName || "Vault Alert"}
+              </p>
+
+              <p className="mt-1 text-base font-black leading-tight text-white">
+                {match.runnerNumber
+                  ? `#${match.runnerNumber} ${match.horseName}`
+                  : match.horseName}
+              </p>
+            </div>
+
+            <span className="shrink-0 rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
+              In Your Vault
+            </span>
+          </div>
+
+          {match.matchedRules.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {match.matchedRules.map((rule, index) => (
+                <span
+                  key={`${match.notificationId}-${rule.type}-${index}`}
+                  className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[8px] font-bold text-zinc-300"
+                >
+                  {rule.label}: {rule.value}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          <Link
+            href="/the-vault"
+            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
+          >
+            <VaultDoorIcon className="h-4 w-4" />
+            View in The Vault →
+          </Link>
+        </div>
+      ))}
+    </div>
+  </div>
+) : null}
+
                 {closedRaceSnapshotMissing ? (
                   <div className="rounded-[20px] border border-rose-300/45 bg-rose-950/70 p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-200">
@@ -2980,7 +3090,16 @@ const isWatchSuggestion =
   watchSuggestionHorseIds.has(
     Number(runner.horse_id),
   );
-                          return (
+
+const isInSubscriberVault =
+  activeRaceVaultRunnerIds.has(
+    Number(runner.id),
+  ) ||
+  activeRaceVaultHorseIds.has(
+    Number(runner.horse_id),
+  );
+
+return (
                             <tr
                               key={runner.id}
                               className={
@@ -3041,11 +3160,20 @@ const isWatchSuggestion =
         ? "• WATCH"
         : ""}
 </p>
+<div className="mt-1 flex flex-wrap gap-1.5">
   {isWatchSuggestion ? (
-  <span className="mt-1 inline-flex rounded-full border border-violet-300/35 bg-violet-400/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-violet-200">
-    SmartPunt Watch
-  </span>
-) : null}
+    <span className="inline-flex rounded-full border border-violet-300/35 bg-violet-400/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-violet-200">
+      SmartPunt Watch
+    </span>
+  ) : null}
+
+  {isInSubscriberVault ? (
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
+      <VaultDoorIcon className="h-3.5 w-3.5" />
+      In Your Vault
+    </span>
+  ) : null}
+</div>
                               </td>
                               <td className="px-3 py-3 font-semibold text-zinc-300">
                                 {(runner as any).jockey_name || "—"}
@@ -3107,20 +3235,31 @@ const isWatchSuggestion =
                                 </span>
                               </td>
 
-                              <td className="px-3 py-3 text-center">
-                                <Link
-                                  href={`/the-vault?horseId=${encodeURIComponent(
-                                    String(runner.horse_id),
-                                  )}&horseName=${encodeURIComponent(
-                                    runner.horse_name,
-                                  )}#add-to-vault`}
-                                  title={`Add ${runner.horse_name} to The Vault`}
-                                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/45 bg-amber-400/10 px-2.5 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20"
-                                >
-                                  <VaultDoorIcon className="h-5 w-5 shrink-0" />
-                                  <span>Vault</span>
-                                </Link>
-                              </td>
+  <td className="px-3 py-3 text-center">
+  {isInSubscriberVault ? (
+    <Link
+      href="/the-vault"
+      title={`${runner.horse_name} is in your Vault`}
+      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300/40 bg-emerald-400/10 px-2.5 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-emerald-200 transition hover:bg-emerald-400/15"
+    >
+      <VaultDoorIcon className="h-5 w-5 shrink-0" />
+      <span>Saved</span>
+    </Link>
+  ) : (
+    <Link
+      href={`/the-vault?horseId=${encodeURIComponent(
+        String(runner.horse_id),
+      )}&horseName=${encodeURIComponent(
+        runner.horse_name,
+      )}#add-to-vault`}
+      title={`Add ${runner.horse_name} to The Vault`}
+      className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-amber-300/45 bg-amber-400/10 px-2.5 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20"
+    >
+      <VaultDoorIcon className="h-5 w-5 shrink-0" />
+      <span>Vault</span>
+    </Link>
+  )}
+</td>
                             </tr>
                           );
                         })}
