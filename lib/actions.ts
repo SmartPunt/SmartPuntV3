@@ -4847,34 +4847,93 @@ export async function upsertSuggestedTip(
       throw new Error(error.message);
     }
   } else {
-    const { data, error } = await supabase
+    const {
+      data: existingActiveTip,
+      error: existingActiveTipError,
+    } = await supabase
       .from("suggested_tips")
-      .insert(payload)
-      .select()
-      .single();
+      .select("id")
+      .eq("race_runner_id", raceRunnerId)
+      .eq("type", tipType)
+      .is("settled_at", null)
+      .limit(1)
+      .maybeSingle();
 
-    if (error) {
-      throw new Error(error.message);
+    if (existingActiveTipError) {
+      throw new Error(
+        existingActiveTipError.message,
+      );
     }
 
-    if (isNew && sendNotification && data) {
-      sendSuggestedTipNotifications({
-        race: data.race || payload.race,
-        horse: data.horse || payload.horse,
-        type: data.type || payload.type,
-        confidence:
-          data.confidence || payload.confidence,
-        note: data.note || payload.note,
-        tipAngle:
-          data.tip_angle || payload.tip_angle,
-        commentary:
-          data.commentary || payload.commentary,
-      }).catch((notificationError) => {
-        console.error(
-          "Suggested tip notification failed:",
-          notificationError,
+    if (existingActiveTip) {
+      console.warn(
+        "Duplicate Maverick tip publish prevented:",
+        {
+          existingTipId:
+            Number(existingActiveTip.id),
+          raceId,
+          raceRunnerId,
+          horseId,
+          tipType,
+          createdBy: profile.id,
+        },
+      );
+    } else {
+      const { data, error } = await supabase
+        .from("suggested_tips")
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === "23505") {
+          console.warn(
+            "Duplicate Maverick tip insert prevented by database:",
+            {
+              raceId,
+              raceRunnerId,
+              horseId,
+              tipType,
+              createdBy: profile.id,
+            },
+          );
+        } else {
+          throw new Error(error.message);
+        }
+      }
+
+      if (
+        isNew &&
+        sendNotification &&
+        data
+      ) {
+        sendSuggestedTipNotifications({
+          race:
+            data.race || payload.race,
+          horse:
+            data.horse || payload.horse,
+          type:
+            data.type || payload.type,
+          confidence:
+            data.confidence ||
+            payload.confidence,
+          note:
+            data.note || payload.note,
+          tipAngle:
+            data.tip_angle ||
+            payload.tip_angle,
+          commentary:
+            data.commentary ||
+            payload.commentary,
+        }).catch(
+          (notificationError) => {
+            console.error(
+              "Suggested tip notification failed:",
+              notificationError,
+            );
+          },
         );
-      });
+      }
     }
   }
 
