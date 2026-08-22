@@ -743,119 +743,353 @@ async function fetchPredictions({
   to: string;
   allHistory?: boolean;
 }) {
-  const filters = [
-    "select=*",
-    "settled_at=not.is.null",
-    "finishing_position=not.is.null",
-  ];
+  let allPredictionVersions: Prediction[] = [];
+  let races: RaceRow[] = [];
+  let meetings: MeetingRow[] = [];
 
-  filters.push("order=settled_at.desc");
+  /*
+   * IMPORTANT PERFORMANCE RULE
+   *
+   * Normal date-bounded reports must only load meetings,
+   * races and Calculator predictions belonging to the
+   * requested meeting-date range.
+   *
+   * "All history" deliberately keeps the historical
+   * full-table pathway.
+   */
+  if (allHistory) {
+    allPredictionVersions =
+      await serviceSelectAllRows<Prediction>(
+        [
+          "calculator_predictions?select=*",
+          "settled_at=not.is.null",
+          "finishing_position=not.is.null",
+          "order=settled_at.desc",
+        ].join("&"),
+      );
+  } else {
+    if (!from || !to) {
+      return [];
+    }
 
-const allPredictionVersions = await serviceSelectAllRows<Prediction>(
-  `calculator_predictions?${filters.join("&")}`,
-);
+    meetings =
+      await serviceSelectAllRows<MeetingRow>(
+        [
+          "meetings?select=id,meeting_name,meeting_date,track_condition",
+          `meeting_date=gte.${from}`,
+          `meeting_date=lte.${to}`,
+          "order=meeting_date.desc",
+        ].join("&"),
+      );
 
-const latestPredictionByRunner = new Map<string, Prediction>();
+    const requestedMeetingIds = Array.from(
+      new Set(
+        meetings
+          .map((meeting) => Number(meeting.id))
+          .filter(
+            (id) =>
+              Number.isFinite(id) &&
+              id > 0,
+          ),
+      ),
+    );
 
-for (const prediction of allPredictionVersions) {
-  const key = `${Number(prediction.race_id)}-${Number(prediction.runner_id)}`;
-  const existing = latestPredictionByRunner.get(key);
+    if (!requestedMeetingIds.length) {
+      return [];
+    }
 
-  if (!existing) {
-    latestPredictionByRunner.set(key, prediction);
-    continue;
+    for (const meetingIdChunk of chunkValues(
+      requestedMeetingIds,
+      100,
+    )) {
+      const raceRows =
+        await serviceSelectAllRows<RaceRow>(
+          [
+            "races?select=id,race_number,race_name,distance_m,meeting_id,status,place_terms",
+            `meeting_id=in.(${meetingIdChunk.join(",")})`,
+          ].join("&"),
+        );
+
+      races.push(...raceRows);
+    }
+
+    const requestedRaceIds = Array.from(
+      new Set(
+        races
+          .map((race) => Number(race.id))
+          .filter(
+            (id) =>
+              Number.isFinite(id) &&
+              id > 0,
+          ),
+      ),
+    );
+
+    if (!requestedRaceIds.length) {
+      return [];
+    }
+
+    for (const raceIdChunk of chunkValues(
+      requestedRaceIds,
+      100,
+    )) {
+      const predictionRows =
+        await serviceSelectAllRows<Prediction>(
+          [
+            "calculator_predictions?select=*",
+            "settled_at=not.is.null",
+            "finishing_position=not.is.null",
+            `race_id=in.(${raceIdChunk.join(",")})`,
+            "order=settled_at.desc",
+          ].join("&"),
+        );
+
+      allPredictionVersions.push(
+        ...predictionRows,
+      );
+    }
   }
 
-  const existingTime = new Date(
-    existing.predicted_at || existing.settled_at || 0,
-  ).getTime();
+  /*
+   * Preserve the existing rule:
+   * when more than one scoring-version snapshot exists
+   * for the same race runner, report the latest prediction.
+   */
+  const latestPredictionByRunner =
+    new Map<string, Prediction>();
 
-  const predictionTime = new Date(
-    prediction.predicted_at || prediction.settled_at || 0,
-  ).getTime();
+  for (const prediction of allPredictionVersions) {
+    const key =
+      `${Number(prediction.race_id)}-${Number(
+        prediction.runner_id,
+      )}`;
 
-  if (predictionTime >= existingTime) {
-    latestPredictionByRunner.set(key, prediction);
+    const existing =
+      latestPredictionByRunner.get(key);
+
+    if (!existing) {
+      latestPredictionByRunner.set(
+        key,
+        prediction,
+      );
+      continue;
+    }
+
+    const existingTime = new Date(
+      existing.predicted_at ||
+        existing.settled_at ||
+        0,
+    ).getTime();
+
+    const predictionTime = new Date(
+      prediction.predicted_at ||
+        prediction.settled_at ||
+        0,
+    ).getTime();
+
+    if (predictionTime >= existingTime) {
+      latestPredictionByRunner.set(
+        key,
+        prediction,
+      );
+    }
   }
-}
 
-const predictions = Array.from(latestPredictionByRunner.values());
-
-const raceIds = Array.from(
-  new Set(predictions.map((row) => row.race_id).filter(Boolean)),
-);
-  const runnerIds = Array.from(
-    new Set(predictions.map((row) => row.runner_id).filter(Boolean)),
+  const predictions = Array.from(
+    latestPredictionByRunner.values(),
   );
 
-  const raceRunners = await serviceSelectByIdChunks<RaceRunnerRow>({
-    table: "race_runners",
-    select: "id,horse_id",
-    ids: runnerIds,
-  });
+  if (!predictions.length) {
+    return [];
+  }
 
-  const runnerMap = new Map(raceRunners.map((row) => [Number(row.id), row]));
+  const raceIds = Array.from(
+    new Set(
+      predictions
+        .map((row) => Number(row.race_id))
+        .filter(
+          (id) =>
+            Number.isFinite(id) &&
+            id > 0,
+        ),
+    ),
+  );
+
+  const runnerIds = Array.from(
+    new Set(
+      predictions
+        .map((row) => Number(row.runner_id))
+        .filter(
+          (id) =>
+            Number.isFinite(id) &&
+            id > 0,
+        ),
+    ),
+  );
+
+  const raceRunners =
+    await serviceSelectByIdChunks<RaceRunnerRow>({
+      table: "race_runners",
+      select: "id,horse_id",
+      ids: runnerIds,
+    });
+
+  const runnerMap = new Map(
+    raceRunners.map((row) => [
+      Number(row.id),
+      row,
+    ]),
+  );
 
   const horseIds = Array.from(
     new Set(
       predictions
         .flatMap((row) => [
-          row.horse_id,
-          runnerMap.get(Number(row.runner_id))?.horse_id,
+          Number(row.horse_id),
+          Number(
+            runnerMap.get(
+              Number(row.runner_id),
+            )?.horse_id,
+          ),
         ])
         .filter(
-          (id): id is number =>
-            typeof id === "number" && Number.isFinite(id) && id > 0,
+          (id) =>
+            Number.isFinite(id) &&
+            id > 0,
         ),
     ),
   );
 
-  const [races, horses] = await Promise.all([
-serviceSelectByIdChunks<RaceRow>({
-  table: "races",
-  select: "id,race_number,race_name,distance_m,meeting_id,status,place_terms",
-  ids: raceIds,
-}),
-    serviceSelectByIdChunks<HorseRow>({
+  /*
+   * For normal date-bounded reports the races were
+   * already loaded above.
+   *
+   * All-history reports still resolve their races
+   * from the historical prediction set.
+   */
+  if (allHistory) {
+    races =
+      await serviceSelectByIdChunks<RaceRow>({
+        table: "races",
+        select:
+          "id,race_number,race_name,distance_m,meeting_id,status,place_terms",
+        ids: raceIds,
+      });
+  } else {
+    const requiredRaceIdSet =
+      new Set(raceIds);
+
+    races = races.filter((race) =>
+      requiredRaceIdSet.has(
+        Number(race.id),
+      ),
+    );
+  }
+
+  const horses =
+    await serviceSelectByIdChunks<HorseRow>({
       table: "horses",
-select: "id,horse_name,smartpunt_power_rating",
+      select:
+        "id,horse_name,smartpunt_power_rating",
       ids: horseIds,
-    }),
-  ]);
+    });
 
   const meetingIds = Array.from(
-    new Set(races.map((row) => row.meeting_id).filter(Boolean)),
+    new Set(
+      races
+        .map((race) =>
+          Number(race.meeting_id),
+        )
+        .filter(
+          (id) =>
+            Number.isFinite(id) &&
+            id > 0,
+        ),
+    ),
   );
 
-  const meetings = await serviceSelectByIdChunks<MeetingRow>({
-    table: "meetings",
-    select: "id,meeting_name,meeting_date,track_condition",
-    ids: meetingIds,
-  });
+  /*
+   * Normal reports already have their meeting rows.
+   * Only All History needs to resolve them here.
+   */
+  if (allHistory) {
+    meetings =
+      await serviceSelectByIdChunks<MeetingRow>({
+        table: "meetings",
+        select:
+          "id,meeting_name,meeting_date,track_condition",
+        ids: meetingIds,
+      });
+  } else {
+    const requiredMeetingIdSet =
+      new Set(meetingIds);
 
-  const raceMap = new Map(races.map((row) => [Number(row.id), row]));
-  const meetingMap = new Map(meetings.map((row) => [Number(row.id), row]));
-  const horseMap = new Map(horses.map((row) => [Number(row.id), row]));
+    meetings = meetings.filter((meeting) =>
+      requiredMeetingIdSet.has(
+        Number(meeting.id),
+      ),
+    );
+  }
+
+  const raceMap = new Map(
+    races.map((race) => [
+      Number(race.id),
+      race,
+    ]),
+  );
+
+  const meetingMap = new Map(
+    meetings.map((meeting) => [
+      Number(meeting.id),
+      meeting,
+    ]),
+  );
+
+  const horseMap = new Map(
+    horses.map((horse) => [
+      Number(horse.id),
+      horse,
+    ]),
+  );
 
   return predictions.map((prediction) => {
-    const race = raceMap.get(Number(prediction.race_id)) || null;
+    const race =
+      raceMap.get(
+        Number(prediction.race_id),
+      ) || null;
+
     const meeting = race
-      ? meetingMap.get(Number(race.meeting_id)) || null
+      ? meetingMap.get(
+          Number(race.meeting_id),
+        ) || null
       : null;
-    const runner = runnerMap.get(Number(prediction.runner_id)) || null;
+
+    const runner =
+      runnerMap.get(
+        Number(prediction.runner_id),
+      ) || null;
+
     const horse =
-      horseMap.get(Number(prediction.horse_id)) ||
-      horseMap.get(Number(runner?.horse_id)) ||
+      horseMap.get(
+        Number(prediction.horse_id),
+      ) ||
+      horseMap.get(
+        Number(runner?.horse_id),
+      ) ||
       null;
 
     return {
       ...prediction,
-      race: race ? { ...race, meeting } : null,
+      race: race
+        ? {
+            ...race,
+            meeting,
+          }
+        : null,
       horse,
     };
   });
 }
-
 function StatCard({
   label,
   value,
