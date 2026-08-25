@@ -4436,34 +4436,157 @@ async function refreshReleasedCalculatorSnapshotForRace(
 }
 
 export async function updateMeetingConditionAction(formData: FormData) {
-  const meetingId = formData.get("meeting_id");
-  const condition = formData.get("track_condition");
+  const meetingId = Number(
+    formData.get("meeting_id"),
+  );
+
+  const condition = String(
+    formData.get("track_condition") || "",
+  ).trim();
 
   if (!meetingId) {
-    return { success: false, error: "Missing meeting ID" };
+    return {
+      success: false,
+      error: "Missing meeting ID",
+    };
   }
 
   const supabase = await createClient();
 
+  /*
+   * Load the existing meeting first so we only rebuild
+   * Calculator snapshots when the track condition has
+   * genuinely changed.
+   */
+  const {
+    data: existingMeeting,
+    error: existingMeetingError,
+  } = await supabase
+    .from("meetings")
+    .select(
+      "id, track_condition, calculator_released_at",
+    )
+    .eq("id", meetingId)
+    .maybeSingle();
+
+  if (existingMeetingError) {
+    return {
+      success: false,
+      error: existingMeetingError.message,
+    };
+  }
+
+  if (!existingMeeting) {
+    return {
+      success: false,
+      error: "Meeting could not be found.",
+    };
+  }
+
+  const previousCondition = String(
+    existingMeeting.track_condition || "",
+  ).trim();
+
+  const nextCondition = condition;
+
+  const conditionChanged =
+    previousCondition !== nextCondition;
+
   const { error } = await supabase
     .from("meetings")
     .update({
-      track_condition: condition || null,
-      updated_at: new Date().toISOString(),
+      track_condition:
+        nextCondition || null,
+      updated_at:
+        new Date().toISOString(),
     })
-    .eq("id", Number(meetingId));
+    .eq("id", meetingId);
 
   if (error) {
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+
+  /*
+   * SMARTPUNT APPROVED LIVE REFRESH
+   *
+   * Once Start Race Day has released the meeting,
+   * a genuine track-condition change is allowed to
+   * regenerate the stored Calculator prediction for
+   * remaining open races.
+   *
+   * Same-day race results remain excluded from scoring.
+   */
+  if (
+    conditionChanged &&
+    existingMeeting.calculator_released_at
+  ) {
+    const {
+      data: openRaces,
+      error: openRacesError,
+    } = await supabase
+      .from("races")
+      .select(
+        "id, race_number",
+      )
+      .eq("meeting_id", meetingId)
+      .eq("status", "published")
+      .order("race_number", {
+        ascending: true,
+      });
+
+    if (openRacesError) {
+      return {
+        success: false,
+        error: openRacesError.message,
+      };
+    }
+
+    for (const race of openRaces || []) {
+      try {
+        await refreshReleasedCalculatorSnapshotForRace(
+          Number(race.id),
+        );
+      } catch (snapshotError) {
+        console.error(
+          "Track-condition Calculator snapshot refresh failed:",
+          {
+            meetingId,
+            raceId: Number(race.id),
+            raceNumber:
+              Number(race.race_number || 0),
+            previousCondition,
+            nextCondition,
+            error: snapshotError,
+          },
+        );
+
+        return {
+          success: false,
+          error:
+            `Track condition was updated, but SmartPunt could not refresh ` +
+            `the Calculator snapshot for R${race.race_number}.`,
+        };
+      }
+    }
   }
 
   revalidatePath("/current-races");
   revalidatePath("/admin/calculator");
   revalidatePath("/subscriber-dashboard");
-  revalidatePath("/smartpunt-calculator-live-picks");
-  revalidatePath("/admin/power-rating-race-card");
+  revalidatePath(
+    "/smartpunt-calculator-live-picks",
+  );
+  revalidatePath(
+    "/admin/power-rating-race-card",
+  );
 
-  return { success: true, error: null };
+  return {
+    success: true,
+    error: null,
+  };
 }
 
 export async function startRaceDayAction(
