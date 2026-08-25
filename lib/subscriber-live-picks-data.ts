@@ -890,31 +890,34 @@ raceIds:
     [];
 
   if (includeCalculatorPredictions) {
-    const closedRaceIds =
-      uniqueNumbers(
-        currentRaces
-          .filter(
-            (race) =>
-              race.status ===
-              "closed",
-          )
-          .map(
-            (race) => race.id,
-          ),
-      );
+/*
+ * SMARTPUNT PREDICTION INTEGRITY
+ *
+ * Load the authoritative stored Calculator prediction
+ * for every race visible to subscribers, not just
+ * races that have already closed.
+ *
+ * Published races must display their stored release
+ * snapshot rather than being recalculated from
+ * changing same-day history.
+ */
+const predictionRaceIds =
+  uniqueNumbers(
+    subscriberVisibleRaceIds,
+  );
 
     const calculatorPredictionsStartedAt =
       Date.now();
 
-    const allCalculatorPredictions =
-      closedRaceIds.length
+const allCalculatorPredictions =
+      predictionRaceIds.length
         ? await fetchServiceRoleRowsByRaceIds<any>(
             {
               table:
                 "calculator_predictions",
               select: "*",
-              raceIds:
-                closedRaceIds,
+raceIds:
+                predictionRaceIds,
               order:
                 "predicted_at.desc",
             },
@@ -982,8 +985,8 @@ raceIds:
       "load calculator prediction snapshots",
       calculatorPredictionsStartedAt,
       {
-        closedRaceCount:
-          closedRaceIds.length,
+predictionRaceCount:
+          predictionRaceIds.length,
         loadedVersionCount:
           allCalculatorPredictions.length,
         latestSnapshotCount:
