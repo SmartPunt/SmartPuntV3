@@ -1064,54 +1064,59 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
       .trim()
       .toLowerCase() === "closed";
 
-  const activeSnapshotRows = useMemo(() => {
-    if (!activeRace || !isClosedRace) {
-      return [];
-    }
+const activeSnapshotRows = useMemo(() => {
+  if (!activeRace) {
+    return [];
+  }
 
-    return calculatorPredictions.filter(
-      (prediction) =>
-        Number(prediction.race_id) ===
-        Number(activeRace.id),
-    );
-  }, [
-    activeRace,
-    calculatorPredictions,
-    isClosedRace,
-  ]);
+  return calculatorPredictions.filter(
+    (prediction) =>
+      Number(prediction.race_id) ===
+      Number(activeRace.id),
+  );
+}, [
+  activeRace,
+  calculatorPredictions,
+]);
 
-  const scoredRunners = useMemo(() => {
-    if (!activeRace) return [];
+const scoredRunners = useMemo(() => {
+  if (!activeRace) return [];
 
-    if (isClosedRace) {
-      return buildSnapshotScoredRunners({
-        race: activeRace,
-        meeting: activeMeeting,
-        predictions: activeSnapshotRows,
-        runners,
-        horses,
-      });
-    }
-
-    return calculateRaceScores({
-      activeRace,
-      races,
+  /*
+   * SMARTPUNT PREDICTION INTEGRITY
+   *
+   * Subscriber-visible races use the authoritative
+   * stored Calculator snapshot.
+   *
+   * Never silently recalculate an already released
+   * race from changing same-day database history.
+   */
+  if (activeSnapshotRows.length > 0) {
+    return buildSnapshotScoredRunners({
+      race: activeRace,
+      meeting: activeMeeting,
+      predictions: activeSnapshotRows,
       runners,
       horses,
-      meetings,
-      jockeyProfiles,
     });
-  }, [
-    activeMeeting,
-    activeRace,
-    activeSnapshotRows,
-    horses,
-    isClosedRace,
-    jockeyProfiles,
-    meetings,
-    races,
-    runners,
-  ]);
+  }
+
+  /*
+   * A released subscriber race should have a stored
+   * prediction snapshot.
+   *
+   * Returning no scores is safer than creating a new
+   * prediction using information that was unavailable
+   * when the race was released.
+   */
+  return [];
+}, [
+  activeMeeting,
+  activeRace,
+  activeSnapshotRows,
+  horses,
+  runners,
+]);
 
   const closedRaceSnapshotMissing =
     isClosedRace &&
@@ -1157,9 +1162,9 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
           "top_3",
       });
 
-    if (!isClosedRace) {
-      return calculatedConfidence;
-    }
+if (!activeSnapshotRows.length) {
+  return calculatedConfidence;
+}
 
     const storedConfidence =
       activeSnapshotRows.find(
@@ -1210,8 +1215,10 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
           ?.smartpunt_tip_type ||
         storedConfidence?.suggested_bet ||
         calculatedConfidence.suggestedBet,
-      summary:
-        "Frozen final prediction snapshot showing the calculator position and confidence recorded when this race was finalised.",
+summary:
+  isClosedRace
+    ? "Frozen prediction snapshot showing the Calculator position and confidence recorded before settlement."
+    : "Released Calculator snapshot. Same-day race results cannot alter this prediction.",
     };
   }, [
     activeRace?.place_terms,
@@ -1243,7 +1250,7 @@ const tipThresholds = useMemo(
 const qualifiedTip = useMemo(() => {
   if (!raceConfidence) return null;
 
-  if (isClosedRace) {
+if (activeSnapshotRows.length > 0) {
     const storedTip =
       activeSnapshotRows.find(
         (prediction) =>
@@ -1752,15 +1759,23 @@ source: "CONSENSUS" | "HEAD" | "CALC";
         return;
       }
 
-      const raceScoredRunners =
-        calculateRaceScores({
-        activeRace: race,
-        races,
+const raceSnapshotRows =
+  calculatorPredictions.filter(
+    (prediction) =>
+      Number(prediction.race_id) ===
+      Number(race.id),
+  );
+
+const raceScoredRunners =
+  raceSnapshotRows.length > 0
+    ? buildSnapshotScoredRunners({
+        race,
+        meeting,
+        predictions: raceSnapshotRows,
         runners,
         horses,
-        meetings,
-        jockeyProfiles,
-      });
+      })
+    : [];
 
       if (!raceScoredRunners.length) return;
 
@@ -1902,15 +1917,14 @@ return items.sort((a, b) => {
     sourceOrder[b.source]
   );
 });
-  }, [
-    horses,
-    jockeyProfiles,
-    meetings,
-    officialTips,
-    orderedPublishedRaces,
-    races,
-    runners,
-  ]);
+}, [
+  calculatorPredictions,
+  horses,
+  meetings,
+  officialTips,
+  orderedPublishedRaces,
+  runners,
+]);
 
   return (
     <div className="min-h-screen bg-[#171107] px-3 py-5 text-white sm:px-5">
@@ -2740,9 +2754,9 @@ Maverick Insight
                         🏆 SmartPunt Calculator Top 3
                       </p>
                       <p className="mt-1 text-[10px] font-semibold text-zinc-300">
-                        {isClosedRace
-                          ? "Frozen calculator ranking recorded when this race was finalised."
-                          : "Ranked by the live calculator score for this race."}
+{isClosedRace
+  ? "Frozen Calculator ranking recorded before this race was settled."
+  : "Released Calculator ranking for this race."}
                       </p>
                     </div>
                     <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
@@ -3034,9 +3048,9 @@ in the SmartPunt Calculator Top 3 above.
                         📊 Full Field Breakdown
                       </p>
                       <p className="mt-1 text-[11px] font-semibold text-zinc-400">
-                        {isClosedRace
-                          ? "Final prediction snapshot with finishing positions."
-                          : "Live calculator ranking for every runner in this race."}
+{isClosedRace
+  ? "Final prediction snapshot with finishing positions."
+  : "Released Calculator ranking for every runner in this race."}
                       </p>
                     </div>
                     <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-200">
