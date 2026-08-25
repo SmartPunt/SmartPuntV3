@@ -1717,6 +1717,73 @@ const watchSuggestionHorseIds =
     ? formatOfficialTipType(officialRaceTip)
     : "";
 
+  const officialTipResult = useMemo(() => {
+    if (
+      !isClosedRace ||
+      !officialRaceTip ||
+      !officialRaceTipRunner
+    ) {
+      return null;
+    }
+
+    const finishingPosition = Number(
+      (officialRaceTipRunner as any)
+        .finishing_position || 0,
+    );
+
+    if (finishingPosition <= 0) {
+      return null;
+    }
+
+    const normalisedType = String(
+      officialTipType || "",
+    )
+      .trim()
+      .toLowerCase();
+
+    const placeTerms =
+      activeRace?.place_terms || "top_3";
+
+    const placeCutoff =
+      placeTerms === "win_only"
+        ? 1
+        : placeTerms === "top_2"
+          ? 2
+          : 3;
+
+    const won =
+      finishingPosition === 1;
+
+    const placed =
+      finishingPosition <= placeCutoff;
+
+    const successful =
+      normalisedType === "win"
+        ? won
+        : normalisedType === "place"
+          ? placed
+          : normalisedType === "each way"
+            ? placed
+            : false;
+
+    return {
+      finishingPosition,
+      finishingPositionLabel:
+        formatFinishingPosition(
+          finishingPosition,
+        ),
+      successful,
+      won,
+      placed,
+    };
+  }, [
+    activeRace?.place_terms,
+    isClosedRace,
+    officialRaceTip,
+    officialRaceTipRunner,
+    officialTipType,
+  ]);
+
   const officialTipComment = officialRaceTip
     ? officialRaceTip.commentary ||
       officialRaceTip.note ||
@@ -2693,16 +2760,49 @@ return (
                           <p className="text-lg font-black leading-tight text-white">
                             {officialTipSelection}
                           </p>
+
                           <span className="rounded-full border border-amber-300/35 bg-amber-400/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
                             {officialTipType}
                           </span>
+
                           {officialTipConfidence ? (
                             <span className="rounded-full border border-sky-300/30 bg-sky-400/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-sky-100">
                               {officialTipConfidence}
                             </span>
                           ) : null}
-
                         </div>
+
+                        {officialTipResult?.successful ? (
+                          <div className="relative mt-4 overflow-hidden rounded-[16px] border-2 border-amber-200/80 bg-[linear-gradient(135deg,rgba(251,191,36,0.28)_0%,rgba(120,53,15,0.34)_36%,rgba(0,0,0,0.82)_100%)] px-4 py-4 shadow-[0_0_28px_rgba(251,191,36,0.22)]">
+                            <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/20 blur-2xl" />
+
+                            <div className="relative flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-200">
+                                  The Maverick Result
+                                </p>
+
+                                <p className="mt-1 text-[19px] font-black uppercase leading-tight text-white">
+                                  🏆 Tip Landed
+                                </p>
+
+                                <p className="mt-1 text-[11px] font-bold text-amber-100/85">
+                                  {officialTipSelection}
+                                </p>
+                              </div>
+
+                              <div className="shrink-0 rounded-[14px] border border-amber-100/70 bg-black/65 px-3 py-2 text-center shadow-[0_0_16px_rgba(251,191,36,0.20)]">
+                                <p className="text-[17px] font-black leading-none text-amber-100">
+                                  {officialTipResult.finishingPositionLabel}
+                                </p>
+
+                                <p className="mt-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-200/75">
+                                  {officialTipType}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
                         {isConsensusPick ? (
                           <p className="mt-2 inline-flex rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
 SmartPunt Consensus Pick — Calculator and The
