@@ -1125,6 +1125,83 @@ const scoredRunners = useMemo(() => {
   const topWinChance = scoredRunners[0] || null;
   const calculatorTopThree = scoredRunners.slice(0, 3);
 
+  /*
+   * RESULTED CALCULATOR EXOTICS
+   *
+   * These results use the frozen Calculator prediction snapshot
+   * and the actual finishing positions stored against that snapshot.
+   *
+   * We deliberately do NOT recalculate the race after settlement.
+   */
+  const calculatorExoticResults = useMemo(() => {
+    if (!isClosedRace || calculatorTopThree.length < 3) {
+      return null;
+    }
+
+    const predictedFirst = calculatorTopThree[0];
+    const predictedSecond = calculatorTopThree[1];
+    const predictedThird = calculatorTopThree[2];
+
+    const firstPosition = Number(
+      (predictedFirst as any).finishing_position || 0,
+    );
+    const secondPosition = Number(
+      (predictedSecond as any).finishing_position || 0,
+    );
+    const thirdPosition = Number(
+      (predictedThird as any).finishing_position || 0,
+    );
+
+    /*
+     * Do not report an exotic result unless all three
+     * Calculator selections have a valid finishing position.
+     */
+    if (
+      firstPosition <= 0 ||
+      secondPosition <= 0 ||
+      thirdPosition <= 0
+    ) {
+      return null;
+    }
+
+    const topTwoFinishingPositions = [
+      firstPosition,
+      secondPosition,
+    ].sort((a, b) => a - b);
+
+    const topThreeFinishingPositions = [
+      firstPosition,
+      secondPosition,
+      thirdPosition,
+    ].sort((a, b) => a - b);
+
+    const quinella =
+      topTwoFinishingPositions[0] === 1 &&
+      topTwoFinishingPositions[1] === 2;
+
+    const exacta =
+      firstPosition === 1 &&
+      secondPosition === 2;
+
+    const allWaysTrifecta =
+      topThreeFinishingPositions[0] === 1 &&
+      topThreeFinishingPositions[1] === 2 &&
+      topThreeFinishingPositions[2] === 3;
+
+    return {
+      quinella,
+      exacta,
+      allWaysTrifecta,
+      anyHit:
+        quinella ||
+        exacta ||
+        allWaysTrifecta,
+    };
+  }, [
+    calculatorTopThree,
+    isClosedRace,
+  ]);
+
   const topPlaceChances = [...scoredRunners]
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
@@ -2888,6 +2965,69 @@ const isResulted = finishingPosition !== null;
                     })}
                   </div>
                 </div>
+
+                {calculatorExoticResults ? (
+                  <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#171107_55%,#050505_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
+                          🏆 Calculator Exotic Results
+                        </p>
+
+                        <p className="mt-1 text-[10px] font-semibold leading-5 text-zinc-300">
+                          Based on the frozen Calculator Top 3 shown before the race.
+                        </p>
+                      </div>
+
+                      <span className="shrink-0 rounded-full border border-amber-300/35 bg-amber-400/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-200">
+                        Resulted
+                      </span>
+                    </div>
+
+                    {calculatorExoticResults.anyHit ? (
+                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        {calculatorExoticResults.quinella ? (
+                          <div className="rounded-2xl border border-emerald-300/40 bg-emerald-500/15 px-3 py-3 text-center">
+                            <p className="text-lg font-black text-emerald-100">
+                              ✓ Quinella
+                            </p>
+                            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-200/75">
+                              Top 2 · Any Order
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {calculatorExoticResults.exacta ? (
+                          <div className="rounded-2xl border border-amber-300/45 bg-amber-400/15 px-3 py-3 text-center">
+                            <p className="text-lg font-black text-amber-100">
+                              ✓ Exacta
+                            </p>
+                            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-amber-200/75">
+                              Top 2 · Exact Order
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {calculatorExoticResults.allWaysTrifecta ? (
+                          <div className="rounded-2xl border border-sky-300/40 bg-sky-500/15 px-3 py-3 text-center">
+                            <p className="text-lg font-black text-sky-100">
+                              ✓ All Ways Trifecta
+                            </p>
+                            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-sky-200/75">
+                              Top 3 · Any Order
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
+                        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                          No Calculator exotic landed
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
 
                 {raceConfidence ? (
                   <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#111827_54%,#030712_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
