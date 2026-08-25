@@ -1384,6 +1384,7 @@ function buildAllHistoryRuns(
   races: Race[],
   meetings: Meeting[],
   excludeRaceId?: number,
+  excludeMeetingDate?: string | null,
 ) {
   const racesById = buildRaceMap(races);
   const meetingsById = buildMeetingMap(meetings);
@@ -1394,16 +1395,48 @@ function buildAllHistoryRuns(
         runner.finishing_position !== null &&
         runner.finishing_position !== undefined,
     )
-    .filter((runner) => (excludeRaceId ? Number(runner.race_id) !== Number(excludeRaceId) : true))
+    .filter((runner) =>
+      excludeRaceId
+        ? Number(runner.race_id) !== Number(excludeRaceId)
+        : true,
+    )
     .map((runner) => {
-      const race = racesById.get(Number(runner.race_id)) || null;
-      const meeting = race ? meetingsById.get(Number(race.meeting_id)) || null : null;
+      const race =
+        racesById.get(Number(runner.race_id)) || null;
+
+      const meeting = race
+        ? meetingsById.get(Number(race.meeting_id)) || null
+        : null;
 
       return {
         ...runner,
         race,
         meeting,
       };
+    })
+    /*
+     * SMARTPUNT RACE-DAY INTEGRITY RULE
+     *
+     * A race may only use SmartPunt result history from
+     * dates strictly before the race being calculated.
+     *
+     * Results from earlier races on the same day must
+     * never alter later live predictions.
+     *
+     * This still allows legitimate race-state changes
+     * such as scratchings and track-condition changes
+     * to trigger a recalculation without introducing
+     * same-day result information.
+     */
+    .filter((run) => {
+      if (!excludeMeetingDate) {
+        return true;
+      }
+
+      return (
+        String(run.meeting?.meeting_date || "") !==
+        String(excludeMeetingDate)
+      );
     })
     .sort(sortHistoryRuns);
 }
@@ -1576,8 +1609,8 @@ const allHistoryRuns = buildAllHistoryRuns(
   races,
   meetings,
   activeRace.id,
+  raceMeeting?.meeting_date || null,
 );
-
 const horseHistoryRunsByHorseId = new Map<number, HistoryRun[]>();
 
 allHistoryRuns.forEach((historyRun) => {
