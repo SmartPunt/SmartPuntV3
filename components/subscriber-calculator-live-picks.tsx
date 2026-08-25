@@ -1292,10 +1292,9 @@ if (!activeSnapshotRows.length) {
           ?.smartpunt_tip_type ||
         storedConfidence?.suggested_bet ||
         calculatedConfidence.suggestedBet,
-summary:
-  isClosedRace
-    ? "Frozen prediction snapshot showing the Calculator position and confidence recorded before settlement."
-    : "Released Calculator snapshot. Same-day race results cannot alter this prediction.",
+
+      summary:
+        calculatedConfidence.summary,
     };
   }, [
     activeRace?.place_terms,
