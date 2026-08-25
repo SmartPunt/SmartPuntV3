@@ -1202,6 +1202,41 @@ const scoredRunners = useMemo(() => {
     isClosedRace,
   ]);
 
+  const calculatorWinnerResult = useMemo(() => {
+    if (
+      !isClosedRace ||
+      calculatorTopThree.length === 0
+    ) {
+      return null;
+    }
+
+    const topRunner =
+      calculatorTopThree[0];
+
+    const finishingPosition = Number(
+      (topRunner as any)
+        .finishing_position || 0,
+    );
+
+    if (finishingPosition !== 1) {
+      return null;
+    }
+
+    const wasOfficialWinTip =
+      qualifiedTip?.type === "Win" &&
+      Number(qualifiedTip.runner.id) ===
+        Number(topRunner.id);
+
+    return {
+      runner: topRunner,
+      wasOfficialWinTip,
+    };
+  }, [
+    calculatorTopThree,
+    isClosedRace,
+    qualifiedTip,
+  ]);
+
   const topPlaceChances = [...scoredRunners]
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
@@ -2842,57 +2877,117 @@ Maverick Insight
     </span>
   </div>
 
+  {calculatorWinnerResult ? (
+    <div className="relative mt-4 overflow-hidden rounded-[20px] border-2 border-amber-200 bg-[radial-gradient(circle_at_top,rgba(253,224,71,0.30),transparent_42%),linear-gradient(135deg,#78350f_0%,#171717_44%,#020202_100%)] shadow-[0_0_38px_rgba(251,191,36,0.36),0_18px_36px_rgba(0,0,0,0.52)]">
+      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-amber-300/20 blur-3xl" />
+
+      <div className="relative px-4 py-5 text-center">
+        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-200">
+          SmartPunt Calculator
+        </p>
+
+        <p className="mt-2 text-[25px] font-black uppercase leading-none tracking-tight text-white drop-shadow-[0_2px_8px_rgba(251,191,36,0.35)]">
+          🏆{" "}
+          {calculatorWinnerResult.wasOfficialWinTip
+            ? "Win Tip Landed"
+            : "Calculator #1 Won"}
+        </p>
+
+        <div className="mx-auto mt-4 h-px w-3/4 bg-gradient-to-r from-transparent via-amber-200 to-transparent" />
+
+        <p className="mt-4 text-[22px] font-black leading-tight text-amber-100">
+          {calculatorWinnerResult.runner.horse_name}
+        </p>
+
+        <div className="mt-3 inline-flex items-center rounded-full border border-amber-100/70 bg-amber-300/20 px-5 py-2 text-[16px] font-black uppercase tracking-[0.15em] text-amber-50 shadow-[0_0_20px_rgba(251,191,36,0.25)]">
+          1ST
+        </div>
+
+        <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100/75">
+          {calculatorWinnerResult.wasOfficialWinTip
+            ? "SmartPunt Win selection salutes"
+            : "Calculator top-rated runner salutes"}
+        </p>
+      </div>
+    </div>
+  ) : null}
+
   {calculatorExoticResults?.anyHit ? (
-    <div className="mt-4 overflow-hidden rounded-[18px] border-2 border-amber-300/80 bg-[linear-gradient(135deg,rgba(251,191,36,0.30)_0%,rgba(120,53,15,0.42)_38%,rgba(5,5,5,0.98)_100%)] shadow-[0_0_30px_rgba(251,191,36,0.28)]">
-      <div className="flex items-center justify-between gap-3 border-b border-amber-300/25 px-4 py-3">
+    <div className="relative mt-4 overflow-hidden rounded-[20px] border-2 border-amber-300/80 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.28),transparent_38%),linear-gradient(135deg,#451a03_0%,#09090b_46%,#020617_100%)] shadow-[0_0_34px_rgba(251,191,36,0.28),0_16px_34px_rgba(0,0,0,0.50)]">
+      <div className="pointer-events-none absolute -left-10 -top-12 h-36 w-36 rounded-full bg-amber-300/20 blur-3xl" />
+
+      <div className="relative flex items-center justify-between gap-3 border-b border-amber-300/25 px-4 py-4">
         <div>
-          <p className="text-[13px] font-black uppercase tracking-[0.18em] text-amber-200">
-            🏆 Calculator Exotics Landed
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">
+            SmartPunt Result
           </p>
 
-          <p className="mt-1 text-[10px] font-bold text-amber-50/80">
-            Frozen pre-race Top 3 vs actual finishing order
+          <p className="mt-1 text-[19px] font-black uppercase leading-tight text-white">
+            🔥 Exotics Landed
           </p>
         </div>
 
-        <span className="rounded-full border border-amber-200/70 bg-amber-300/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-amber-100 shadow-[0_0_14px_rgba(251,191,36,0.20)]">
-          HIT
-        </span>
+        <div className="rounded-full border border-amber-100/60 bg-amber-300/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-amber-50 shadow-[0_0_18px_rgba(251,191,36,0.20)]">
+          Result
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-3">
-        {calculatorExoticResults.quinella ? (
-          <div className="rounded-[16px] border border-emerald-300/50 bg-emerald-500/20 px-3 py-3 text-center">
-            <p className="text-[17px] font-black text-emerald-100">
-              ✓ Quinella
-            </p>
-            <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-emerald-200/80">
-              Top 2 · Any Order
-            </p>
-          </div>
-        ) : null}
+      <div className="relative p-3">
+        <div className="grid grid-cols-2 gap-2">
+          {calculatorExoticResults.quinella ? (
+            <div className="rounded-[16px] border border-emerald-300/55 bg-[linear-gradient(145deg,rgba(16,185,129,0.24),rgba(2,6,23,0.78))] px-3 py-4 text-center shadow-[0_0_18px_rgba(16,185,129,0.15)]">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-200/80">
+                Top 2 Landed
+              </p>
 
-        {calculatorExoticResults.exacta ? (
-          <div className="rounded-[16px] border border-amber-200/60 bg-amber-400/20 px-3 py-3 text-center">
-            <p className="text-[17px] font-black text-amber-50">
-              ✓ Exacta
-            </p>
-            <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100/80">
-              Top 2 · Exact Order
-            </p>
-          </div>
-        ) : null}
+              <p className="mt-1 text-[19px] font-black text-emerald-50">
+                ✓ Quinella
+              </p>
+
+              <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-emerald-200/70">
+                Any Order
+              </p>
+            </div>
+          ) : null}
+
+          {calculatorExoticResults.exacta ? (
+            <div className="rounded-[16px] border border-amber-200/70 bg-[linear-gradient(145deg,rgba(251,191,36,0.28),rgba(69,26,3,0.50),rgba(2,6,23,0.78))] px-3 py-4 text-center shadow-[0_0_20px_rgba(251,191,36,0.18)]">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-100/80">
+                Top 2 In Order
+              </p>
+
+              <p className="mt-1 text-[19px] font-black text-amber-50">
+                ✓ Exacta
+              </p>
+
+              <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-amber-100/70">
+                Exact Order
+              </p>
+            </div>
+          ) : null}
+        </div>
 
         {calculatorExoticResults.allWaysTrifecta ? (
-          <div className="rounded-[16px] border border-sky-300/50 bg-sky-500/20 px-3 py-3 text-center">
-            <p className="text-[17px] font-black text-sky-100">
-              ✓ All Ways Trifecta
+          <div className="relative mt-2 overflow-hidden rounded-[18px] border-2 border-yellow-200/80 bg-[radial-gradient(circle_at_center,rgba(253,224,71,0.22),transparent_45%),linear-gradient(135deg,#854d0e_0%,#422006_34%,#09090b_100%)] px-4 py-5 text-center shadow-[0_0_30px_rgba(250,204,21,0.30)]">
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-yellow-100 to-transparent" />
+
+            <p className="text-[9px] font-black uppercase tracking-[0.22em] text-yellow-100/80">
+              Top 3 Landed
             </p>
-            <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-sky-200/80">
-              Top 3 · Any Order
+
+            <p className="mt-2 text-[22px] font-black uppercase leading-tight text-yellow-50">
+              🏆 All Ways Trifecta
+            </p>
+
+            <p className="mt-2 text-[9px] font-black uppercase tracking-[0.15em] text-yellow-100/75">
+              Calculator Top 3 filled the trifecta
             </p>
           </div>
         ) : null}
+
+        <p className="mt-3 text-center text-[8px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+          Frozen pre-race Calculator rankings · actual race result
+        </p>
       </div>
     </div>
   ) : null}
@@ -3020,89 +3115,6 @@ const isResulted = finishingPosition !== null;
                       );
                     })}
                   </div>
-
-                  {calculatorExoticResults ? (
-                    <div
-                      className={`mt-4 overflow-hidden rounded-[18px] border ${
-                        calculatorExoticResults.anyHit
-                          ? "border-amber-300/70 bg-[linear-gradient(135deg,rgba(251,191,36,0.18)_0%,rgba(5,5,5,0.96)_55%,rgba(5,5,5,0.98)_100%)] shadow-[0_0_26px_rgba(251,191,36,0.16)]"
-                          : "border-white/10 bg-white/[0.04]"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-                        <div>
-                          <p
-                            className={`text-[11px] font-black uppercase tracking-[0.18em] ${
-                              calculatorExoticResults.anyHit
-                                ? "text-amber-300"
-                                : "text-zinc-400"
-                            }`}
-                          >
-                            {calculatorExoticResults.anyHit
-                              ? "🏆 Calculator Exotics Landed"
-                              : "Calculator Exotic Result"}
-                          </p>
-
-                          <p className="mt-1 text-[10px] font-semibold text-zinc-400">
-                            Frozen pre-race Top 3 vs actual finishing order
-                          </p>
-                        </div>
-
-                        {calculatorExoticResults.anyHit ? (
-                          <span className="rounded-full border border-amber-300/50 bg-amber-400/15 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
-                            Hit
-                          </span>
-                        ) : (
-                          <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-500">
-                            Resulted
-                          </span>
-                        )}
-                      </div>
-
-                      {calculatorExoticResults.anyHit ? (
-                        <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-3">
-                          {calculatorExoticResults.quinella ? (
-                            <div className="rounded-[16px] border border-emerald-300/45 bg-emerald-500/15 px-3 py-3 text-center shadow-[0_0_16px_rgba(16,185,129,0.10)]">
-                              <p className="text-[16px] font-black text-emerald-100">
-                                ✓ Quinella
-                              </p>
-                              <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-emerald-200/75">
-                                Top 2 · Any Order
-                              </p>
-                            </div>
-                          ) : null}
-
-                          {calculatorExoticResults.exacta ? (
-                            <div className="rounded-[16px] border border-amber-300/55 bg-amber-400/15 px-3 py-3 text-center shadow-[0_0_18px_rgba(251,191,36,0.12)]">
-                              <p className="text-[16px] font-black text-amber-100">
-                                ✓ Exacta
-                              </p>
-                              <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-200/75">
-                                Top 2 · Exact Order
-                              </p>
-                            </div>
-                          ) : null}
-
-                          {calculatorExoticResults.allWaysTrifecta ? (
-                            <div className="rounded-[16px] border border-sky-300/45 bg-sky-500/15 px-3 py-3 text-center shadow-[0_0_16px_rgba(56,189,248,0.10)]">
-                              <p className="text-[16px] font-black text-sky-100">
-                                ✓ All Ways Trifecta
-                              </p>
-                              <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-sky-200/75">
-                                Top 3 · Any Order
-                              </p>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <div className="px-4 py-3 text-center">
-                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">
-                            No exotic combination landed
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
                 </div>
 
                 {raceConfidence ? (
