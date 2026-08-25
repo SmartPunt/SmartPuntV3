@@ -8449,20 +8449,22 @@ const rpcResults = updates.map((update) => ({
       starting_price: update.starting_price,
     }));
 
-try {
-  await saveCalculatorPredictionsForRace(raceId, {
-    excludeScratched: true,
-    saveClassificationSnapshot: true,
-  });
-} catch (calculatorSnapshotError) {
-  console.error(
-    "Calculator prediction snapshot refresh failed before settlement:",
-    calculatorSnapshotError,
-  );
-}
-
-
-    const { error: rpcError } = await supabase.rpc("settle_race_fast", {
+/*
+ * IMPORTANT: DO NOT RECALCULATE THE CALCULATOR HERE.
+ *
+ * The prediction used for settlement must be the prediction
+ * that was already available before the race.
+ *
+ * Recalculating at settlement can introduce same-day information
+ * from races that have already been resulted and can incorrectly
+ * change an existing Win / Place / No Bet decision immediately
+ * before it is graded.
+ *
+ * Race results are allowed to update horse/history information
+ * AFTER settlement for use in future races, but must never
+ * rewrite the prediction for the race being settled.
+ */
+const { error: rpcError } = await supabase.rpc("settle_race_fast", {
       p_race_id: raceId,
       p_results: rpcResults,
     });
