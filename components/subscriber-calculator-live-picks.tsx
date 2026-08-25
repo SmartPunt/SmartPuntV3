@@ -3103,30 +3103,26 @@ Maverick Insight
     </div>
 
 {calculatorExoticResults.allWaysTrifecta ? (
-  <div className="relative min-h-[118px] overflow-hidden rounded-[16px] bg-black shadow-[0_15px_32px_rgba(0,0,0,0.48)]">
-    <img
-      src="/maverick/smartpunt-tip-strip.png"
-      alt="SmartPunt All Ways Trifecta"
-      className="absolute inset-0 h-full w-full object-contain"
-    />
-
-    <div className="pointer-events-none absolute inset-y-0 left-[46%] right-[3%] flex items-center justify-center">
-      <div className="w-full rounded-[14px] border border-yellow-200/45 bg-black/65 px-3 py-3 text-center shadow-[0_0_18px_rgba(250,204,21,0.18)] backdrop-blur-[2px]">
-        <p className="text-[8px] font-black uppercase tracking-[0.15em] text-yellow-200">
-          Top 3 Landed
-        </p>
-
-        <p className="mt-1 text-[18px] font-black uppercase leading-tight text-white">
-          All Ways
-        </p>
-
-        <p className="text-[18px] font-black uppercase leading-tight text-yellow-100">
-          Trifecta
-        </p>
-      </div>
+  <div className="overflow-hidden rounded-[18px] border-2 border-yellow-200/75 bg-black shadow-[0_15px_32px_rgba(0,0,0,0.48)]">
+    <div className="bg-black">
+      <img
+        src="/maverick/smartpunt-tip-strip.png"
+        alt="SmartPunt All Ways Trifecta"
+        className="block h-auto w-full object-contain"
+      />
     </div>
 
-    <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-yellow-200/80 shadow-[inset_0_0_22px_rgba(250,204,21,0.25)]" />
+    <div className="border-t border-yellow-200/25 bg-[linear-gradient(135deg,rgba(113,63,18,0.72)_0%,rgba(24,24,27,0.98)_45%,rgba(0,0,0,1)_100%)] px-4 py-4 text-center">
+      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-yellow-200/80">
+        Top 3 Landed
+      </p>
+
+      <p className="mt-1 text-[22px] font-black uppercase leading-tight text-white">
+        All Ways Trifecta
+      </p>
+
+      <div className="mx-auto mt-3 h-px w-2/3 bg-gradient-to-r from-transparent via-yellow-200/70 to-transparent" />
+    </div>
   </div>
 ) : null}
   </div>
