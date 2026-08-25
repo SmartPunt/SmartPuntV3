@@ -3075,12 +3075,12 @@ Maverick Insight
     </div>
 
     {calculatorExoticResults.allWaysTrifecta ? (
-      <div className="relative min-h-[108px] overflow-hidden rounded-[16px] shadow-[0_15px_32px_rgba(0,0,0,0.48)]">
-        <img
-          src="/maverick/smartpunt-tip-strip.png"
-          alt="SmartPunt All Ways Trifecta"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+<div className="relative min-h-[118px] overflow-hidden rounded-[16px] bg-black shadow-[0_15px_32px_rgba(0,0,0,0.48)]">
+<img
+  src="/maverick/smartpunt-tip-strip.png"
+  alt="SmartPunt All Ways Trifecta"
+  className="absolute inset-0 h-full w-full object-contain"
+/>
 
         <div className="absolute inset-0 bg-black/10" />
 
