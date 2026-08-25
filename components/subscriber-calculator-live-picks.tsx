@@ -2876,118 +2876,131 @@ Maverick Insight
 </span>
   </div>
 
-  {calculatorWinnerResult ? (
-    <div className="relative mt-4 overflow-hidden rounded-[20px] border-2 border-amber-200 bg-[radial-gradient(circle_at_top,rgba(253,224,71,0.30),transparent_42%),linear-gradient(135deg,#78350f_0%,#171717_44%,#020202_100%)] shadow-[0_0_38px_rgba(251,191,36,0.36),0_18px_36px_rgba(0,0,0,0.52)]">
-      <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-amber-300/20 blur-3xl" />
+{calculatorWinnerResult ? (
+  <div className="mt-4">
+    <div className="group relative block w-full overflow-hidden rounded-[16px] shadow-[0_14px_30px_rgba(0,0,0,0.45)]">
+      <img
+        src="/maverick/smartpunt-tip-strip.png"
+        alt="SmartPunt Winner"
+        className="block h-auto w-full object-contain"
+      />
 
-      <div className="relative px-4 py-5 text-center">
-        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-200">
-          SmartPunt Result
-        </p>
+      <span className="pointer-events-none absolute inset-y-0 left-[30%] right-[20%] flex min-w-0 flex-col items-center justify-center px-2 text-center">
+        <span className="block truncate text-[9px] font-black uppercase tracking-[0.11em] text-amber-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[10px]">
+          {calculatorWinnerResult.wasOfficialWinTip
+            ? "Win Tip Landed"
+            : "Top Pick Won"}
+        </span>
 
-        <p className="mt-2 text-[25px] font-black uppercase leading-none tracking-tight text-white drop-shadow-[0_2px_8px_rgba(251,191,36,0.35)]">
-          🏆{" "}
-{calculatorWinnerResult.wasOfficialWinTip
-  ? "Win Tip Landed"
-  : "Top Pick Won"}
-        </p>
-
-        <div className="mx-auto mt-4 h-px w-3/4 bg-gradient-to-r from-transparent via-amber-200 to-transparent" />
-
-        <p className="mt-4 text-[22px] font-black leading-tight text-amber-100">
+        <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] sm:text-[12px]">
           {calculatorWinnerResult.runner.horse_name}
-        </p>
+        </span>
+      </span>
 
-        <div className="mt-3 inline-flex items-center rounded-full border border-amber-100/70 bg-amber-300/20 px-5 py-2 text-[16px] font-black uppercase tracking-[0.15em] text-amber-50 shadow-[0_0_20px_rgba(251,191,36,0.25)]">
-          1ST
-        </div>
+      <span className="pointer-events-none absolute inset-y-0 right-[1.5%] flex w-[22%] items-center justify-center">
+        <span className="rounded-[12px] border border-amber-100/70 bg-black/70 px-3 py-2 text-center shadow-[0_0_18px_rgba(251,191,36,0.24)]">
+          <span className="block text-[17px] font-black leading-none text-amber-100">
+            1ST
+          </span>
 
-        <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100/75">
-{calculatorWinnerResult.wasOfficialWinTip
-  ? "SmartPunt Win Tip"
-  : "SmartPunt Top Pick"}
-        </p>
-      </div>
+          <span className="mt-1 block text-[7px] font-black uppercase tracking-[0.1em] text-amber-200/80">
+            Winner
+          </span>
+        </span>
+      </span>
+
+      <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-amber-200/80 shadow-[inset_0_0_18px_rgba(251,191,36,0.22)]" />
     </div>
-  ) : null}
+  </div>
+) : null}
 
-  {calculatorExoticResults?.anyHit ? (
-    <div className="relative mt-4 overflow-hidden rounded-[20px] border-2 border-amber-300/80 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.28),transparent_38%),linear-gradient(135deg,#451a03_0%,#09090b_46%,#020617_100%)] shadow-[0_0_34px_rgba(251,191,36,0.28),0_16px_34px_rgba(0,0,0,0.50)]">
-      <div className="pointer-events-none absolute -left-10 -top-12 h-36 w-36 rounded-full bg-amber-300/20 blur-3xl" />
+{calculatorExoticResults?.anyHit ? (
+  <div className="mt-3 space-y-2">
+    <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-amber-300">
+      🔥 SmartPunt Exotics Landed
+    </p>
 
-      <div className="relative flex items-center justify-between gap-3 border-b border-amber-300/25 px-4 py-4">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">
-            SmartPunt Result
-          </p>
+    <div className="grid grid-cols-2 gap-2">
+      {calculatorExoticResults.quinella ? (
+        <div className="relative min-h-[90px] overflow-hidden rounded-[16px] shadow-[0_12px_26px_rgba(0,0,0,0.42)]">
+          <img
+            src="/maverick/smartpunt-tip-strip.png"
+            alt="SmartPunt Quinella"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
 
-          <p className="mt-1 text-[19px] font-black uppercase leading-tight text-white">
-            🔥 Exotics Landed
-          </p>
-        </div>
+          <div className="absolute inset-0 bg-black/15" />
 
-        <div className="rounded-full border border-amber-100/60 bg-amber-300/20 px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-amber-50 shadow-[0_0_18px_rgba(251,191,36,0.20)]">
-          Result
-        </div>
-      </div>
-
-      <div className="relative p-3">
-        <div className="grid grid-cols-2 gap-2">
-          {calculatorExoticResults.quinella ? (
-            <div className="rounded-[16px] border border-emerald-300/55 bg-[linear-gradient(145deg,rgba(16,185,129,0.24),rgba(2,6,23,0.78))] px-3 py-4 text-center shadow-[0_0_18px_rgba(16,185,129,0.15)]">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-200/80">
+          <div className="relative flex min-h-[90px] items-center justify-center px-3 py-3 text-center">
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-[0.13em] text-emerald-200 drop-shadow-[0_1px_3px_rgba(0,0,0,1)]">
                 Top 2 Landed
               </p>
 
-              <p className="mt-1 text-[19px] font-black text-emerald-50">
-                ✓ Quinella
-              </p>
-
-              <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-emerald-200/70">
-                Any Order
+              <p className="mt-1 text-[17px] font-black uppercase leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
+                Quinella
               </p>
             </div>
-          ) : null}
+          </div>
 
-          {calculatorExoticResults.exacta ? (
-            <div className="rounded-[16px] border border-amber-200/70 bg-[linear-gradient(145deg,rgba(251,191,36,0.28),rgba(69,26,3,0.50),rgba(2,6,23,0.78))] px-3 py-4 text-center shadow-[0_0_20px_rgba(251,191,36,0.18)]">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-100/80">
+          <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-emerald-200/60 shadow-[inset_0_0_16px_rgba(52,211,153,0.14)]" />
+        </div>
+      ) : null}
+
+      {calculatorExoticResults.exacta ? (
+        <div className="relative min-h-[90px] overflow-hidden rounded-[16px] shadow-[0_12px_26px_rgba(0,0,0,0.42)]">
+          <img
+            src="/maverick/smartpunt-tip-strip.png"
+            alt="SmartPunt Exacta"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+
+          <div className="absolute inset-0 bg-black/15" />
+
+          <div className="relative flex min-h-[90px] items-center justify-center px-3 py-3 text-center">
+            <div>
+              <p className="text-[8px] font-black uppercase tracking-[0.13em] text-amber-200 drop-shadow-[0_1px_3px_rgba(0,0,0,1)]">
                 Top 2 In Order
               </p>
 
-              <p className="mt-1 text-[19px] font-black text-amber-50">
-                ✓ Exacta
-              </p>
-
-              <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-amber-100/70">
-                Exact Order
+              <p className="mt-1 text-[17px] font-black uppercase leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
+                Exacta
               </p>
             </div>
-          ) : null}
+          </div>
+
+          <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-amber-200/70 shadow-[inset_0_0_16px_rgba(251,191,36,0.16)]" />
         </div>
+      ) : null}
+    </div>
 
-        {calculatorExoticResults.allWaysTrifecta ? (
-          <div className="relative mt-2 overflow-hidden rounded-[18px] border-2 border-yellow-200/80 bg-[radial-gradient(circle_at_center,rgba(253,224,71,0.22),transparent_45%),linear-gradient(135deg,#854d0e_0%,#422006_34%,#09090b_100%)] px-4 py-5 text-center shadow-[0_0_30px_rgba(250,204,21,0.30)]">
-            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-yellow-100 to-transparent" />
+    {calculatorExoticResults.allWaysTrifecta ? (
+      <div className="relative min-h-[108px] overflow-hidden rounded-[16px] shadow-[0_15px_32px_rgba(0,0,0,0.48)]">
+        <img
+          src="/maverick/smartpunt-tip-strip.png"
+          alt="SmartPunt All Ways Trifecta"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
 
-            <p className="text-[9px] font-black uppercase tracking-[0.22em] text-yellow-100/80">
+        <div className="absolute inset-0 bg-black/10" />
+
+        <div className="relative flex min-h-[108px] items-center justify-center px-4 py-4 text-center">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-yellow-200 drop-shadow-[0_1px_3px_rgba(0,0,0,1)]">
               Top 3 Landed
             </p>
 
-            <p className="mt-2 text-[22px] font-black uppercase leading-tight text-yellow-50">
-              🏆 All Ways Trifecta
-            </p>
-
-            <p className="mt-2 text-[9px] font-black uppercase tracking-[0.15em] text-yellow-100/75">
-Top 3 filled the trifecta
+            <p className="mt-1 text-[21px] font-black uppercase leading-tight text-white drop-shadow-[0_2px_5px_rgba(0,0,0,1)]">
+              All Ways Trifecta
             </p>
           </div>
-        ) : null}
+        </div>
 
+        <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-yellow-200/80 shadow-[inset_0_0_22px_rgba(250,204,21,0.25)]" />
       </div>
-    </div>
-  ) : null}
-
+    ) : null}
+  </div>
+) : null}
 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
                     {calculatorTopThree.map((runner, index) => {
                       const isTip =
