@@ -1202,41 +1202,6 @@ const scoredRunners = useMemo(() => {
     isClosedRace,
   ]);
 
-  const calculatorWinnerResult = useMemo(() => {
-    if (
-      !isClosedRace ||
-      calculatorTopThree.length === 0
-    ) {
-      return null;
-    }
-
-    const topRunner =
-      calculatorTopThree[0];
-
-    const finishingPosition = Number(
-      (topRunner as any)
-        .finishing_position || 0,
-    );
-
-    if (finishingPosition !== 1) {
-      return null;
-    }
-
-    const wasOfficialWinTip =
-      qualifiedTip?.type === "Win" &&
-      Number(qualifiedTip.runner.id) ===
-        Number(topRunner.id);
-
-    return {
-      runner: topRunner,
-      wasOfficialWinTip,
-    };
-  }, [
-    calculatorTopThree,
-    isClosedRace,
-    qualifiedTip,
-  ]);
-
   const topPlaceChances = [...scoredRunners]
     .sort((a, b) => b.placePercent - a.placePercent)
     .slice(0, 3);
@@ -1450,6 +1415,40 @@ if (activeSnapshotRows.length > 0) {
   scoredRunners,
   topWinChance?.track_condition,
 ]);
+    const calculatorWinnerResult = useMemo(() => {
+    if (
+      !isClosedRace ||
+      calculatorTopThree.length === 0
+    ) {
+      return null;
+    }
+
+    const topRunner =
+      calculatorTopThree[0];
+
+    const finishingPosition = Number(
+      (topRunner as any)
+        .finishing_position || 0,
+    );
+
+    if (finishingPosition !== 1) {
+      return null;
+    }
+
+    const wasOfficialWinTip =
+      qualifiedTip?.type === "Win" &&
+      Number(qualifiedTip.runner.id) ===
+        Number(topRunner.id);
+
+    return {
+      runner: topRunner,
+      wasOfficialWinTip,
+    };
+  }, [
+    calculatorTopThree,
+    isClosedRace,
+    qualifiedTip,
+  ]);
   useEffect(() => {
     if (!activeRace || !topWinChance) return;
 
