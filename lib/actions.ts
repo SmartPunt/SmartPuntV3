@@ -3132,15 +3132,22 @@ async function recordCalculatorTipEvolution({
     },
   );
 }
+type CalculatorSnapshotWriteReason =
+  | "initial_publish"
+  | "race_day_release"
+  | "approved_live_refresh";
+
 async function saveCalculatorPredictionsForRace(
   raceId: number,
   {
+    writeReason,
     excludeScratched = false,
     saveClassificationSnapshot = false,
   }: {
+    writeReason: CalculatorSnapshotWriteReason;
     excludeScratched?: boolean;
     saveClassificationSnapshot?: boolean;
-  } = {},
+  },
 ) {
   const supabase = await createClient();
 
@@ -3187,6 +3194,95 @@ async function saveCalculatorPredictionsForRace(
   }
 
   const activeRace = activeRaceRow as Race;
+
+  /*
+   * SMARTPUNT SNAPSHOT WRITE GUARD
+   *
+   * Calculator predictions become subscriber-facing at
+   * Start Race Day and must remain frozen afterwards.
+   *
+   * The only permitted post-release rewrite is an
+   * approved pre-race refresh caused by legitimate race
+   * changes such as:
+   * - track-condition changes;
+   * - scratchings / reinstatements;
+   * - resulting place-term changes.
+   *
+   * Same-day results, settlement, reporting or unrelated
+   * admin activity must never rewrite a released snapshot.
+   */
+  const {
+    data: snapshotMeeting,
+    error: snapshotMeetingError,
+  } = await supabase
+    .from("meetings")
+    .select("id, calculator_released_at")
+    .eq("id", Number(activeRace.meeting_id))
+    .maybeSingle();
+
+  if (snapshotMeetingError) {
+    throw new Error(snapshotMeetingError.message);
+  }
+
+  if (!snapshotMeeting) {
+    throw new Error(
+      "Meeting not found for Calculator prediction snapshot.",
+    );
+  }
+
+  const meetingIsReleased =
+    Boolean(snapshotMeeting.calculator_released_at);
+
+  if (
+    meetingIsReleased &&
+    writeReason !== "approved_live_refresh"
+  ) {
+    throw new Error(
+      "SmartPunt blocked an attempt to overwrite a released Calculator snapshot.",
+    );
+  }
+
+  if (
+    !meetingIsReleased &&
+    writeReason === "approved_live_refresh"
+  ) {
+    throw new Error(
+      "SmartPunt blocked a live Calculator refresh because this meeting has not been released yet.",
+    );
+  }
+
+  if (writeReason === "approved_live_refresh") {
+    if (
+      String(activeRace.status || "")
+        .trim()
+        .toLowerCase() !== "published"
+    ) {
+      throw new Error(
+        "SmartPunt blocked a live Calculator refresh because this race is no longer open.",
+      );
+    }
+
+    const {
+      data: existingResult,
+      error: existingResultError,
+    } = await supabase
+      .from("race_runners")
+      .select("id")
+      .eq("race_id", Number(raceId))
+      .not("finishing_position", "is", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingResultError) {
+      throw new Error(existingResultError.message);
+    }
+
+    if (existingResult) {
+      throw new Error(
+        "SmartPunt blocked a Calculator refresh because this race has started being resulted.",
+      );
+    }
+  }
 
   const { data: fieldRows, error: fieldError } = await supabase
     .from("race_runners")
@@ -4425,6 +4521,7 @@ async function refreshReleasedCalculatorSnapshotForRace(
   await saveCalculatorPredictionsForRace(
     Number(raceId),
     {
+      writeReason: "approved_live_refresh",
       excludeScratched: true,
     },
   );
@@ -4749,6 +4846,7 @@ for (const race of races) {
     await saveCalculatorPredictionsForRace(
       Number(race.id),
       {
+        writeReason: "race_day_release",
         excludeScratched: true,
       },
     );
@@ -6957,7 +7055,11 @@ export async function publishMeetingRacesAction(
     }
 
     await Promise.allSettled(
-      raceIds.map((raceId) => saveCalculatorPredictionsForRace(raceId)),
+      raceIds.map((raceId) =>
+        saveCalculatorPredictionsForRace(raceId, {
+          writeReason: "initial_publish",
+        }),
+      ),
     );
 
     return { success: true, error: null };
