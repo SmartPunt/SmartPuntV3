@@ -4495,7 +4495,47 @@ export async function startRaceDayAction(
           .join(", ")}.`,
       };
     }
+/*
+ * SMARTPUNT RELEASE SNAPSHOT
+ *
+ * Start Race Day is the point at which the Calculator
+ * becomes subscriber-facing.
+ *
+ * Create the authoritative prediction for every
+ * published race BEFORE the meeting is marked as
+ * released.
+ *
+ * These calculations already obey the SmartPunt
+ * race-day integrity rule in scoring.ts, so results
+ * from the same meeting date cannot leak into them.
+ */
+for (const race of races) {
+  try {
+    await saveCalculatorPredictionsForRace(
+      Number(race.id),
+      {
+        excludeScratched: true,
+      },
+    );
+  } catch (snapshotError) {
+    console.error(
+      "Calculator release snapshot failed:",
+      {
+        meetingId,
+        raceId: Number(race.id),
+        error: snapshotError,
+      },
+    );
 
+    return {
+      success: false,
+      error:
+        `SmartPunt could not create the Calculator release snapshot for ` +
+        `${meeting.meeting_name} R${race.race_number}. ` +
+        `The meeting has not been released.`,
+    };
+  }
+}
     const releasedAt = new Date().toISOString();
 
     const { error: releaseError } =
