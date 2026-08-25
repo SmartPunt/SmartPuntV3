@@ -1536,7 +1536,83 @@ if (activeSnapshotRows.length > 0) {
       : null;
 
 const activePlaceTerms = activeRace?.place_terms || "top_3";
+const vaultOpportunities = useMemo(() => {
+  const availableRaceIds = new Set(
+    orderedPublishedRaces
+      .filter(
+        (race) =>
+          String(race.status || "")
+            .trim()
+            .toLowerCase() !== "closed",
+      )
+      .map((race) => Number(race.id)),
+  );
 
+  return vaultMatches
+    .filter((match) =>
+      availableRaceIds.has(
+        Number(match.raceId),
+      ),
+    )
+    .map((match) => {
+      const race =
+        orderedPublishedRaces.find(
+          (item) =>
+            Number(item.id) ===
+            Number(match.raceId),
+        ) || null;
+
+      const meeting = race
+        ? meetings.find(
+            (item) =>
+              Number(item.id) ===
+              Number(race.meeting_id),
+          ) || null
+        : null;
+
+      return {
+        ...match,
+        race,
+        meeting,
+      };
+    })
+    .filter(
+      (
+        item,
+      ): item is typeof item & {
+        race: Race;
+        meeting: Meeting;
+      } =>
+        Boolean(item.race && item.meeting),
+    )
+    .sort((a, b) => {
+      const meetingCompare =
+        String(
+          a.meeting.meeting_name || "",
+        ).localeCompare(
+          String(
+            b.meeting.meeting_name || "",
+          ),
+          "en-AU",
+          {
+            sensitivity: "base",
+          },
+        );
+
+      if (meetingCompare !== 0) {
+        return meetingCompare;
+      }
+
+      return (
+        Number(a.race.race_number || 0) -
+        Number(b.race.race_number || 0)
+      );
+    });
+}, [
+  meetings,
+  orderedPublishedRaces,
+  vaultMatches,
+]);
 const activeRaceVaultMatches = useMemo(() => {
   if (!activeRace) {
     return [];
@@ -2119,9 +2195,10 @@ return items.sort((a, b) => {
                 aria-expanded={showBestOpportunities}
               >
                 <span>Best Opportunities</span>
-                <span className="rounded-full border border-amber-300/30 bg-black/30 px-1.5 py-0.5 text-[8px] leading-none text-amber-100">
-                  {bestOpportunities.length}
-                </span>
+<span className="rounded-full border border-amber-300/30 bg-black/30 px-1.5 py-0.5 text-[8px] leading-none text-amber-100">
+  {bestOpportunities.length +
+    vaultOpportunities.length}
+</span>
                 <span className="text-[8px] text-amber-100">
                   {showBestOpportunities ? "▲" : "▼"}
                 </span>
@@ -2481,6 +2558,91 @@ return (
                   })}
                 </div>
               ) : null}
+
+              {vaultOpportunities.length > 0 ? (
+                <div className="mt-3 border-t border-amber-300/20 pt-3">
+                  <div className="mb-2 flex items-center justify-between gap-3 px-1">
+                    <div className="flex items-center gap-2">
+                      <VaultDoorIcon className="h-5 w-5 text-amber-200" />
+
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-200">
+                          Your Vault Matches
+                        </p>
+
+                        <p className="mt-0.5 text-[8px] font-semibold text-zinc-400">
+                          Personal race-day opportunities
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[8px] font-black text-amber-100">
+                      {vaultOpportunities.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {vaultOpportunities.map((match) => {
+                      const isSelected =
+                        activeRace &&
+                        Number(activeRace.id) ===
+                          Number(match.race.id);
+
+                      return (
+                        <button
+                          key={`vault-opportunity-${match.notificationId}`}
+                          type="button"
+                          onClick={() =>
+                            setSelectedRaceId(
+                              String(match.race.id),
+                            )
+                          }
+                          className="group relative block w-full overflow-hidden rounded-[16px] border border-amber-300/30 bg-[linear-gradient(135deg,rgba(0,0,0,0.98)_0%,rgba(24,18,8,0.98)_58%,rgba(120,53,15,0.30)_100%)] text-left shadow-[0_8px_20px_rgba(0,0,0,0.32)] transition hover:border-amber-200/55 active:scale-[0.995]"
+                        >
+                          <div className="flex items-center gap-3 px-3 py-2.5">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-300/35 bg-black/65">
+                              <VaultDoorIcon className="h-6 w-6 text-amber-200" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[8px] font-black uppercase tracking-[0.14em] text-amber-300">
+                                {match.meeting.meeting_name} R
+                                {match.race.race_number}
+                              </p>
+
+                              <p className="mt-0.5 truncate text-[12px] font-black leading-tight text-white">
+                                {match.runnerNumber
+                                  ? `#${match.runnerNumber} ${match.horseName}`
+                                  : match.horseName}
+                              </p>
+
+                              <p className="mt-0.5 truncate text-[8px] font-bold text-zinc-400">
+                                {match.alertName ||
+                                  "Your Vault Alert"}
+                              </p>
+                            </div>
+
+                            <div className="shrink-0 text-right">
+                              <span className="inline-flex rounded-full border border-amber-200/45 bg-amber-300/10 px-2 py-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-100">
+                                My Pick
+                              </span>
+
+                              <p className="mt-1 text-[8px] font-black uppercase tracking-[0.08em] text-amber-300/80">
+                                View Race →
+                              </p>
+                            </div>
+                          </div>
+
+                          {isSelected ? (
+                            <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-amber-200/80 shadow-[inset_0_0_18px_rgba(251,191,36,0.22)]" />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
             </div>
           ) : null}
         </div>
