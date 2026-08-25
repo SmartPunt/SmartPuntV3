@@ -8422,12 +8422,45 @@ export async function toggleRaceRunnerScratchAction(
       return { success: false, error: error.message };
     }
 
-    await updateRacePlaceTermsFromActiveField({
-      supabase,
-      raceId: Number(runner.race_id),
-    });
+await updateRacePlaceTermsFromActiveField({
+  supabase,
+  raceId: Number(runner.race_id),
+});
 
-    revalidatePath("/current-races");
+/*
+ * SMARTPUNT APPROVED LIVE REFRESH
+ *
+ * A genuine scratching or reinstatement is an approved
+ * reason to update the released Calculator prediction.
+ *
+ * The helper will only refresh if:
+ * - the meeting has already been released;
+ * - the race is still published/open; and
+ * - no race result has started being entered.
+ */
+try {
+  await refreshReleasedCalculatorSnapshotForRace(
+    Number(runner.race_id),
+  );
+} catch (snapshotError) {
+  console.error(
+    "Single-scratching Calculator snapshot refresh failed:",
+    {
+      raceId: Number(runner.race_id),
+      runnerId,
+      scratched,
+      error: snapshotError,
+    },
+  );
+
+  return {
+    success: false,
+    error:
+      "The scratching was saved, but SmartPunt could not refresh the Calculator prediction for this race.",
+  };
+}
+
+revalidatePath("/current-races");
     revalidatePath("/race-archive");
     revalidatePath("/admin/calculator");
     revalidatePath("/smartpunt-calculator-live-picks");
@@ -8510,15 +8543,46 @@ export async function bulkScratchRaceRunnersAction(
       return { success: false, error: error.message };
     }
 
-    await updateRacePlaceTermsFromActiveField({
-      supabase,
-      raceId,
-    });
+await updateRacePlaceTermsFromActiveField({
+  supabase,
+  raceId,
+});
 
-    revalidatePath("/current-races");
+/*
+ * SMARTPUNT APPROVED LIVE REFRESH
+ *
+ * Bulk/imported scratchings are treated exactly the same
+ * as a manual scratching: refresh the authoritative
+ * released snapshot for this race if the race is still
+ * eligible for a pre-race update.
+ */
+try {
+  await refreshReleasedCalculatorSnapshotForRace(
+    raceId,
+  );
+} catch (snapshotError) {
+  console.error(
+    "Bulk-scratching Calculator snapshot refresh failed:",
+    {
+      raceId,
+      runnerIds: safeRunnerIds,
+      error: snapshotError,
+    },
+  );
+
+  return {
+    success: false,
+    error:
+      "The scratchings were saved, but SmartPunt could not refresh the Calculator prediction for this race.",
+  };
+}
+
+revalidatePath("/current-races");
     revalidatePath("/race-archive");
     revalidatePath("/admin/calculator");
     revalidatePath("/smartpunt-calculator-live-picks");
+    revalidatePath("/subscriber-dashboard");
+revalidatePath("/admin/power-rating-race-card");
     revalidatePath("/");
 
     return { success: true, error: null };
