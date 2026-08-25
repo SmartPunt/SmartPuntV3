@@ -2826,20 +2826,76 @@ Maverick Insight
 
 <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#0b1120_58%,#050505_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
   <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
-                        🏆 SmartPunt Calculator Top 3
-                      </p>
-                      <p className="mt-1 text-[10px] font-semibold text-zinc-300">
-{isClosedRace
-  ? "Frozen Calculator ranking recorded before this race was settled."
-  : "Released Calculator ranking for this race."}
-                      </p>
-                    </div>
-                    <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
-                      Calculator
-                    </span>
-                  </div>
+    <div>
+      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
+        🏆 SmartPunt Calculator Top 3
+      </p>
+      <p className="mt-1 text-[10px] font-semibold text-zinc-300">
+        {isClosedRace
+          ? "Frozen Calculator ranking recorded before this race was settled."
+          : "Released Calculator ranking for this race."}
+      </p>
+    </div>
+
+    <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
+      Calculator
+    </span>
+  </div>
+
+  {calculatorExoticResults?.anyHit ? (
+    <div className="mt-4 overflow-hidden rounded-[18px] border-2 border-amber-300/80 bg-[linear-gradient(135deg,rgba(251,191,36,0.30)_0%,rgba(120,53,15,0.42)_38%,rgba(5,5,5,0.98)_100%)] shadow-[0_0_30px_rgba(251,191,36,0.28)]">
+      <div className="flex items-center justify-between gap-3 border-b border-amber-300/25 px-4 py-3">
+        <div>
+          <p className="text-[13px] font-black uppercase tracking-[0.18em] text-amber-200">
+            🏆 Calculator Exotics Landed
+          </p>
+
+          <p className="mt-1 text-[10px] font-bold text-amber-50/80">
+            Frozen pre-race Top 3 vs actual finishing order
+          </p>
+        </div>
+
+        <span className="rounded-full border border-amber-200/70 bg-amber-300/20 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-amber-100 shadow-[0_0_14px_rgba(251,191,36,0.20)]">
+          HIT
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-3">
+        {calculatorExoticResults.quinella ? (
+          <div className="rounded-[16px] border border-emerald-300/50 bg-emerald-500/20 px-3 py-3 text-center">
+            <p className="text-[17px] font-black text-emerald-100">
+              ✓ Quinella
+            </p>
+            <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-emerald-200/80">
+              Top 2 · Any Order
+            </p>
+          </div>
+        ) : null}
+
+        {calculatorExoticResults.exacta ? (
+          <div className="rounded-[16px] border border-amber-200/60 bg-amber-400/20 px-3 py-3 text-center">
+            <p className="text-[17px] font-black text-amber-50">
+              ✓ Exacta
+            </p>
+            <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100/80">
+              Top 2 · Exact Order
+            </p>
+          </div>
+        ) : null}
+
+        {calculatorExoticResults.allWaysTrifecta ? (
+          <div className="rounded-[16px] border border-sky-300/50 bg-sky-500/20 px-3 py-3 text-center">
+            <p className="text-[17px] font-black text-sky-100">
+              ✓ All Ways Trifecta
+            </p>
+            <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-sky-200/80">
+              Top 3 · Any Order
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  ) : null}
 
 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
                     {calculatorTopThree.map((runner, index) => {
