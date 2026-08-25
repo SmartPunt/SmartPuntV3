@@ -2425,57 +2425,88 @@ const maidenPenalty = 0;
               : "Place"
             : "No Bet";
 
-const positives: string[] = [];
-const risks: string[] = [];
+const confidenceDrivers: string[] = [];
 
-if (sorted.length <= 7) positives.push("a small field");
-else if (sorted.length >= 14) risks.push("a large field");
-else if (sorted.length >= 11) risks.push("a bigger field");
-
-// Automatic maiden risk removed.
-// If maiden races prove difficult again in the future, the Intelligence
-// Board should detect that from evidence rather than a hard-coded rule.
-if (trackCondition.startsWith("heavy")) risks.push("heavy conditions");
-else if (trackCondition.startsWith("soft")) risks.push("soft conditions");
-else if (trackCondition.startsWith("good")) positives.push("good conditions");
-
-if (placeTerms === "win_only") risks.push("win-only place terms");
-else if (placeTerms === "top_2") risks.push("reduced Pay 1 & 2 terms");
-else positives.push("standard Pay 1, 2 & 3 terms");
-
-if (gap >= 8) positives.push("a clear ratings gap");
-else if (gap >= 4) positives.push("some ratings separation");
-else risks.push("a tightly matched field");
+if (gap >= 8) {
+  confidenceDrivers.push(
+    "SmartPunt has found a clear ratings gap between the top selection and its main danger",
+  );
+} else if (gap >= 4) {
+  confidenceDrivers.push(
+    "there is useful ratings separation at the top of the field",
+  );
+} else {
+  confidenceDrivers.push(
+    "the leading chances are tightly matched with little ratings separation",
+  );
+}
 
 if (sorted.length >= 4 && topFourCompression <= 3) {
-  risks.push("a tightly compressed top four");
+  confidenceDrivers.push(
+    "the main chances are also tightly compressed",
+  );
 } else if (sorted.length >= 4 && topFourCompression <= 5) {
-  risks.push("a fairly compressed top four");
+  confidenceDrivers.push(
+    "several of the leading chances remain closely matched",
+  );
 }
 
-function formatDriverList(items: string[]) {
-  const list = items.slice(0, 3);
-
-  if (list.length === 0) return "";
-  if (list.length === 1) return list[0];
-  if (list.length === 2) return `${list[0]} and ${list[1]}`;
-
-  return `${list[0]}, ${list[1]} and ${list[2]}`;
+if (trackCondition.startsWith("heavy")) {
+  confidenceDrivers.push(
+    "Heavy conditions add significant uncertainty",
+  );
+} else if (trackCondition.startsWith("soft")) {
+  confidenceDrivers.push(
+    "Soft conditions add some uncertainty",
+  );
 }
 
-const riskText = formatDriverList(risks);
-const positiveText = formatDriverList(positives);
+if (sorted.length <= 7) {
+  confidenceDrivers.push(
+    "the smaller field improves the overall race setup",
+  );
+} else if (sorted.length >= 14) {
+  confidenceDrivers.push(
+    "the large field adds further uncertainty",
+  );
+} else if (sorted.length >= 11) {
+  confidenceDrivers.push(
+    "the bigger field adds some additional risk",
+  );
+}
+
+if (placeTerms === "win_only") {
+  confidenceDrivers.push(
+    "win-only terms make the race less forgiving",
+  );
+} else if (placeTerms === "top_2") {
+  confidenceDrivers.push(
+    "Pay 1 & 2 terms reduce the margin for error",
+  );
+}
+
+const primaryDriver =
+  confidenceDrivers[0] ||
+  "the race presents a balanced overall profile";
+
+const secondaryDrivers =
+  confidenceDrivers.slice(1, 3);
+
+const secondaryText =
+  secondaryDrivers.length === 0
+    ? ""
+    : secondaryDrivers.length === 1
+      ? ` ${secondaryDrivers[0]}.`
+      : ` ${secondaryDrivers[0]}, while ${secondaryDrivers[1]}.`;
 
 const summary =
-  tier === "Elite" || tier === "High"
-    ? `Strong betting setup with ${positiveText || "a favourable race profile"}.`
-    : tier === "Medium"
-      ? risks.length
-        ? `Reasonable betting setup, although ${riskText} add some risk.`
-        : `Reasonable betting setup with ${positiveText || "a balanced race profile"}.`
-      : risks.length
-        ? `Risky betting race due to ${riskText}.`
-        : `Risky betting race with limited clear edge from the main confidence drivers.`;
+  tier === "Elite"
+    ? `Very strong race confidence because ${primaryDriver}.${secondaryText}`
+    : tier === "High"
+      ? `Strong race confidence because ${primaryDriver}.${secondaryText}`
+      : tier === "Medium"
+        ? `Moderate race confidence because ${primaryDriver}.${secondaryText}`
+        : `Confidence is limited because ${primaryDriver}.${secondaryText}`;
 
   return {
     tier,
