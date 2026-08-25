@@ -2964,70 +2964,90 @@ const isResulted = finishingPosition !== null;
                       );
                     })}
                   </div>
-                </div>
 
-                {calculatorExoticResults ? (
-                  <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#171107_55%,#050505_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
-                          🏆 Calculator Exotic Results
-                        </p>
+                  {calculatorExoticResults ? (
+                    <div
+                      className={`mt-4 overflow-hidden rounded-[18px] border ${
+                        calculatorExoticResults.anyHit
+                          ? "border-amber-300/70 bg-[linear-gradient(135deg,rgba(251,191,36,0.18)_0%,rgba(5,5,5,0.96)_55%,rgba(5,5,5,0.98)_100%)] shadow-[0_0_26px_rgba(251,191,36,0.16)]"
+                          : "border-white/10 bg-white/[0.04]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+                        <div>
+                          <p
+                            className={`text-[11px] font-black uppercase tracking-[0.18em] ${
+                              calculatorExoticResults.anyHit
+                                ? "text-amber-300"
+                                : "text-zinc-400"
+                            }`}
+                          >
+                            {calculatorExoticResults.anyHit
+                              ? "🏆 Calculator Exotics Landed"
+                              : "Calculator Exotic Result"}
+                          </p>
 
-                        <p className="mt-1 text-[10px] font-semibold leading-5 text-zinc-300">
-                          Based on the frozen Calculator Top 3 shown before the race.
-                        </p>
+                          <p className="mt-1 text-[10px] font-semibold text-zinc-400">
+                            Frozen pre-race Top 3 vs actual finishing order
+                          </p>
+                        </div>
+
+                        {calculatorExoticResults.anyHit ? (
+                          <span className="rounded-full border border-amber-300/50 bg-amber-400/15 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
+                            Hit
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                            Resulted
+                          </span>
+                        )}
                       </div>
 
-                      <span className="shrink-0 rounded-full border border-amber-300/35 bg-amber-400/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-200">
-                        Resulted
-                      </span>
+                      {calculatorExoticResults.anyHit ? (
+                        <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-3">
+                          {calculatorExoticResults.quinella ? (
+                            <div className="rounded-[16px] border border-emerald-300/45 bg-emerald-500/15 px-3 py-3 text-center shadow-[0_0_16px_rgba(16,185,129,0.10)]">
+                              <p className="text-[16px] font-black text-emerald-100">
+                                ✓ Quinella
+                              </p>
+                              <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-emerald-200/75">
+                                Top 2 · Any Order
+                              </p>
+                            </div>
+                          ) : null}
+
+                          {calculatorExoticResults.exacta ? (
+                            <div className="rounded-[16px] border border-amber-300/55 bg-amber-400/15 px-3 py-3 text-center shadow-[0_0_18px_rgba(251,191,36,0.12)]">
+                              <p className="text-[16px] font-black text-amber-100">
+                                ✓ Exacta
+                              </p>
+                              <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-200/75">
+                                Top 2 · Exact Order
+                              </p>
+                            </div>
+                          ) : null}
+
+                          {calculatorExoticResults.allWaysTrifecta ? (
+                            <div className="rounded-[16px] border border-sky-300/45 bg-sky-500/15 px-3 py-3 text-center shadow-[0_0_16px_rgba(56,189,248,0.10)]">
+                              <p className="text-[16px] font-black text-sky-100">
+                                ✓ All Ways Trifecta
+                              </p>
+                              <p className="mt-1 text-[8px] font-black uppercase tracking-[0.12em] text-sky-200/75">
+                                Top 3 · Any Order
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="px-4 py-3 text-center">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                            No exotic combination landed
+                          </p>
+                        </div>
+                      )}
                     </div>
-
-                    {calculatorExoticResults.anyHit ? (
-                      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                        {calculatorExoticResults.quinella ? (
-                          <div className="rounded-2xl border border-emerald-300/40 bg-emerald-500/15 px-3 py-3 text-center">
-                            <p className="text-lg font-black text-emerald-100">
-                              ✓ Quinella
-                            </p>
-                            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-emerald-200/75">
-                              Top 2 · Any Order
-                            </p>
-                          </div>
-                        ) : null}
-
-                        {calculatorExoticResults.exacta ? (
-                          <div className="rounded-2xl border border-amber-300/45 bg-amber-400/15 px-3 py-3 text-center">
-                            <p className="text-lg font-black text-amber-100">
-                              ✓ Exacta
-                            </p>
-                            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-amber-200/75">
-                              Top 2 · Exact Order
-                            </p>
-                          </div>
-                        ) : null}
-
-                        {calculatorExoticResults.allWaysTrifecta ? (
-                          <div className="rounded-2xl border border-sky-300/40 bg-sky-500/15 px-3 py-3 text-center">
-                            <p className="text-lg font-black text-sky-100">
-                              ✓ All Ways Trifecta
-                            </p>
-                            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.1em] text-sky-200/75">
-                              Top 3 · Any Order
-                            </p>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3 text-center">
-                        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-400">
-                          No Calculator exotic landed
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
 
                 {raceConfidence ? (
                   <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#111827_54%,#030712_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
