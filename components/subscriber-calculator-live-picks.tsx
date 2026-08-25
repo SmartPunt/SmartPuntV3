@@ -2862,18 +2862,18 @@ Maverick Insight
   <div className="flex items-center justify-between gap-3">
     <div>
       <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
-        🏆 SmartPunt Calculator Top 3
+        🏆 SmartPunt Top 3
       </p>
       <p className="mt-1 text-[10px] font-semibold text-zinc-300">
-        {isClosedRace
-          ? "Frozen Calculator ranking recorded before this race was settled."
-          : "Released Calculator ranking for this race."}
+{isClosedRace
+  ? "Final race result."
+  : "Today’s SmartPunt rankings."}
       </p>
     </div>
 
-    <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
-      Calculator
-    </span>
+<span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
+  SmartPunt
+</span>
   </div>
 
   {calculatorWinnerResult ? (
@@ -2882,14 +2882,14 @@ Maverick Insight
 
       <div className="relative px-4 py-5 text-center">
         <p className="text-[10px] font-black uppercase tracking-[0.28em] text-amber-200">
-          SmartPunt Calculator
+          SmartPunt Result
         </p>
 
         <p className="mt-2 text-[25px] font-black uppercase leading-none tracking-tight text-white drop-shadow-[0_2px_8px_rgba(251,191,36,0.35)]">
           🏆{" "}
-          {calculatorWinnerResult.wasOfficialWinTip
-            ? "Win Tip Landed"
-            : "Calculator #1 Won"}
+{calculatorWinnerResult.wasOfficialWinTip
+  ? "Win Tip Landed"
+  : "Top Pick Won"}
         </p>
 
         <div className="mx-auto mt-4 h-px w-3/4 bg-gradient-to-r from-transparent via-amber-200 to-transparent" />
@@ -2903,9 +2903,9 @@ Maverick Insight
         </div>
 
         <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-100/75">
-          {calculatorWinnerResult.wasOfficialWinTip
-            ? "SmartPunt Win selection salutes"
-            : "Calculator top-rated runner salutes"}
+{calculatorWinnerResult.wasOfficialWinTip
+  ? "SmartPunt Win Tip"
+  : "SmartPunt Top Pick"}
         </p>
       </div>
     </div>
@@ -2979,14 +2979,11 @@ Maverick Insight
             </p>
 
             <p className="mt-2 text-[9px] font-black uppercase tracking-[0.15em] text-yellow-100/75">
-              Calculator Top 3 filled the trifecta
+Top 3 filled the trifecta
             </p>
           </div>
         ) : null}
 
-        <p className="mt-3 text-center text-[8px] font-bold uppercase tracking-[0.12em] text-zinc-500">
-          Frozen pre-race Calculator rankings · actual race result
-        </p>
       </div>
     </div>
   ) : null}
@@ -3036,7 +3033,7 @@ const isResulted = finishingPosition !== null;
                             {index + 1}
                           </div>
                           <p className="ml-8 text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">
-                            Calculator #{index + 1}
+                            SmartPunt #{index + 1}
                           </p>
                           <p className="mt-5 text-[15px] font-black leading-tight text-white">
                             {runner.horse_name}
