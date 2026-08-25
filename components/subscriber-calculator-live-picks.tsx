@@ -2772,37 +2772,65 @@ return (
                           ) : null}
                         </div>
 
-                        {officialTipResult?.successful ? (
-                          <div className="relative mt-4 overflow-hidden rounded-[16px] border-2 border-amber-200/80 bg-[linear-gradient(135deg,rgba(251,191,36,0.28)_0%,rgba(120,53,15,0.34)_36%,rgba(0,0,0,0.82)_100%)] px-4 py-4 shadow-[0_0_28px_rgba(251,191,36,0.22)]">
-                            <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/20 blur-2xl" />
+{officialTipResult?.successful ? (
+  <div className="relative mt-4 overflow-hidden rounded-[18px] border-2 border-amber-200/80 bg-[radial-gradient(circle_at_left,rgba(251,191,36,0.24),transparent_38%),linear-gradient(135deg,rgba(69,26,3,0.96)_0%,rgba(17,17,17,0.98)_48%,rgba(0,0,0,1)_100%)] shadow-[0_0_30px_rgba(251,191,36,0.24),0_14px_30px_rgba(0,0,0,0.45)]">
+    <div className="pointer-events-none absolute -left-10 -top-10 h-32 w-32 rounded-full bg-amber-300/20 blur-3xl" />
 
-                            <div className="relative flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-200">
-                                  The Maverick Result
-                                </p>
+    <div className="relative flex items-center gap-3 px-4 py-4">
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[16px] border border-amber-200/55 bg-black/65 shadow-[0_0_22px_rgba(251,191,36,0.28)]">
+        <img
+          src="/maverick/maverick-shield.png"
+          alt="The Maverick"
+          className="h-full w-full object-contain p-1"
+        />
+      </div>
 
-                                <p className="mt-1 text-[19px] font-black uppercase leading-tight text-white">
-                                  🏆 Tip Landed
-                                </p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
+          The Maverick
+        </p>
 
-                                <p className="mt-1 text-[11px] font-bold text-amber-100/85">
-                                  {officialTipSelection}
-                                </p>
-                              </div>
+        <p className="mt-1 text-[17px] font-black uppercase leading-tight text-white">
+          Result Confirmed
+        </p>
 
-                              <div className="shrink-0 rounded-[14px] border border-amber-100/70 bg-black/65 px-3 py-2 text-center shadow-[0_0_16px_rgba(251,191,36,0.20)]">
-                                <p className="text-[17px] font-black leading-none text-amber-100">
-                                  {officialTipResult.finishingPositionLabel}
-                                </p>
+        <p className="mt-2 truncate text-[15px] font-black text-amber-100">
+          {officialTipSelection}
+        </p>
+      </div>
 
-                                <p className="mt-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-200/75">
-                                  {officialTipType}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ) : null}
+      <div className="shrink-0 text-right">
+        <div className="rounded-[14px] border border-amber-100/65 bg-black/65 px-3 py-2 shadow-[0_0_16px_rgba(251,191,36,0.18)]">
+          <p className="text-[17px] font-black leading-none text-amber-100">
+            {officialTipResult.finishingPositionLabel}
+          </p>
+
+          <p className="mt-1 text-[7px] font-black uppercase tracking-[0.12em] text-amber-200/75">
+            Final Result
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div className="relative border-t border-amber-200/20 bg-black/30 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-500/15 px-3 py-1.5">
+          <span className="text-sm font-black text-emerald-200">
+            ✓
+          </span>
+
+          <span className="text-[10px] font-black uppercase tracking-[0.13em] text-emerald-100">
+            {officialTipType} Landed
+          </span>
+        </div>
+
+        <span className="text-[8px] font-black uppercase tracking-[0.15em] text-amber-200/65">
+          Maverick Selection
+        </span>
+      </div>
+    </div>
+  </div>
+) : null}
                         {isConsensusPick ? (
                           <p className="mt-2 inline-flex rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-emerald-100">
 SmartPunt Consensus Pick — Calculator and The
