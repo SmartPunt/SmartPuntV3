@@ -3074,31 +3074,33 @@ Maverick Insight
       ) : null}
     </div>
 
-    {calculatorExoticResults.allWaysTrifecta ? (
-<div className="relative min-h-[118px] overflow-hidden rounded-[16px] bg-black shadow-[0_15px_32px_rgba(0,0,0,0.48)]">
-<img
-  src="/maverick/smartpunt-tip-strip.png"
-  alt="SmartPunt All Ways Trifecta"
-  className="absolute inset-0 h-full w-full object-contain"
-/>
+{calculatorExoticResults.allWaysTrifecta ? (
+  <div className="relative min-h-[118px] overflow-hidden rounded-[16px] bg-black shadow-[0_15px_32px_rgba(0,0,0,0.48)]">
+    <img
+      src="/maverick/smartpunt-tip-strip.png"
+      alt="SmartPunt All Ways Trifecta"
+      className="absolute inset-0 h-full w-full object-contain"
+    />
 
-        <div className="absolute inset-0 bg-black/10" />
+    <div className="pointer-events-none absolute inset-y-0 left-[46%] right-[3%] flex items-center justify-center">
+      <div className="w-full rounded-[14px] border border-yellow-200/45 bg-black/65 px-3 py-3 text-center shadow-[0_0_18px_rgba(250,204,21,0.18)] backdrop-blur-[2px]">
+        <p className="text-[8px] font-black uppercase tracking-[0.15em] text-yellow-200">
+          Top 3 Landed
+        </p>
 
-        <div className="relative flex min-h-[108px] items-center justify-center px-4 py-4 text-center">
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-yellow-200 drop-shadow-[0_1px_3px_rgba(0,0,0,1)]">
-              Top 3 Landed
-            </p>
+        <p className="mt-1 text-[18px] font-black uppercase leading-tight text-white">
+          All Ways
+        </p>
 
-            <p className="mt-1 text-[21px] font-black uppercase leading-tight text-white drop-shadow-[0_2px_5px_rgba(0,0,0,1)]">
-              All Ways Trifecta
-            </p>
-          </div>
-        </div>
-
-        <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-yellow-200/80 shadow-[inset_0_0_22px_rgba(250,204,21,0.25)]" />
+        <p className="text-[18px] font-black uppercase leading-tight text-yellow-100">
+          Trifecta
+        </p>
       </div>
-    ) : null}
+    </div>
+
+    <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-yellow-200/80 shadow-[inset_0_0_22px_rgba(250,204,21,0.25)]" />
+  </div>
+) : null}
   </div>
 ) : null}
 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
