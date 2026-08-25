@@ -4323,6 +4323,118 @@ export async function signInAction(
   return { error: null };
 }
 
+/*
+ * SMARTPUNT APPROVED LIVE SNAPSHOT REFRESH
+ *
+ * Released Calculator predictions are normally frozen.
+ *
+ * A refresh is permitted only when:
+ * - the race still exists;
+ * - the race is still published/open;
+ * - the meeting has already been released to subscribers; and
+ * - the race has not started being resulted.
+ *
+ * This helper is intended only for legitimate pre-race
+ * changes such as scratchings and track-condition updates.
+ *
+ * Same-day racing results are already excluded from the
+ * scoring history by the race-day integrity rule in
+ * calculator/scoring.ts.
+ */
+async function refreshReleasedCalculatorSnapshotForRace(
+  raceId: number,
+) {
+  const supabase = await createClient();
+
+  const { data: race, error: raceError } =
+    await supabase
+      .from("races")
+      .select(
+        `
+          id,
+          meeting_id,
+          status,
+          meetings!inner (
+            id,
+            calculator_released_at
+          )
+        `,
+      )
+      .eq("id", Number(raceId))
+      .maybeSingle();
+
+  if (raceError) {
+    throw new Error(raceError.message);
+  }
+
+  if (!race) {
+    return {
+      refreshed: false,
+      reason: "race_not_found",
+    };
+  }
+
+  if (
+    String(race.status || "")
+      .trim()
+      .toLowerCase() !== "published"
+  ) {
+    return {
+      refreshed: false,
+      reason: "race_not_open",
+    };
+  }
+
+  const linkedMeeting = Array.isArray(
+    (race as any).meetings,
+  )
+    ? (race as any).meetings[0]
+    : (race as any).meetings;
+
+  if (!linkedMeeting?.calculator_released_at) {
+    return {
+      refreshed: false,
+      reason: "meeting_not_released",
+    };
+  }
+
+  const {
+    data: resultedRunner,
+    error: resultedRunnerError,
+  } = await supabase
+    .from("race_runners")
+    .select("id")
+    .eq("race_id", Number(raceId))
+    .not("finishing_position", "is", null)
+    .limit(1)
+    .maybeSingle();
+
+  if (resultedRunnerError) {
+    throw new Error(
+      resultedRunnerError.message,
+    );
+  }
+
+  if (resultedRunner) {
+    return {
+      refreshed: false,
+      reason: "race_result_started",
+    };
+  }
+
+  await saveCalculatorPredictionsForRace(
+    Number(raceId),
+    {
+      excludeScratched: true,
+    },
+  );
+
+  return {
+    refreshed: true,
+    reason: "approved_pre_race_change",
+  };
+}
+
 export async function updateMeetingConditionAction(formData: FormData) {
   const meetingId = formData.get("meeting_id");
   const condition = formData.get("track_condition");
