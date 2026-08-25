@@ -3141,11 +3141,35 @@ const calculatorTipType = isWinTip
     ? "Place"
     : "";
 
-const finishingPosition = formatFinishingPosition(
-  (runner as any).finishing_position,
+const finishingPositionNumber = Number(
+  (runner as any).finishing_position || 0,
 );
 
-const isResulted = finishingPosition !== null;
+const finishingPosition =
+  formatFinishingPosition(
+    (runner as any).finishing_position,
+  );
+
+const isResulted =
+  finishingPosition !== null;
+
+const placeCutoff =
+  activePlaceTerms === "win_only"
+    ? 1
+    : activePlaceTerms === "top_2"
+      ? 2
+      : 3;
+
+const calculatorTipSuccessful =
+  isResulted &&
+  (
+    (isWinTip &&
+      finishingPositionNumber === 1) ||
+    (isPlaceTip &&
+      finishingPositionNumber > 0 &&
+      finishingPositionNumber <=
+        placeCutoff)
+  );
 
                       return (
                         <div
@@ -3196,21 +3220,45 @@ const isResulted = finishingPosition !== null;
                             Score {roundScore(runner.score)} · Win{" "}
                             {runner.winPercent}% · Rank #{runner.rank}
                           </p>
-                          <div
-                            className={`mt-3 rounded-xl border px-2 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] ${
-                              isWinTip
-                                ? "border-amber-300/50 bg-amber-400/15 text-amber-100"
-                                : isPlaceTip
-                                  ? "border-sky-300/45 bg-sky-400/15 text-sky-100"
-                                  : "border-zinc-700 bg-zinc-900 text-zinc-400"
-                            }`}
-                          >
-                            {isWinTip
-                              ? "🏆 Win Tip"
-                              : isPlaceTip
-                                ? "🥈 Place Tip"
-                                : "⊘ No Bet"}
-                          </div>
+<div
+  className={`mt-3 overflow-hidden rounded-xl border text-center ${
+    calculatorTipSuccessful
+      ? "border-emerald-300/60 bg-[linear-gradient(135deg,rgba(16,185,129,0.22),rgba(5,46,22,0.45),rgba(0,0,0,0.65))] shadow-[0_0_18px_rgba(16,185,129,0.14)]"
+      : isWinTip
+        ? "border-amber-300/50 bg-amber-400/15"
+        : isPlaceTip
+          ? "border-sky-300/45 bg-sky-400/15"
+          : "border-zinc-700 bg-zinc-900"
+  }`}
+>
+  <div
+    className={`px-2 py-2 text-[10px] font-black uppercase tracking-[0.12em] ${
+      isWinTip
+        ? "text-amber-100"
+        : isPlaceTip
+          ? "text-sky-100"
+          : "text-zinc-400"
+    }`}
+  >
+    {isWinTip
+      ? "🏆 Win Tip"
+      : isPlaceTip
+        ? "🥈 Place Tip"
+        : "⊘ No Bet"}
+  </div>
+
+  {calculatorTipSuccessful ? (
+    <div className="border-t border-emerald-300/25 bg-emerald-400/15 px-2 py-2">
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
+        ✓ Successful
+      </p>
+
+      <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-emerald-200/80">
+        Finished {finishingPosition}
+      </p>
+    </div>
+  ) : null}
+</div>
 
 {calculatorTipType && !isClosedRace ? (
   <TipAcceptanceControl
