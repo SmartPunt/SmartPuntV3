@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
   type ReactNode,
@@ -1535,6 +1536,82 @@ if (activeSnapshotRows.length > 0) {
       ? orderedPublishedRaces[activeRaceIndex + 1]
       : null;
 
+  const raceSwipeStartX = useRef<number | null>(null);
+  const raceSwipeStartY = useRef<number | null>(null);
+
+  function handleRaceSwipeStart(
+    event: React.TouchEvent<HTMLDivElement>,
+  ) {
+    if (
+      (event.target as HTMLElement).closest(
+        "[data-no-race-swipe='true']",
+      )
+    ) {
+      raceSwipeStartX.current = null;
+      raceSwipeStartY.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+
+    if (!touch) return;
+
+    raceSwipeStartX.current = touch.clientX;
+    raceSwipeStartY.current = touch.clientY;
+  }
+
+  function handleRaceSwipeEnd(
+    event: React.TouchEvent<HTMLDivElement>,
+  ) {
+    if (
+      raceSwipeStartX.current === null ||
+      raceSwipeStartY.current === null
+    ) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+
+    if (!touch) return;
+
+    const horizontalDistance =
+      touch.clientX - raceSwipeStartX.current;
+
+    const verticalDistance =
+      touch.clientY - raceSwipeStartY.current;
+
+    raceSwipeStartX.current = null;
+    raceSwipeStartY.current = null;
+
+    /*
+     * Require a deliberate horizontal swipe.
+     *
+     * Normal vertical page scrolling should never
+     * change the selected race.
+     */
+    if (
+      Math.abs(horizontalDistance) < 55 ||
+      Math.abs(horizontalDistance) <=
+        Math.abs(verticalDistance)
+    ) {
+      return;
+    }
+
+    if (horizontalDistance < 0 && nextRace) {
+      setSelectedRaceId(String(nextRace.id));
+      return;
+    }
+
+    if (
+      horizontalDistance > 0 &&
+      previousRace
+    ) {
+      setSelectedRaceId(
+        String(previousRace.id),
+      );
+    }
+  }
+
 const activePlaceTerms = activeRace?.place_terms || "top_3";
 const vaultOpportunities = useMemo(() => {
   const availableRaceIds = new Set(
@@ -2648,7 +2725,11 @@ return (
         </div>
 
         <div className="mb-4 overflow-hidden rounded-[26px] border border-amber-300/40 bg-[#f7f0df] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
-          <div className="rounded-[20px] border border-black/10 bg-[#f7f0df]">
+<div
+  className="rounded-[20px] border border-black/10 bg-[#f7f0df]"
+  onTouchStart={handleRaceSwipeStart}
+  onTouchEnd={handleRaceSwipeEnd}
+>
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-2">
                 {(["yesterday", "today", "tomorrow"] as RaceDayFilter[]).map((day) => (
@@ -3630,7 +3711,10 @@ in the SmartPunt Calculator Top 3 above.
                     </span>
                   </div>
 
-                  <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10">
+<div
+  data-no-race-swipe="true"
+  className="mt-4 overflow-x-auto rounded-2xl border border-white/10"
+>
                     <table className="min-w-[980px] divide-y divide-white/10 text-left text-[11px]">
                       <thead className="bg-white/[0.06] text-[9px] uppercase tracking-[0.14em] text-zinc-400">
                         <tr>
