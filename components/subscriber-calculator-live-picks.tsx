@@ -973,6 +973,9 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
   const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
     useState(false);
   const [showBestOpportunities, setShowBestOpportunities] = useState(true);
+  const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
+    number[]
+  >([]);
   const [acceptingTipKey, setAcceptingTipKey] = useState<string | null>(null);
   const [tipMessage, setTipMessage] = useState<string | null>(null);
   const [tipError, setTipError] = useState<string | null>(null);
@@ -3369,177 +3372,430 @@ Maverick Insight
 ) : null}
   </div>
 ) : null}
-<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
-                    {calculatorTopThree.map((runner, index) => {
-                      const isTip =
-                        qualifiedTip &&
-                        Number(qualifiedTip.runner.id) === Number(runner.id);
+<div className="mt-4 space-y-2">
+  {calculatorTopThree.map((runner, index) => {
+    const isTip =
+      qualifiedTip &&
+      Number(qualifiedTip.runner.id) ===
+        Number(runner.id);
 
-                      const isWinTip = isTip && qualifiedTip.type === "Win";
-                      const isPlaceTip = isTip && qualifiedTip.type === "Place";
-const calculatorTipType = isWinTip
-  ? "Win"
-  : isPlaceTip
-    ? "Place"
-    : "";
+    const isWinTip =
+      isTip &&
+      qualifiedTip.type === "Win";
 
-const finishingPositionNumber = Number(
-  (runner as any).finishing_position || 0,
-);
+    const isPlaceTip =
+      isTip &&
+      qualifiedTip.type === "Place";
 
-const finishingPosition =
-  formatFinishingPosition(
-    (runner as any).finishing_position,
-  );
-
-const isResulted =
-  finishingPosition !== null;
-
-const placeCutoff =
-  activePlaceTerms === "win_only"
-    ? 1
-    : activePlaceTerms === "top_2"
-      ? 2
-      : 3;
-
-const calculatorTipSuccessful =
-  isResulted &&
-  (
-    (isWinTip &&
-      finishingPositionNumber === 1) ||
-    (isPlaceTip &&
-      finishingPositionNumber > 0 &&
-      finishingPositionNumber <=
-        placeCutoff)
-  );
-
-                      return (
-                        <div
-                          key={runner.id}
-                          className={`relative min-h-[150px] overflow-hidden rounded-2xl border p-3 ${
-                            isWinTip
-                              ? "border-amber-300 bg-amber-950/70 shadow-lg shadow-amber-400/20"
-                              : isPlaceTip
-                                ? "border-zinc-200 bg-zinc-800"
-                                : index === 2
-                                  ? "border-orange-400/60 bg-zinc-950"
-                                  : "border-zinc-700 bg-zinc-950"
-                          }`}
-                        >
-                          <div
-                            className={`absolute left-0 top-0 flex h-10 w-10 items-start justify-start bg-gradient-to-br ${
-                              index === 0
-                                ? "from-zinc-500"
-                                : index === 1
-                                  ? "from-zinc-300"
-                                  : "from-orange-400"
-                            } to-transparent pl-2.5 pt-1.5 text-lg font-black text-black`}
-                          >
-                            {index + 1}
-                          </div>
-                          <p className="ml-8 text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">
-                            SmartPunt #{index + 1}
-                          </p>
-                          <p className="mt-5 text-[15px] font-black leading-tight text-white">
-                            {runner.horse_name}
-                          </p>
-                          {isResulted ? (
-  <div
-    className={`mt-2 inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${
-      Number((runner as any).finishing_position) === 1
-        ? "border-amber-300/60 bg-amber-400/20 text-amber-100"
-        : Number((runner as any).finishing_position) <= 3
-          ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
-          : "border-white/15 bg-white/10 text-zinc-300"
-    }`}
-  >
-    {Number((runner as any).finishing_position) === 1
-      ? `🏆 Finished ${finishingPosition}`
-      : `Finished ${finishingPosition}`}
-  </div>
-) : null}
-                          <p className="mt-2 text-[10px] font-bold text-zinc-300">
-                            Score {roundScore(runner.score)} · Win{" "}
-                            {runner.winPercent}% · Rank #{runner.rank}
-                          </p>
-<div
-  className={`mt-3 overflow-hidden rounded-xl border text-center ${
-    calculatorTipSuccessful
-      ? "border-emerald-300/60 bg-[linear-gradient(135deg,rgba(16,185,129,0.22),rgba(5,46,22,0.45),rgba(0,0,0,0.65))] shadow-[0_0_18px_rgba(16,185,129,0.14)]"
-      : isWinTip
-        ? "border-amber-300/50 bg-amber-400/15"
-        : isPlaceTip
-          ? "border-sky-300/45 bg-sky-400/15"
-          : "border-zinc-700 bg-zinc-900"
-  }`}
->
-  <div
-    className={`px-2 py-2 text-[10px] font-black uppercase tracking-[0.12em] ${
-      isWinTip
-        ? "text-amber-100"
-        : isPlaceTip
-          ? "text-sky-100"
-          : "text-zinc-400"
-    }`}
-  >
-    {isWinTip
-      ? "🏆 Win Tip"
+    const calculatorTipType = isWinTip
+      ? "Win"
       : isPlaceTip
-        ? "🥈 Place Tip"
-        : "⊘ No Bet"}
-  </div>
+        ? "Place"
+        : "";
 
-  {calculatorTipSuccessful ? (
-    <div className="border-t border-emerald-300/25 bg-emerald-400/15 px-2 py-2">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
-        ✓ Successful
-      </p>
+    const finishingPositionNumber = Number(
+      (runner as any).finishing_position || 0,
+    );
 
-      <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.1em] text-emerald-200/80">
-        Finished {finishingPosition}
-      </p>
-    </div>
-  ) : null}
+    const finishingPosition =
+      formatFinishingPosition(
+        (runner as any).finishing_position,
+      );
+
+    const isResulted =
+      finishingPosition !== null;
+
+    const placeCutoff =
+      activePlaceTerms === "win_only"
+        ? 1
+        : activePlaceTerms === "top_2"
+          ? 2
+          : 3;
+
+    const calculatorTipSuccessful =
+      isResulted &&
+      (
+        (isWinTip &&
+          finishingPositionNumber === 1) ||
+        (isPlaceTip &&
+          finishingPositionNumber > 0 &&
+          finishingPositionNumber <=
+            placeCutoff)
+      );
+
+    const runnerId =
+      Number(runner.id);
+
+    const isExpanded =
+      expandedTopThreeRunnerIds.includes(
+        runnerId,
+      );
+
+    const effectiveBarrier = (() => {
+      const originalBarrier =
+        runner.barrier === null ||
+        runner.barrier === undefined
+          ? null
+          : Number(runner.barrier);
+
+      if (
+        originalBarrier === null ||
+        !Number.isFinite(originalBarrier)
+      ) {
+        return null;
+      }
+
+      const scratchingsInside =
+        runners.filter((item) => {
+          if (
+            Number(item.race_id) !==
+            Number(activeRace?.id)
+          ) {
+            return false;
+          }
+
+          if (item.scratched !== true) {
+            return false;
+          }
+
+          if (
+            item.barrier === null ||
+            item.barrier === undefined
+          ) {
+            return false;
+          }
+
+          return (
+            Number(item.barrier) <
+            originalBarrier
+          );
+        }).length;
+
+      return Math.max(
+        1,
+        originalBarrier - scratchingsInside,
+      );
+    })();
+
+    return (
+      <div
+        key={runner.id}
+        className={`overflow-hidden rounded-[16px] border shadow-[0_10px_24px_rgba(0,0,0,0.30)] ${
+          calculatorTipSuccessful
+            ? "border-emerald-300/60 bg-[linear-gradient(135deg,rgba(5,46,22,0.92),rgba(9,9,11,0.98))]"
+            : isWinTip
+              ? "border-amber-300/70 bg-[linear-gradient(135deg,rgba(120,53,15,0.55),rgba(9,9,11,0.98))]"
+              : isPlaceTip
+                ? "border-sky-300/55 bg-[linear-gradient(135deg,rgba(12,74,110,0.38),rgba(9,9,11,0.98))]"
+                : index === 2
+                  ? "border-orange-400/45 bg-zinc-950"
+                  : "border-zinc-700 bg-zinc-950"
+        }`}
+      >
+        <button
+          type="button"
+          onClick={() =>
+            setExpandedTopThreeRunnerIds(
+              (current) =>
+                current.includes(runnerId)
+                  ? current.filter(
+                      (id) =>
+                        id !== runnerId,
+                    )
+                  : [
+                      ...current,
+                      runnerId,
+                    ],
+            )
+          }
+          className="flex w-full items-center gap-3 px-3 py-3 text-left"
+          aria-expanded={isExpanded}
+        >
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-black ${
+              index === 0
+                ? "bg-gradient-to-br from-amber-200 to-amber-500 text-black"
+                : index === 1
+                  ? "bg-gradient-to-br from-zinc-200 to-zinc-400 text-black"
+                  : "bg-gradient-to-br from-orange-300 to-orange-500 text-black"
+            }`}
+          >
+            {runner.runner_number
+              ? `#${runner.runner_number}`
+              : index + 1}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-[14px] font-black leading-tight text-white">
+                {runner.horse_name}
+              </p>
+
+              {calculatorTipSuccessful ? (
+                <span className="shrink-0 rounded-full border border-emerald-300/40 bg-emerald-400/15 px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.1em] text-emerald-100">
+                  ✓ Successful
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span className="text-[8px] font-black uppercase tracking-[0.13em] text-amber-300">
+                SmartPunt #{index + 1}
+              </span>
+
+              {isWinTip ? (
+                <span className="rounded-full border border-amber-300/45 bg-amber-400/15 px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.1em] text-amber-100">
+                  Win Tip
+                </span>
+              ) : null}
+
+              {isPlaceTip ? (
+                <span className="rounded-full border border-sky-300/45 bg-sky-400/15 px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.1em] text-sky-100">
+                  Place Tip
+                </span>
+              ) : null}
+
+              {isResulted ? (
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[7px] font-black uppercase tracking-[0.1em] ${
+                    finishingPositionNumber === 1
+                      ? "border-amber-300/50 bg-amber-400/15 text-amber-100"
+                      : finishingPositionNumber <= 3
+                        ? "border-emerald-300/35 bg-emerald-400/10 text-emerald-100"
+                        : "border-white/10 bg-white/[0.06] text-zinc-400"
+                  }`}
+                >
+                  {finishingPosition}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-[12px] font-black text-amber-200">
+            {isExpanded ? "▲" : "▼"}
+          </div>
+        </button>
+
+        {isExpanded ? (
+          <div className="border-t border-white/10 px-3 pb-3 pt-3">
+            <div className="grid grid-cols-4 gap-2">
+              <div className="rounded-xl border border-white/10 bg-white/[0.05] px-2 py-2 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                  Score
+                </p>
+                <p className="mt-1 text-[14px] font-black text-white">
+                  {roundScore(runner.score)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.05] px-2 py-2 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                  Win
+                </p>
+                <p className="mt-1 text-[14px] font-black text-white">
+                  {roundScore(
+                    runner.winPercent,
+                  )}
+                  %
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.05] px-2 py-2 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                  Place
+                </p>
+                <p className="mt-1 text-[14px] font-black text-white">
+                  {roundScore(
+                    runner.placePercent,
+                  )}
+                  %
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/[0.05] px-2 py-2 text-center">
+                <p className="text-[8px] font-black uppercase tracking-[0.1em] text-zinc-500">
+                  Rank
+                </p>
+                <p className="mt-1 text-[14px] font-black text-amber-200">
+                  #{runner.rank}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 overflow-hidden rounded-[14px] border border-white/10 bg-black/35">
+              <div className="grid grid-cols-[1fr_auto] items-center border-b border-white/10 px-3 py-2.5">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.11em] text-zinc-300">
+                    Recent Form
+                  </p>
+                </div>
+
+                <ScoreStars
+                  score={
+                    runner.components.recentForm
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-[1fr_auto] items-center border-b border-white/10 px-3 py-2.5">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.11em] text-zinc-300">
+                    Distance
+                  </p>
+                </div>
+
+                <ScoreStars
+                  score={
+                    runner.components.distance
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-[1fr_auto] items-center border-b border-white/10 px-3 py-2.5">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.11em] text-zinc-300">
+                    Track
+                  </p>
+                </div>
+
+                <ScoreStars
+                  score={
+                    runner.components.track
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-[1fr_auto] items-center border-b border-white/10 px-3 py-2.5">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.11em] text-zinc-300">
+                    Conditions
+                  </p>
+                </div>
+
+                <ScoreStars
+                  score={
+                    runner.components.condition
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-[1fr_auto] items-center border-b border-white/10 px-3 py-2.5">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.11em] text-zinc-300">
+                    Jockey
+                  </p>
+
+                  <p className="mt-0.5 text-[8px] font-semibold text-zinc-500">
+                    {runner.jockey_name ||
+                      "Not supplied"}
+                  </p>
+                </div>
+
+                <ScoreStars
+                  score={
+                    runner.components.jockey
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-[1fr_auto] items-center px-3 py-2.5">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-[0.11em] text-zinc-300">
+                    Effective Barrier
+                  </p>
+
+                  <p className="mt-0.5 text-[8px] font-semibold text-zinc-500">
+                    {effectiveBarrier !== null
+                      ? `Barrier ${effectiveBarrier}`
+                      : "Not supplied"}
+                  </p>
+                </div>
+
+                <ScoreStars
+                  score={
+                    runner.components.barrier
+                  }
+                />
+              </div>
+            </div>
+
+            {calculatorTipSuccessful ? (
+              <div className="mt-3 rounded-[14px] border border-emerald-300/40 bg-emerald-400/10 px-3 py-2.5 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-100">
+                  ✓ {calculatorTipType} Tip Successful
+                </p>
+
+                <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-emerald-200/75">
+                  Finished {finishingPosition}
+                </p>
+              </div>
+            ) : null}
+
+            {calculatorTipType &&
+            !isClosedRace ? (
+              <TipAcceptanceControl
+                tipKey={`calculator-${activeRace?.id}-${runner.id}`}
+                activeKey={
+                  acceptingTipKey
+                }
+                setActiveKey={
+                  setAcceptingTipKey
+                }
+                activeBet={
+                  activeCalculatorUserBet
+                }
+                isSaving={
+                  isSavingTip
+                }
+                formAction={
+                  addUserBetFormAction
+                }
+                buttonLabel={`Accept ${calculatorTipType} Tip`}
+                hiddenFields={{
+                  source:
+                    "calculator",
+                  calculator_tip_id:
+                    calculatorRaceTip?.id ||
+                    "",
+                  race_id:
+                    activeRace?.id || "",
+                  race_runner_id:
+                    runner.id,
+                  horse_id:
+                    runner.horse_id ||
+                    "",
+                  horse:
+                    runner.horse_name ||
+                    "",
+                  race:
+                    activeRaceLabel,
+                  bet_type:
+                    calculatorTipType,
+                }}
+              />
+            ) : null}
+
+            {!isClosedRace &&
+            activeRace ? (
+              <Link
+                href={`/subscriber-dashboard?raceId=${encodeURIComponent(
+                  String(
+                    activeRace.id,
+                  ),
+                )}&runnerId=${encodeURIComponent(
+                  String(runner.id),
+                )}`}
+                className="mt-3 flex w-full items-center justify-center rounded-xl border border-amber-300/45 bg-amber-400/10 px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20"
+              >
+                Build My Own Bet →
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  })}
 </div>
-
-{calculatorTipType && !isClosedRace ? (
-  <TipAcceptanceControl
-    tipKey={`calculator-${activeRace?.id}-${runner.id}`}
-    activeKey={acceptingTipKey}
-    setActiveKey={setAcceptingTipKey}
-    activeBet={activeCalculatorUserBet}
-    isSaving={isSavingTip}
-    formAction={addUserBetFormAction}
-    buttonLabel={`Accept ${calculatorTipType} Tip`}
-    hiddenFields={{
-      source: "calculator",
-      calculator_tip_id: calculatorRaceTip?.id || "",
-      race_id: activeRace?.id || "",
-      race_runner_id: runner.id,
-      horse_id: runner.horse_id || "",
-      horse: runner.horse_name || "",
-      race: activeRaceLabel,
-      bet_type: calculatorTipType,
-    }}
-  />
-) : null}
-
-{!isClosedRace && activeRace ? (
-  <Link
-    href={`/subscriber-dashboard?raceId=${encodeURIComponent(
-      String(activeRace.id),
-    )}&runnerId=${encodeURIComponent(
-      String(runner.id),
-    )}`}
-    className="mt-3 flex w-full items-center justify-center rounded-xl border border-amber-300/45 bg-amber-400/10 px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20"
-  >
-    Build My Own Bet →
-  </Link>
-) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 {raceConfidence ? (
