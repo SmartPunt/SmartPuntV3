@@ -1133,9 +1133,9 @@ export default async function CalculatorReportPage({
     ? await searchParams
     : {};
   const allHistory = first(resolvedSearchParams.range) === "all";
-  const yesterday = pastIso(1);
-  const dateFrom = allHistory ? "" : first(resolvedSearchParams.from) || yesterday;
-  const dateTo = allHistory ? "" : first(resolvedSearchParams.to) || yesterday;
+  const today = todayIso();
+  const dateFrom = allHistory ? "" : first(resolvedSearchParams.from) || today;
+  const dateTo = allHistory ? "" : first(resolvedSearchParams.to) || today;
 
   let predictions: Prediction[] = [];
   let errorMessage = "";
