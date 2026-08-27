@@ -410,7 +410,9 @@ const { data: existingNotifications, error: existingError } =
   alertIds.length
     ? await supabase
         .from("vault_notifications")
-        .select("id, alert_id, race_runner_id")
+        .select(
+          "id, alert_id, race_id, race_runner_id, meeting_date",
+        )
         .in("alert_id", alertIds)
     : {
         data: [],
@@ -434,7 +436,53 @@ const { data: existingNotifications, error: existingError } =
         notification.race_runner_id,
       )}`;
 
-      return !liveMatchKeys.has(key);
+      /*
+       * If this notification still matches the live race program,
+       * it is not stale.
+       */
+      if (liveMatchKeys.has(key)) {
+        return false;
+      }
+
+      const race = raceMap.get(
+        Number(notification.race_id),
+      );
+
+      /*
+       * Never delete a stored Vault match simply because its race
+       * has been resulted/closed or has moved out of the current
+       * live race program.
+       *
+       * These stored notifications are the lightweight historical
+       * record used by Subscriber Live Picks.
+       */
+      if (!race) {
+        return false;
+      }
+
+      const meeting = meetingMap.get(
+        Number(race.meeting_id),
+      );
+
+      if (!meeting) {
+        return false;
+      }
+
+      const isCurrentLiveRace =
+        race.status === "published" &&
+        validDates.has(
+          String(meeting.meeting_date),
+        );
+
+      /*
+       * Only clean up a notification when the race is STILL live
+       * and the horse no longer satisfies the subscriber's Vault
+       * rules — for example after a scratching, jockey change,
+       * condition change or another legitimate pre-race update.
+       *
+       * Once the race is no longer live, preserve the match.
+       */
+      return isCurrentLiveRace;
     })
     .map((notification) => Number(notification.id))
     .filter(Boolean);
