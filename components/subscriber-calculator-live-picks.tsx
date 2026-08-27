@@ -2917,51 +2917,105 @@ return (
     </div>
 
     <div className="space-y-2 p-3">
-      {activeRaceVaultMatches.map((match) => (
-        <div
-          key={match.notificationId}
-          className="rounded-[16px] border border-white/10 bg-black/45 px-3 py-3"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">
-                {match.alertName || "Vault Alert"}
-              </p>
+      {activeRaceVaultMatches.map((match) => {
+        const matchedRunner =
+          runners.find(
+            (runner) =>
+              Number(runner.id) ===
+                Number(match.raceRunnerId) &&
+              Number(runner.race_id) ===
+                Number(activeRace?.id),
+          ) || null;
 
-              <p className="mt-1 text-base font-black leading-tight text-white">
-                {match.runnerNumber
-                  ? `#${match.runnerNumber} ${match.horseName}`
-                  : match.horseName}
-              </p>
-            </div>
+        const finishingPosition =
+          matchedRunner &&
+          (matchedRunner as any)
+            .finishing_position !== null &&
+          (matchedRunner as any)
+            .finishing_position !== undefined
+            ? Number(
+                (matchedRunner as any)
+                  .finishing_position,
+              )
+            : null;
 
-            <span className="shrink-0 rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
-              In Your Vault
-            </span>
-          </div>
+        const finishingPositionLabel =
+          finishingPosition !== null
+            ? formatFinishingPosition(
+                finishingPosition,
+              )
+            : null;
 
-          {match.matchedRules.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {match.matchedRules.map((rule, index) => (
-                <span
-                  key={`${match.notificationId}-${rule.type}-${index}`}
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[8px] font-bold text-zinc-300"
-                >
-                  {rule.label}: {rule.value}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          <Link
-            href="/the-vault"
-            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
+        return (
+          <div
+            key={match.notificationId}
+            className="rounded-[16px] border border-white/10 bg-black/45 px-3 py-3"
           >
-            <VaultDoorIcon className="h-4 w-4" />
-            View in The Vault →
-          </Link>
-        </div>
-      ))}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">
+                  {match.alertName ||
+                    "Vault Alert"}
+                </p>
+
+                <p className="mt-1 text-base font-black leading-tight text-white">
+                  {match.runnerNumber
+                    ? `#${match.runnerNumber} ${match.horseName}`
+                    : match.horseName}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <span className="rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
+                  In Your Vault
+                </span>
+
+                {finishingPositionLabel ? (
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.1em] ${
+                      finishingPosition === 1
+                        ? "border-amber-300/60 bg-amber-400/20 text-amber-100"
+                        : finishingPosition !== null &&
+                            finishingPosition <= 3
+                          ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-100"
+                          : "border-white/15 bg-white/[0.08] text-zinc-300"
+                    }`}
+                  >
+                    {finishingPosition === 1
+                      ? `🏆 ${finishingPositionLabel}`
+                      : finishingPositionLabel}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            {match.matchedRules.length >
+            0 ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {match.matchedRules.map(
+                  (rule, index) => (
+                    <span
+                      key={`${match.notificationId}-${rule.type}-${index}`}
+                      className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[8px] font-bold text-zinc-300"
+                    >
+                      {rule.label}:{" "}
+                      {rule.value}
+                    </span>
+                  ),
+                )}
+              </div>
+            ) : null}
+
+            <Link
+              href="/the-vault"
+              className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
+            >
+              <VaultDoorIcon className="h-4 w-4" />
+              View in The Vault →
+            </Link>
+          </div>
+        );
+      })}
     </div>
   </div>
 ) : null}
