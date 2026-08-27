@@ -256,14 +256,42 @@ function formatDateTime(value?: string | null) {
   });
 }
 
+function perthIsoDate(offsetDays = 0) {
+  const perthParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = Number(
+    perthParts.find((part) => part.type === "year")?.value,
+  );
+  const month = Number(
+    perthParts.find((part) => part.type === "month")?.value,
+  );
+  const day = Number(
+    perthParts.find((part) => part.type === "day")?.value,
+  );
+
+  const shiftedDate = new Date(
+    Date.UTC(year, month - 1, day + offsetDays, 12),
+  );
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(shiftedDate);
+}
+
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return perthIsoDate(0);
 }
 
 function pastIso(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().slice(0, 10);
+  return perthIsoDate(-days);
 }
 
 function buildQuery(params: Record<string, string>) {
