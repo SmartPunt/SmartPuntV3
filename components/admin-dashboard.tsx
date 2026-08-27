@@ -257,6 +257,19 @@ const publishedRunnerMap = useMemo(
 const liveSuggestedTips = useMemo(
   () =>
     suggestedTips.filter((tip: any) => {
+      /*
+       * A tip that has been settled is never a live dashboard tip.
+       * This also protects us from a realtime update leaving a
+       * newly-settled row in the client-side list.
+       */
+      if (tip.settled_at) {
+        return false;
+      }
+
+      /*
+       * Preserve genuinely old legacy tips that were created before
+       * race runners were formally linked.
+       */
       if (!tip.race_runner_id) {
         return true;
       }
@@ -265,10 +278,21 @@ const liveSuggestedTips = useMemo(
         Number(tip.race_runner_id),
       );
 
+      /*
+       * publishedRunnerMap only contains runners belonging to races
+       * that are currently published.
+       *
+       * Therefore, if a structured tip's runner is no longer in this
+       * map, its race has closed/resulted or the link is no longer
+       * valid. It must not remain on the Live Tips dashboard.
+       */
       if (!linkedRunner) {
-        return true;
+        return false;
       }
 
+      /*
+       * Scratched runners must not remain as live tips.
+       */
       return linkedRunner.scratched !== true;
     }),
   [publishedRunnerMap, suggestedTips],
