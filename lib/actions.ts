@@ -9429,6 +9429,15 @@ export async function createFortuneFiveAction(
   const description = String(formData.get("description") ?? "").trim();
   const publishedDateRaw = String(formData.get("published_date") ?? "").trim();
 
+  const returnToRaw = String(
+    formData.get("return_to") ?? "",
+  ).trim();
+
+  const returnTo =
+    returnToRaw === "/mobile-admin/fortune-on-5"
+      ? "/mobile-admin/fortune-on-5"
+      : "/admin/fortune-on-5";
+
   if (!title) {
     throw new Error("Fortune on 5 title is required.");
   }
@@ -9554,9 +9563,10 @@ export async function createFortuneFiveAction(
 
   revalidatePath("/");
   revalidatePath("/admin/fortune-on-5");
+  revalidatePath("/mobile-admin/fortune-on-5");
   revalidatePath("/fortune-on-5");
 
-  redirect("/admin/fortune-on-5");
+  redirect(returnTo);
 }
 
 export async function acceptFortuneFiveAction(
