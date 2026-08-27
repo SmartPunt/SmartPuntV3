@@ -181,6 +181,16 @@ export default async function MobileAdminPage() {
   description="Build a Quinella or Trifecta from the current race program."
   icon="🎯"
 />
+
+<AdminLink
+  href="/mobile-admin/fortune-on-5"
+  eyebrow="The Maverick"
+  title="Fortune on 5"
+  description="Build and publish The Maverick’s five-leg Fortune on 5 directly from your phone."
+  icon="5️⃣"
+  featured
+/>
+
           <AdminLink
             href="/admin/maverick-report"
             eyebrow="Performance"
