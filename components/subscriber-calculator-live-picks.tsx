@@ -3285,8 +3285,31 @@ Maverick Insight
   </div>
 ) : null}
 
-<div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#0b1120_58%,#050505_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
-  <div className="flex items-center justify-between gap-3">
+<div className="relative overflow-hidden rounded-[22px] border border-emerald-300/60 bg-[linear-gradient(135deg,#050505_0%,#07100c_54%,#030504_100%)] p-4 shadow-[0_0_0_1px_rgba(52,211,153,0.08)_inset,0_0_22px_rgba(16,185,129,0.12),0_14px_35px_rgba(0,0,0,0.45)]">
+  {/*
+   * SMARTPUNT TOP 3 DECORATIVE SHELL
+   *
+   * These ornaments are independent of the content height.
+   * Opening one, two or three runners does not stretch either image.
+   */}
+  <img
+    src="/smartpunt/smartpunt-top3-top-left.png"
+    alt=""
+    aria-hidden="true"
+    className="pointer-events-none absolute -left-5 -top-4 z-0 w-[190px] max-w-none select-none opacity-55 sm:w-[215px]"
+  />
+
+  <img
+    src="/smartpunt/smartpunt-top3-bottom-right.png"
+    alt=""
+    aria-hidden="true"
+    className="pointer-events-none absolute -bottom-5 -right-5 z-0 w-[205px] max-w-none select-none opacity-50 sm:w-[230px]"
+  />
+
+  <div className="pointer-events-none absolute inset-0 z-0 rounded-[22px] border border-emerald-300/20" />
+
+  <div className="relative z-10">
+    <div className="flex items-center justify-between gap-3">
     <div>
       <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
         🏆 SmartPunt Top 3
@@ -3850,7 +3873,8 @@ Maverick Insight
     );
   })}
 </div>
-                </div>
+  </div>
+</div>
 
                 {raceConfidence ? (
                   <div className="rounded-[22px] border border-amber-400/45 bg-[linear-gradient(135deg,#050505_0%,#111827_54%,#030712_100%)] p-4 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
