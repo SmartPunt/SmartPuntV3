@@ -3058,7 +3058,7 @@ className="pointer-events-none absolute left-0 top-0 z-0 w-[280px] max-w-none se
     src="/maverick/maverick-card-bottom-right.png"
     alt=""
     aria-hidden="true"
-className="pointer-events-none absolute bottom-0 right-0 z-0 w-[248px] max-w-none select-none opacity-90 sm:w-[273px]"
+className="pointer-events-none absolute bottom-4 right-5 z-0 w-[248px] max-w-none select-none opacity-90 sm:w-[273px]"
   />
 <div className="relative z-10 flex flex-wrap items-start justify-between gap-3">
                       <div>
