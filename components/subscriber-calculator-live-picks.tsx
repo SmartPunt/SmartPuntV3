@@ -3072,9 +3072,9 @@ className="pointer-events-none absolute -bottom-3 -right-4 z-0 w-[248px] max-w-n
       </p>
     </div>
 
-    <p className="mt-5 text-[24px] font-black leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
-      {officialTipSelection}
-    </p>
+<p className="mt-7 text-[24px] font-black leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+  {officialTipSelection}
+</p>
 
     <div className="mt-3 flex justify-center">
       {officialTipBadgeArtwork ? (
