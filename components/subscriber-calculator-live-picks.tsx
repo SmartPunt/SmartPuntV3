@@ -3296,14 +3296,14 @@ Maverick Insight
     src="/smartpunt/smartpunt-top3-top-left.png"
     alt=""
     aria-hidden="true"
-    className="pointer-events-none absolute -left-5 -top-4 z-0 w-[190px] max-w-none select-none opacity-55 sm:w-[215px]"
+className="pointer-events-none absolute -left-1 top-0 z-0 w-[158px] max-w-none select-none opacity-60 sm:w-[180px]"
   />
 
   <img
     src="/smartpunt/smartpunt-top3-bottom-right.png"
     alt=""
     aria-hidden="true"
-    className="pointer-events-none absolute -bottom-5 -right-5 z-0 w-[205px] max-w-none select-none opacity-50 sm:w-[230px]"
+className="pointer-events-none absolute -bottom-4 -right-3 z-0 w-[220px] max-w-none select-none opacity-58 sm:w-[245px]"
   />
 
   <div className="pointer-events-none absolute inset-0 z-0 rounded-[22px] border border-emerald-300/20" />
