@@ -3062,10 +3062,10 @@ className="pointer-events-none absolute -bottom-3 -right-4 z-0 w-[248px] max-w-n
   />
 <div className="relative z-10 flex flex-wrap items-start justify-between gap-3">
                       <div>
-<div className="relative z-10 grid min-h-[104px] grid-cols-[128px_1fr] items-start gap-3 sm:grid-cols-[138px_1fr]">
+<div className="relative z-10 grid min-h-[120px] grid-cols-[128px_1fr] items-start gap-3 sm:grid-cols-[138px_1fr]">
   <div aria-hidden="true" />
 
-  <div className="min-w-0 pt-3 text-right">
+<div className="min-w-0 pt-5 text-right">
     <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-100">
       The Maverick
     </p>
