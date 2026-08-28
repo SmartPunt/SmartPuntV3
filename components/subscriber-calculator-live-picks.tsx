@@ -3046,19 +3046,19 @@ return (
                   </div>
                 ) : null}
                 {officialRaceTip ? (
-<div className="relative overflow-hidden rounded-[20px] bg-[linear-gradient(135deg,#050505_0%,#101113_54%,#020203_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
+<div className="relative overflow-hidden rounded-[20px] border border-zinc-300/35 bg-[linear-gradient(135deg,#050505_0%,#101113_54%,#020203_100%)] p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_14px_35px_rgba(0,0,0,0.45)]">
   <img
     src="/maverick/maverick-card-top-left.png"
     alt=""
     aria-hidden="true"
-className="pointer-events-none absolute left-0 top-0 z-0 w-[285px] max-w-none select-none sm:w-[310px]"
+className="pointer-events-none absolute left-1 top-1 z-0 w-[280px] max-w-none select-none sm:w-[305px]"
   />
 
   <img
     src="/maverick/maverick-card-bottom-right.png"
     alt=""
     aria-hidden="true"
-className="pointer-events-none absolute bottom-0 right-0 z-0 w-[255px] max-w-none select-none opacity-90 sm:w-[280px]"
+className="pointer-events-none absolute bottom-1 right-1 z-0 w-[248px] max-w-none select-none opacity-90 sm:w-[273px]"
   />
 <div className="relative z-10 flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -3091,11 +3091,11 @@ className="pointer-events-none absolute bottom-0 right-0 z-0 w-[255px] max-w-non
     </span>
   )}
 
-  {officialTipConfidence ? (
-    <span className="shrink-0 rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
-      {officialTipConfidence}
-    </span>
-  ) : null}
+{officialTipConfidence ? (
+  <span className="shrink-0 rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
+    {officialTipConfidence} Confidence
+  </span>
+) : null}
 </div>
   </div>
 </div>
