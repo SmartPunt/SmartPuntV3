@@ -3296,7 +3296,7 @@ Maverick Insight
     src="/smartpunt/smartpunt-top3-top-left.png"
     alt=""
     aria-hidden="true"
-className="pointer-events-none absolute -left-2 -top-2 z-0 w-[245px] max-w-none select-none opacity-90 sm:w-[270px]"
+className="pointer-events-none absolute left-0 -top-3 z-0 w-[260px] max-w-none select-none opacity-90 sm:w-[285px]"
   />
 
   <img
@@ -3312,7 +3312,7 @@ className="pointer-events-none absolute -bottom-3 -right-2 z-0 w-[285px] max-w-n
 <div className="grid min-h-[76px] grid-cols-[122px_1fr] items-start gap-2 sm:grid-cols-[140px_1fr]">
       <div aria-hidden="true" />
 
-<div className="min-w-0 -mt-1">
+<div className="min-w-0 -mt-1 text-right">
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
           🏆 SmartPunt Top 3
         </p>
