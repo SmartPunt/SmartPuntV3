@@ -3170,8 +3170,6 @@ SmartPunt Consensus Pick — Calculator and The
 Maverick agree
                           </p>
                         ) : null}
-                      </div>
-                    </div>
 
 {officialTipComment ? (
 <div className="relative z-10 mt-3 pb-2 text-center">
@@ -3242,6 +3240,7 @@ Maverick Insight
   )}
 </div>
                   </div>
+                </div>
 ) : null}
 
 {activeRaceWatchSuggestions.length > 0 ? (
