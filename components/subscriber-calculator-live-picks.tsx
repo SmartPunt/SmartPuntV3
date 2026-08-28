@@ -3060,45 +3060,50 @@ className="pointer-events-none absolute left-0 top-0 z-0 w-[280px] max-w-none se
     aria-hidden="true"
 className="pointer-events-none absolute -bottom-3 -right-4 z-0 w-[248px] max-w-none select-none opacity-90 sm:w-[273px]"
   />
-<div className="relative z-10 flex flex-wrap items-start justify-between gap-3">
-                      <div>
-<div className="relative z-10 grid min-h-[120px] grid-cols-[128px_1fr] items-start gap-3 sm:grid-cols-[138px_1fr]">
-  <div aria-hidden="true" />
+<div className="relative z-10">
+  <div className="min-h-[120px] pt-5 text-center">
+    <div className="ml-[128px] sm:ml-[138px]">
+      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-100">
+        The Maverick
+      </p>
 
-<div className="min-w-0 pt-5 text-right">
-    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-100">
-      The Maverick
-    </p>
+      <p className="mt-1 text-[8px] font-black uppercase tracking-[0.16em] text-zinc-400">
+        Official Selection
+      </p>
+    </div>
 
-    <p className="mt-1 text-[8px] font-black uppercase tracking-[0.16em] text-zinc-400">
-      Official Selection
-    </p>
-
-    <p className="mt-3 text-[19px] font-black leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+    <p className="mt-5 text-[24px] font-black leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
       {officialTipSelection}
     </p>
 
-<div className="mt-3 flex flex-wrap items-center justify-end gap-2 pr-4">
-  {officialTipBadgeArtwork ? (
-    <img
-      src={officialTipBadgeArtwork}
-      alt={officialTipType}
-      className="h-[38px] w-auto max-w-[118px] shrink-0 object-contain drop-shadow-[0_2px_5px_rgba(0,0,0,0.8)]"
-    />
-  ) : (
-    <span className="shrink-0 rounded-full border border-zinc-200/45 bg-black/65 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-zinc-100">
-      {officialTipType}
-    </span>
-  )}
+    <div className="mt-3 flex justify-center">
+      {officialTipBadgeArtwork ? (
+        <img
+          src={officialTipBadgeArtwork}
+          alt={officialTipType}
+          className="h-[42px] w-auto max-w-[132px] object-contain drop-shadow-[0_2px_5px_rgba(0,0,0,0.8)]"
+        />
+      ) : (
+        <span className="rounded-full border border-zinc-200/45 bg-black/65 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-zinc-100">
+          {officialTipType}
+        </span>
+      )}
+    </div>
 
-  {officialTipConfidence ? (
-    <span className="shrink-0 rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
-      {officialTipConfidence} Confidence
-    </span>
-  ) : null}
-</div>
+    <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+      {officialTipConfidence ? (
+        <span className="rounded-full border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
+          {officialTipConfidence} Confidence
+        </span>
+      ) : null}
+
+      {officialTipAngle ? (
+        <span className="rounded-full border border-amber-300/40 bg-black/55 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
+          The Maverick&apos;s Angle
+        </span>
+      ) : null}
+    </div>
   </div>
-</div>
 
 {officialTipResult?.successful ? (
   <div className="relative mt-4 overflow-hidden rounded-[18px] border-2 border-amber-200/80 bg-[radial-gradient(circle_at_left,rgba(251,191,36,0.24),transparent_38%),linear-gradient(135deg,rgba(69,26,3,0.96)_0%,rgba(17,17,17,0.98)_48%,rgba(0,0,0,1)_100%)] shadow-[0_0_30px_rgba(251,191,36,0.24),0_14px_30px_rgba(0,0,0,0.45)]">
@@ -3209,32 +3214,6 @@ buttonLabel="Accept Maverick Tip"
                         )}
                       </div>
                     </div>
-
-                    {officialTipAngle ? (
-                      <div className="relative mt-4 overflow-hidden rounded-[18px] border-2 border-amber-300/70 bg-[linear-gradient(135deg,rgba(251,191,36,0.24)_0%,rgba(120,53,15,0.34)_42%,rgba(0,0,0,0.72)_100%)] px-4 py-4 shadow-[0_0_24px_rgba(251,191,36,0.18),0_12px_28px_rgba(0,0,0,0.35)]">
-                        <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/20 blur-2xl" />
-
-                        <div className="relative flex items-start gap-3">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-amber-200/40 bg-black/65 shadow-[0_0_16px_rgba(251,191,36,0.22)]">
-<img
-  src="/maverick/maverick-shield.png"
-  alt=""
-  className="h-full w-full object-contain p-0.5"
-/>
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-200">
-The Maverick's Angle
-                            </p>
-
-                            <p className="mt-2 text-[14px] font-bold leading-6 text-white">
-                              {officialTipAngle}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
 
 {officialTipComment ? (
 <div className="relative z-10 mt-2 pb-2">
