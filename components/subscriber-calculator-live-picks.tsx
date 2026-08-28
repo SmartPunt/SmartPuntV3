@@ -3047,7 +3047,7 @@ return (
   />
 <div className="relative z-10 flex flex-wrap items-start justify-between gap-3">
                       <div>
-<div className="relative z-10 grid min-h-[112px] grid-cols-[112px_1fr] items-start gap-3 sm:grid-cols-[126px_1fr]">
+<div className="relative z-10 grid min-h-[104px] grid-cols-[128px_1fr] items-start gap-3 sm:grid-cols-[138px_1fr]">
   <div aria-hidden="true" />
 
   <div className="min-w-0 pt-3 text-right">
@@ -3144,9 +3144,9 @@ Maverick agree
                         ) : null}
                       </div>
 
-                      <div className="min-w-[132px]">
-                        {!isClosedRace ? (
-                          <TipAcceptanceControl
+<div className="-mt-2 min-w-[132px]">
+  {!isClosedRace ? (
+    <TipAcceptanceControl
                             tipKey={`head-${officialRaceTip.id}`}
                             activeKey={acceptingTipKey}
                             setActiveKey={setAcceptingTipKey}
@@ -3213,10 +3213,10 @@ The Maverick's Angle
                       </div>
                     ) : null}
 
-                    {officialTipComment ? (
-<div className="relative z-10 mt-3">
-                        <button
-                          type="button"
+{officialTipComment ? (
+<div className="relative z-10 mt-2 pr-20">
+  <button
+    type="button"
                           onClick={() =>
                             setExpandedOfficialTipComment((value) => !value)
                           }
