@@ -3309,22 +3309,25 @@ className="pointer-events-none absolute -bottom-4 -right-3 z-0 w-[220px] max-w-n
   <div className="pointer-events-none absolute inset-0 z-0 rounded-[22px] border border-emerald-300/20" />
 
   <div className="relative z-10">
-    <div className="flex items-center justify-between gap-3">
-    <div>
-      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
-        🏆 SmartPunt Top 3
-      </p>
-      <p className="mt-1 text-[10px] font-semibold text-zinc-300">
-{isClosedRace
-  ? "Final race result."
-  : "Today’s SmartPunt rankings."}
-      </p>
-    </div>
+    <div className="grid min-h-[96px] grid-cols-[122px_1fr] items-start gap-2 sm:grid-cols-[140px_1fr]">
+      <div aria-hidden="true" />
 
-<span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
-  SmartPunt
-</span>
-  </div>
+      <div className="min-w-0 pt-1">
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
+          🏆 SmartPunt Top 3
+        </p>
+
+        <p className="mt-1 text-[10px] font-semibold leading-4 text-zinc-300">
+          {isClosedRace
+            ? "Final race result."
+            : "Today’s SmartPunt rankings."}
+        </p>
+
+        <span className="mt-2 inline-flex rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-amber-200">
+          SmartPunt
+        </span>
+      </div>
+    </div>
 
 {calculatorWinnerResult ? (
   <div className="mt-4">
