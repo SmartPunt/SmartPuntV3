@@ -3078,25 +3078,25 @@ className="pointer-events-none absolute bottom-0 right-0 z-0 w-[255px] max-w-non
       {officialTipSelection}
     </p>
 
-    <div className="mt-2 flex flex-wrap justify-end gap-1.5">
-{officialTipBadgeArtwork ? (
-  <img
-    src={officialTipBadgeArtwork}
-    alt={officialTipType}
-    className="h-[38px] w-auto max-w-[118px] object-contain drop-shadow-[0_2px_5px_rgba(0,0,0,0.8)]"
-  />
-) : (
-  <span className="rounded-full border border-zinc-200/45 bg-black/65 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-zinc-100">
-    {officialTipType}
-  </span>
-)}
+<div className="mt-2 flex items-center justify-end gap-2 pr-8">
+  {officialTipBadgeArtwork ? (
+    <img
+      src={officialTipBadgeArtwork}
+      alt={officialTipType}
+      className="h-[38px] w-auto max-w-[118px] shrink-0 object-contain drop-shadow-[0_2px_5px_rgba(0,0,0,0.8)]"
+    />
+  ) : (
+    <span className="shrink-0 rounded-full border border-zinc-200/45 bg-black/65 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-zinc-100">
+      {officialTipType}
+    </span>
+  )}
 
-{officialTipConfidence ? (
-  <span className="mr-6 rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
-    {officialTipConfidence}
-  </span>
-) : null}
-    </div>
+  {officialTipConfidence ? (
+    <span className="shrink-0 rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
+      {officialTipConfidence}
+    </span>
+  ) : null}
+</div>
   </div>
 </div>
 
