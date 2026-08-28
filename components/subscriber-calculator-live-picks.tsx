@@ -3167,7 +3167,7 @@ Maverick agree
                         ) : null}
                       </div>
 
-<div className="-mt-2 min-w-[132px]">
+<div className="-mt-8 min-w-[132px]">
   {!isClosedRace ? (
     <TipAcceptanceControl
                             tipKey={`head-${officialRaceTip.id}`}
