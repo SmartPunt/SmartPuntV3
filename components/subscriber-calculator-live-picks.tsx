@@ -3296,7 +3296,7 @@ Maverick Insight
     src="/smartpunt/smartpunt-top3-top-left.png"
     alt=""
     aria-hidden="true"
-className="pointer-events-none absolute -left-1 top-0 z-0 w-[158px] max-w-none select-none opacity-60 sm:w-[180px]"
+className="pointer-events-none absolute -left-3 -top-2 z-0 w-[180px] max-w-none select-none opacity-85 sm:w-[200px]"
   />
 
   <img
