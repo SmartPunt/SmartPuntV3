@@ -3031,45 +3031,51 @@ return (
                   </div>
                 ) : null}
                 {officialRaceTip ? (
-                  <div className="rounded-[20px] border border-emerald-300/45 bg-[linear-gradient(135deg,rgba(6,78,59,0.55)_0%,rgba(2,6,23,0.96)_55%,rgba(0,0,0,0.98)_100%)] p-3 shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-<div className="inline-flex items-center gap-3 rounded-[18px] border border-amber-300/35 bg-[linear-gradient(135deg,rgba(251,191,36,0.16)_0%,rgba(0,0,0,0.52)_100%)] px-3.5 py-3 shadow-[0_0_22px_rgba(251,191,36,0.14)]">
-  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-200/45 bg-black/70 shadow-[0_0_20px_rgba(251,191,36,0.28)]">
-    <img
-      src="/maverick/maverick-shield.png"
-      alt="The Maverick"
-      className="h-full w-full object-contain p-1"
-    />
-  </div>
+<div className="relative overflow-hidden rounded-[20px] border border-zinc-300/45 bg-[linear-gradient(135deg,#050505_0%,#101113_54%,#020203_100%)] p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset,0_14px_35px_rgba(0,0,0,0.45)]">
+  <img
+    src="/maverick/maverick-card-top-left.png"
+    alt=""
+    aria-hidden="true"
+    className="pointer-events-none absolute -left-2 -top-2 z-0 w-[285px] max-w-none select-none sm:w-[310px]"
+  />
 
-  <div>
-    <p className="text-[14px] font-black uppercase leading-none tracking-[0.18em] text-amber-200">
+  <img
+    src="/maverick/maverick-card-bottom-right.png"
+    alt=""
+    aria-hidden="true"
+    className="pointer-events-none absolute -bottom-3 -right-2 z-0 w-[255px] max-w-none select-none opacity-90 sm:w-[280px]"
+  />
+<div className="relative z-10 flex flex-wrap items-start justify-between gap-3">
+                      <div>
+<div className="relative z-10 grid min-h-[112px] grid-cols-[112px_1fr] items-start gap-3 sm:grid-cols-[126px_1fr]">
+  <div aria-hidden="true" />
+
+  <div className="min-w-0 pt-3 text-right">
+    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-100">
       The Maverick
     </p>
 
-    <p className="mt-2 text-[9px] font-black uppercase tracking-[0.16em] text-emerald-200">
+    <p className="mt-1 text-[8px] font-black uppercase tracking-[0.16em] text-zinc-400">
       Official Selection
     </p>
 
-    <div className="mt-2 h-px w-full bg-gradient-to-r from-amber-300/70 to-transparent" />
+    <p className="mt-3 text-[19px] font-black leading-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+      {officialTipSelection}
+    </p>
+
+    <div className="mt-2 flex flex-wrap justify-end gap-1.5">
+      <span className="rounded-full border border-zinc-200/45 bg-black/65 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-zinc-100">
+        {officialTipType}
+      </span>
+
+      {officialTipConfidence ? (
+        <span className="rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
+          {officialTipConfidence}
+        </span>
+      ) : null}
+    </div>
   </div>
 </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <p className="text-lg font-black leading-tight text-white">
-                            {officialTipSelection}
-                          </p>
-
-                          <span className="rounded-full border border-amber-300/35 bg-amber-400/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
-                            {officialTipType}
-                          </span>
-
-                          {officialTipConfidence ? (
-                            <span className="rounded-full border border-sky-300/30 bg-sky-400/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-sky-100">
-                              {officialTipConfidence}
-                            </span>
-                          ) : null}
-                        </div>
 
 {officialTipResult?.successful ? (
   <div className="relative mt-4 overflow-hidden rounded-[18px] border-2 border-amber-200/80 bg-[radial-gradient(circle_at_left,rgba(251,191,36,0.24),transparent_38%),linear-gradient(135deg,rgba(69,26,3,0.96)_0%,rgba(17,17,17,0.98)_48%,rgba(0,0,0,1)_100%)] shadow-[0_0_30px_rgba(251,191,36,0.24),0_14px_30px_rgba(0,0,0,0.45)]">
@@ -3208,7 +3214,7 @@ The Maverick's Angle
                     ) : null}
 
                     {officialTipComment ? (
-                      <div className="mt-3">
+<div className="relative z-10 mt-3">
                         <button
                           type="button"
                           onClick={() =>
