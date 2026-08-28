@@ -2619,10 +2619,10 @@ return (
                           className="block h-auto w-full object-contain"
                         />
 
-                        <span className="pointer-events-none absolute inset-y-0 left-[36%] right-[4%] flex min-w-0 items-center">
+<span className="pointer-events-none absolute inset-y-0 left-[33%] right-[2%] flex min-w-0 items-center">
                           <span className="grid w-full grid-cols-[1fr_auto] items-center gap-2 px-2">
 <span className="min-w-0 text-center">
-  <span className="block truncate text-[8px] font-black uppercase tracking-[0.08em] text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[9px]">
+<span className="block whitespace-nowrap text-[7px] font-black uppercase tracking-[0.04em] text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[8px]">
     {bet.meeting || "Meeting"}
     {bet.race_number
       ? ` R${bet.race_number}`
