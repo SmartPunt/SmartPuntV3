@@ -3078,7 +3078,7 @@ className="pointer-events-none absolute -bottom-3 -right-4 z-0 w-[248px] max-w-n
       {officialTipSelection}
     </p>
 
-<div className="mt-2 flex items-center justify-end gap-2 pr-8">
+<div className="mt-3 flex flex-wrap items-center justify-end gap-2 pr-4">
   {officialTipBadgeArtwork ? (
     <img
       src={officialTipBadgeArtwork}
@@ -3091,11 +3091,11 @@ className="pointer-events-none absolute -bottom-3 -right-4 z-0 w-[248px] max-w-n
     </span>
   )}
 
-{officialTipConfidence ? (
-  <span className="shrink-0 rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
-    {officialTipConfidence} Confidence
-  </span>
-) : null}
+  {officialTipConfidence ? (
+    <span className="shrink-0 rounded-full border border-amber-300/40 bg-amber-400/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
+      {officialTipConfidence} Confidence
+    </span>
+  ) : null}
 </div>
   </div>
 </div>
@@ -3167,7 +3167,7 @@ Maverick agree
                         ) : null}
                       </div>
 
-<div className="-mt-8 min-w-[132px]">
+<div className="relative z-10 mt-3 w-full">
   {!isClosedRace ? (
     <TipAcceptanceControl
                             tipKey={`head-${officialRaceTip.id}`}
@@ -3237,13 +3237,13 @@ The Maverick's Angle
                     ) : null}
 
 {officialTipComment ? (
-<div className="relative z-10 mt-2 pb-2 pr-24">
+<div className="relative z-10 mt-2 pb-2">
   <button
     type="button"
                           onClick={() =>
                             setExpandedOfficialTipComment((value) => !value)
                           }
-                          className="rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:bg-white/10"
+                          className="w-full rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:bg-white/10"
                         >
 {expandedOfficialTipComment
   ? "Hide Maverick Insight"
