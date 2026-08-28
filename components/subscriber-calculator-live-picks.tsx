@@ -3312,7 +3312,7 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
 <div className="grid min-h-[76px] grid-cols-[122px_1fr] items-start gap-2 sm:grid-cols-[140px_1fr]">
       <div aria-hidden="true" />
 
-<div className="min-w-0 -mt-1 text-right">
+<div className="min-w-0 mt-2 text-right">
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-300">
           🏆 SmartPunt Top 3
         </p>
@@ -3323,9 +3323,23 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
             : "Today’s SmartPunt rankings."}
         </p>
 
-<span className="mt-1.5 inline-flex rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-amber-200">
-          SmartPunt
-        </span>
+<span
+  className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] ${
+    qualifiedTip?.type === "Win"
+      ? "border-amber-300/50 bg-amber-400/15 text-amber-100"
+      : qualifiedTip?.type === "Place"
+        ? "border-emerald-300/45 bg-emerald-400/15 text-emerald-100"
+        : "border-zinc-500/40 bg-zinc-500/10 text-zinc-300"
+  }`}
+>
+  <span>{qualifiedTip?.type || "No Bet"}</span>
+
+  <span className="opacity-50">•</span>
+
+  <span>
+    {raceConfidence?.confidencePercent ?? 0}% Confidence
+  </span>
+</span>
       </div>
     </div>
 
