@@ -3171,58 +3171,16 @@ Maverick agree
                           </p>
                         ) : null}
                       </div>
-
-<div className="relative z-10 mt-3 w-full">
-  {!isClosedRace ? (
-    <TipAcceptanceControl
-                            tipKey={`head-${officialRaceTip.id}`}
-                            activeKey={acceptingTipKey}
-                            setActiveKey={setAcceptingTipKey}
-                            activeBet={activeHeadTipperUserBet}
-                            isSaving={isSavingTip}
-                            formAction={addUserBetFormAction}
-buttonLabel="Accept Maverick Tip"
-                            hiddenFields={{
-                              source: "head_tipper",
-                              suggested_tip_id:
-                                officialRaceTip.id,
-                              race_id:
-                                officialRaceTip.race_id ||
-                                activeRace?.id ||
-                                "",
-                              race_runner_id:
-                                officialRaceTip.race_runner_id ||
-                                officialRaceTipRunner?.id ||
-                                "",
-                              horse_id:
-                                officialRaceTip.horse_id ||
-                                officialRaceTipRunner?.horse_id ||
-                                "",
-                              horse:
-                                officialTipSelection,
-                              race:
-                                officialRaceTip.race ||
-                                activeRaceLabel,
-                              bet_type:
-                                officialTipType,
-                            }}
-                          />
-                        ) : (
-                          <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
-                            Race Finalised
-                          </div>
-                        )}
-                      </div>
                     </div>
 
 {officialTipComment ? (
-<div className="relative z-10 mt-2 pb-2">
+<div className="relative z-10 mt-3 pb-2 text-center">
   <button
     type="button"
                           onClick={() =>
                             setExpandedOfficialTipComment((value) => !value)
                           }
-                          className="w-full rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-200 transition hover:bg-white/10"
+                          className="mx-auto w-full max-w-[260px] rounded-full border border-white/15 bg-black/45 px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.12em] text-zinc-100 transition hover:bg-white/10"
                         >
 {expandedOfficialTipComment
   ? "Hide Maverick Insight"
@@ -3241,6 +3199,48 @@ Maverick Insight
                         ) : null}
                       </div>
                     ) : null}
+
+<div className="relative z-10 mx-auto w-full max-w-[260px] pb-2 text-center">
+  {!isClosedRace ? (
+    <TipAcceptanceControl
+      tipKey={`head-${officialRaceTip.id}`}
+      activeKey={acceptingTipKey}
+      setActiveKey={setAcceptingTipKey}
+      activeBet={activeHeadTipperUserBet}
+      isSaving={isSavingTip}
+      formAction={addUserBetFormAction}
+      buttonLabel="Accept Maverick Tip"
+      hiddenFields={{
+        source: "head_tipper",
+        suggested_tip_id:
+          officialRaceTip.id,
+        race_id:
+          officialRaceTip.race_id ||
+          activeRace?.id ||
+          "",
+        race_runner_id:
+          officialRaceTip.race_runner_id ||
+          officialRaceTipRunner?.id ||
+          "",
+        horse_id:
+          officialRaceTip.horse_id ||
+          officialRaceTipRunner?.horse_id ||
+          "",
+        horse:
+          officialTipSelection,
+        race:
+          officialRaceTip.race ||
+          activeRaceLabel,
+        bet_type:
+          officialTipType,
+      }}
+    />
+  ) : (
+    <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
+      Race Finalised
+    </div>
+  )}
+</div>
                   </div>
 ) : null}
 
