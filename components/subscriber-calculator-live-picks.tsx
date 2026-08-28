@@ -2622,18 +2622,15 @@ return (
                         <span className="pointer-events-none absolute inset-y-0 left-[36%] right-[4%] flex min-w-0 items-center">
                           <span className="grid w-full grid-cols-[1fr_auto] items-center gap-2 px-2">
 <span className="min-w-0 text-center">
-  <span className="block truncate text-[9px] font-black uppercase tracking-[0.11em] text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[10px]">
+  <span className="block truncate text-[8px] font-black uppercase tracking-[0.08em] text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[9px]">
     {bet.meeting || "Meeting"}
     {bet.race_number
       ? ` R${bet.race_number}`
       : ""}
+    {raceDate
+      ? ` · ${raceDate}`
+      : ""}
   </span>
-
-  {raceDate ? (
-    <span className="mt-0.5 block text-[8px] font-black uppercase tracking-[0.1em] text-amber-200/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
-      {raceDate}
-    </span>
-  ) : null}
 
   <span className="mt-0.5 block truncate text-[11px] font-black leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] sm:text-[12px]">
     {bet.horse || "Selection"}
