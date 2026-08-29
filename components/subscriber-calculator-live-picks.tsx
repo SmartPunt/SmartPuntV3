@@ -972,8 +972,30 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
   const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
   const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
     useState(false);
-  const [showBestOpportunities, setShowBestOpportunities] = useState(true);
-  const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
+const [showBestOpportunities, setShowBestOpportunities] = useState(true);
+
+const [showOpportunityFilters, setShowOpportunityFilters] =
+  useState(false);
+
+const [opportunitySourceFilter, setOpportunitySourceFilter] =
+  useState<"all" | "maverick" | "calculator">("all");
+
+const [opportunityBetTypes, setOpportunityBetTypes] =
+  useState<string[]>(["win", "place", "each way"]);
+
+const [opportunityMeetings, setOpportunityMeetings] =
+  useState<string[]>([]);
+
+const [showVaultOpportunities, setShowVaultOpportunities] =
+  useState(true);
+
+const [showGetOnEarlyOpportunities, setShowGetOnEarlyOpportunities] =
+  useState(true);
+
+const [showExoticOpportunities, setShowExoticOpportunities] =
+  useState(true);
+
+const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
     number[]
   >([]);
   const [acceptingTipKey, setAcceptingTipKey] = useState<string | null>(null);
@@ -2274,6 +2296,230 @@ return items.sort((a, b) => {
   runners,
 ]);
 
+const opportunityMeetingOptions = useMemo(() => {
+  const names = new Set<string>();
+
+  bestOpportunities.forEach((item) => {
+    if (item.meetingName) {
+      names.add(item.meetingName);
+    }
+  });
+
+  vaultOpportunities.forEach((item) => {
+    if (item.meeting?.meeting_name) {
+      names.add(item.meeting.meeting_name);
+    }
+  });
+
+  getOnEarlyBets.forEach((bet) => {
+    if (bet.meeting) {
+      names.add(String(bet.meeting));
+    }
+  });
+
+  maverickExoticTips.forEach((tip) => {
+    const race = races.find(
+      (item) =>
+        Number(item.id) ===
+        Number(tip.race_id),
+    );
+
+    const meeting = race
+      ? meetings.find(
+          (item) =>
+            Number(item.id) ===
+            Number(race.meeting_id),
+        )
+      : null;
+
+    if (meeting?.meeting_name) {
+      names.add(meeting.meeting_name);
+    }
+  });
+
+  return Array.from(names).sort((a, b) =>
+    a.localeCompare(b, "en-AU", {
+      sensitivity: "base",
+    }),
+  );
+}, [
+  bestOpportunities,
+  getOnEarlyBets,
+  maverickExoticTips,
+  meetings,
+  races,
+  vaultOpportunities,
+]);
+
+function meetingPassesOpportunityFilter(
+  meetingName?: string | null,
+) {
+  if (opportunityMeetings.length === 0) {
+    return true;
+  }
+
+  return opportunityMeetings.includes(
+    String(meetingName || ""),
+  );
+}
+
+function betTypePassesOpportunityFilter(
+  betType?: string | null,
+) {
+  const value = String(betType || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+
+  const normalised =
+    value === "eachway" ? "each way" : value;
+
+  return opportunityBetTypes.includes(
+    normalised,
+  );
+}
+
+const filteredBestOpportunities = useMemo(
+  () =>
+    bestOpportunities.filter((item) => {
+      if (
+        !meetingPassesOpportunityFilter(
+          item.meetingName,
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        !betTypePassesOpportunityFilter(
+          item.betType,
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        opportunitySourceFilter ===
+          "maverick" &&
+        item.source !== "HEAD" &&
+        item.source !== "CONSENSUS"
+      ) {
+        return false;
+      }
+
+      if (
+        opportunitySourceFilter ===
+          "calculator" &&
+        item.source !== "CALC" &&
+        item.source !== "CONSENSUS"
+      ) {
+        return false;
+      }
+
+      return true;
+    }),
+  [
+    bestOpportunities,
+    opportunityBetTypes,
+    opportunityMeetings,
+    opportunitySourceFilter,
+  ],
+);
+
+const filteredVaultOpportunities = useMemo(
+  () =>
+    showVaultOpportunities
+      ? vaultOpportunities.filter((item) =>
+          meetingPassesOpportunityFilter(
+            item.meeting.meeting_name,
+          ),
+        )
+      : [],
+  [
+    opportunityMeetings,
+    showVaultOpportunities,
+    vaultOpportunities,
+  ],
+);
+
+const filteredGetOnEarlyBets = useMemo(
+  () =>
+    showGetOnEarlyOpportunities
+      ? getOnEarlyBets.filter((bet) => {
+          if (
+            !meetingPassesOpportunityFilter(
+              bet.meeting,
+            )
+          ) {
+            return false;
+          }
+
+          return betTypePassesOpportunityFilter(
+            bet.bet_type,
+          );
+        })
+      : [],
+  [
+    getOnEarlyBets,
+    opportunityBetTypes,
+    opportunityMeetings,
+    showGetOnEarlyOpportunities,
+  ],
+);
+
+const filteredMaverickExoticTips = useMemo(
+  () =>
+    showExoticOpportunities
+      ? maverickExoticTips.filter((tip) => {
+          const race = races.find(
+            (item) =>
+              Number(item.id) ===
+              Number(tip.race_id),
+          );
+
+          const meeting = race
+            ? meetings.find(
+                (item) =>
+                  Number(item.id) ===
+                  Number(race.meeting_id),
+              )
+            : null;
+
+          return meetingPassesOpportunityFilter(
+            meeting?.meeting_name,
+          );
+        })
+      : [],
+  [
+    maverickExoticTips,
+    meetings,
+    opportunityMeetings,
+    races,
+    showExoticOpportunities,
+  ],
+);
+
+const hasActiveOpportunityFilters =
+  opportunitySourceFilter !== "all" ||
+  opportunityMeetings.length > 0 ||
+  opportunityBetTypes.length !== 3 ||
+  !showVaultOpportunities ||
+  !showGetOnEarlyOpportunities ||
+  !showExoticOpportunities;
+
+function resetOpportunityFilters() {
+  setOpportunitySourceFilter("all");
+  setOpportunityMeetings([]);
+  setOpportunityBetTypes([
+    "win",
+    "place",
+    "each way",
+  ]);
+  setShowVaultOpportunities(true);
+  setShowGetOnEarlyOpportunities(true);
+  setShowExoticOpportunities(true);
+}
+
   return (
     <div className="min-h-screen bg-[#171107] px-3 py-5 text-white sm:px-5">
       <div className="mx-auto max-w-[430px]">
@@ -2308,10 +2554,244 @@ return items.sort((a, b) => {
           </div>
 
 {showBestOpportunities ? (
-  <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
-{maverickExoticTips.length > 0 ? (
+  <>
+    <div className="mb-2 flex items-center justify-between gap-2 px-1">
+      <button
+        type="button"
+        onClick={() =>
+          setShowOpportunityFilters(
+            (value) => !value,
+          )
+        }
+        className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em] transition ${
+          hasActiveOpportunityFilters
+            ? "border-amber-200/60 bg-amber-300/20 text-amber-100"
+            : "border-white/15 bg-white/[0.06] text-zinc-300"
+        }`}
+      >
+        Filter
+        {hasActiveOpportunityFilters ? (
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+        ) : null}
+      </button>
+
+      {hasActiveOpportunityFilters ? (
+        <button
+          type="button"
+          onClick={resetOpportunityFilters}
+          className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-400 transition hover:text-amber-200"
+        >
+          Reset
+        </button>
+      ) : null}
+    </div>
+
+    {showOpportunityFilters ? (
+      <div className="mb-2 rounded-[16px] border border-amber-300/20 bg-black/70 p-3 shadow-[0_10px_25px_rgba(0,0,0,0.35)]">
+        <div>
+          <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-300">
+            Source
+          </p>
+
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            {(
+              [
+                ["all", "All"],
+                ["maverick", "Maverick"],
+                ["calculator", "Calculator"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() =>
+                  setOpportunitySourceFilter(
+                    value,
+                  )
+                }
+                className={`rounded-xl border px-2 py-2 text-[8px] font-black uppercase tracking-[0.08em] transition ${
+                  opportunitySourceFilter ===
+                  value
+                    ? "border-amber-300/55 bg-amber-300/15 text-amber-100"
+                    : "border-white/10 bg-white/[0.04] text-zinc-400"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-300">
+            Bet Type
+          </p>
+
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            {[
+              ["win", "Win"],
+              ["place", "Place"],
+              ["each way", "Each Way"],
+            ].map(([value, label]) => {
+              const selected =
+                opportunityBetTypes.includes(
+                  value,
+                );
+
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    setOpportunityBetTypes(
+                      (current) =>
+                        current.includes(value)
+                          ? current.filter(
+                              (item) =>
+                                item !== value,
+                            )
+                          : [
+                              ...current,
+                              value,
+                            ],
+                    )
+                  }
+                  className={`rounded-xl border px-2 py-2 text-[8px] font-black uppercase tracking-[0.08em] transition ${
+                    selected
+                      ? "border-emerald-300/45 bg-emerald-400/10 text-emerald-100"
+                      : "border-white/10 bg-white/[0.04] text-zinc-500"
+                  }`}
+                >
+                  {selected ? "✓ " : ""}
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-300">
+            Include
+          </p>
+
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            {[
+              {
+                label: "Vault",
+                value:
+                  showVaultOpportunities,
+                toggle: () =>
+                  setShowVaultOpportunities(
+                    (value) => !value,
+                  ),
+              },
+              {
+                label: "Get On Early",
+                value:
+                  showGetOnEarlyOpportunities,
+                toggle: () =>
+                  setShowGetOnEarlyOpportunities(
+                    (value) => !value,
+                  ),
+              },
+              {
+                label: "Exotics",
+                value:
+                  showExoticOpportunities,
+                toggle: () =>
+                  setShowExoticOpportunities(
+                    (value) => !value,
+                  ),
+              },
+            ].map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                onClick={option.toggle}
+                className={`rounded-xl border px-2 py-2 text-[7px] font-black uppercase tracking-[0.07em] transition ${
+                  option.value
+                    ? "border-amber-300/45 bg-amber-300/10 text-amber-100"
+                    : "border-white/10 bg-white/[0.04] text-zinc-500"
+                }`}
+              >
+                {option.value ? "✓ " : ""}
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-300">
+              Meetings
+            </p>
+
+            {opportunityMeetings.length >
+            0 ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setOpportunityMeetings([])
+                }
+                className="text-[7px] font-black uppercase tracking-[0.1em] text-zinc-400"
+              >
+                All Meetings
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-2 flex max-h-[112px] flex-wrap gap-1.5 overflow-y-auto">
+            {opportunityMeetingOptions.map(
+              (meetingName) => {
+                const selected =
+                  opportunityMeetings.includes(
+                    meetingName,
+                  );
+
+                return (
+                  <button
+                    key={meetingName}
+                    type="button"
+                    onClick={() =>
+                      setOpportunityMeetings(
+                        (current) =>
+                          current.includes(
+                            meetingName,
+                          )
+                            ? current.filter(
+                                (item) =>
+                                  item !==
+                                  meetingName,
+                              )
+                            : [
+                                ...current,
+                                meetingName,
+                              ],
+                      )
+                    }
+                    className={`rounded-full border px-2.5 py-1.5 text-[7px] font-black uppercase tracking-[0.07em] transition ${
+                      selected
+                        ? "border-amber-300/55 bg-amber-300/15 text-amber-100"
+                        : "border-white/10 bg-white/[0.04] text-zinc-400"
+                    }`}
+                  >
+                    {selected ? "✓ " : ""}
+                    {meetingName}
+                  </button>
+                );
+              },
+            )}
+          </div>
+        </div>
+      </div>
+    ) : null}
+
+    <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
+{filteredMaverickExoticTips.length > 0 ? (
       <div className="mb-2 space-y-1.5">
-        {maverickExoticTips
+        {filteredMaverickExoticTips
           .map((tip) => {
             const race =
               races.find(
@@ -2491,8 +2971,8 @@ return (
           })}
       </div>
     ) : null}
-    {bestOpportunities.length ? (
-      bestOpportunities.map((item) => {
+    {filteredBestOpportunities.length ? (
+      filteredBestOpportunities.map((item) => {
                   const isSelected =
                     activeRace && Number(activeRace.id) === Number(item.raceId);
 const tipArtwork =
@@ -2586,16 +3066,11 @@ return (
   </button>
                   );
                 })
-              ) : (
-                <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center text-[11px] font-bold text-zinc-300">
-                  No SmartPunt opportunities yet. Use the race selector below to
-                  review every live race.
-                </div>
-              )}
+              ) : null}
 
-              {getOnEarlyBets.length > 0 ? (
-                <div className="mt-2 space-y-1.5">
-                  {getOnEarlyBets.map((bet) => {
+{filteredGetOnEarlyBets.length > 0 ? (
+  <div className="mt-2 space-y-1.5">
+    {filteredGetOnEarlyBets.map((bet) => {
                     const raceDate =
                       bet.race_date
                         ? new Intl.DateTimeFormat("en-AU", {
@@ -2654,7 +3129,7 @@ return (
                 </div>
               ) : null}
 
-              {vaultOpportunities.length > 0 ? (
+{filteredVaultOpportunities.length > 0 ? (
                 <div className="mt-3 border-t border-amber-300/20 pt-3">
                   <div className="mb-2 flex items-center justify-between gap-3 px-1">
                     <div className="flex items-center gap-2">
@@ -2672,12 +3147,12 @@ return (
                     </div>
 
                     <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[8px] font-black text-amber-100">
-                      {vaultOpportunities.length}
+{filteredVaultOpportunities.length}
                     </span>
                   </div>
 
                   <div className="space-y-1.5">
-                    {vaultOpportunities.map((match) => {
+{filteredVaultOpportunities.map((match) => {
                       const isSelected =
                         activeRace &&
                         Number(activeRace.id) ===
@@ -2738,7 +3213,27 @@ return (
                 </div>
               ) : null}
 
+              {filteredBestOpportunities.length === 0 &&
+              filteredVaultOpportunities.length === 0 &&
+              filteredGetOnEarlyBets.length === 0 &&
+              filteredMaverickExoticTips.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/15 bg-black/55 px-4 py-4 text-center">
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
+                    No opportunities match these filters
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={resetOpportunityFilters}
+                    className="mt-2 text-[8px] font-black uppercase tracking-[0.12em] text-amber-300"
+                  >
+                    Reset Filters
+                  </button>
+                </div>
+              ) : null}
+
             </div>
+  </>
           ) : null}
         </div>
 
