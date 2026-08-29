@@ -5,6 +5,7 @@ import AppEntryLoader from "@/components/app-entry-loader";
 import SubscriberDashboard from "@/components/subscriber-dashboard";
 import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
 import { syncVaultNotifications } from "@/lib/vault-matching";
+import { getSubscriberLiveOpportunityCount } from "@/lib/subscriber-live-opportunity-count";
 
 
 async function fetchAllRows<T>({
@@ -108,6 +109,7 @@ if (
   ] = await Promise.all([
 loadSubscriberLivePicksData({
   userId: profile.id,
+  includeCalculatorPredictions: true,
 }),
 
     fetchAllRows<any>({
@@ -235,16 +237,36 @@ loadSubscriberLivePicksData({
       },
     });
 
-  logStage(
-    "Vault notification sync",
-    vaultSyncStartedAt,
-    {
-      liveMatchCount:
-        vaultState.liveMatchCount,
-    },
-  );
+logStage(
+  "Vault notification sync",
+  vaultSyncStartedAt,
+  {
+    liveMatchCount:
+      vaultState.liveMatchCount,
+  },
+);
 
-  const transformStartedAt = Date.now();
+const liveOpportunityCount =
+  getSubscriberLiveOpportunityCount({
+    meetingDate:
+      livePicksData.dayDates.today,
+    races:
+      livePicksData.races,
+    runners:
+      livePicksData.runners,
+    horses:
+      livePicksData.horses,
+    meetings:
+      livePicksData.meetings,
+    calculatorPredictions:
+      livePicksData.calculatorPredictions,
+    officialTips:
+      livePicksData.officialTips,
+    vaultMatches:
+      vaultState.matches,
+  });
+
+const transformStartedAt = Date.now();
 
   const activeTipIds = (
     activeUserBetsQuery.data || []
@@ -364,6 +386,9 @@ initialJockeyProfiles={
         }
         initialVaultMatchCount={
           vaultState.liveMatchCount
+        }
+        initialLiveOpportunityCount={
+          liveOpportunityCount
         }
       />
     </AppEntryLoader>
