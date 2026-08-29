@@ -262,6 +262,7 @@ export default function SubscriberDashboard({
   initialResultedUserBets = [],
 initialLiveFortuneFives = [],
 initialVaultMatchCount = 0,
+initialLiveOpportunityCount = 0,
 }: {
   currentUser: any;
   initialSuggestedTips: SuggestedTip[];
@@ -282,6 +283,7 @@ initialVaultMatchCount = 0,
   initialResultedUserBets?: ResultedUserBet[];
 initialLiveFortuneFives?: LiveFortuneFive[];
 initialVaultMatchCount?: number;
+initialLiveOpportunityCount?: number;
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
   const [customRunnerId, setCustomRunnerId] = useState("");
@@ -815,8 +817,7 @@ const meetingSummary = useMemo(() => {
     : 0;
 
 const livePicksCount =
-  allSelectedDaySuggestedTips.length +
-  allCalculatorTips.length;
+  initialLiveOpportunityCount;
   const watchEarlyCount = watchlistItems.length + longTermBets.length;
   const displayName = currentUser.full_name || currentUser.email || "SmartPunt member";
 
