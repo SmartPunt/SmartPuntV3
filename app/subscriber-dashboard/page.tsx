@@ -246,6 +246,38 @@ logStage(
   },
 );
 
+const liveVaultRaceIds = new Set(
+  livePicksData.currentRaces
+    .filter((race) => {
+      if (race.status !== "published") {
+        return false;
+      }
+
+      const meeting =
+        livePicksData.currentMeetings.find(
+          (item) =>
+            Number(item.id) ===
+            Number(race.meeting_id),
+        );
+
+      return (
+        meeting?.meeting_date ===
+        livePicksData.dayDates.today
+      );
+    })
+    .map((race) => Number(race.id)),
+);
+
+const liveVaultMatches =
+  vaultState.matches.filter((match) =>
+    liveVaultRaceIds.has(
+      Number(match.raceId),
+    ),
+  );
+
+const liveVaultMatchCount =
+  liveVaultMatches.length;
+
 const liveOpportunityCount =
   getSubscriberLiveOpportunityCount({
     meetingDate:
@@ -263,7 +295,7 @@ const liveOpportunityCount =
     officialTips:
       livePicksData.officialTips,
     vaultMatches:
-      vaultState.matches,
+      liveVaultMatches,
   });
 
 const transformStartedAt = Date.now();
@@ -385,7 +417,7 @@ initialJockeyProfiles={
           liveFortuneFivesQuery.data ?? []
         }
         initialVaultMatchCount={
-          vaultState.liveMatchCount
+          liveVaultMatchCount
         }
         initialLiveOpportunityCount={
           liveOpportunityCount
