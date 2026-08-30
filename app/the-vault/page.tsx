@@ -106,8 +106,34 @@ if (alertsError) {
 }
 
 const alerts = (alertsData || []) as VaultEditableAlert[];
-const notifications =
-  vaultState.matches as VaultLiveMatch[];
+
+const liveRaceIds = new Set(
+  livePicksData.currentRaces
+    .filter((race) => {
+      if (race.status !== "published") {
+        return false;
+      }
+
+      const meeting =
+        livePicksData.currentMeetings.find(
+          (item) =>
+            Number(item.id) ===
+            Number(race.meeting_id),
+        );
+
+      return (
+        meeting?.meeting_date ===
+        livePicksData.dayDates.today
+      );
+    })
+    .map((race) => Number(race.id)),
+);
+
+const notifications = (
+  vaultState.matches as VaultLiveMatch[]
+).filter((match) =>
+  liveRaceIds.has(Number(match.raceId)),
+);
 
 const enabledAlertCount = alerts.filter(
   (alert) => alert.enabled,
