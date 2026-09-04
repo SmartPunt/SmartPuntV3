@@ -27,7 +27,7 @@ function StatCard({
 }) {
   return (
     <div className="relative overflow-hidden rounded-[1.6rem] border border-amber-300/20 bg-[linear-gradient(145deg,rgba(0,0,0,0.9),rgba(24,24,27,0.86))] p-4 shadow-xl shadow-black/30">
-      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/10 blur-2xl" />
+{/* Decorative stat-card glow removed for iOS Safari compatibility */}
 
       <div className="relative">
         <div className="flex items-center justify-between gap-3">
