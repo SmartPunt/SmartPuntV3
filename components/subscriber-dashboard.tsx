@@ -1502,7 +1502,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 className="absolute left-1/2 top-1/2 w-[420px] -translate-x-1/2 -translate-y-1/2 opacity-[0.14] sm:w-[600px] sm:opacity-[0.08] lg:w-[760px] select-none"
 />
 
-  <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
+  {/* Decorative glow removed for iOS Safari compatibility */}
 
   <div className="absolute bottom-0 right-0 h-px w-3/4 bg-gradient-to-l from-amber-300/60 to-transparent" />
 </div>
