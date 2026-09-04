@@ -1,4 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+  getQualifiedCalculatorTip,
+  type Horse,
+  type Meeting,
+  type Race,
+  type Runner,
+} from "@/lib/calculator/scoring";
 
 export type SubscriberLivePicksData = {
   dayDates: {
@@ -213,7 +220,90 @@ async function fetchRowsByNumberColumn<T>({
 
   return chunkRows.flat();
 }
+function buildSnapshotScoredRunners({
+  race,
+  meeting,
+  predictions,
+  runners,
+  horses,
+}: {
+  race: Race;
+  meeting: Meeting | undefined;
+  predictions: any[];
+  runners: Runner[];
+  horses: Horse[];
+}) {
+  return [...predictions]
+    .sort(
+      (a, b) =>
+        Number(a.rank || 0) -
+        Number(b.rank || 0),
+    )
+    .flatMap((prediction) => {
+      const runner = runners.find(
+        (item) =>
+          Number(item.id) ===
+          Number(prediction.runner_id),
+      );
 
+      if (!runner || runner.scratched === true) {
+        return [];
+      }
+
+      const horse = horses.find(
+        (item) =>
+          Number(item.id) ===
+          Number(
+            prediction.horse_id ||
+              runner.horse_id,
+          ),
+      );
+
+      return [
+        {
+          ...runner,
+          horse_name:
+            horse?.horse_name ||
+            "Unknown horse",
+          smartpunt_power_rating:
+            horse?.smartpunt_power_rating ??
+            null,
+          meeting_name:
+            meeting?.meeting_name ||
+            "Unknown meeting",
+          meeting_date:
+            meeting?.meeting_date || "",
+          track_condition:
+            meeting?.track_condition ||
+            null,
+          race_name: race.race_name,
+          race_number:
+            race.race_number,
+          distance_m: race.distance_m,
+          effectiveWeight: null,
+          score: Number(
+            prediction.score || 0,
+          ),
+          winPercent: Number(
+            prediction.win_percent || 0,
+          ),
+          placePercent: Number(
+            prediction.place_percent || 0,
+          ),
+          verdict: "Snapshot",
+          rank: Number(
+            prediction.rank || 0,
+          ),
+          components: {
+            recentForm: Number(
+              prediction.recent_form_score ||
+                0,
+            ),
+          },
+        },
+      ];
+    });
+}
 function getServiceRoleConfig() {
   const supabaseUrl =
     process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -1295,7 +1385,142 @@ let activeUserBets: any[] = [];
       Date.now(),
     );
   }
+/*
+ * SUBSCRIBER CALCULATOR DISPLAY INTEGRITY
+ *
+ * When authoritative Calculator prediction snapshots
+ * have been requested, derive subscriber-facing
+ * Calculator tips from those stored snapshots.
+ *
+ * Do not recalculate race scores here.
+ */
+if (includeCalculatorPredictions) {
+  const snapshotCalculatorTips: any[] = [];
 
+  subscriberCurrentRaces.forEach((race) => {
+    if (
+      String(race.status || "")
+        .trim()
+        .toLowerCase() !== "published"
+    ) {
+      return;
+    }
+
+    const meeting =
+      currentMeetings.find(
+        (item) =>
+          Number(item.id) ===
+          Number(race.meeting_id),
+      );
+
+    const racePredictions =
+      calculatorPredictions.filter(
+        (prediction) =>
+          Number(prediction.race_id) ===
+          Number(race.id),
+      );
+
+    if (!racePredictions.length) {
+      return;
+    }
+
+    const scoredRunners =
+      buildSnapshotScoredRunners({
+        race,
+        meeting,
+        predictions: racePredictions,
+        runners: currentRunners,
+        horses,
+      });
+
+    if (!scoredRunners.length) {
+      return;
+    }
+
+    const qualifiedTip =
+      getQualifiedCalculatorTip(
+        scoredRunners,
+        {
+          trackCondition:
+            meeting?.track_condition ||
+            null,
+          raceName:
+            race.race_name || "",
+          placeTerms:
+            race.place_terms ||
+            "top_3",
+          meetingDate:
+            meeting?.meeting_date ||
+            null,
+        },
+      );
+
+    if (!qualifiedTip?.runner) {
+      return;
+    }
+
+    const selectedRunner =
+      qualifiedTip.runner;
+
+    snapshotCalculatorTips.push({
+      id: Number(
+        selectedRunner.id,
+      ),
+      calculator_tip_id: null,
+      race_id: Number(race.id),
+      race_runner_id: Number(
+        selectedRunner.id,
+      ),
+      horse_id: Number(
+        selectedRunner.horse_id,
+      ),
+      race:
+        `${meeting?.meeting_name || "Meeting"} R${race.race_number}`,
+      horse:
+        selectedRunner.horse_name ||
+        "Unknown horse",
+      bet_type:
+        qualifiedTip.type,
+      confidence:
+        qualifiedTip.raceConfidence.tier,
+      score: Number(
+        selectedRunner.score || 0,
+      ),
+      win_percent: Number(
+        selectedRunner.winPercent || 0,
+      ),
+      place_percent: Number(
+        selectedRunner.placePercent || 0,
+      ),
+      race_gap:
+        qualifiedTip.gap,
+      race_confidence_percent:
+        qualifiedTip.raceConfidence
+          .confidencePercent,
+      race_confidence_tier:
+        qualifiedTip.raceConfidence.tier,
+      status: "active",
+      finishing_position: null,
+      won: null,
+      placed: null,
+      settled_at: null,
+      published_at:
+        race.published_at || null,
+    });
+  });
+
+  calculatorTips =
+    snapshotCalculatorTips;
+
+  logStage(
+    "build subscriber Calculator tips from snapshots",
+    Date.now(),
+    {
+      rowCount:
+        calculatorTips.length,
+    },
+  );
+}
   logStage(
     "TOTAL live picks data loader",
     totalStartedAt,
