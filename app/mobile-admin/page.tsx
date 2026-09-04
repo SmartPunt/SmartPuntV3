@@ -28,7 +28,7 @@ function AdminLink({
           : "border-white/10 bg-[linear-gradient(145deg,rgba(24,24,27,0.96),rgba(0,0,0,0.96))]"
       }`}
     >
-      <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-300/10 blur-3xl transition group-hover:bg-amber-300/20" />
+{/* Decorative card glow removed for iOS Safari compatibility */}
 
       <div className="relative flex items-center gap-4">
         <div
