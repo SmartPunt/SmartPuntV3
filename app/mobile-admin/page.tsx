@@ -85,7 +85,7 @@ export default async function MobileAdminPage() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,rgba(245,158,11,0.22),transparent_30%),linear-gradient(180deg,#030303_0%,#09090b_50%,#020617_100%)] px-3 py-4 text-white">
       <div className="mx-auto max-w-[460px]">
-<header className="overflow-hidden rounded-[2rem] border border-amber-300/30 bg-[linear-gradient(135deg,rgba(0,0,0,0.97),rgba(24,24,27,0.98),rgba(146,64,14,0.32))] p-5">
+<header className="overflow-hidden rounded-[2rem] border border-amber-300/30 bg-[linear-gradient(135deg,rgba(0,0,0,0.97),rgba(24,24,27,0.98),rgba(146,64,14,0.32))] p-5 shadow-[0_28px_80px_rgba(0,0,0,0.6)]">
           <div className="flex items-center gap-3">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black shadow-[0_0_28px_rgba(245,158,11,0.28)]">
               <img
