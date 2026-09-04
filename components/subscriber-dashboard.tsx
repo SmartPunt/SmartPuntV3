@@ -1432,7 +1432,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
         href={href}
         className="group relative overflow-hidden rounded-[1.6rem] border border-amber-300/20 bg-[linear-gradient(145deg,rgba(0,0,0,0.9),rgba(24,24,27,0.86))] p-4 shadow-xl shadow-black/30 transition active:scale-[0.99] hover:border-amber-300/45"
       >
-        <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-300/10 blur-2xl transition group-hover:bg-amber-300/18" />
+{/* Decorative stat-card glow removed for iOS Safari compatibility */}
         <div className="relative">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
