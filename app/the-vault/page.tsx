@@ -180,7 +180,7 @@ const enabledAlertCount = alerts.filter(
           <main className="mt-4 space-y-5 pb-8">
             <section className="overflow-hidden rounded-[2rem] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(0,0,0,0.96),rgba(24,24,27,0.98),rgba(146,64,14,0.32))] shadow-[0_28px_80px_rgba(0,0,0,0.6)]">
               <div className="relative p-5 sm:p-8">
-                <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-300/12 blur-3xl" />
+{/* Decorative glow removed for iOS Safari compatibility */}
                 <div className="absolute bottom-0 right-0 h-px w-2/3 bg-gradient-to-l from-amber-300/50 to-transparent" />
 
                 <div className="relative">
