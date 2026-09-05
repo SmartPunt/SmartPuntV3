@@ -65,29 +65,27 @@ className="smartpunt-lightning-video h-full w-full object-cover [transform:trans
           - no large WebKit compositing glow
         */
 .smartpunt-lightning-window {
-  -webkit-mask-image: radial-gradient(
-    ellipse at center,
-    black 0%,
-    black 42%,
-    rgba(0, 0, 0, 0.85) 55%,
-    rgba(0, 0, 0, 0.35) 70%,
-    transparent 88%
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 12%,
+    black 88%,
+    transparent 100%
   );
 
-  mask-image: radial-gradient(
-    ellipse at center,
-    black 0%,
-    black 42%,
-    rgba(0, 0, 0, 0.85) 55%,
-    rgba(0, 0, 0, 0.35) 70%,
-    transparent 88%
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 12%,
+    black 88%,
+    transparent 100%
   );
 }
 
 .smartpunt-lightning-video {
   mix-blend-mode: screen;
-  opacity: 0.42;
-  filter: contrast(1.7) brightness(0.82);
+  opacity: 0.5;
+  filter: contrast(1.65) brightness(0.88);
 }
 
         @keyframes smartpunt-impact {
