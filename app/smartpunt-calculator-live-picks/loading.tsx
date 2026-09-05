@@ -17,7 +17,7 @@ export default function Loading() {
         */}
         <div
           aria-hidden="true"
-          className="smartpunt-lightning-window pointer-events-none absolute left-1/2 top-0 h-[58%] w-full max-w-[768px] -translate-x-1/2 overflow-hidden"
+className="smartpunt-lightning-window pointer-events-none absolute left-1/2 top-0 h-[58%] w-[62%] max-w-[475px] -translate-x-1/2 overflow-hidden"
         >
           <video
             autoPlay
@@ -64,11 +64,11 @@ export default function Loading() {
           - no CSS blur
           - no large WebKit compositing glow
         */
-        .smartpunt-lightning-video {
-          mix-blend-mode: screen;
-          opacity: 0.82;
-          filter: contrast(1.45) brightness(1.18);
-        }
+.smartpunt-lightning-video {
+  mix-blend-mode: screen;
+  opacity: 0.42;
+  filter: contrast(1.55) brightness(0.9);
+}
 
         @keyframes smartpunt-impact {
           0%,
@@ -143,10 +143,10 @@ export default function Loading() {
         .smartpunt-impact {
           background: #ffffff;
 
-          box-shadow:
-            0 0 5px rgba(255, 255, 255, 0.9),
-            -5px 0 10px rgba(224, 183, 64, 0.5),
-            5px 0 10px rgba(0, 220, 135, 0.45);
+box-shadow:
+  0 0 4px rgba(255, 255, 255, 0.65),
+  -4px 0 8px rgba(224, 183, 64, 0.3),
+  4px 0 8px rgba(0, 220, 135, 0.28);
 
           animation:
             smartpunt-impact
@@ -174,16 +174,16 @@ export default function Loading() {
         }
 
         .smartpunt-title-energy {
-          background: linear-gradient(
-            90deg,
-            transparent 0%,
-            rgba(220, 180, 60, 0.08) 12%,
-            rgba(232, 194, 72, 0.75) 34%,
-            rgba(255, 255, 255, 0.9) 50%,
-            rgba(0, 225, 140, 0.75) 66%,
-            rgba(0, 225, 140, 0.08) 88%,
-            transparent 100%
-          );
+background: linear-gradient(
+  90deg,
+  transparent 0%,
+  rgba(220, 180, 60, 0.05) 12%,
+  rgba(232, 194, 72, 0.48) 34%,
+  rgba(255, 255, 255, 0.65) 50%,
+  rgba(0, 225, 140, 0.48) 66%,
+  rgba(0, 225, 140, 0.05) 88%,
+  transparent 100%
+);
 
           animation:
             smartpunt-title-charge
