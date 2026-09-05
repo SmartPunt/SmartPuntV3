@@ -25,7 +25,7 @@ className="smartpunt-lightning-window pointer-events-none absolute left-1/2 top-
             loop
             playsInline
             preload="auto"
-className="smartpunt-lightning-video h-full w-full object-cover [transform:translateZ(0)]"
+className="smartpunt-lightning-video h-full w-full object-cover [transform:translate3d(0,-25%,0)_scale(1.15)]"
           >
             <source
               src="/smartpunt-lightning-strike.mp4"
