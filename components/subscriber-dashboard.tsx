@@ -12,6 +12,10 @@ import {
   useTransition,
 } from "react";
 import { addUserBetAction, signOutAction } from "@/lib/actions";
+import {
+  markAllSubscriberNotificationsReadAction,
+  markSubscriberNotificationReadAction,
+} from "@/lib/subscriber-notification-actions";
 import { TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
 
@@ -153,6 +157,23 @@ type LiveFortuneFive = {
   settled_at: string | null;
 };
 
+type SubscriberNotification = {
+  id: number;
+  notification_type:
+    | "maverick_tip"
+    | "race_day_started"
+    | "conditions_changed"
+    | "vault_matches_today";
+  title: string;
+  message: string;
+  link: string | null;
+  race_id: number | null;
+  meeting_id: number | null;
+  is_read: boolean;
+  created_at: string;
+  read_at: string | null;
+};
+
 function getPerthDate(offsetDays = 0) {
   const perthNow = new Date(
     new Date().toLocaleString("en-US", {
@@ -263,6 +284,7 @@ export default function SubscriberDashboard({
 initialLiveFortuneFives = [],
 initialVaultMatchCount = 0,
 initialLiveOpportunityCount = 0,
+initialSubscriberNotifications = [],
 }: {
   currentUser: any;
   initialSuggestedTips: SuggestedTip[];
@@ -284,6 +306,7 @@ initialLiveOpportunityCount = 0,
 initialLiveFortuneFives?: LiveFortuneFive[];
 initialVaultMatchCount?: number;
 initialLiveOpportunityCount?: number;
+initialSubscriberNotifications?: SubscriberNotification[];
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
   const [customRunnerId, setCustomRunnerId] = useState("");
@@ -292,6 +315,24 @@ initialLiveOpportunityCount?: number;
   >("Win");
   const [customBetMessage, setCustomBetMessage] = useState("");
   const [customBetError, setCustomBetError] = useState("");
+
+  const [
+    subscriberNotifications,
+    setSubscriberNotifications,
+  ] = useState<SubscriberNotification[]>(
+    initialSubscriberNotifications,
+  );
+
+  const [
+    showNotifications,
+    setShowNotifications,
+  ] = useState(false);
+
+  const [
+    notificationActionPending,
+    startNotificationTransition,
+  ] = useTransition();
+
 const router = useRouter();
 const searchParams = useSearchParams();
 const [, startTransition] = useTransition();
@@ -820,6 +861,117 @@ const livePicksCount =
   initialLiveOpportunityCount;
   const watchEarlyCount = watchlistItems.length + longTermBets.length;
   const displayName = currentUser.full_name || currentUser.email || "SmartPunt member";
+
+  const unreadNotificationCount =
+    subscriberNotifications.filter(
+      (notification) =>
+        notification.is_read !== true,
+    ).length;
+
+  function getNotificationIcon(
+    type: SubscriberNotification["notification_type"],
+  ) {
+    if (type === "maverick_tip") {
+      return "🛡️";
+    }
+
+    if (type === "race_day_started") {
+      return "🏇";
+    }
+
+    if (type === "conditions_changed") {
+      return "🌦️";
+    }
+
+    if (type === "vault_matches_today") {
+      return "🔔";
+    }
+
+    return "●";
+  }
+
+  function formatNotificationTime(value: string) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    return new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Perth",
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  }
+
+  function markNotificationRead(
+    notification: SubscriberNotification,
+  ) {
+    if (notification.is_read) {
+      if (notification.link) {
+        router.push(notification.link);
+      }
+
+      return;
+    }
+
+    setSubscriberNotifications((current) =>
+      current.map((item) =>
+        item.id === notification.id
+          ? {
+              ...item,
+              is_read: true,
+              read_at: new Date().toISOString(),
+            }
+          : item,
+      ),
+    );
+
+    startNotificationTransition(async () => {
+      const result =
+        await markSubscriberNotificationReadAction(
+          notification.id,
+        );
+
+      if (!result.success) {
+        router.refresh();
+        return;
+      }
+
+      if (notification.link) {
+        router.push(notification.link);
+      }
+    });
+  }
+
+  function markAllNotificationsRead() {
+    if (unreadNotificationCount === 0) {
+      return;
+    }
+
+    const readAt = new Date().toISOString();
+
+    setSubscriberNotifications((current) =>
+      current.map((notification) => ({
+        ...notification,
+        is_read: true,
+        read_at:
+          notification.read_at || readAt,
+      })),
+    );
+
+    startNotificationTransition(async () => {
+      const result =
+        await markAllSubscriberNotificationsReadAction();
+
+      if (!result.success) {
+        router.refresh();
+      }
+    });
+  }
 
   function getRunnersForRace(raceId: number) {
     return initialPublishedRunners.filter((runner) => Number(runner.race_id) === Number(raceId));
@@ -1471,6 +1623,133 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
             </div>
 
 <div className="flex shrink-0 items-center gap-2">
+  <div className="relative">
+    <button
+      type="button"
+      onClick={() =>
+        setShowNotifications(
+          (current) => !current,
+        )
+      }
+      aria-label="Notifications"
+      aria-expanded={showNotifications}
+      className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-300/10 text-lg text-amber-200 transition hover:bg-amber-300/15"
+    >
+      <span aria-hidden="true">🔔</span>
+
+      {unreadNotificationCount > 0 ? (
+        <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-black bg-amber-300 px-1 text-[9px] font-black leading-none text-black">
+          {unreadNotificationCount > 99
+            ? "99+"
+            : unreadNotificationCount}
+        </span>
+      ) : null}
+    </button>
+
+    {showNotifications ? (
+      <div className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.5rem] border border-amber-300/25 bg-zinc-950 shadow-[0_24px_80px_rgba(0,0,0,0.8)]">
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
+              SmartPunt
+            </p>
+
+            <h2 className="mt-1 text-base font-black text-white">
+              Notifications
+            </h2>
+          </div>
+
+          {unreadNotificationCount > 0 ? (
+            <button
+              type="button"
+              disabled={
+                notificationActionPending
+              }
+              onClick={
+                markAllNotificationsRead
+              }
+              className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 disabled:opacity-50"
+            >
+              Mark all read
+            </button>
+          ) : null}
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto">
+          {subscriberNotifications.length >
+          0 ? (
+            subscriberNotifications.map(
+              (notification) => (
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={() =>
+                    markNotificationRead(
+                      notification,
+                    )
+                  }
+                  className={`flex w-full items-start gap-3 border-b border-white/[0.07] px-4 py-4 text-left transition last:border-b-0 ${
+                    notification.is_read
+                      ? "bg-black/20 hover:bg-white/[0.04]"
+                      : "bg-amber-300/[0.07] hover:bg-amber-300/[0.1]"
+                  }`}
+                >
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/45 text-base">
+                    {getNotificationIcon(
+                      notification.notification_type,
+                    )}
+                  </span>
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-start gap-2">
+                      <span
+                        className={`min-w-0 flex-1 text-sm font-black ${
+                          notification.is_read
+                            ? "text-zinc-300"
+                            : "text-white"
+                        }`}
+                      >
+                        {notification.title}
+                      </span>
+
+                      {!notification.is_read ? (
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-300" />
+                      ) : null}
+                    </span>
+
+                    <span className="mt-1 block text-xs leading-5 text-zinc-400">
+                      {notification.message}
+                    </span>
+
+                    <span className="mt-2 block text-[9px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                      {formatNotificationTime(
+                        notification.created_at,
+                      )}
+                    </span>
+                  </span>
+                </button>
+              ),
+            )
+          ) : (
+            <div className="px-5 py-8 text-center">
+              <div className="text-2xl">
+                🔔
+              </div>
+
+              <p className="mt-3 text-sm font-black text-white">
+                You&apos;re all caught up
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                New SmartPunt alerts will appear here.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    ) : null}
+  </div>
+
   {["admin", "staff_admin"].includes(
     String(currentUser.role || ""),
   ) ? (
