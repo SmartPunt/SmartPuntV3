@@ -25,7 +25,7 @@ className="smartpunt-lightning-window pointer-events-none absolute left-1/2 top-
             loop
             playsInline
             preload="auto"
-            className="smartpunt-lightning-video h-full w-full object-cover"
+className="smartpunt-lightning-video h-full w-full object-cover [transform:translateZ(0)]"
           >
             <source
               src="/smartpunt-lightning-strike.mp4"
@@ -64,10 +64,30 @@ className="smartpunt-lightning-window pointer-events-none absolute left-1/2 top-
           - no CSS blur
           - no large WebKit compositing glow
         */
+.smartpunt-lightning-window {
+  -webkit-mask-image: radial-gradient(
+    ellipse at center,
+    black 0%,
+    black 42%,
+    rgba(0, 0, 0, 0.85) 55%,
+    rgba(0, 0, 0, 0.35) 70%,
+    transparent 88%
+  );
+
+  mask-image: radial-gradient(
+    ellipse at center,
+    black 0%,
+    black 42%,
+    rgba(0, 0, 0, 0.85) 55%,
+    rgba(0, 0, 0, 0.35) 70%,
+    transparent 88%
+  );
+}
+
 .smartpunt-lightning-video {
   mix-blend-mode: screen;
   opacity: 0.42;
-  filter: contrast(1.55) brightness(0.9);
+  filter: contrast(1.7) brightness(0.82);
 }
 
         @keyframes smartpunt-impact {
