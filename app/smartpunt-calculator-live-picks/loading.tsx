@@ -1,147 +1,137 @@
 export default function Loading() {
   return (
     <main className="relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden bg-black">
-      <div className="relative flex min-h-[100dvh] w-full items-center justify-center">
+      <div className="relative flex min-h-[100dvh] w-full items-center justify-center overflow-hidden">
+        {/* Main Live Picks artwork */}
         <img
           src="/smartpunt-live-picks-loading.png"
           alt="SmartPunt Live Picks loading"
           className="block max-h-[100dvh] w-full max-w-[768px] object-contain"
         />
 
-        {/* Lightning strike */}
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="pointer-events-none absolute left-1/2 top-0 h-[58%] w-[18%] -translate-x-1/2"
-        >
-          <polyline
-            points="52,0 46,18 56,18 42,40 51,40 45,58 53,58 49,78 52,78 50,100"
-            className="smartpunt-lightning smartpunt-lightning-core"
-          />
-          <polyline
-            points="52,0 46,18 56,18 42,40 51,40 45,58 53,58 49,78 52,78 50,100"
-            className="smartpunt-lightning smartpunt-lightning-gold"
-          />
-        </svg>
+        {/*
+          Real lightning footage.
 
-        {/* Impact point over LIVE PICKS */}
+          Screen blending removes the crushed black background and leaves
+          predominantly the natural lightning visible over the artwork.
+        */}
         <div
           aria-hidden="true"
-          className="smartpunt-impact pointer-events-none absolute left-1/2 top-[44.8%] h-3 w-3 -translate-x-1/2 rounded-full"
-        />
-
-        {/* LIVE PICKS energise overlay */}
-        <div
-          aria-hidden="true"
-          className="smartpunt-title-charge pointer-events-none absolute left-1/2 top-[40.4%] h-[10.5%] w-[78%] max-w-[600px] -translate-x-1/2 overflow-hidden"
+          className="smartpunt-lightning-window pointer-events-none absolute left-1/2 top-0 h-[58%] w-full max-w-[768px] -translate-x-1/2 overflow-hidden"
         >
-          <div className="smartpunt-title-charge-sweep h-full w-[24%]" />
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className="smartpunt-lightning-video h-full w-full object-cover"
+          >
+            <source
+              src="/smartpunt-lightning-strike.mp4"
+              type="video/mp4"
+            />
+          </video>
         </div>
 
-        {/* Progress bar travelling energy */}
+        {/* Small impact response where the strike reaches LIVE PICKS */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-[61%] mx-auto h-[2px] w-[68%] max-w-[520px] overflow-hidden opacity-80"
+          className="smartpunt-impact pointer-events-none absolute left-1/2 top-[45%] h-2 w-2 -translate-x-1/2 rounded-full"
+        />
+
+        {/* Energy travelling across the LIVE PICKS plate after impact */}
+        <div
+          aria-hidden="true"
+          className="smartpunt-title-window pointer-events-none absolute left-1/2 top-[40.5%] h-[10.5%] w-[78%] max-w-[600px] -translate-x-1/2 overflow-hidden"
+        >
+          <div className="smartpunt-title-energy h-full w-[22%]" />
+        </div>
+
+        {/* Continuous restrained movement across the artwork progress bar */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-[61%] h-[2px] w-[68%] max-w-[520px] -translate-x-1/2 overflow-hidden opacity-80"
         >
           <div className="smartpunt-progress-energy h-full w-[28%]" />
         </div>
       </div>
 
       <style>{`
-        @keyframes smartpunt-lightning-strike {
-          0%,
-          8%,
-          100% {
-            opacity: 0;
-            stroke-dashoffset: 220;
-          }
-
-          10% {
-            opacity: 1;
-            stroke-dashoffset: 220;
-          }
-
-          16% {
-            opacity: 1;
-            stroke-dashoffset: 0;
-          }
-
-          20% {
-            opacity: 0.35;
-          }
-
-          24% {
-            opacity: 1;
-          }
-
-          30% {
-            opacity: 0;
-          }
+        /*
+          Real lightning:
+          - screen blend removes most of the dark footage
+          - no CSS blur
+          - no large WebKit compositing glow
+        */
+        .smartpunt-lightning-video {
+          mix-blend-mode: screen;
+          opacity: 0.82;
+          filter: contrast(1.45) brightness(1.18);
         }
 
-        @keyframes smartpunt-impact-flash {
+        @keyframes smartpunt-impact {
           0%,
-          14%,
+          22%,
           100% {
             opacity: 0;
-            transform: translateX(-50%) scale(0.5);
+            transform: translateX(-50%) scale(0.4);
           }
 
-          16% {
+          27% {
             opacity: 1;
-            transform: translateX(-50%) scale(1.8);
+            transform: translateX(-50%) scale(2);
           }
 
-          21% {
-            opacity: 0.65;
+          32% {
+            opacity: 0.55;
             transform: translateX(-50%) scale(1.15);
           }
 
-          28% {
+          40% {
             opacity: 0;
-            transform: translateX(-50%) scale(0.7);
+            transform: translateX(-50%) scale(0.5);
           }
         }
 
-        @keyframes smartpunt-title-energise {
+        @keyframes smartpunt-title-charge {
           0%,
-          14%,
+          24%,
           100% {
             transform: translateX(-150%);
             opacity: 0;
           }
 
-          18% {
-            opacity: 0.95;
-          }
-
-          34% {
-            transform: translateX(420%);
+          29% {
             opacity: 0.8;
           }
 
-          40% {
+          46% {
+            transform: translateX(440%);
+            opacity: 0.7;
+          }
+
+          52% {
             opacity: 0;
           }
         }
 
-        @keyframes smartpunt-progress-sweep {
+        @keyframes smartpunt-progress {
           0% {
             transform: translateX(-125%);
             opacity: 0;
           }
 
-          12% {
-            opacity: 0.9;
+          15% {
+            opacity: 0.85;
           }
 
           50% {
             opacity: 1;
           }
 
-          88% {
-            opacity: 0.9;
+          85% {
+            opacity: 0.85;
           }
 
           100% {
@@ -150,83 +140,54 @@ export default function Loading() {
           }
         }
 
-        .smartpunt-lightning {
-          fill: none;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          stroke-dasharray: 220;
-          stroke-dashoffset: 220;
-          animation:
-            smartpunt-lightning-strike
-            3.4s
-            ease-out
-            infinite;
-        }
-
-        .smartpunt-lightning-core {
-          stroke: rgba(255, 255, 255, 0.98);
-          stroke-width: 2.2;
-        }
-
-        .smartpunt-lightning-gold {
-          stroke: rgba(232, 194, 72, 0.95);
-          stroke-width: 4.8;
-          opacity: 0.55;
-        }
-
         .smartpunt-impact {
-          background: radial-gradient(
-            circle,
-            rgba(255, 255, 255, 1) 0%,
-            rgba(232, 194, 72, 0.95) 35%,
-            rgba(0, 230, 145, 0.75) 65%,
-            transparent 100%
-          );
-
-          animation:
-            smartpunt-impact-flash
-            3.4s
-            ease-out
-            infinite;
+          background: #ffffff;
 
           box-shadow:
-            0 0 8px rgba(255, 255, 255, 0.8),
-            0 0 16px rgba(232, 194, 72, 0.45),
-            0 0 20px rgba(0, 230, 145, 0.35);
+            0 0 5px rgba(255, 255, 255, 0.9),
+            -5px 0 10px rgba(224, 183, 64, 0.5),
+            5px 0 10px rgba(0, 220, 135, 0.45);
+
+          animation:
+            smartpunt-impact
+            1.45s
+            ease-out
+            infinite;
         }
 
-        .smartpunt-title-charge {
-          mask-image: linear-gradient(
-            to right,
-            transparent 0%,
-            black 8%,
-            black 92%,
-            transparent 100%
-          );
+        .smartpunt-title-window {
           -webkit-mask-image: linear-gradient(
             to right,
-            transparent 0%,
+            transparent,
             black 8%,
             black 92%,
-            transparent 100%
+            transparent
+          );
+
+          mask-image: linear-gradient(
+            to right,
+            transparent,
+            black 8%,
+            black 92%,
+            transparent
           );
         }
 
-        .smartpunt-title-charge-sweep {
+        .smartpunt-title-energy {
           background: linear-gradient(
             90deg,
             transparent 0%,
-            rgba(232, 194, 72, 0.15) 10%,
-            rgba(232, 194, 72, 0.95) 32%,
-            rgba(255, 255, 255, 0.95) 50%,
-            rgba(0, 230, 145, 0.95) 68%,
-            rgba(0, 230, 145, 0.15) 90%,
+            rgba(220, 180, 60, 0.08) 12%,
+            rgba(232, 194, 72, 0.75) 34%,
+            rgba(255, 255, 255, 0.9) 50%,
+            rgba(0, 225, 140, 0.75) 66%,
+            rgba(0, 225, 140, 0.08) 88%,
             transparent 100%
           );
 
           animation:
-            smartpunt-title-energise
-            3.4s
+            smartpunt-title-charge
+            1.45s
             ease-out
             infinite;
         }
@@ -234,15 +195,15 @@ export default function Loading() {
         .smartpunt-progress-energy {
           background: linear-gradient(
             90deg,
-            transparent 0%,
-            rgba(232, 194, 72, 0.95) 30%,
-            rgba(255, 255, 255, 0.98) 50%,
-            rgba(0, 230, 145, 0.95) 70%,
-            transparent 100%
+            transparent,
+            rgba(220, 180, 60, 0.9),
+            rgba(255, 255, 255, 0.95),
+            rgba(0, 225, 140, 0.9),
+            transparent
           );
 
           animation:
-            smartpunt-progress-sweep
+            smartpunt-progress
             2.4s
             ease-in-out
             infinite;
@@ -251,9 +212,12 @@ export default function Loading() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .smartpunt-lightning,
+          .smartpunt-lightning-video {
+            display: none;
+          }
+
           .smartpunt-impact,
-          .smartpunt-title-charge-sweep,
+          .smartpunt-title-energy,
           .smartpunt-progress-energy {
             animation: none;
             opacity: 0;
