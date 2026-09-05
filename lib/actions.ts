@@ -7369,25 +7369,49 @@ export async function createRaceRunnerAction(
     let horseMasterTrackFormLast6: string | null = null;
     let horseMasterDistanceFormLast6: string | null = null;
 
-    if (horseId) {
-      const { data: selectedHorse, error: selectedHorseError } = await supabase
-        .from("horses")
-        .select("id, form_last_6, track_form_last_6, distance_form_last_6")
-        .eq("id", horseId)
-        .maybeSingle();
+if (horseId) {
+  const { data: selectedHorse, error: selectedHorseError } = await supabase
+    .from("horses")
+    .select(
+      "id, horse_name, normalised_name, form_last_6, track_form_last_6, distance_form_last_6",
+    )
+    .eq("id", horseId)
+    .maybeSingle();
 
-      if (selectedHorseError) {
-        return { success: false, error: selectedHorseError.message };
-      }
+  if (selectedHorseError) {
+    return { success: false, error: selectedHorseError.message };
+  }
 
-      if (!selectedHorse?.id) {
-        return { success: false, error: "Selected horse could not be found." };
-      }
+  if (!selectedHorse?.id) {
+    return { success: false, error: "Selected horse could not be found." };
+  }
 
-      horseMasterFormLast6 = selectedHorse.form_last_6 || null;
-      horseMasterTrackFormLast6 = selectedHorse.track_form_last_6 || null;
-      horseMasterDistanceFormLast6 = selectedHorse.distance_form_last_6 || null;
-    }
+  const storedHorseName = String(selectedHorse.horse_name || "").trim();
+  const storedNormalisedName = String(
+    selectedHorse.normalised_name || "",
+  ).trim();
+  const expectedNormalisedName =
+    normaliseHorseName(storedHorseName);
+
+  if (
+    !storedHorseName ||
+    !storedNormalisedName ||
+    expectedNormalisedName !== storedNormalisedName
+  ) {
+    return {
+      success: false,
+      error:
+        `Horse identity mismatch detected for horse ID ${selectedHorse.id}. ` +
+        `Stored name "${storedHorseName || "Unknown"}" resolves to ` +
+        `"${expectedNormalisedName || "empty"}", but the master record contains ` +
+        `"${storedNormalisedName || "empty"}". Runner creation stopped to protect horse history.`,
+    };
+  }
+
+  horseMasterFormLast6 = selectedHorse.form_last_6 || null;
+  horseMasterTrackFormLast6 = selectedHorse.track_form_last_6 || null;
+  horseMasterDistanceFormLast6 = selectedHorse.distance_form_last_6 || null;
+}
 
     if (!horseId) {
       const normalisedName = normaliseHorseName(horseNameRaw);
@@ -7396,23 +7420,47 @@ export async function createRaceRunnerAction(
         return { success: false, error: "Horse name is required." };
       }
 
-      const { data: existingHorse, error: existingHorseError } = await supabase
-        .from("horses")
-        .select("id, horse_name, form_last_6, track_form_last_6, distance_form_last_6")
-        .eq("normalised_name", normalisedName)
-        .maybeSingle();
+const { data: existingHorse, error: existingHorseError } = await supabase
+  .from("horses")
+  .select(
+    "id, horse_name, normalised_name, form_last_6, track_form_last_6, distance_form_last_6",
+  )
+  .eq("normalised_name", normalisedName)
+  .maybeSingle();
 
-      if (existingHorseError) {
-        return { success: false, error: existingHorseError.message };
-      }
+if (existingHorseError) {
+  return { success: false, error: existingHorseError.message };
+}
 
-      if (existingHorse?.id) {
-        horseId = existingHorse.id;
-        horseMasterFormLast6 = existingHorse.form_last_6 || null;
-        horseMasterTrackFormLast6 = existingHorse.track_form_last_6 || null;
-        horseMasterDistanceFormLast6 =
-          existingHorse.distance_form_last_6 || null;
-      } else {
+if (existingHorse?.id) {
+  const storedHorseName = String(existingHorse.horse_name || "").trim();
+  const storedNormalisedName = String(
+    existingHorse.normalised_name || "",
+  ).trim();
+  const expectedNormalisedName =
+    normaliseHorseName(storedHorseName);
+
+  if (
+    !storedHorseName ||
+    !storedNormalisedName ||
+    expectedNormalisedName !== storedNormalisedName
+  ) {
+    return {
+      success: false,
+      error:
+        `Horse identity mismatch detected for "${horseNameRaw}". ` +
+        `Existing horse ID ${existingHorse.id} is stored as ` +
+        `"${storedHorseName || "Unknown"}" with normalised name ` +
+        `"${storedNormalisedName || "empty"}". Runner creation stopped to protect horse history.`,
+    };
+  }
+
+  horseId = existingHorse.id;
+  horseMasterFormLast6 = existingHorse.form_last_6 || null;
+  horseMasterTrackFormLast6 = existingHorse.track_form_last_6 || null;
+  horseMasterDistanceFormLast6 =
+    existingHorse.distance_form_last_6 || null;
+} else {
         const seededFormLast6 = formLast6
           ? normaliseImportedForm(formLast6)
           : null;
@@ -7690,9 +7738,56 @@ is_scratched?: boolean;
 )
       .in("normalised_name", normalisedNames);
 
-    if (existingHorsesError) {
-      return { success: false, error: existingHorsesError.message };
-    }
+if (existingHorsesError) {
+  return { success: false, error: existingHorsesError.message };
+}
+
+/*
+ * HORSE IDENTITY INTEGRITY GUARD
+ *
+ * A horse master record must always agree with itself:
+ *
+ *   normaliseHorseName(horse_name) === normalised_name
+ *
+ * If these values disagree, the record may have suffered historical
+ * identity corruption. Never silently attach a new runner to that row.
+ *
+ * Example of the corruption this protects against:
+ *
+ *   horse_name      = "Stirrup Cup"
+ *   normalised_name = "beast mode"
+ *
+ * In that situation importing "Beast Mode" would otherwise match the
+ * corrupted row by normalised_name and attach the wrong horse identity.
+ */
+for (const horse of existingHorses || []) {
+  const storedHorseName = String((horse as any).horse_name || "").trim();
+  const storedNormalisedName = String(
+    (horse as any).normalised_name || "",
+  ).trim();
+  const expectedNormalisedName =
+    normaliseHorseName(storedHorseName);
+
+  if (
+    !storedHorseName ||
+    !storedNormalisedName ||
+    expectedNormalisedName !== storedNormalisedName
+  ) {
+    const importedRunner = cleanedRunners.find(
+      (runner) =>
+        runner.normalised_name === storedNormalisedName,
+    );
+
+    return {
+      success: false,
+      error:
+        `Horse identity mismatch detected${importedRunner?.horse_name ? ` for "${importedRunner.horse_name}"` : ""}. ` +
+        `Existing horse ID ${(horse as any).id} is stored as ` +
+        `"${storedHorseName || "Unknown"}" with normalised name ` +
+        `"${storedNormalisedName || "empty"}". Import stopped to protect horse history.`,
+    };
+  }
+}
 
 const horsesByNormalisedName = new Map<
   string,
@@ -7759,19 +7854,41 @@ career_prize_money: parseImportedPrizeMoney(runner.prize_money),
       }
 
       if (insertedHorsesError?.code === "23505") {
-        const { data: retryHorses, error: retryHorsesError } = await supabase
-          .from("horses")
-          .select(
-            "id, normalised_name, form_last_6, track_form_last_6, distance_form_last_6, career_prize_money",
-          )
-          .in("normalised_name", normalisedNames);
+const { data: retryHorses, error: retryHorsesError } = await supabase
+  .from("horses")
+  .select(
+    "id, horse_name, normalised_name, form_last_6, track_form_last_6, distance_form_last_6, good_track_record, soft_track_record, heavy_track_record, synthetic_track_record, career_prize_money",
+  )
+  .in("normalised_name", normalisedNames);
 
-        if (retryHorsesError) {
-          return { success: false, error: retryHorsesError.message };
-        }
+if (retryHorsesError) {
+  return { success: false, error: retryHorsesError.message };
+}
 
-        for (const horse of retryHorses || []) {
-          horsesByNormalisedName.set(String((horse as any).normalised_name), {
+for (const horse of retryHorses || []) {
+  const storedHorseName = String((horse as any).horse_name || "").trim();
+  const storedNormalisedName = String(
+    (horse as any).normalised_name || "",
+  ).trim();
+  const expectedNormalisedName =
+    normaliseHorseName(storedHorseName);
+
+  if (
+    !storedHorseName ||
+    !storedNormalisedName ||
+    expectedNormalisedName !== storedNormalisedName
+  ) {
+    return {
+      success: false,
+      error:
+        `Horse identity mismatch detected for horse ID ${(horse as any).id}. ` +
+        `Stored name "${storedHorseName || "Unknown"}" resolves to ` +
+        `"${expectedNormalisedName || "empty"}", but the master record contains ` +
+        `"${storedNormalisedName || "empty"}". Import stopped to protect horse history.`,
+    };
+  }
+
+  horsesByNormalisedName.set(String((horse as any).normalised_name), {
             id: Number((horse as any).id),
             form_last_6: (horse as any).form_last_6 || null,
             track_form_last_6: (horse as any).track_form_last_6 || null,
