@@ -7,13 +7,7 @@ export default function Loading() {
           alt="SmartPunt loading"
           className="block h-[90vh] w-[90vw] object-contain"
         />
-{/* Metallic sweep across the SmartPunt horse */}
-<div
-  aria-hidden="true"
-  className="smartpunt-global-horse-window pointer-events-none absolute left-1/2 top-[18%] h-[38%] w-[68%] max-w-[520px] -translate-x-1/2 overflow-hidden"
->
-  <div className="smartpunt-global-horse-sweep h-[150%] w-[14%]" />
-</div>
+
         {/* Subtle metallic sweep across SMARTPUNT */}
         <div
           aria-hidden="true"
@@ -32,33 +26,7 @@ export default function Loading() {
       </div>
 
       <style>{`
-@keyframes smartpunt-global-horse-shimmer {
-  0%,
-  58% {
-    transform: translate(-220%, -18%) rotate(18deg);
-    opacity: 0;
-  }
-
-  62% {
-    opacity: 0.15;
-  }
-
-  68% {
-    opacity: 0.65;
-  }
-
-  78% {
-    transform: translate(620%, -18%) rotate(18deg);
-    opacity: 0.5;
-  }
-
-  82%,
-  100% {
-    opacity: 0;
-  }
-}
-
-@keyframes smartpunt-global-title-shimmer {
+        @keyframes smartpunt-global-title-shimmer {
           0%,
           68% {
             transform: translateX(-180%);
@@ -104,48 +72,8 @@ export default function Loading() {
           }
         }
 
-.smartpunt-global-horse-window {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 8%,
-    black 92%,
-    transparent 100%
-  );
-
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 8%,
-    black 92%,
-    transparent 100%
-  );
-}
-
-.smartpunt-global-horse-sweep {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 220, 120, 0.08) 22%,
-    rgba(255, 245, 200, 0.5) 45%,
-    rgba(255, 255, 255, 0.78) 50%,
-    rgba(255, 225, 135, 0.45) 58%,
-    rgba(255, 210, 90, 0.06) 78%,
-    transparent 100%
-  );
-
-  animation:
-    smartpunt-global-horse-shimmer
-    4.8s
-    ease-in-out
-    infinite;
-
-  mix-blend-mode: screen;
-  will-change: transform, opacity;
-}
-
-.smartpunt-global-title-window {
-  -webkit-mask-image: linear-gradient(
+        .smartpunt-global-title-window {
+          -webkit-mask-image: linear-gradient(
             to right,
             transparent 0%,
             black 10%,
@@ -198,14 +126,13 @@ export default function Loading() {
           will-change: transform, opacity;
         }
 
-@media (prefers-reduced-motion: reduce) {
-  .smartpunt-global-horse-sweep,
-  .smartpunt-global-title-sweep,
-  .smartpunt-global-loading-sweep {
-    animation: none;
-    opacity: 0;
-  }
-}
+        @media (prefers-reduced-motion: reduce) {
+          .smartpunt-global-title-sweep,
+          .smartpunt-global-loading-sweep {
+            animation: none;
+            opacity: 0;
+          }
+        }
       `}</style>
     </main>
   );
