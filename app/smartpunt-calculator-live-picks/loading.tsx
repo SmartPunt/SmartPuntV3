@@ -65,9 +65,50 @@ className="smartpunt-lightning-video h-full w-full object-cover [transform:trans
           - no large WebKit compositing glow
         */
 
+@keyframes smartpunt-real-lightning {
+  0%,
+  7% {
+    opacity: 0;
+  }
+
+  8% {
+    opacity: 0.85;
+  }
+
+  10% {
+    opacity: 0.15;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  15% {
+    opacity: 0.35;
+  }
+
+  18% {
+    opacity: 0.9;
+  }
+
+  22% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
 .smartpunt-lightning-video {
   mix-blend-mode: screen;
-  opacity: 1;
+  opacity: 0;
+
+  animation:
+    smartpunt-real-lightning
+    5s
+    linear
+    infinite;
 }
 
         @keyframes smartpunt-impact {
@@ -148,11 +189,11 @@ box-shadow:
   -4px 0 8px rgba(224, 183, 64, 0.3),
   4px 0 8px rgba(0, 220, 135, 0.28);
 
-          animation:
-            smartpunt-impact
-            1.45s
-            ease-out
-            infinite;
+animation:
+  smartpunt-impact
+  5s
+  ease-out
+  infinite;
         }
 
         .smartpunt-title-window {
@@ -185,11 +226,11 @@ background: linear-gradient(
   transparent 100%
 );
 
-          animation:
-            smartpunt-title-charge
-            1.45s
-            ease-out
-            infinite;
+animation:
+  smartpunt-title-charge
+  5s
+  ease-out
+  infinite;
         }
 
         .smartpunt-progress-energy {
