@@ -106,6 +106,7 @@ if (
     activeUserBetsQuery,
     resultedUserBetsQuery,
     liveFortuneFivesQuery,
+    subscriberNotificationsQuery,
   ] = await Promise.all([
 loadSubscriberLivePicksData({
   userId: profile.id,
@@ -176,6 +177,17 @@ loadSubscriberLivePicksData({
       .order("published_date", {
         ascending: false,
       }),
+
+    supabase
+      .from("subscriber_notifications")
+      .select(
+        "id, notification_type, title, message, link, race_id, meeting_id, is_read, created_at, read_at",
+      )
+      .eq("user_id", profile.id)
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(30),
   ]);
 
   logStage(
@@ -212,6 +224,12 @@ loadSubscriberLivePicksData({
   if (liveFortuneFivesQuery.error) {
     throw new Error(
       liveFortuneFivesQuery.error.message,
+    );
+  }
+
+  if (subscriberNotificationsQuery.error) {
+    throw new Error(
+      subscriberNotificationsQuery.error.message,
     );
   }
 
@@ -421,6 +439,9 @@ initialJockeyProfiles={
         }
         initialLiveOpportunityCount={
           liveOpportunityCount
+        }
+        initialSubscriberNotifications={
+          subscriberNotificationsQuery.data ?? []
         }
       />
     </AppEntryLoader>
