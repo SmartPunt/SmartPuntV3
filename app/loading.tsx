@@ -3,7 +3,7 @@ export default function Loading() {
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black">
       <div className="relative flex w-full items-center justify-center">
         <img
-          src="/smartpunt-loading-screen.png"
+src="/smartpunt-loading-screen-3d.png"
           alt="SmartPunt loading"
           className="block h-[90vh] w-[90vw] object-contain"
         />
