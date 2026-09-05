@@ -162,6 +162,188 @@ async function serviceRoleSelect(path: string) {
     },
   });
 }
+
+/*
+ * SMARTPUNT IN-APP SUBSCRIBER NOTIFICATIONS
+ *
+ * This is deliberately separate from the existing email-alert system.
+ *
+ * Rules:
+ * - notifications report existing SmartPunt state only;
+ * - they must never calculate tips, Vault matches or race intelligence;
+ * - subscribers with no preference row receive the default ON behaviour;
+ * - notification failure must never fail the underlying SmartPunt action;
+ * - subscriber pages will later perform only small indexed reads from
+ *   subscriber_notifications.
+ */
+
+type SubscriberNotificationType =
+  | "maverick_tip"
+  | "race_day_started"
+  | "conditions_changed"
+  | "vault_matches_today";
+
+type SubscriberNotificationPreferenceRow = {
+  user_id: string;
+  maverick_tips_enabled: boolean | null;
+  race_day_started_enabled: boolean | null;
+  conditions_changed_enabled: boolean | null;
+  vault_matches_today_enabled: boolean | null;
+};
+
+function isSubscriberNotificationEnabled(
+  type: SubscriberNotificationType,
+  preference:
+    | SubscriberNotificationPreferenceRow
+    | null,
+) {
+  /*
+   * No preference row means use SmartPunt defaults:
+   * all four in-app notification categories are ON.
+   */
+  if (!preference) {
+    return true;
+  }
+
+  if (type === "maverick_tip") {
+    return preference.maverick_tips_enabled !== false;
+  }
+
+  if (type === "race_day_started") {
+    return preference.race_day_started_enabled !== false;
+  }
+
+  if (type === "conditions_changed") {
+    return preference.conditions_changed_enabled !== false;
+  }
+
+  if (type === "vault_matches_today") {
+    return preference.vault_matches_today_enabled !== false;
+  }
+
+  return false;
+}
+
+async function createSubscriberInAppNotifications({
+  type,
+  title,
+  message,
+  link = null,
+  raceId = null,
+  meetingId = null,
+}: {
+  type: SubscriberNotificationType;
+  title: string;
+  message: string;
+  link?: string | null;
+  raceId?: number | null;
+  meetingId?: number | null;
+}) {
+  const subscriberRows = (await serviceRoleSelect(
+    "profiles?select=id&role=eq.user&status=eq.active",
+  )) as Array<{
+    id: string;
+  }> | null;
+
+  const subscribers = subscriberRows || [];
+
+  if (!subscribers.length) {
+    return {
+      created: 0,
+    };
+  }
+
+  const preferenceRows = (await serviceRoleSelect(
+    "subscriber_notification_preferences?select=user_id,maverick_tips_enabled,race_day_started_enabled,conditions_changed_enabled,vault_matches_today_enabled",
+  )) as SubscriberNotificationPreferenceRow[] | null;
+
+  const preferenceByUserId = new Map(
+    (preferenceRows || []).map((preference) => [
+      String(preference.user_id),
+      preference,
+    ]),
+  );
+
+  const now = new Date().toISOString();
+
+  const notifications = subscribers
+    .filter((subscriber) =>
+      isSubscriberNotificationEnabled(
+        type,
+        preferenceByUserId.get(
+          String(subscriber.id),
+        ) || null,
+      ),
+    )
+    .map((subscriber) => ({
+      user_id: String(subscriber.id),
+
+      notification_type: type,
+
+      title,
+      message,
+
+      link,
+
+      race_id:
+        raceId !== null &&
+        raceId !== undefined
+          ? Number(raceId)
+          : null,
+
+      meeting_id:
+        meetingId !== null &&
+        meetingId !== undefined
+          ? Number(meetingId)
+          : null,
+
+      is_read: false,
+      read_at: null,
+
+      created_at: now,
+    }));
+
+  if (!notifications.length) {
+    return {
+      created: 0,
+    };
+  }
+
+  /*
+   * Keep inserts bounded so subscriber growth never produces
+   * one enormous REST payload.
+   *
+   * This runs from the admin action, not from subscriber page loads.
+   */
+  const batchSize = 250;
+
+  for (
+    let index = 0;
+    index < notifications.length;
+    index += batchSize
+  ) {
+    await serviceRoleFetch(
+      "subscriber_notifications",
+      {
+        method: "POST",
+        headers: {
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(
+          notifications.slice(
+            index,
+            index + batchSize,
+          ),
+        ),
+      },
+    );
+  }
+
+  return {
+    created: notifications.length,
+  };
+}
+
 export async function getCalculatorSuccessStatsAction({
   from,
   to,
@@ -4886,6 +5068,55 @@ for (const race of races) {
         success: false,
         error: releaseError.message,
       };
+    }
+
+    /*
+     * SMARTPUNT IN-APP NOTIFICATION
+     *
+     * The meeting is now genuinely released.
+     *
+     * Only now do we create the subscriber notification.
+     * Notification delivery is non-critical: if it fails,
+     * Race Day remains successfully started and the Calculator
+     * release is not rolled back.
+     */
+    try {
+      const notificationResult =
+        await createSubscriberInAppNotifications({
+          type: "race_day_started",
+
+          title: "Race Day is live",
+
+          message:
+            `${meeting.meeting_name} is now live in SmartPunt. ` +
+            `Today's race intelligence is ready.`,
+
+          link:
+            "/smartpunt-calculator-live-picks",
+
+          meetingId,
+        });
+
+      console.log(
+        "Race Day subscriber notifications created:",
+        {
+          meetingId,
+          meetingName:
+            meeting.meeting_name,
+          created:
+            notificationResult.created,
+        },
+      );
+    } catch (notificationError) {
+      console.error(
+        "Race Day in-app notification failed:",
+        {
+          meetingId,
+          meetingName:
+            meeting.meeting_name,
+          error: notificationError,
+        },
+      );
     }
 
     revalidatePath("/");
