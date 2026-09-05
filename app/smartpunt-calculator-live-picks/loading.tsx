@@ -17,7 +17,7 @@ export default function Loading() {
         */}
         <div
           aria-hidden="true"
-className="smartpunt-lightning-window pointer-events-none absolute left-1/2 top-0 h-[58%] w-[62%] max-w-[475px] -translate-x-1/2 overflow-hidden"
+className="smartpunt-lightning-window pointer-events-none absolute left-1/2 top-0 h-full w-full max-w-[768px] -translate-x-1/2 overflow-hidden"
         >
           <video
             autoPlay
@@ -64,28 +64,10 @@ className="smartpunt-lightning-video h-full w-full object-cover [transform:trans
           - no CSS blur
           - no large WebKit compositing glow
         */
-.smartpunt-lightning-window {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 12%,
-    black 88%,
-    transparent 100%
-  );
-
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 12%,
-    black 88%,
-    transparent 100%
-  );
-}
 
 .smartpunt-lightning-video {
   mix-blend-mode: screen;
-  opacity: 0.5;
-  filter: contrast(1.65) brightness(0.88);
+  opacity: 1;
 }
 
         @keyframes smartpunt-impact {
