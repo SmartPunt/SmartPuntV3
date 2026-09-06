@@ -5848,6 +5848,65 @@ for (const race of races) {
       );
     }
 
+    /*
+     * SMARTPUNT VAULT MATCHES TODAY
+     *
+     * Race Day has already been successfully released.
+     *
+     * Process today's Vault matches from the admin side
+     * so subscribers do not need to open the Dashboard
+     * before their Vault matches are discovered.
+     *
+     * IMPORTANT:
+     * - this does not recalculate the Calculator;
+     * - this does not run from subscriber page loads;
+     * - only subscribers with genuine Vault matches
+     *   receive a Vault notification;
+     * - the subscriber's Vault notification preference
+     *   is respected;
+     * - only one daily Vault summary is maintained;
+     * - failure here must never undo Race Day release.
+     */
+    try {
+      const vaultNotificationResult =
+        await processVaultMatchesTodayNotifications({
+          meetingDate:
+            String(meeting.meeting_date),
+        });
+
+      console.log(
+        "Race Day Vault processing completed:",
+        {
+          meetingId,
+          meetingName:
+            meeting.meeting_name,
+          meetingDate:
+            meeting.meeting_date,
+          matchedUsers:
+            vaultNotificationResult.matchedUsers,
+          storedMatches:
+            vaultNotificationResult.storedMatches,
+          createdNotifications:
+            vaultNotificationResult.createdNotifications,
+          updatedNotifications:
+            vaultNotificationResult.updatedNotifications,
+        },
+      );
+    } catch (vaultNotificationError) {
+      console.error(
+        "Race Day Vault processing failed:",
+        {
+          meetingId,
+          meetingName:
+            meeting.meeting_name,
+          meetingDate:
+            meeting.meeting_date,
+          error:
+            vaultNotificationError,
+        },
+      );
+    }
+
     revalidatePath("/");
     revalidatePath("/current-races");
     revalidatePath("/admin/calculator");
