@@ -15,6 +15,7 @@ import { addUserBetAction, signOutAction } from "@/lib/actions";
 import {
   markAllSubscriberNotificationsReadAction,
   markSubscriberNotificationReadAction,
+  updateSubscriberNotificationPreferencesAction,
 } from "@/lib/subscriber-notification-actions";
 import { TipPill } from "@/components/ui";
 import { useRealtimeTable } from "@/components/useRealtimeTable";
@@ -339,6 +340,34 @@ initialSubscriberNotificationPreferences?: {
     notificationActionPending,
     startNotificationTransition,
   ] = useTransition();
+
+  const [
+    showNotificationSettings,
+    setShowNotificationSettings,
+  ] = useState(false);
+
+  const [
+    notificationPreferences,
+    setNotificationPreferences,
+  ] = useState({
+    maverick_tips_enabled:
+      initialSubscriberNotificationPreferences
+        ?.maverick_tips_enabled !== false,
+    race_day_started_enabled:
+      initialSubscriberNotificationPreferences
+        ?.race_day_started_enabled !== false,
+    conditions_changed_enabled:
+      initialSubscriberNotificationPreferences
+        ?.conditions_changed_enabled !== false,
+    vault_matches_today_enabled:
+      initialSubscriberNotificationPreferences
+        ?.vault_matches_today_enabled !== false,
+  });
+
+  const [
+    notificationPreferencesMessage,
+    setNotificationPreferencesMessage,
+  ] = useState("");
 
 const router = useRouter();
 const searchParams = useSearchParams();
@@ -977,6 +1006,44 @@ const livePicksCount =
       if (!result.success) {
         router.refresh();
       }
+    });
+  }
+
+  function updateNotificationPreference(
+    key:
+      | "maverick_tips_enabled"
+      | "race_day_started_enabled"
+      | "conditions_changed_enabled"
+      | "vault_matches_today_enabled",
+  ) {
+    const nextPreferences = {
+      ...notificationPreferences,
+      [key]: !notificationPreferences[key],
+    };
+
+    setNotificationPreferences(nextPreferences);
+    setNotificationPreferencesMessage("");
+
+    startNotificationTransition(async () => {
+      const result =
+        await updateSubscriberNotificationPreferencesAction(
+          nextPreferences,
+        );
+
+      if (!result.success) {
+        setNotificationPreferences(
+          notificationPreferences,
+        );
+        setNotificationPreferencesMessage(
+          result.error ||
+            "Could not save notification settings.",
+        );
+        return;
+      }
+
+      setNotificationPreferencesMessage(
+        "Preferences saved",
+      );
     });
   }
 
@@ -1682,34 +1749,167 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
 
               {showNotifications ? (
                 <div className="fixed left-3 right-3 top-[8.75rem] z-[70] mx-auto max-w-[22rem] overflow-hidden rounded-[1.5rem] border border-amber-300/25 bg-zinc-950 shadow-[0_24px_80px_rgba(0,0,0,0.8)] sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:mx-0 sm:w-[22rem] sm:max-w-none">
-                  <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-                    <div>
-                      <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
-                        SmartPunt
-                      </p>
+                  <div className="border-b border-white/10 px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
+                          SmartPunt
+                        </p>
 
-                      <h2 className="mt-1 text-base font-black text-white">
-                        Notifications
-                      </h2>
+                        <h2 className="mt-1 text-base font-black text-white">
+                          {showNotificationSettings
+                            ? "Notification Settings"
+                            : "Notifications"}
+                        </h2>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {!showNotificationSettings &&
+                        unreadNotificationCount > 0 ? (
+                          <button
+                            type="button"
+                            disabled={
+                              notificationActionPending
+                            }
+                            onClick={
+                              markAllNotificationsRead
+                            }
+                            className="text-[9px] font-black uppercase tracking-[0.08em] text-amber-200 disabled:opacity-50"
+                          >
+                            Mark all read
+                          </button>
+                        ) : null}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowNotificationSettings(
+                              (current) => !current,
+                            );
+                            setNotificationPreferencesMessage(
+                              "",
+                            );
+                          }}
+                          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.08em] text-zinc-300 transition hover:bg-white/10"
+                        >
+                          {showNotificationSettings
+                            ? "Back"
+                            : "Settings"}
+                        </button>
+                      </div>
                     </div>
-
-                    {unreadNotificationCount > 0 ? (
-                      <button
-                        type="button"
-                        disabled={
-                          notificationActionPending
-                        }
-                        onClick={
-                          markAllNotificationsRead
-                        }
-                        className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 disabled:opacity-50"
-                      >
-                        Mark all read
-                      </button>
-                    ) : null}
                   </div>
 
-                  <div className="max-h-[60vh] overflow-y-auto">
+                  {showNotificationSettings ? (
+                    <div className="max-h-[60vh] overflow-y-auto p-3">
+                      <p className="px-1 pb-3 text-xs leading-5 text-zinc-400">
+                        Choose which SmartPunt alerts you want
+                        to receive.
+                      </p>
+
+                      {[
+                        {
+                          key: "maverick_tips_enabled" as const,
+                          icon: "🛡️",
+                          title: "The Maverick",
+                          description:
+                            "New Maverick selections and tips.",
+                        },
+                        {
+                          key: "race_day_started_enabled" as const,
+                          icon: "🏇",
+                          title: "Race Day",
+                          description:
+                            "When SmartPunt Race Day goes live.",
+                        },
+                        {
+                          key: "conditions_changed_enabled" as const,
+                          icon: "🌦️",
+                          title: "Track Conditions",
+                          description:
+                            "Important track condition changes.",
+                        },
+                        {
+                          key: "vault_matches_today_enabled" as const,
+                          icon: "🔔",
+                          title: "The Vault",
+                          description:
+                            "When your Vault horses are racing today.",
+                        },
+                      ].map((preference) => {
+                        const enabled =
+                          notificationPreferences[
+                            preference.key
+                          ];
+
+                        return (
+                          <button
+                            key={preference.key}
+                            type="button"
+                            disabled={
+                              notificationActionPending
+                            }
+                            onClick={() =>
+                              updateNotificationPreference(
+                                preference.key,
+                              )
+                            }
+                            className="flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-3 text-left transition hover:bg-white/[0.06] disabled:opacity-60"
+                          >
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/45 text-lg">
+                              {preference.icon}
+                            </span>
+
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-black text-white">
+                                {preference.title}
+                              </span>
+
+                              <span className="mt-0.5 block text-[11px] leading-4 text-zinc-500">
+                                {preference.description}
+                              </span>
+                            </span>
+
+                            <span
+                              aria-hidden="true"
+                              className={`relative h-6 w-11 shrink-0 rounded-full border transition ${
+                                enabled
+                                  ? "border-amber-300/50 bg-amber-300"
+                                  : "border-white/15 bg-zinc-800"
+                              }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 h-4.5 w-4.5 rounded-full bg-black shadow transition-transform ${
+                                  enabled
+                                    ? "translate-x-[1.25rem]"
+                                    : "translate-x-0.5"
+                                }`}
+                              />
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {notificationPreferencesMessage ? (
+                        <p
+                          className={`px-2 pt-3 text-center text-[10px] font-black uppercase tracking-[0.1em] ${
+                            notificationPreferencesMessage ===
+                            "Preferences saved"
+                              ? "text-emerald-300"
+                              : "text-rose-300"
+                          }`}
+                        >
+                          {notificationPreferencesMessage}
+                        </p>
+                      ) : null}
+
+                      <p className="px-2 pt-4 text-center text-[10px] leading-4 text-zinc-600">
+                        You can change these settings at any
+                        time.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto">
                     {subscriberNotifications.length > 0 ? (
                       subscriberNotifications.map(
                         (notification) => (
@@ -1778,7 +1978,8 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                         </p>
                       </div>
                     )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
