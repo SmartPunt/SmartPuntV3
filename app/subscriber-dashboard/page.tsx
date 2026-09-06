@@ -250,16 +250,46 @@ loadSubscriberLivePicksData({
 
   const vaultSyncStartedAt = Date.now();
 
- const vaultState =
+  /*
+   * SUBSCRIBER PERFORMANCE BOUNDARY
+   *
+   * Vault matching and notification creation belong to
+   * the authoritative admin/event-side workflow.
+   *
+   * The subscriber Dashboard must only READ matches that
+   * have already been stored. Never run Vault rule
+   * evaluation or database writes from this request.
+   */
+  const vaultState =
+    await syncVaultNotifications({
+      userId: profile.id,
+      liveData: {
+        dayDates: {
+          today:
+            livePicksData.dayDates.today,
+          tomorrow:
+            livePicksData.dayDates.tomorrow,
+        },
+        currentMeetings:
+          livePicksData.currentMeetings,
+        currentRaces:
+          livePicksData.currentRaces,
+        currentRunners:
+          livePicksData.currentRunners,
+        horses:
+          livePicksData.horses,
+      },
+      performSync: false,
+    });
 
-logStage(
-  "Vault notification sync",
-  vaultSyncStartedAt,
-  {
-    liveMatchCount:
-      vaultState.liveMatchCount,
-  },
-);
+  logStage(
+    "Vault notification read",
+    vaultSyncStartedAt,
+    {
+      liveMatchCount:
+        vaultState.liveMatchCount,
+    },
+  );
 
 const liveVaultRaceIds = new Set(
   livePicksData.currentRaces
