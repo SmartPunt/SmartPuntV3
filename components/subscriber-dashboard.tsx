@@ -1614,159 +1614,178 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black shadow-[0_0_28px_rgba(245,158,11,0.25)]">
-                <img src="/smartpunt-icon-512.png" alt="SmartPunt" className="h-full w-full object-cover" />
+                <img
+                  src="/smartpunt-icon-512.png"
+                  alt="SmartPunt"
+                  className="h-full w-full object-cover"
+                />
               </div>
+
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">SmartPunt</p>
-                <h1 className="mt-0.5 truncate text-xl font-black tracking-tight text-white sm:text-2xl">Member Dashboard</h1>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                  SmartPunt
+                </p>
+
+                <h1 className="mt-0.5 truncate text-xl font-black tracking-tight text-white sm:text-2xl">
+                  Member Dashboard
+                </h1>
               </div>
             </div>
 
-<div className="flex shrink-0 items-center gap-2">
-  <div className="relative">
-    <button
-      type="button"
-      onClick={() =>
-        setShowNotifications(
-          (current) => !current,
-        )
-      }
-      aria-label="Notifications"
-      aria-expanded={showNotifications}
-      className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-300/10 text-lg text-amber-200 transition hover:bg-amber-300/15"
-    >
-      <span aria-hidden="true">🔔</span>
+            <div className="flex shrink-0 items-center gap-2">
+              {["admin", "staff_admin"].includes(
+                String(currentUser.role || ""),
+              ) ? (
+                <Link
+                  href="/mobile-admin"
+                  className="rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
+                >
+                  Admin
+                </Link>
+              ) : null}
 
-      {unreadNotificationCount > 0 ? (
-        <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-black bg-amber-300 px-1 text-[9px] font-black leading-none text-black">
-          {unreadNotificationCount > 99
-            ? "99+"
-            : unreadNotificationCount}
-        </span>
-      ) : null}
-    </button>
-
-    {showNotifications ? (
-      <div className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.5rem] border border-amber-300/25 bg-zinc-950 shadow-[0_24px_80px_rgba(0,0,0,0.8)]">
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-          <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
-              SmartPunt
-            </p>
-
-            <h2 className="mt-1 text-base font-black text-white">
-              Notifications
-            </h2>
+              <form action={signOutAction}>
+                <button className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-white/10">
+                  Log out
+                </button>
+              </form>
+            </div>
           </div>
 
-          {unreadNotificationCount > 0 ? (
-            <button
-              type="button"
-              disabled={
-                notificationActionPending
-              }
-              onClick={
-                markAllNotificationsRead
-              }
-              className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 disabled:opacity-50"
-            >
-              Mark all read
-            </button>
-          ) : null}
-        </div>
-
-        <div className="max-h-[60vh] overflow-y-auto">
-          {subscriberNotifications.length >
-          0 ? (
-            subscriberNotifications.map(
-              (notification) => (
-                <button
-                  key={notification.id}
-                  type="button"
-                  onClick={() =>
-                    markNotificationRead(
-                      notification,
-                    )
-                  }
-                  className={`flex w-full items-start gap-3 border-b border-white/[0.07] px-4 py-4 text-left transition last:border-b-0 ${
-                    notification.is_read
-                      ? "bg-black/20 hover:bg-white/[0.04]"
-                      : "bg-amber-300/[0.07] hover:bg-amber-300/[0.1]"
-                  }`}
+          <div className="mt-3 border-t border-white/10 pt-3">
+            <div className="relative flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setShowNotifications(
+                    (current) => !current,
+                  )
+                }
+                aria-label="Notifications"
+                aria-expanded={showNotifications}
+                className="relative inline-flex items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-300/15"
+              >
+                <span
+                  aria-hidden="true"
+                  className="text-base"
                 >
-                  <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/45 text-base">
-                    {getNotificationIcon(
-                      notification.notification_type,
-                    )}
-                  </span>
+                  🔔
+                </span>
 
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-start gap-2">
-                      <span
-                        className={`min-w-0 flex-1 text-sm font-black ${
-                          notification.is_read
-                            ? "text-zinc-300"
-                            : "text-white"
-                        }`}
+                <span>Notifications</span>
+
+                {unreadNotificationCount > 0 ? (
+                  <span className="flex min-h-5 min-w-5 items-center justify-center rounded-full bg-amber-300 px-1.5 text-[9px] font-black leading-none text-black">
+                    {unreadNotificationCount > 99
+                      ? "99+"
+                      : unreadNotificationCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {showNotifications ? (
+                <div className="fixed left-3 right-3 top-[8.5rem] z-[70] mx-auto max-w-[22rem] overflow-hidden rounded-[1.5rem] border border-amber-300/25 bg-zinc-950 shadow-[0_24px_80px_rgba(0,0,0,0.8)] sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:mx-0 sm:w-[22rem] sm:max-w-none">
+                  <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
+                        SmartPunt
+                      </p>
+
+                      <h2 className="mt-1 text-base font-black text-white">
+                        Notifications
+                      </h2>
+                    </div>
+
+                    {unreadNotificationCount > 0 ? (
+                      <button
+                        type="button"
+                        disabled={
+                          notificationActionPending
+                        }
+                        onClick={
+                          markAllNotificationsRead
+                        }
+                        className="text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 disabled:opacity-50"
                       >
-                        {notification.title}
-                      </span>
+                        Mark all read
+                      </button>
+                    ) : null}
+                  </div>
 
-                      {!notification.is_read ? (
-                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-300" />
-                      ) : null}
-                    </span>
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {subscriberNotifications.length >
+                    0 ? (
+                      subscriberNotifications.map(
+                        (notification) => (
+                          <button
+                            key={notification.id}
+                            type="button"
+                            onClick={() =>
+                              markNotificationRead(
+                                notification,
+                              )
+                            }
+                            className={`flex w-full items-start gap-3 border-b border-white/[0.07] px-4 py-4 text-left transition last:border-b-0 ${
+                              notification.is_read
+                                ? "bg-black/20 hover:bg-white/[0.04]"
+                                : "bg-amber-300/[0.07] hover:bg-amber-300/[0.1]"
+                            }`}
+                          >
+                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/45 text-base">
+                              {getNotificationIcon(
+                                notification.notification_type,
+                              )}
+                            </span>
 
-                    <span className="mt-1 block text-xs leading-5 text-zinc-400">
-                      {notification.message}
-                    </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-start gap-2">
+                                <span
+                                  className={`min-w-0 flex-1 text-sm font-black ${
+                                    notification.is_read
+                                      ? "text-zinc-300"
+                                      : "text-white"
+                                  }`}
+                                >
+                                  {notification.title}
+                                </span>
 
-                    <span className="mt-2 block text-[9px] font-black uppercase tracking-[0.12em] text-zinc-500">
-                      {formatNotificationTime(
-                        notification.created_at,
-                      )}
-                    </span>
-                  </span>
-                </button>
-              ),
-            )
-          ) : (
-            <div className="px-5 py-8 text-center">
-              <div className="text-2xl">
-                🔔
-              </div>
+                                {!notification.is_read ? (
+                                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-amber-300" />
+                                ) : null}
+                              </span>
 
-              <p className="mt-3 text-sm font-black text-white">
-                You&apos;re all caught up
-              </p>
+                              <span className="mt-1 block text-xs leading-5 text-zinc-400">
+                                {notification.message}
+                              </span>
 
-              <p className="mt-1 text-xs leading-5 text-zinc-500">
-                New SmartPunt alerts will appear here.
-              </p>
+                              <span className="mt-2 block text-[9px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                                {formatNotificationTime(
+                                  notification.created_at,
+                                )}
+                              </span>
+                            </span>
+                          </button>
+                        ),
+                      )
+                    ) : (
+                      <div className="px-5 py-8 text-center">
+                        <div className="text-2xl">
+                          🔔
+                        </div>
+
+                        <p className="mt-3 text-sm font-black text-white">
+                          You&apos;re all caught up
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-zinc-500">
+                          New SmartPunt alerts will appear here.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
-          )}
-        </div>
-      </div>
-    ) : null}
-  </div>
-
-  {["admin", "staff_admin"].includes(
-    String(currentUser.role || ""),
-  ) ? (
-    <Link
-      href="/mobile-admin"
-      className="rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
-    >
-      Admin
-    </Link>
-  ) : null}
-
-  <form action={signOutAction}>
-    <button className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-white/10">
-      Log out
-    </button>
-  </form>
-</div>
           </div>
         </header>
 
