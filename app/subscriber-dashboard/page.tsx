@@ -107,6 +107,7 @@ if (
     resultedUserBetsQuery,
     liveFortuneFivesQuery,
     subscriberNotificationsQuery,
+    subscriberNotificationPreferencesQuery,
   ] = await Promise.all([
 loadSubscriberLivePicksData({
   userId: profile.id,
@@ -188,6 +189,14 @@ loadSubscriberLivePicksData({
         ascending: false,
       })
       .limit(30),
+
+    supabase
+      .from("subscriber_notification_preferences")
+      .select(
+        "maverick_tips_enabled, race_day_started_enabled, conditions_changed_enabled, vault_matches_today_enabled",
+      )
+      .eq("user_id", profile.id)
+      .maybeSingle(),
   ]);
 
   logStage(
@@ -230,6 +239,12 @@ loadSubscriberLivePicksData({
   if (subscriberNotificationsQuery.error) {
     throw new Error(
       subscriberNotificationsQuery.error.message,
+    );
+  }
+
+  if (subscriberNotificationPreferencesQuery.error) {
+    throw new Error(
+      subscriberNotificationPreferencesQuery.error.message,
     );
   }
 
@@ -442,6 +457,9 @@ initialJockeyProfiles={
         }
         initialSubscriberNotifications={
           subscriberNotificationsQuery.data ?? []
+        }
+        initialSubscriberNotificationPreferences={
+          subscriberNotificationPreferencesQuery.data ?? null
         }
       />
     </AppEntryLoader>
