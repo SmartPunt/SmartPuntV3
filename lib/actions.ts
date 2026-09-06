@@ -4934,6 +4934,63 @@ export async function updateMeetingConditionAction(formData: FormData) {
     }
   }
 
+  /*
+   * SmartPunt in-app notification.
+   *
+   * Only notify subscribers when:
+   * - the track condition genuinely changed;
+   * - Race Day has already been released;
+   * - the database update succeeded;
+   * - any required live Calculator refresh above
+   *   also completed successfully.
+   *
+   * Notification failure must never fail the
+   * underlying track-condition update.
+   */
+  if (
+    conditionChanged &&
+    existingMeeting.calculator_released_at
+  ) {
+    createSubscriberInAppNotifications({
+      type: "conditions_changed",
+      title: "Track Conditions Changed",
+      message:
+        previousCondition && nextCondition
+          ? `Track conditions have changed from ${previousCondition} to ${nextCondition}.`
+          : nextCondition
+            ? `Track conditions are now ${nextCondition}.`
+            : "Track conditions have been updated.",
+      link: "/smartpunt-calculator-live-picks",
+      meetingId,
+    })
+      .then((notificationResult) => {
+        console.log(
+          "Track-condition subscriber notifications created:",
+          {
+            meetingId,
+            previousCondition,
+            nextCondition,
+            created:
+              notificationResult.created,
+          },
+        );
+      })
+      .catch((notificationError) => {
+        console.error(
+          "Track-condition in-app notification failed:",
+          {
+            meetingId,
+            previousCondition,
+            nextCondition,
+            error:
+              notificationError instanceof Error
+                ? notificationError.message
+                : notificationError,
+          },
+        );
+      });
+  }
+
   revalidatePath("/current-races");
   revalidatePath("/admin/calculator");
   revalidatePath("/subscriber-dashboard");
