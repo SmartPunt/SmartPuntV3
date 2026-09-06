@@ -1611,49 +1611,39 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
     <div className="min-h-screen bg-[radial-gradient(circle_at_10%_0%,rgba(245,158,11,0.2),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(217,119,6,0.12),transparent_26%),linear-gradient(180deg,#030303_0%,#09090b_45%,#020617_100%)] text-white">
       <div className="mx-auto max-w-5xl px-3 py-4 sm:px-5 lg:px-8">
         <header className="sticky top-2 z-20 rounded-[1.75rem] border border-amber-300/20 bg-black/82 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black shadow-[0_0_28px_rgba(245,158,11,0.25)]">
-                <img
-                  src="/smartpunt-icon-512.png"
-                  alt="SmartPunt"
-                  className="h-full w-full object-cover"
-                />
-              </div>
-
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
-                  SmartPunt
-                </p>
-
-                <h1 className="mt-0.5 truncate text-xl font-black tracking-tight text-white sm:text-2xl">
-                  Member Dashboard
-                </h1>
-              </div>
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-black shadow-[0_0_28px_rgba(245,158,11,0.25)]">
+              <img
+                src="/smartpunt-icon-512.png"
+                alt="SmartPunt"
+                className="h-full w-full object-cover"
+              />
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-              {["admin", "staff_admin"].includes(
-                String(currentUser.role || ""),
-              ) ? (
-                <Link
-                  href="/mobile-admin"
-                  className="rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
-                >
-                  Admin
-                </Link>
-              ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-300">
+                SmartPunt
+              </p>
 
-              <form action={signOutAction}>
-                <button className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-white/10">
-                  Log out
-                </button>
-              </form>
+              <h1 className="mt-0.5 text-xl font-black tracking-tight text-white sm:text-2xl">
+                Member Dashboard
+              </h1>
             </div>
           </div>
 
-          <div className="mt-3 border-t border-white/10 pt-3">
-            <div className="relative flex justify-end">
+          <div className="mt-3 flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+            {["admin", "staff_admin"].includes(
+              String(currentUser.role || ""),
+            ) ? (
+              <Link
+                href="/mobile-admin"
+                className="rounded-xl border border-amber-300/35 bg-amber-300/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
+              >
+                Admin
+              </Link>
+            ) : null}
+
+            <div className="relative">
               <button
                 type="button"
                 onClick={() =>
@@ -1663,11 +1653,11 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                 }
                 aria-label="Notifications"
                 aria-expanded={showNotifications}
-                className="relative inline-flex items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:bg-amber-300/15"
+                className="relative inline-flex items-center gap-2 rounded-xl border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
               >
                 <span
                   aria-hidden="true"
-                  className="text-base"
+                  className="text-sm"
                 >
                   🔔
                 </span>
@@ -1684,7 +1674,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
               </button>
 
               {showNotifications ? (
-                <div className="fixed left-3 right-3 top-[8.5rem] z-[70] mx-auto max-w-[22rem] overflow-hidden rounded-[1.5rem] border border-amber-300/25 bg-zinc-950 shadow-[0_24px_80px_rgba(0,0,0,0.8)] sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:mx-0 sm:w-[22rem] sm:max-w-none">
+                <div className="fixed left-3 right-3 top-[8.75rem] z-[70] mx-auto max-w-[22rem] overflow-hidden rounded-[1.5rem] border border-amber-300/25 bg-zinc-950 shadow-[0_24px_80px_rgba(0,0,0,0.8)] sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:mx-0 sm:w-[22rem] sm:max-w-none">
                   <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
                     <div>
                       <p className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
@@ -1713,8 +1703,7 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                   </div>
 
                   <div className="max-h-[60vh] overflow-y-auto">
-                    {subscriberNotifications.length >
-                    0 ? (
+                    {subscriberNotifications.length > 0 ? (
                       subscriberNotifications.map(
                         (notification) => (
                           <button
@@ -1786,6 +1775,12 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                 </div>
               ) : null}
             </div>
+
+            <form action={signOutAction}>
+              <button className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] text-white transition hover:bg-white/10">
+                Log out
+              </button>
+            </form>
           </div>
         </header>
 
