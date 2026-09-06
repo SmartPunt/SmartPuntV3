@@ -285,6 +285,7 @@ initialLiveFortuneFives = [],
 initialVaultMatchCount = 0,
 initialLiveOpportunityCount = 0,
 initialSubscriberNotifications = [],
+initialSubscriberNotificationPreferences = null,
 }: {
   currentUser: any;
   initialSuggestedTips: SuggestedTip[];
@@ -307,6 +308,12 @@ initialLiveFortuneFives?: LiveFortuneFive[];
 initialVaultMatchCount?: number;
 initialLiveOpportunityCount?: number;
 initialSubscriberNotifications?: SubscriberNotification[];
+initialSubscriberNotificationPreferences?: {
+  maverick_tips_enabled: boolean | null;
+  race_day_started_enabled: boolean | null;
+  conditions_changed_enabled: boolean | null;
+  vault_matches_today_enabled: boolean | null;
+} | null;
 }) {
   const [customRaceId, setCustomRaceId] = useState("");
   const [customRunnerId, setCustomRunnerId] = useState("");
