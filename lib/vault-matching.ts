@@ -127,6 +127,349 @@ function getEffectiveBarrier(runner: any, raceRunners: any[]) {
   return Math.max(1, originalBarrier - scratchingsInside);
 }
 
+export type VaultMatchedAlert = {
+  alert: VaultAlert;
+  runner: any;
+  race: any;
+  meeting: any;
+  horse: any;
+  effectiveBarrier: number | null;
+  matchedRules: Array<{
+    type: string;
+    label: string;
+    value: string;
+  }>;
+};
+
+export function findVaultLiveMatches({
+  alerts,
+  liveData,
+}: {
+  alerts: VaultAlert[];
+  liveData: VaultLiveData;
+}): VaultMatchedAlert[] {
+  const enabledHorseAlerts = alerts.filter(
+    (alert) =>
+      alert.enabled === true &&
+      alert.alert_type === "horse" &&
+      Number(alert.horse_id) > 0,
+  );
+
+  const meetingMap = new Map(
+    liveData.currentMeetings.map((meeting) => [
+      Number(meeting.id),
+      meeting,
+    ]),
+  );
+
+  const raceMap = new Map(
+    liveData.currentRaces.map((race) => [
+      Number(race.id),
+      race,
+    ]),
+  );
+
+  const horseMap = new Map(
+    liveData.horses.map((horse) => [
+      Number(horse.id),
+      horse,
+    ]),
+  );
+
+  const validDates = new Set([
+    liveData.dayDates.today,
+    liveData.dayDates.tomorrow,
+  ]);
+
+  const publishedRaceIds = new Set(
+    liveData.currentRaces
+      .filter((race) => {
+        if (race.status !== "published") {
+          return false;
+        }
+
+        const meeting = meetingMap.get(
+          Number(race.meeting_id),
+        );
+
+        return (
+          meeting &&
+          validDates.has(
+            String(meeting.meeting_date),
+          )
+        );
+      })
+      .map((race) => Number(race.id)),
+  );
+
+  const runnersByRaceId = new Map<
+    number,
+    any[]
+  >();
+
+  liveData.currentRunners.forEach(
+    (runner) => {
+      const raceId = Number(
+        runner.race_id,
+      );
+
+      const existing =
+        runnersByRaceId.get(raceId) || [];
+
+      existing.push(runner);
+
+      runnersByRaceId.set(
+        raceId,
+        existing,
+      );
+    },
+  );
+
+  const liveMatches: VaultMatchedAlert[] =
+    [];
+
+  enabledHorseAlerts.forEach((alert) => {
+    liveData.currentRunners.forEach(
+      (runner) => {
+        if (runner.scratched === true) {
+          return;
+        }
+
+        if (
+          !publishedRaceIds.has(
+            Number(runner.race_id),
+          )
+        ) {
+          return;
+        }
+
+        if (
+          Number(runner.horse_id) !==
+          Number(alert.horse_id)
+        ) {
+          return;
+        }
+
+        const race = raceMap.get(
+          Number(runner.race_id),
+        );
+
+        if (!race) {
+          return;
+        }
+
+        const meeting = meetingMap.get(
+          Number(race.meeting_id),
+        );
+
+        if (!meeting) {
+          return;
+        }
+
+        const horse =
+          horseMap.get(
+            Number(runner.horse_id),
+          ) || null;
+
+        const raceRunners =
+          runnersByRaceId.get(
+            Number(runner.race_id),
+          ) || [];
+
+        const effectiveBarrier =
+          getEffectiveBarrier(
+            runner,
+            raceRunners,
+          );
+
+        const distanceBucket =
+          getDistanceBucket(
+            race.distance_m,
+          );
+
+        const conditionBucket =
+          getConditionBucket(
+            meeting.track_condition,
+          );
+
+        if (
+          !matchesNamedRule(
+            alert.track_names,
+            meeting.meeting_name,
+          )
+        ) {
+          return;
+        }
+
+        if (
+          !matchesNamedRule(
+            alert.jockey_names,
+            runner.jockey_name,
+          )
+        ) {
+          return;
+        }
+
+        if (
+          !matchesNamedRule(
+            alert.trainer_names,
+            runner.trainer_name,
+          )
+        ) {
+          return;
+        }
+
+        if (
+          alert.distance_buckets?.length &&
+          (
+            !distanceBucket ||
+            !alert.distance_buckets.includes(
+              distanceBucket,
+            )
+          )
+        ) {
+          return;
+        }
+
+        if (
+          alert.track_conditions?.length &&
+          (
+            !conditionBucket ||
+            !alert.track_conditions.includes(
+              conditionBucket,
+            )
+          )
+        ) {
+          return;
+        }
+
+        if (
+          alert.min_effective_barrier !==
+            null &&
+          alert.min_effective_barrier !==
+            undefined &&
+          (
+            effectiveBarrier === null ||
+            effectiveBarrier <
+              Number(
+                alert.min_effective_barrier,
+              )
+          )
+        ) {
+          return;
+        }
+
+        if (
+          alert.max_effective_barrier !==
+            null &&
+          alert.max_effective_barrier !==
+            undefined &&
+          (
+            effectiveBarrier === null ||
+            effectiveBarrier >
+              Number(
+                alert.max_effective_barrier,
+              )
+          )
+        ) {
+          return;
+        }
+
+        const matchedRules = [
+          {
+            type: "horse",
+            label: "Horse",
+            value:
+              horse?.horse_name ||
+              alert.target_name ||
+              "Saved horse",
+          },
+        ];
+
+        if (alert.track_names?.length) {
+          matchedRules.push({
+            type: "track",
+            label: "Track",
+            value:
+              meeting.meeting_name,
+          });
+        }
+
+        if (
+          alert.distance_buckets?.length &&
+          distanceBucket
+        ) {
+          matchedRules.push({
+            type: "distance",
+            label: "Distance",
+            value: distanceBucket,
+          });
+        }
+
+        if (
+          alert.track_conditions?.length &&
+          conditionBucket
+        ) {
+          matchedRules.push({
+            type: "condition",
+            label: "Condition",
+            value: conditionBucket,
+          });
+        }
+
+        if (alert.jockey_names?.length) {
+          matchedRules.push({
+            type: "jockey",
+            label: "Jockey",
+            value:
+              runner.jockey_name ||
+              "Unknown",
+          });
+        }
+
+        if (
+          alert.trainer_names?.length
+        ) {
+          matchedRules.push({
+            type: "trainer",
+            label: "Trainer",
+            value:
+              runner.trainer_name ||
+              "Unknown",
+          });
+        }
+
+        if (
+          alert.min_effective_barrier !==
+            null ||
+          alert.max_effective_barrier !==
+            null
+        ) {
+          matchedRules.push({
+            type: "effective_barrier",
+            label: "Effective barrier",
+            value: String(
+              effectiveBarrier,
+            ),
+          });
+        }
+
+        liveMatches.push({
+          alert,
+          runner,
+          race,
+          meeting,
+          horse,
+          effectiveBarrier,
+          matchedRules,
+        });
+      },
+    );
+  });
+
+  return liveMatches;
+}
+
 export async function syncVaultNotifications({
   userId,
   liveData,
