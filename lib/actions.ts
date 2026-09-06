@@ -5588,54 +5588,59 @@ export async function upsertSuggestedTip(
         }
       }
 
-      if (
-        isNew &&
-        sendNotification &&
-        data
-      ) {
+      if (isNew && data) {
         /*
-         * Existing email notification.
+         * EXISTING EMAIL NOTIFICATION
          *
-         * Keep this independent from the SmartPunt
-         * in-app notification system.
+         * Email remains controlled by the existing
+         * admin "send notification" option.
+         *
+         * Turning that admin option off must NOT stop
+         * SmartPunt in-app notifications.
          */
-        sendSuggestedTipNotifications({
-          race:
-            data.race || payload.race,
-          horse:
-            data.horse || payload.horse,
-          type:
-            data.type || payload.type,
-          confidence:
-            data.confidence ||
-            payload.confidence,
-          note:
-            data.note || payload.note,
-          tipAngle:
-            data.tip_angle ||
-            payload.tip_angle,
-          commentary:
-            data.commentary ||
-            payload.commentary,
-        }).catch(
-          (notificationError) => {
-            console.error(
-              "Suggested tip notification failed:",
-              notificationError,
-            );
-          },
-        );
+        if (sendNotification) {
+          sendSuggestedTipNotifications({
+            race:
+              data.race || payload.race,
+            horse:
+              data.horse || payload.horse,
+            type:
+              data.type || payload.type,
+            confidence:
+              data.confidence ||
+              payload.confidence,
+            note:
+              data.note || payload.note,
+            tipAngle:
+              data.tip_angle ||
+              payload.tip_angle,
+            commentary:
+              data.commentary ||
+              payload.commentary,
+          }).catch(
+            (notificationError) => {
+              console.error(
+                "Suggested tip notification failed:",
+                notificationError,
+              );
+            },
+          );
+        }
 
         /*
-         * SmartPunt in-app notification.
+         * SMARTPUNT IN-APP NOTIFICATION
          *
-         * Important:
-         * - only runs after the Maverick tip was
-         *   successfully inserted;
-         * - respects each subscriber's Maverick
-         *   notification preference;
-         * - failure must never fail tip publishing;
-         * - does not calculate or alter any racing data.
+         * This is deliberately independent of the
+         * existing admin email-notification control.
+         *
+         * Every genuinely new Maverick tip reaches
+         * this helper.
+         *
+         * Subscriber preferences are then respected
+         * inside createSubscriberInAppNotifications.
+         *
+         * Notification failure must never prevent the
+         * Maverick tip itself from publishing.
          */
         createSubscriberInAppNotifications({
           type: "maverick_tip",
@@ -5646,6 +5651,7 @@ export async function upsertSuggestedTip(
             `at ${data.race || payload.race}.`,
           link: "/smartpunt-calculator-live-picks",
           raceId,
+          meetingId,
         })
           .then((notificationResult) => {
             console.log(
