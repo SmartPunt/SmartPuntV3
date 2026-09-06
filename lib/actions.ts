@@ -231,6 +231,7 @@ async function createSubscriberInAppNotifications({
   link = null,
   raceId = null,
   meetingId = null,
+  userIds = null,
 }: {
   type: SubscriberNotificationType;
   title: string;
@@ -238,14 +239,34 @@ async function createSubscriberInAppNotifications({
   link?: string | null;
   raceId?: number | null;
   meetingId?: number | null;
+  userIds?: string[] | null;
 }) {
+  const requestedUserIds =
+    userIds && userIds.length
+      ? Array.from(
+          new Set(
+            userIds
+              .map((userId) =>
+                String(userId || "").trim(),
+              )
+              .filter(Boolean),
+          ),
+        )
+      : null;
+
   const subscriberRows = (await serviceRoleSelect(
     "profiles?select=id&role=eq.user&status=eq.active",
   )) as Array<{
     id: string;
   }> | null;
 
-  const subscribers = subscriberRows || [];
+  const subscribers = (subscriberRows || []).filter(
+    (subscriber) =>
+      !requestedUserIds ||
+      requestedUserIds.includes(
+        String(subscriber.id),
+      ),
+  );
 
   if (!subscribers.length) {
     return {
