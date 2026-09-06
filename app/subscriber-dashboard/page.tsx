@@ -250,25 +250,7 @@ loadSubscriberLivePicksData({
 
   const vaultSyncStartedAt = Date.now();
 
-  const vaultState =
-    await syncVaultNotifications({
-      userId: profile.id,
-      liveData: {
-        dayDates: {
-          today:
-            livePicksData.dayDates.today,
-          tomorrow:
-            livePicksData.dayDates.tomorrow,
-        },
-        currentMeetings:
-          livePicksData.currentMeetings,
-        currentRaces:
-          livePicksData.currentRaces,
-        currentRunners:
-          livePicksData.currentRunners,
-        horses: livePicksData.horses,
-      },
-    });
+ const vaultState =
 
 logStage(
   "Vault notification sync",
