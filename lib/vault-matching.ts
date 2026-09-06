@@ -473,9 +473,11 @@ export function findVaultLiveMatches({
 export async function syncVaultNotifications({
   userId,
   liveData,
+  performSync = true,
 }: {
   userId: string;
   liveData: VaultLiveData;
+  performSync?: boolean;
 }) {
   const supabase = await createClient();
 
@@ -504,11 +506,25 @@ export async function syncVaultNotifications({
    * matching rules so subscriber notifications can
    * never disagree with The Vault itself.
    */
+  /*
+   * Subscriber-facing pages may use this function in
+   * read-only mode.
+   *
+   * When performSync is false we deliberately DO NOT:
+   * - evaluate Vault rules;
+   * - create/update Vault matches;
+   * - delete stale Vault matches.
+   *
+   * The page simply reads the matches already created
+   * by the authoritative admin/event-side workflow.
+   */
   const liveMatches =
-    findVaultLiveMatches({
-      alerts,
-      liveData,
-    });
+    performSync
+      ? findVaultLiveMatches({
+          alerts,
+          liveData,
+        })
+      : [];
 
   /*
    * These lookup maps are still required below for:
@@ -579,7 +595,7 @@ export async function syncVaultNotifications({
     updated_at: now,
   }));
 
-  if (upsertRows.length > 0) {
+  if (performSync && upsertRows.length > 0) {
     const { error: upsertError } = await supabase
       .from("vault_notifications")
       .upsert(upsertRows, {
@@ -673,7 +689,10 @@ const { data: existingNotifications, error: existingError } =
     .map((notification) => Number(notification.id))
     .filter(Boolean);
 
-  if (staleNotificationIds.length > 0) {
+  if (
+    performSync &&
+    staleNotificationIds.length > 0
+  ) {
     const { error: deleteError } = await supabase
       .from("vault_notifications")
       .delete()
