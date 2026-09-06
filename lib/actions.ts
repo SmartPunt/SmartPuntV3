@@ -4544,14 +4544,35 @@ export async function signInAction(
   _: { error: string | null },
   formData: FormData,
 ) {
+  const startedAt = Date.now();
+
+  console.log("[SmartPunt Login Debug] START");
+
   const identifier = String(formData.get("identifier") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
 
   if (!identifier || !password) {
+    console.log("[SmartPunt Login Debug] MISSING CREDENTIALS", {
+      totalDurationMs: Date.now() - startedAt,
+    });
+
     return { error: "Username/email and password are required." };
   }
 
+  console.log("[SmartPunt Login Debug] CREDENTIALS PRESENT", {
+    identifierType: identifier.includes("@") ? "email" : "username",
+    totalDurationMs: Date.now() - startedAt,
+  });
+
+  const clientStartedAt = Date.now();
+
   const supabase = await createClient();
+
+  console.log("[SmartPunt Login Debug] createClient DONE", {
+    durationMs: Date.now() - clientStartedAt,
+    totalDurationMs: Date.now() - startedAt,
+  });
+
   let resolvedEmail = identifier.toLowerCase();
 
   if (!identifier.includes("@")) {
@@ -4559,9 +4580,21 @@ export async function signInAction(
       const username = identifier.toLowerCase();
       const encodedUsername = encodeURIComponent(username);
 
+      console.log("[SmartPunt Login Debug] username lookup START", {
+        totalDurationMs: Date.now() - startedAt,
+      });
+
+      const usernameLookupStartedAt = Date.now();
+
       const profileRows = (await serviceRoleSelect(
         `profiles?select=email&username=eq.${encodedUsername}&limit=1`,
       )) as Array<{ email: string }> | null;
+
+      console.log("[SmartPunt Login Debug] username lookup DONE", {
+        durationMs: Date.now() - usernameLookupStartedAt,
+        totalDurationMs: Date.now() - startedAt,
+        foundProfile: Boolean(profileRows?.[0]?.email),
+      });
 
       const profile = profileRows?.[0] || null;
 
@@ -4571,6 +4604,14 @@ export async function signInAction(
 
       resolvedEmail = String(profile.email).toLowerCase();
     } catch (error) {
+      console.error("[SmartPunt Login Debug] username lookup FAILED", {
+        totalDurationMs: Date.now() - startedAt,
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
+      });
+
       return {
         error:
           error instanceof Error
@@ -4580,16 +4621,36 @@ export async function signInAction(
     }
   }
 
+  console.log("[SmartPunt Login Debug] signInWithPassword START", {
+    totalDurationMs: Date.now() - startedAt,
+  });
+
+  const authStartedAt = Date.now();
+
   const { error } = await supabase.auth.signInWithPassword({
     email: resolvedEmail,
     password,
+  });
+
+  console.log("[SmartPunt Login Debug] signInWithPassword DONE", {
+    durationMs: Date.now() - authStartedAt,
+    totalDurationMs: Date.now() - startedAt,
+    hasError: Boolean(error),
+    errorMessage: error?.message ?? null,
   });
 
   if (error) {
     return { error: error.message };
   }
 
+  console.log("[SmartPunt Login Debug] cookie write START", {
+    totalDurationMs: Date.now() - startedAt,
+  });
+
+  const cookieStartedAt = Date.now();
+
   const { cookies } = await import("next/headers");
+
   (await cookies()).set("smartpunt_play_intro", "true", {
     path: "/",
     maxAge: 60,
@@ -4597,7 +4658,28 @@ export async function signInAction(
     sameSite: "lax",
   });
 
+  console.log("[SmartPunt Login Debug] cookie write DONE", {
+    durationMs: Date.now() - cookieStartedAt,
+    totalDurationMs: Date.now() - startedAt,
+  });
+
+  console.log("[SmartPunt Login Debug] revalidatePath START", {
+    totalDurationMs: Date.now() - startedAt,
+  });
+
+  const revalidateStartedAt = Date.now();
+
   revalidatePath("/", "layout");
+
+  console.log("[SmartPunt Login Debug] revalidatePath DONE", {
+    durationMs: Date.now() - revalidateStartedAt,
+    totalDurationMs: Date.now() - startedAt,
+  });
+
+  console.log("[SmartPunt Login Debug] COMPLETE", {
+    totalDurationMs: Date.now() - startedAt,
+  });
+
   return { error: null };
 }
 
