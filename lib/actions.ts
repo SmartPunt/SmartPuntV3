@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
+  findVaultLiveMatches,
+} from "@/lib/vault-matching";
+import {
   buildSmartPuntPowerRatings,
   summariseSmartPuntPowerRatings,
 } from "@/lib/power-rating";
@@ -362,6 +365,572 @@ async function createSubscriberInAppNotifications({
 
   return {
     created: notifications.length,
+  };
+}
+
+/*
+ * SMARTPUNT DAILY VAULT NOTIFICATION PROCESSOR
+ *
+ * IMPORTANT:
+ * - runs from admin / Race Day work, never subscriber page loads;
+ * - uses the same authoritative Vault matcher as The Vault;
+ * - stores genuine Vault matches before notifying;
+ * - targets only affected active subscribers;
+ * - creates a maximum of one Vault summary notification
+ *   per subscriber per Perth day;
+ * - if later meetings add more matches, the existing
+ *   daily notification is updated instead of duplicated.
+ */
+async function processVaultMatchesTodayNotifications({
+  meetingDate,
+}: {
+  meetingDate: string;
+}) {
+  const today = perthTodayDateString();
+
+  /*
+   * "Vault Matches Today" means today in Perth.
+   * Starting a future meeting must not create today's alert.
+   */
+  if (String(meetingDate) !== today) {
+    return {
+      matchedUsers: 0,
+      storedMatches: 0,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
+
+  const tomorrowDate = new Date(
+    `${today}T12:00:00.000Z`,
+  );
+
+  tomorrowDate.setUTCDate(
+    tomorrowDate.getUTCDate() + 1,
+  );
+
+  const tomorrow =
+    tomorrowDate
+      .toISOString()
+      .slice(0, 10);
+
+  /*
+   * Only meetings already released to subscribers
+   * are eligible for today's Vault notification.
+   */
+  const releasedMeetings =
+    (await serviceRoleSelect(
+      `meetings?select=id,meeting_name,meeting_date,track_condition,calculator_released_at` +
+        `&meeting_date=eq.${encodeURIComponent(
+          today,
+        )}` +
+        `&calculator_released_at=not.is.null`,
+    )) as any[] | null;
+
+  const currentMeetings =
+    releasedMeetings || [];
+
+  if (!currentMeetings.length) {
+    return {
+      matchedUsers: 0,
+      storedMatches: 0,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
+
+  const meetingIds = Array.from(
+    new Set(
+      currentMeetings
+        .map((meeting) =>
+          Number(meeting.id),
+        )
+        .filter(Boolean),
+    ),
+  );
+
+  const currentRaces =
+    (await serviceRoleSelect(
+      `races?select=id,meeting_id,race_number,race_name,distance_m,status` +
+        `&meeting_id=${buildInFilter(
+          meetingIds,
+        )}` +
+        `&status=eq.published`,
+    )) as any[] | null;
+
+  const races =
+    currentRaces || [];
+
+  if (!races.length) {
+    return {
+      matchedUsers: 0,
+      storedMatches: 0,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
+
+  const raceIds = Array.from(
+    new Set(
+      races
+        .map((race) =>
+          Number(race.id),
+        )
+        .filter(Boolean),
+    ),
+  );
+
+  const currentRunners =
+    (await serviceRoleSelect(
+      `race_runners?select=id,race_id,horse_id,runner_number,jockey_name,trainer_name,barrier,scratched` +
+        `&race_id=${buildInFilter(
+          raceIds,
+        )}`,
+    )) as any[] | null;
+
+  const runners =
+    currentRunners || [];
+
+  if (!runners.length) {
+    return {
+      matchedUsers: 0,
+      storedMatches: 0,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
+
+  const horseIds = Array.from(
+    new Set(
+      runners
+        .map((runner) =>
+          Number(runner.horse_id),
+        )
+        .filter(Boolean),
+    ),
+  );
+
+  const [
+    horseRows,
+    alertRows,
+    subscriberRows,
+    preferenceRows,
+  ] = await Promise.all([
+    horseIds.length
+      ? serviceRoleSelect(
+          `horses?select=id,horse_name` +
+            `&id=${buildInFilter(
+              horseIds,
+            )}`,
+        )
+      : Promise.resolve([]),
+
+    serviceRoleSelect(
+      `vault_alerts?select=id,user_id,alert_name,alert_type,horse_id,target_name,enabled,jockey_names,trainer_names,track_names,distance_buckets,track_conditions,min_effective_barrier,max_effective_barrier` +
+        `&enabled=eq.true` +
+        `&alert_type=eq.horse`,
+    ),
+
+    serviceRoleSelect(
+      "profiles?select=id&role=eq.user&status=eq.active",
+    ),
+
+    serviceRoleSelect(
+      "subscriber_notification_preferences?select=user_id,maverick_tips_enabled,race_day_started_enabled,conditions_changed_enabled,vault_matches_today_enabled",
+    ),
+  ]);
+
+  const activeSubscriberIds =
+    new Set(
+      (
+        (subscriberRows || []) as Array<{
+          id: string;
+        }>
+      ).map((subscriber) =>
+        String(subscriber.id),
+      ),
+    );
+
+  const alerts = (
+    (alertRows || []) as any[]
+  ).filter((alert) =>
+    activeSubscriberIds.has(
+      String(alert.user_id),
+    ),
+  );
+
+  if (!alerts.length) {
+    return {
+      matchedUsers: 0,
+      storedMatches: 0,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
+
+  /*
+   * This is the SAME matching engine used by
+   * syncVaultNotifications / The Vault.
+   */
+  const liveMatches =
+    findVaultLiveMatches({
+      alerts,
+      liveData: {
+        dayDates: {
+          today,
+          tomorrow,
+        },
+        currentMeetings,
+        currentRaces: races,
+        currentRunners: runners,
+        horses:
+          (horseRows || []) as any[],
+      },
+    });
+
+  if (!liveMatches.length) {
+    return {
+      matchedUsers: 0,
+      storedMatches: 0,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
+
+  const now =
+    new Date().toISOString();
+
+  /*
+   * Persist the genuine Vault matches first.
+   * This means the notification reports stored
+   * SmartPunt state rather than inventing its own state.
+   */
+  const vaultRows =
+    liveMatches.map((match) => ({
+      alert_id:
+        Number(match.alert.id),
+
+      race_id:
+        Number(match.race.id),
+
+      race_runner_id:
+        Number(match.runner.id),
+
+      horse_id:
+        Number(match.runner.horse_id),
+
+      meeting_date:
+        String(
+          match.meeting.meeting_date,
+        ),
+
+      matched_rules:
+        match.matchedRules,
+
+      last_matched_at:
+        now,
+
+      updated_at:
+        now,
+    }));
+
+  const batchSize = 250;
+
+  for (
+    let index = 0;
+    index < vaultRows.length;
+    index += batchSize
+  ) {
+    await serviceRoleFetch(
+      "vault_notifications?on_conflict=alert_id,race_runner_id",
+      {
+        method: "POST",
+        headers: {
+          Prefer:
+            "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify(
+          vaultRows.slice(
+            index,
+            index + batchSize,
+          ),
+        ),
+      },
+    );
+  }
+
+  /*
+   * Count unique matched runners per subscriber.
+   *
+   * A subscriber may have more than one Vault rule
+   * matching the same horse/race. That should still
+   * read as one horse racing today.
+   */
+  const matchedRunnerIdsByUser =
+    new Map<string, Set<number>>();
+
+  liveMatches.forEach((match) => {
+    const userId =
+      String(
+        match.alert.user_id || "",
+      ).trim();
+
+    if (!userId) {
+      return;
+    }
+
+    const existing =
+      matchedRunnerIdsByUser.get(
+        userId,
+      ) || new Set<number>();
+
+    existing.add(
+      Number(match.runner.id),
+    );
+
+    matchedRunnerIdsByUser.set(
+      userId,
+      existing,
+    );
+  });
+
+  const preferenceByUserId =
+    new Map(
+      (
+        (preferenceRows || []) as SubscriberNotificationPreferenceRow[]
+      ).map((preference) => [
+        String(preference.user_id),
+        preference,
+      ]),
+    );
+
+  const affectedUsers =
+    Array.from(
+      matchedRunnerIdsByUser.entries(),
+    )
+      .filter(([userId]) =>
+        activeSubscriberIds.has(userId),
+      )
+      .filter(([userId]) =>
+        isSubscriberNotificationEnabled(
+          "vault_matches_today",
+          preferenceByUserId.get(
+            userId,
+          ) || null,
+        ),
+      );
+
+  if (!affectedUsers.length) {
+    return {
+      matchedUsers: 0,
+      storedMatches:
+        liveMatches.length,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
+
+  /*
+   * Australia/Perth is UTC+8 and has no daylight saving.
+   * Convert today's Perth midnight to UTC so we can
+   * find an existing daily notification accurately.
+   */
+  const perthDayStart =
+    zonedDateTimeToUtcIso(
+      today,
+      "00:00",
+      "Australia/Perth",
+    );
+
+  if (!perthDayStart) {
+    throw new Error(
+      "Could not calculate the Perth Vault notification date.",
+    );
+  }
+
+  const perthDayEndDate =
+    new Date(perthDayStart);
+
+  perthDayEndDate.setUTCDate(
+    perthDayEndDate.getUTCDate() + 1,
+  );
+
+  const perthDayEnd =
+    perthDayEndDate.toISOString();
+
+  const existingDailyRows =
+    (await serviceRoleSelect(
+      `subscriber_notifications?select=id,user_id,message,is_read,created_at` +
+        `&notification_type=eq.vault_matches_today` +
+        `&created_at=gte.${encodeURIComponent(
+          perthDayStart,
+        )}` +
+        `&created_at=lt.${encodeURIComponent(
+          perthDayEnd,
+        )}`,
+    )) as Array<{
+      id: number;
+      user_id: string;
+      message: string | null;
+      is_read: boolean | null;
+      created_at: string;
+    }> | null;
+
+  const existingByUserId =
+    new Map(
+      (existingDailyRows || []).map(
+        (notification) => [
+          String(
+            notification.user_id,
+          ),
+          notification,
+        ],
+      ),
+    );
+
+  const newNotifications: Array<{
+    user_id: string;
+    notification_type: SubscriberNotificationType;
+    title: string;
+    message: string;
+    link: string;
+    race_id: null;
+    meeting_id: null;
+    is_read: boolean;
+    read_at: null;
+    created_at: string;
+  }> = [];
+
+  let updatedNotifications = 0;
+
+  for (const [
+    userId,
+    matchedRunnerIds,
+  ] of affectedUsers) {
+    const matchCount =
+      matchedRunnerIds.size;
+
+    const message =
+      matchCount === 1
+        ? "You have 1 Vault horse racing today. Open The Vault to see your match."
+        : `You have ${matchCount} Vault horses racing today. Open The Vault to see your matches.`;
+
+    const existing =
+      existingByUserId.get(userId);
+
+    if (existing) {
+      /*
+       * A later meeting may add more matches.
+       * Update today's existing summary rather than
+       * create a duplicate notification.
+       */
+      if (
+        String(existing.message || "") !==
+        message
+      ) {
+        await serviceRolePatch(
+          `subscriber_notifications?id=eq.${Number(
+            existing.id,
+          )}`,
+          {
+            title:
+              "Vault Matches Today",
+
+            message,
+
+            link:
+              "/the-vault",
+
+            race_id:
+              null,
+
+            meeting_id:
+              null,
+
+            /*
+             * New information has arrived, so surface
+             * the updated daily summary as unread again.
+             */
+            is_read:
+              false,
+
+            read_at:
+              null,
+          },
+        );
+
+        updatedNotifications += 1;
+      }
+
+      continue;
+    }
+
+    newNotifications.push({
+      user_id:
+        userId,
+
+      notification_type:
+        "vault_matches_today",
+
+      title:
+        "Vault Matches Today",
+
+      message,
+
+      link:
+        "/the-vault",
+
+      race_id:
+        null,
+
+      meeting_id:
+        null,
+
+      is_read:
+        false,
+
+      read_at:
+        null,
+
+      created_at:
+        now,
+    });
+  }
+
+  for (
+    let index = 0;
+    index < newNotifications.length;
+    index += batchSize
+  ) {
+    await serviceRoleFetch(
+      "subscriber_notifications",
+      {
+        method: "POST",
+        headers: {
+          Prefer:
+            "return=minimal",
+        },
+        body: JSON.stringify(
+          newNotifications.slice(
+            index,
+            index + batchSize,
+          ),
+        ),
+      },
+    );
+  }
+
+  return {
+    matchedUsers:
+      affectedUsers.length,
+
+    storedMatches:
+      liveMatches.length,
+
+    createdNotifications:
+      newNotifications.length,
+
+    updatedNotifications,
   };
 }
 
