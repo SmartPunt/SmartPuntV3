@@ -5593,6 +5593,12 @@ export async function upsertSuggestedTip(
         sendNotification &&
         data
       ) {
+        /*
+         * Existing email notification.
+         *
+         * Keep this independent from the SmartPunt
+         * in-app notification system.
+         */
         sendSuggestedTipNotifications({
           race:
             data.race || payload.race,
@@ -5619,6 +5625,52 @@ export async function upsertSuggestedTip(
             );
           },
         );
+
+        /*
+         * SmartPunt in-app notification.
+         *
+         * Important:
+         * - only runs after the Maverick tip was
+         *   successfully inserted;
+         * - respects each subscriber's Maverick
+         *   notification preference;
+         * - failure must never fail tip publishing;
+         * - does not calculate or alter any racing data.
+         */
+        createSubscriberInAppNotifications({
+          type: "maverick_tip",
+          title: "New Maverick Tip",
+          message:
+            `${data.horse || payload.horse} — ` +
+            `${data.type || payload.type} ` +
+            `at ${data.race || payload.race}.`,
+          link: "/smartpunt-calculator-live-picks",
+          raceId,
+        })
+          .then((notificationResult) => {
+            console.log(
+              "Maverick subscriber notifications created:",
+              {
+                raceId,
+                raceRunnerId,
+                created:
+                  notificationResult.created,
+              },
+            );
+          })
+          .catch((notificationError) => {
+            console.error(
+              "Maverick in-app notification failed:",
+              {
+                raceId,
+                raceRunnerId,
+                error:
+                  notificationError instanceof Error
+                    ? notificationError.message
+                    : notificationError,
+              },
+            );
+          });
       }
     }
   }
