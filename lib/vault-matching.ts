@@ -491,15 +491,31 @@ export async function syncVaultNotifications({
   }
 
   const alerts = (alertsData || []) as VaultAlert[];
-  const enabledHorseAlerts = alerts.filter(
-    (alert) =>
-      alert.enabled === true &&
-      alert.alert_type === "horse" &&
-      Number(alert.horse_id) > 0,
+
+  const alertIds = uniqueNumbers(
+    alerts.map((alert) => alert.id),
   );
 
-  const alertIds = uniqueNumbers(alerts.map((alert) => alert.id));
+  /*
+   * Shared authoritative Vault matcher.
+   *
+   * syncVaultNotifications and future admin-side
+   * Race Day processing must use exactly the same
+   * matching rules so subscriber notifications can
+   * never disagree with The Vault itself.
+   */
+  const liveMatches =
+    findVaultLiveMatches({
+      alerts,
+      liveData,
+    });
 
+  /*
+   * These lookup maps are still required below for:
+   * - safe stale-match cleanup;
+   * - rebuilding the subscriber-facing Vault match
+   *   objects from stored vault_notifications.
+   */
   const meetingMap = new Map(
     liveData.currentMeetings.map((meeting) => [
       Number(meeting.id),
@@ -526,202 +542,29 @@ export async function syncVaultNotifications({
     liveData.dayDates.tomorrow,
   ]);
 
-  const publishedRaceIds = new Set(
-    liveData.currentRaces
-      .filter((race) => {
-        if (race.status !== "published") return false;
+  const runnersByRaceId = new Map<
+    number,
+    any[]
+  >();
 
-        const meeting = meetingMap.get(Number(race.meeting_id));
+  liveData.currentRunners.forEach(
+    (runner) => {
+      const raceId = Number(
+        runner.race_id,
+      );
 
-        return meeting && validDates.has(String(meeting.meeting_date));
-      })
-      .map((race) => Number(race.id)),
+      const existing =
+        runnersByRaceId.get(raceId) || [];
+
+      existing.push(runner);
+
+      runnersByRaceId.set(
+        raceId,
+        existing,
+      );
+    },
   );
 
-  const runnersByRaceId = new Map<number, any[]>();
-
-  liveData.currentRunners.forEach((runner) => {
-    const raceId = Number(runner.race_id);
-    const existing = runnersByRaceId.get(raceId) || [];
-
-    existing.push(runner);
-    runnersByRaceId.set(raceId, existing);
-  });
-
-  const liveMatches: Array<{
-    alert: VaultAlert;
-    runner: any;
-    race: any;
-    meeting: any;
-    horse: any;
-    effectiveBarrier: number | null;
-    matchedRules: Array<{
-      type: string;
-      label: string;
-      value: string;
-    }>;
-  }> = [];
-
-  enabledHorseAlerts.forEach((alert) => {
-    liveData.currentRunners.forEach((runner) => {
-      if (runner.scratched === true) return;
-      if (!publishedRaceIds.has(Number(runner.race_id))) return;
-      if (Number(runner.horse_id) !== Number(alert.horse_id)) return;
-
-      const race = raceMap.get(Number(runner.race_id));
-      if (!race) return;
-
-      const meeting = meetingMap.get(Number(race.meeting_id));
-      if (!meeting) return;
-
-const horse = horseMap.get(Number(runner.horse_id)) || null;
-const raceRunners =
-  runnersByRaceId.get(Number(runner.race_id)) || [];
-
-const effectiveBarrier = getEffectiveBarrier(
-  runner,
-  raceRunners,
-);
-
-const distanceBucket = getDistanceBucket(race.distance_m);
-const conditionBucket = getConditionBucket(
-  meeting.track_condition,
-);
-
-if (
-  !matchesNamedRule(
-    alert.track_names,
-    meeting.meeting_name,
-  )
-) {
-  return;
-}
-
-if (
-  !matchesNamedRule(
-    alert.jockey_names,
-    runner.jockey_name,
-  )
-) {
-  return;
-}
-
-if (
-  !matchesNamedRule(
-    alert.trainer_names,
-    runner.trainer_name,
-  )
-) {
-  return;
-}
-
-if (
-  alert.distance_buckets?.length &&
-  (!distanceBucket ||
-    !alert.distance_buckets.includes(distanceBucket))
-) {
-  return;
-}
-
-if (
-  alert.track_conditions?.length &&
-  (!conditionBucket ||
-    !alert.track_conditions.includes(conditionBucket))
-) {
-  return;
-}
-
-if (
-  alert.min_effective_barrier !== null &&
-  alert.min_effective_barrier !== undefined &&
-  (effectiveBarrier === null ||
-    effectiveBarrier < Number(alert.min_effective_barrier))
-) {
-  return;
-}
-
-if (
-  alert.max_effective_barrier !== null &&
-  alert.max_effective_barrier !== undefined &&
-  (effectiveBarrier === null ||
-    effectiveBarrier > Number(alert.max_effective_barrier))
-) {
-  return;
-}
-
-const matchedRules = [
-  {
-    type: "horse",
-    label: "Horse",
-    value:
-      horse?.horse_name ||
-      alert.target_name ||
-      "Saved horse",
-  },
-];
-
-if (alert.track_names?.length) {
-  matchedRules.push({
-    type: "track",
-    label: "Track",
-    value: meeting.meeting_name,
-  });
-}
-
-if (alert.distance_buckets?.length && distanceBucket) {
-  matchedRules.push({
-    type: "distance",
-    label: "Distance",
-    value: distanceBucket,
-  });
-}
-
-if (alert.track_conditions?.length && conditionBucket) {
-  matchedRules.push({
-    type: "condition",
-    label: "Condition",
-    value: conditionBucket,
-  });
-}
-
-if (alert.jockey_names?.length) {
-  matchedRules.push({
-    type: "jockey",
-    label: "Jockey",
-    value: runner.jockey_name || "Unknown",
-  });
-}
-
-if (alert.trainer_names?.length) {
-  matchedRules.push({
-    type: "trainer",
-    label: "Trainer",
-    value: runner.trainer_name || "Unknown",
-  });
-}
-
-if (
-  alert.min_effective_barrier !== null ||
-  alert.max_effective_barrier !== null
-) {
-  matchedRules.push({
-    type: "effective_barrier",
-    label: "Effective barrier",
-    value: String(effectiveBarrier),
-  });
-}
-
-liveMatches.push({
-  alert,
-  runner,
-  race,
-  meeting,
-  horse,
-  effectiveBarrier,
-  matchedRules,
-});
-    });
-  });
 
   const now = new Date().toISOString();
 
