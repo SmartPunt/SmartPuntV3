@@ -1323,8 +1323,8 @@ logStage(
   {
     rowCount:
       maverickExoticTips.length,
-    activeRaceCount:
-      activeExoticRaceIds.length,
+activeRaceCount:
+      visibleExoticRaceIds.length,
   },
 );
 
