@@ -10108,6 +10108,305 @@ const { error: rpcError } = await supabase.rpc("settle_race_fast", {
       return { success: false, error: rpcError.message };
     }
 
+/*
+ * MAVERICK EXOTIC SETTLEMENT
+ *
+ * Grade the Maverick exotic from the same official finishing
+ * positions submitted for this race.
+ *
+ * IMPORTANT:
+ * - Do not recalculate any SmartPunt prediction here.
+ * - Original Maverick selections remain untouched.
+ * - The actual top finishing order is frozen into result_order.
+ * - Any dead heat affecting the positions required by the
+ *   exotic is treated as VOID.
+ */
+const {
+  data: maverickExoticTips,
+  error: maverickExoticTipsError,
+} = await supabase
+  .from("maverick_exotic_tips")
+  .select(
+    `
+      id,
+      race_id,
+      bet_type,
+      mode,
+      selections
+    `,
+  )
+  .eq("race_id", raceId);
+
+if (maverickExoticTipsError) {
+  return {
+    success: false,
+    error: maverickExoticTipsError.message,
+  };
+}
+
+const exoticResultOrder = activeUpdates
+  .filter(
+    (update) =>
+      update.finishing_position !== null &&
+      update.finishing_position !== undefined &&
+      Number(update.finishing_position) >= 1 &&
+      Number(update.finishing_position) <= 3,
+  )
+  .sort((a, b) => {
+    const positionDifference =
+      Number(a.finishing_position) -
+      Number(b.finishing_position);
+
+    if (positionDifference !== 0) {
+      return positionDifference;
+    }
+
+    return Number(a.id) - Number(b.id);
+  })
+  .map((update) => {
+    const runner =
+      runnersById.get(Number(update.id));
+
+    return {
+      race_runner_id: Number(update.id),
+      horse_id:
+        Number(runner?.horse_id) || null,
+      finishing_position:
+        Number(update.finishing_position),
+    };
+  });
+
+const getFinishersAtPosition = (
+  position: number,
+) =>
+  activeUpdates.filter(
+    (update) =>
+      Number(update.finishing_position) ===
+      position,
+  );
+
+for (
+  const exoticTip of
+  maverickExoticTips || []
+) {
+  const betType = String(
+    exoticTip.bet_type || "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const mode = String(
+    exoticTip.mode || "",
+  )
+    .trim()
+    .toLowerCase();
+
+  const selections =
+    Array.isArray(exoticTip.selections)
+      ? exoticTip.selections
+      : [];
+
+  const selectedRunnerIds =
+    new Set(
+      selections
+        .map((selection: any) =>
+          Number(
+            selection?.race_runner_id,
+          ),
+        )
+        .filter(Boolean),
+    );
+
+  let status:
+    | "won"
+    | "lost"
+    | "void" = "lost";
+
+  let won:
+    | boolean
+    | null = false;
+
+  if (betType === "quinella") {
+    const firstPlaceFinishers =
+      getFinishersAtPosition(1);
+
+    const secondPlaceFinishers =
+      getFinishersAtPosition(2);
+
+    const hasRelevantDeadHeat =
+      firstPlaceFinishers.length !== 1 ||
+      secondPlaceFinishers.length !== 1;
+
+    if (hasRelevantDeadHeat) {
+      status = "void";
+      won = null;
+    } else {
+      const firstRunnerId =
+        Number(
+          firstPlaceFinishers[0].id,
+        );
+
+      const secondRunnerId =
+        Number(
+          secondPlaceFinishers[0].id,
+        );
+
+      const landed =
+        selectedRunnerIds.has(
+          firstRunnerId,
+        ) &&
+        selectedRunnerIds.has(
+          secondRunnerId,
+        );
+
+      status = landed
+        ? "won"
+        : "lost";
+
+      won = landed;
+    }
+  } else if (
+    betType === "trifecta"
+  ) {
+    const firstPlaceFinishers =
+      getFinishersAtPosition(1);
+
+    const secondPlaceFinishers =
+      getFinishersAtPosition(2);
+
+    const thirdPlaceFinishers =
+      getFinishersAtPosition(3);
+
+    const hasRelevantDeadHeat =
+      firstPlaceFinishers.length !== 1 ||
+      secondPlaceFinishers.length !== 1 ||
+      thirdPlaceFinishers.length !== 1;
+
+    if (hasRelevantDeadHeat) {
+      status = "void";
+      won = null;
+    } else {
+      const finishingRunnerByPosition =
+        new Map<number, number>([
+          [
+            1,
+            Number(
+              firstPlaceFinishers[0].id,
+            ),
+          ],
+          [
+            2,
+            Number(
+              secondPlaceFinishers[0].id,
+            ),
+          ],
+          [
+            3,
+            Number(
+              thirdPlaceFinishers[0].id,
+            ),
+          ],
+        ]);
+
+      if (mode === "all_ways") {
+        const landed =
+          [1, 2, 3].every(
+            (position) =>
+              selectedRunnerIds.has(
+                Number(
+                  finishingRunnerByPosition.get(
+                    position,
+                  ),
+                ),
+              ),
+          );
+
+        status = landed
+          ? "won"
+          : "lost";
+
+        won = landed;
+      } else if (
+        mode === "positional"
+      ) {
+        const landed =
+          [1, 2, 3].every(
+            (position) => {
+              const finishingRunnerId =
+                Number(
+                  finishingRunnerByPosition.get(
+                    position,
+                  ),
+                );
+
+              const matchingSelection =
+                selections.find(
+                  (
+                    selection: any,
+                  ) =>
+                    Number(
+                      selection
+                        ?.race_runner_id,
+                    ) ===
+                    finishingRunnerId,
+                );
+
+              return (
+                Array.isArray(
+                  matchingSelection
+                    ?.positions,
+                ) &&
+                matchingSelection.positions
+                  .map(Number)
+                  .includes(position)
+              );
+            },
+          );
+
+        status = landed
+          ? "won"
+          : "lost";
+
+        won = landed;
+      } else {
+        status = "void";
+        won = null;
+      }
+    }
+  } else {
+    status = "void";
+    won = null;
+  }
+
+  const {
+    error:
+      exoticSettlementError,
+  } = await supabase
+    .from(
+      "maverick_exotic_tips",
+    )
+    .update({
+      status,
+      won,
+      result_order:
+        exoticResultOrder,
+      settled_at: now,
+      updated_at: now,
+    })
+    .eq(
+      "id",
+      Number(exoticTip.id),
+    );
+
+  if (exoticSettlementError) {
+    return {
+      success: false,
+      error:
+        exoticSettlementError.message,
+    };
+  }
+}
+
     const { data: orphanedUserBets, error: orphanedUserBetsError } =
       await supabase
         .from("user_bets")
