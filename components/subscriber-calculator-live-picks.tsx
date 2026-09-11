@@ -2485,23 +2485,52 @@ const filteredMaverickExoticTips = useMemo(
               Number(tip.race_id),
           );
 
-          const meeting = race
-            ? meetings.find(
-                (item) =>
-                  Number(item.id) ===
-                  Number(race.meeting_id),
-              )
-            : null;
+          if (!race) {
+            return false;
+          }
+
+          const meeting =
+            meetings.find(
+              (item) =>
+                Number(item.id) ===
+                Number(race.meeting_id),
+            ) || null;
+
+          if (!meeting) {
+            return false;
+          }
+
+          /*
+           * MAVERICK EXOTIC DAY INTEGRITY
+           *
+           * Exotics must only appear under the race day
+           * they actually belong to.
+           *
+           * Resulted Yesterday exotics remain visible on
+           * Yesterday with their stored result, but must
+           * never leak into Today's opportunities.
+           */
+          if (
+            !matchesRaceDay(
+              meeting,
+              raceDayFilter,
+              activeDayDates,
+            )
+          ) {
+            return false;
+          }
 
           return meetingPassesOpportunityFilter(
-            meeting?.meeting_name,
+            meeting.meeting_name,
           );
         })
       : [],
   [
+    activeDayDates,
     maverickExoticTips,
     meetings,
     opportunityMeetings,
+    raceDayFilter,
     races,
     showExoticOpportunities,
   ],
