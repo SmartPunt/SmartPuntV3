@@ -121,6 +121,14 @@ type MaverickExoticTip = {
     runner_number?: number | null;
     positions?: number[];
   }> | null;
+  status?: "active" | "won" | "lost" | "void" | null;
+  won?: boolean | null;
+  result_order?: Array<{
+    race_runner_id?: number | null;
+    horse_id?: number | null;
+    finishing_position?: number | null;
+  }> | null;
+  settled_at?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -2912,6 +2920,90 @@ const exoticArtwork = isTrifecta
   ? "/maverick/maverick-trifecta-strip.png"
   : "/maverick/maverick-quinella-strip.png";
 
+const exoticStatus = String(
+  tip.status || "active",
+)
+  .trim()
+  .toLowerCase();
+
+const isExoticSettled =
+  exoticStatus === "won" ||
+  exoticStatus === "lost" ||
+  exoticStatus === "void";
+
+const exoticResultLabel =
+  exoticStatus === "won"
+    ? isTrifecta
+      ? "TRIFECTA LANDED"
+      : "QUINELLA LANDED"
+    : exoticStatus === "lost"
+      ? isTrifecta
+        ? "TRIFECTA MISSED"
+        : "QUINELLA MISSED"
+      : exoticStatus === "void"
+        ? "VOID"
+        : null;
+
+const exoticResultOrder =
+  Array.isArray(tip.result_order)
+    ? tip.result_order
+    : [];
+
+const exoticResultNumbers =
+  exoticResultOrder
+    .filter(
+      (result) =>
+        Number(
+          result.finishing_position,
+        ) >= 1 &&
+        Number(
+          result.finishing_position,
+        ) <=
+          (isTrifecta ? 3 : 2),
+    )
+    .sort(
+      (a, b) =>
+        Number(
+          a.finishing_position || 0,
+        ) -
+        Number(
+          b.finishing_position || 0,
+        ),
+    )
+    .map((result) => {
+      const matchingSelection =
+        selections.find(
+          (selection) =>
+            Number(
+              selection.race_runner_id,
+            ) ===
+            Number(
+              result.race_runner_id,
+            ),
+        );
+
+      if (
+        matchingSelection?.runner_number
+      ) {
+        return `#${matchingSelection.runner_number}`;
+      }
+
+      const resultRunner =
+        runners.find(
+          (runner) =>
+            Number(runner.id) ===
+            Number(
+              result.race_runner_id,
+            ),
+        );
+
+      return resultRunner?.runner_number
+        ? `#${resultRunner.runner_number}`
+        : null;
+    })
+    .filter(Boolean)
+    .join(" / ");
+
 return (
   <button
     key={`exotic-${tip.id}`}
@@ -2930,34 +3022,82 @@ return (
           ? "The Maverick Trifecta"
           : "The Maverick Quinella"
       }
-      className="block h-auto w-full object-contain transition group-hover:brightness-110"
+      className={`block h-auto w-full object-contain transition group-hover:brightness-110 ${
+        isExoticSettled &&
+        exoticStatus === "lost"
+          ? "brightness-[0.62] saturate-[0.7]"
+          : ""
+      }`}
     />
 
-<span className="pointer-events-none absolute inset-y-0 left-[30%] right-[20%] flex min-w-0 flex-col items-center justify-center px-2 text-center">
-      <span
-        className={`block truncate text-[9px] font-black uppercase tracking-[0.11em] sm:text-[10px] ${
-          isTrifecta
-            ? "text-yellow-200"
-            : "text-rose-100"
-        }`}
-      >
-        {meeting.meeting_name || "Meeting"} R
-        {race.race_number || "—"}
-      </span>
+    <span className="pointer-events-none absolute inset-y-0 left-[30%] right-[20%] flex min-w-0 flex-col items-center justify-center px-2 text-center">
+      {isExoticSettled &&
+      exoticResultLabel ? (
+        <>
+          <span
+            className={`block text-[8px] font-black uppercase tracking-[0.13em] sm:text-[9px] ${
+              exoticStatus === "won"
+                ? "text-emerald-200"
+                : exoticStatus ===
+                    "void"
+                  ? "text-zinc-300"
+                  : "text-zinc-400"
+            }`}
+          >
+            {exoticResultLabel}
+          </span>
 
-      <span className="mt-0.5 block truncate text-[10px] font-black leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[11px]">
-        {selectionLabel || "Exotic Selection"}
-      </span>
+          <span className="mt-0.5 block truncate text-[9px] font-black uppercase tracking-[0.1em] text-white sm:text-[10px]">
+            {meeting.meeting_name ||
+              "Meeting"}{" "}
+            R
+            {race.race_number ||
+              "—"}
+          </span>
 
-      {isTrifecta &&
-      tip.mode === "all_ways" ? (
-        <span className="mt-0.5 block text-[7px] font-black uppercase tracking-[0.1em] text-yellow-100/80">
-          All Ways
-        </span>
-      ) : null}
+          {exoticResultNumbers ? (
+            <span className="mt-0.5 block text-[8px] font-black tracking-[0.08em] text-white/85 sm:text-[9px]">
+              Result{" "}
+              {exoticResultNumbers}
+            </span>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <span
+            className={`block truncate text-[9px] font-black uppercase tracking-[0.11em] sm:text-[10px] ${
+              isTrifecta
+                ? "text-yellow-200"
+                : "text-rose-100"
+            }`}
+          >
+            {meeting.meeting_name ||
+              "Meeting"}{" "}
+            R
+            {race.race_number ||
+              "—"}
+          </span>
+
+          <span className="mt-0.5 block truncate text-[10px] font-black leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:text-[11px]">
+            {selectionLabel ||
+              "Exotic Selection"}
+          </span>
+
+          {isTrifecta &&
+          tip.mode === "all_ways" ? (
+            <span className="mt-0.5 block text-[7px] font-black uppercase tracking-[0.1em] text-yellow-100/80">
+              All Ways
+            </span>
+          ) : null}
+        </>
+      )}
     </span>
 
-    {isSelected ? (
+    {exoticStatus === "won" ? (
+      <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-emerald-200/90 shadow-[inset_0_0_18px_rgba(52,211,153,0.24)]" />
+    ) : exoticStatus === "void" ? (
+      <span className="pointer-events-none absolute inset-0 rounded-[16px] border border-zinc-400/45" />
+    ) : isSelected ? (
       <span
         className={`pointer-events-none absolute inset-0 rounded-[16px] border-2 ${
           isTrifecta
