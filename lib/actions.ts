@@ -258,7 +258,7 @@ async function createSubscriberInAppNotifications({
       : null;
 
   const subscriberRows = (await serviceRoleSelect(
-    "profiles?select=id&role=eq.user&status=eq.active",
+    "profiles?select=id&role=in.(user,admin,staff_admin)&status=eq.active",
   )) as Array<{
     id: string;
   }> | null;
@@ -532,7 +532,7 @@ async function processVaultMatchesTodayNotifications({
     ),
 
     serviceRoleSelect(
-      "profiles?select=id&role=eq.user&status=eq.active",
+      "profiles?select=id&role=in.(user,admin,staff_admin)&status=eq.active",
     ),
 
     serviceRoleSelect(
