@@ -109,6 +109,46 @@ function getWeekEnd(dateValue: string) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function isValidDate(value?: string | null) {
+  return Boolean(
+    value &&
+      /^\d{4}-\d{2}-\d{2}$/.test(value),
+  );
+}
+
+function shiftDate(
+  dateValue: string,
+  days: number,
+) {
+  const [year, month, day] =
+    dateValue
+      .split("-")
+      .map(Number);
+
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+  );
+
+  date.setDate(
+    date.getDate() + days,
+  );
+
+  const yyyy =
+    date.getFullYear();
+
+  const mm = String(
+    date.getMonth() + 1,
+  ).padStart(2, "0");
+
+  const dd = String(
+    date.getDate(),
+  ).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
 
@@ -379,15 +419,52 @@ function FortuneFiveCard({
   );
 }
 
-export default async function Page() {
-  const profile = await getCurrentProfile();
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    date?: string;
+  }>;
+}) {
+  const profile =
+    await getCurrentProfile();
 
-  if (!profile) redirect("/login");
+  if (!profile) {
+    redirect("/login");
+  }
 
-  const supabase = await createClient();
-  const today = getTodayPerthDate();
-  const weekStart = getWeekStart(today);
-  const weekEnd = getWeekEnd(weekStart);
+  const params =
+    await searchParams;
+
+  const today =
+    getTodayPerthDate();
+
+  const currentWeekStart =
+    getWeekStart(today);
+
+  const selectedDate =
+    isValidDate(params?.date)
+      ? String(params?.date)
+      : today;
+
+  const weekStart =
+    getWeekStart(selectedDate);
+
+  const weekEnd =
+    getWeekEnd(weekStart);
+
+  const previousWeekDate =
+    shiftDate(weekStart, -7);
+
+  const nextWeekDate =
+    shiftDate(weekStart, 7);
+
+  const isCurrentWeek =
+    weekStart ===
+    currentWeekStart;
+
+  const supabase =
+    await createClient();
 
   const [fortuneFives, fortuneFiveLegs, userFortuneFives] = await Promise.all([
     fetchAllRows<FortuneFive>({
@@ -509,12 +586,66 @@ export default async function Page() {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
+        <section className="overflow-hidden rounded-[24px] border border-amber-300/20 bg-black/55 p-4 shadow-xl shadow-black/20 sm:p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
+                Fortune History
+              </p>
+
+              <h2 className="mt-1 text-lg font-black text-white sm:text-xl">
+                {isCurrentWeek
+                  ? "This Week"
+                  : "Previous Week"}
+              </h2>
+
+              <p className="mt-1 text-xs font-semibold text-zinc-400">
+                {formatDate(weekStart)} –{" "}
+                {formatDate(weekEnd)}
+              </p>
+            </div>
+
+            {!isCurrentWeek ? (
+              <Link
+                href="/fortune-on-5"
+                className="shrink-0 rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:bg-amber-300/15"
+              >
+                Current Week
+              </Link>
+            ) : null}
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Link
+              href={`/fortune-on-5?date=${previousWeekDate}`}
+              className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3 text-center text-[10px] font-black uppercase tracking-[0.08em] text-zinc-200 transition hover:border-amber-300/30 hover:bg-amber-300/10"
+            >
+              ← Previous
+            </Link>
+
+            {isCurrentWeek ? (
+              <div className="rounded-xl border border-white/5 bg-white/[0.025] px-3 py-3 text-center text-[10px] font-black uppercase tracking-[0.08em] text-zinc-600">
+                Latest Week
+              </div>
+            ) : (
+              <Link
+                href={`/fortune-on-5?date=${nextWeekDate}`}
+                className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3 text-center text-[10px] font-black uppercase tracking-[0.08em] text-zinc-200 transition hover:border-amber-300/30 hover:bg-amber-300/10"
+              >
+                Next →
+              </Link>
+            )}
+          </div>
+        </section>
+
         <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Panel className="bg-white/95">
             <div className="p-4 text-zinc-950 sm:p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
-                This week
-              </p>
+<p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">
+  {isCurrentWeek
+    ? "This week"
+    : "Selected week"}
+</p>
               <p className="mt-2 text-sm font-black sm:text-base">
                 {formatDate(weekStart)} – {formatDate(weekEnd)}
               </p>
@@ -565,12 +696,17 @@ export default async function Page() {
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
-                    Today&apos;s feature
-                  </p>
-                  <h2 className="mt-1 text-2xl font-black">
-                    Live Fortune on 5
-                  </h2>
+<p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
+  {isCurrentWeek
+    ? "Today's feature"
+    : "Weekly archive"}
+</p>
+
+<h2 className="mt-1 text-2xl font-black">
+  {isCurrentWeek
+    ? "Live Fortune on 5"
+    : "Fortune on 5"}
+</h2>
                 </div>
 
                 <Badge tone="amber">{liveFortuneFives.length} live</Badge>
