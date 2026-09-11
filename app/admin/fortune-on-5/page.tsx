@@ -156,6 +156,32 @@ function getWeekEnd(dateValue: string) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function shiftDate(dateValue: string, days: number) {
+  const [year, month, day] = dateValue
+    .split("-")
+    .map(Number);
+
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+  );
+
+  date.setDate(
+    date.getDate() + days,
+  );
+
+  const yyyy = date.getFullYear();
+  const mm = String(
+    date.getMonth() + 1,
+  ).padStart(2, "0");
+  const dd = String(
+    date.getDate(),
+  ).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "—";
   const date = new Date(`${value}T12:00:00+08:00`);
@@ -368,14 +394,24 @@ export default async function Page({
 
   const params = await searchParams;
   const today = getTodayPerthDate();
-  const selectedDate = isValidDate(params?.date) ? String(params?.date) : today;
-  const weekStart = getWeekStart(selectedDate);
-  const weekEnd = getWeekEnd(selectedDate);
-console.log("today", today);
-console.log("selectedDate", selectedDate);
-console.log("weekStart", weekStart);
-console.log("weekEnd", weekEnd);
-  const supabase = await createClient();
+  const selectedDate = isValidDate(params?.date)
+    ? String(params?.date)
+    : today;
+
+  const weekStart =
+    getWeekStart(selectedDate);
+
+  const weekEnd =
+    getWeekEnd(selectedDate);
+
+  const previousWeekDate =
+    shiftDate(weekStart, -7);
+
+  const nextWeekDate =
+    shiftDate(weekStart, 7);
+
+  const supabase =
+    await createClient();
 
   const meetings = await fetchAllRows<Meeting>({
     getPage: async (from, to) => {
@@ -506,19 +542,13 @@ console.log("weekEnd", weekEnd);
     legsByFortuneId.set(leg.fortune_five_id, existing);
   }
 
-  const liveFortuneFives = fortuneFives.filter(
-    (fortune) => !fortune.settled_at && fortune.status !== "void",
-  );
-console.log("fortuneFives", fortuneFives.length);
-console.log("liveFortuneFives", liveFortuneFives.length);
-console.log(
-  fortuneFives.map((f) => ({
-    id: f.id,
-    published_date: f.published_date,
-    status: f.status,
-    settled_at: f.settled_at,
-  })),
-);
+  const liveFortuneFives =
+    fortuneFives.filter(
+      (fortune) =>
+        !fortune.settled_at &&
+        fortune.status !== "void",
+    );
+
   const resultedFortuneFives = fortuneFives.filter(
     (fortune) => fortune.settled_at || fortune.status === "void",
   );
@@ -543,37 +573,70 @@ console.log(
         </div>
 
         <Panel className="bg-white/95">
-          <div className="space-y-4 p-6 text-zinc-950">
-            <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-5 p-6 text-zinc-950">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">Race date filter</h2>
-                <p className="text-sm text-zinc-500">
-                  Pick the race date first. The multi builder will only show runners from that date.
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">
+                  Fortune on 5 History
+                </p>
+
+                <h2 className="mt-1 text-xl font-semibold">
+                  Weekly Board
+                </h2>
+
+                <p className="mt-1 text-sm text-zinc-500">
+                  Browse previous Fortune on 5 weeks or jump directly to a race date.
                 </p>
               </div>
 
-              <form className="flex flex-wrap items-end gap-3">
-                <label className="text-sm font-medium text-zinc-700">
-                  Race date
-                  <input
-                    name="date"
-                    type="date"
-                    defaultValue={selectedDate}
-                    className="mt-2 rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
-                  />
-                </label>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-800">
+                  Selected Week
+                </p>
 
-                <button
-                  type="submit"
-                  className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
-                >
-                  Load Date
-                </button>
-              </form>
+                <p className="mt-1 text-sm font-black text-zinc-950">
+                  {formatDate(weekStart)} –{" "}
+                  {formatDate(weekEnd)}
+                </p>
+              </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href={`/admin/fortune-on-5?date=${previousWeekDate}`}
+                className="rounded-2xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.08em] text-zinc-800 transition hover:border-amber-300 hover:bg-amber-50"
+              >
+                ← Previous Week
+              </Link>
+
+              <Link
+                href={`/admin/fortune-on-5?date=${nextWeekDate}`}
+                className="rounded-2xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-center text-xs font-black uppercase tracking-[0.08em] text-zinc-800 transition hover:border-amber-300 hover:bg-amber-50"
+              >
+                Next Week →
+              </Link>
+            </div>
+
+            <form className="flex flex-wrap items-end gap-3 border-t border-zinc-200 pt-4">
+              <label className="text-sm font-medium text-zinc-700">
+                Jump to race date
+                <input
+                  name="date"
+                  type="date"
+                  defaultValue={selectedDate}
+                  className="mt-2 block rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                />
+              </label>
+
+              <button
+                type="submit"
+                className="rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-amber-300 transition hover:bg-zinc-900"
+              >
+                Load Date
+              </button>
+            </form>
           </div>
         </Panel>
-
         <Panel className="bg-white/95">
           <form action={createFortuneFiveAction} className="space-y-5 p-6 text-zinc-950">
             <div className="flex items-center justify-between gap-3">
