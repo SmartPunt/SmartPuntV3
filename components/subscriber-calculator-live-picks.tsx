@@ -2971,8 +2971,14 @@ const exoticResultNumbers =
         ),
     )
     .map((result) => {
-      const matchingSelection =
-        selections.find(
+const matchingSelection =
+        (
+          Array.isArray(
+            tip.selections,
+          )
+            ? tip.selections
+            : []
+        ).find(
           (selection) =>
             Number(
               selection.race_runner_id,
