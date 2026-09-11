@@ -10121,28 +10121,19 @@ const { error: rpcError } = await supabase.rpc("settle_race_fast", {
  * - Any dead heat affecting the positions required by the
  *   exotic is treated as VOID.
  */
-const {
-  data: maverickExoticTips,
-  error: maverickExoticTipsError,
-} = await supabase
-  .from("maverick_exotic_tips")
-  .select(
-    `
-      id,
-      race_id,
-      bet_type,
-      mode,
-      selections
-    `,
-  )
-  .eq("race_id", raceId);
-
-if (maverickExoticTipsError) {
-  return {
-    success: false,
-    error: maverickExoticTipsError.message,
-  };
-}
+const maverickExoticTips =
+  (await serviceRoleSelect(
+    `maverick_exotic_tips` +
+      `?select=id,race_id,bet_type,mode,selections` +
+      `&race_id=eq.${Number(raceId)}` +
+      `&status=eq.active`,
+  )) as Array<{
+    id: number;
+    race_id: number;
+    bet_type: string | null;
+    mode: string | null;
+    selections: any;
+  }> | null;
 
 const exoticResultOrder = activeUpdates
   .filter(
@@ -10378,33 +10369,19 @@ for (
     won = null;
   }
 
-  const {
-    error:
-      exoticSettlementError,
-  } = await supabase
-    .from(
-      "maverick_exotic_tips",
-    )
-    .update({
+  await serviceRolePatch(
+    `maverick_exotic_tips?id=eq.${Number(
+      exoticTip.id,
+    )}`,
+    {
       status,
       won,
       result_order:
         exoticResultOrder,
       settled_at: now,
       updated_at: now,
-    })
-    .eq(
-      "id",
-      Number(exoticTip.id),
-    );
-
-  if (exoticSettlementError) {
-    return {
-      success: false,
-      error:
-        exoticSettlementError.message,
-    };
-  }
+    },
+  );
 }
 
     const { data: orphanedUserBets, error: orphanedUserBetsError } =
