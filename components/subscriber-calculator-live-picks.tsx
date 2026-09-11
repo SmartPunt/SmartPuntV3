@@ -1782,7 +1782,7 @@ const activeRaceWatchSuggestions =
   useMemo(() => {
     if (
       !activeRace ||
-      raceDayFilter !== "today"
+      raceDayFilter === "tomorrow"
     ) {
       return [];
     }
@@ -3898,36 +3898,83 @@ Maverick Insight
           The Maverick — Watch Alert
         </p>
 
-        <p className="mt-1 text-[10px] font-semibold text-zinc-400">
-          A horse on The Maverick&apos;s watch list is racing today.
-        </p>
+<p className="mt-1 text-[10px] font-semibold text-zinc-400">
+  {raceDayFilter === "yesterday" ||
+  isClosedRace
+    ? "The Maverick watch selection and its final race result."
+    : "A horse on The Maverick's watch list is racing today."}
+</p>
       </div>
     </div>
 
     <div className="mt-3 space-y-2">
-      {activeRaceWatchSuggestions.map(
-        (suggestion) => (
-          <div
-            key={suggestion.id}
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-black text-white">
-                {suggestion.horse || "Watch Selection"}
-              </p>
+{activeRaceWatchSuggestions.map(
+        (suggestion) => {
+          const watchRunner =
+            runners.find(
+              (runner) =>
+                Number(runner.id) ===
+                Number(
+                  suggestion.race_runner_id ||
+                    0,
+                ),
+            ) || null;
 
-              <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
-                Watch
-              </span>
+          const finishingPosition =
+            watchRunner?.finishing_position != null
+              ? Number(
+                  watchRunner.finishing_position,
+                )
+              : null;
+
+          const hasResult =
+            finishingPosition != null &&
+            Number.isFinite(
+              finishingPosition,
+            ) &&
+            finishingPosition > 0;
+
+          const finishingLabel =
+            finishingPosition === 1
+              ? "1ST"
+              : finishingPosition === 2
+                ? "2ND"
+                : finishingPosition === 3
+                  ? "3RD"
+                  : hasResult
+                    ? `${finishingPosition}TH`
+                    : null;
+
+          return (
+            <div
+              key={suggestion.id}
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-black text-white">
+                  {suggestion.horse ||
+                    "Watch Selection"}
+                </p>
+
+                {hasResult ? (
+                  <span className="rounded-full border border-emerald-300/35 bg-emerald-300/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-emerald-200">
+                    Result — {finishingLabel}
+                  </span>
+                ) : (
+                  <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.1em] text-amber-200">
+                    Watch
+                  </span>
+                )}
+              </div>
+
+              {suggestion.commentary ? (
+                <p className="mt-2 text-[11px] font-semibold leading-5 text-zinc-300">
+                  {suggestion.commentary}
+                </p>
+              ) : null}
             </div>
-
-            {suggestion.commentary ? (
-              <p className="mt-2 text-[11px] font-semibold leading-5 text-zinc-300">
-                {suggestion.commentary}
-              </p>
-            ) : null}
-          </div>
-        ),
+          );
+        },
       )}
     </div>
   </div>
