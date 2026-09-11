@@ -3039,6 +3039,87 @@ const matchingSelection =
     .filter(Boolean)
     .join(" / ");
 
+if (exoticStatus === "won") {
+  return (
+    <button
+      key={`exotic-${tip.id}`}
+      type="button"
+      onClick={() =>
+        setSelectedRaceId(
+          String(race.id),
+        )
+      }
+      className="group relative block w-full overflow-hidden rounded-[20px] border-2 border-emerald-300/80 bg-[linear-gradient(135deg,#050505_0%,#102018_48%,#07100c_100%)] text-left shadow-[0_14px_34px_rgba(0,0,0,0.48)] transition active:scale-[0.995]"
+    >
+      <div className="relative px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-amber-200/50 bg-black/65 shadow-[0_0_16px_rgba(251,191,36,0.16)]">
+            <img
+              src="/maverick/maverick-shield.png"
+              alt="The Maverick"
+              className="h-full w-full object-contain p-1"
+            />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[8px] font-black uppercase tracking-[0.22em] text-amber-300">
+              The Maverick · Exotic Hit
+            </p>
+
+            <p className="mt-1 text-[19px] font-black uppercase leading-tight text-white">
+              {isTrifecta
+                ? "Trifecta Landed"
+                : "Quinella Landed"}
+            </p>
+
+            <p className="mt-1 text-[9px] font-black uppercase tracking-[0.11em] text-emerald-200">
+              {meeting.meeting_name || "Meeting"} R
+              {race.race_number || "—"}
+            </p>
+          </div>
+
+          <div className="shrink-0 rounded-[12px] border border-emerald-200/60 bg-emerald-400/10 px-2.5 py-2 text-center">
+            <p className="text-[15px] font-black leading-none text-emerald-100">
+              ✓
+            </p>
+
+            <p className="mt-1 text-[7px] font-black uppercase tracking-[0.1em] text-emerald-200">
+              Landed
+            </p>
+          </div>
+        </div>
+
+        {exoticResultNumbers ? (
+          <div className="mt-3 rounded-[14px] border border-white/10 bg-black/40 px-3 py-2.5 text-center">
+            <p className="text-[7px] font-black uppercase tracking-[0.15em] text-zinc-400">
+              Official Result
+            </p>
+
+            <p className="mt-1 text-[16px] font-black tracking-[0.08em] text-white">
+              {exoticResultNumbers}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+          <p className="truncate text-[9px] font-black text-zinc-300">
+            {selectionLabel || "Exotic Selection"}
+          </p>
+
+          {isTrifecta &&
+          tip.mode === "all_ways" ? (
+            <span className="shrink-0 rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-1 text-[7px] font-black uppercase tracking-[0.1em] text-amber-200">
+              All Ways
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <span className="pointer-events-none absolute inset-0 rounded-[20px] border border-emerald-200/25 shadow-[inset_0_0_20px_rgba(52,211,153,0.12)]" />
+    </button>
+  );
+}
+
 return (
   <button
     key={`exotic-${tip.id}`}
@@ -3071,12 +3152,9 @@ return (
         <>
           <span
             className={`block text-[8px] font-black uppercase tracking-[0.13em] sm:text-[9px] ${
-              exoticStatus === "won"
-                ? "text-emerald-200"
-                : exoticStatus ===
-                    "void"
-                  ? "text-zinc-300"
-                  : "text-zinc-400"
+              exoticStatus === "void"
+                ? "text-zinc-300"
+                : "text-zinc-400"
             }`}
           >
             {exoticResultLabel}
@@ -3128,9 +3206,7 @@ return (
       )}
     </span>
 
-    {exoticStatus === "won" ? (
-      <span className="pointer-events-none absolute inset-0 rounded-[16px] border-2 border-emerald-200/90 shadow-[inset_0_0_18px_rgba(52,211,153,0.24)]" />
-    ) : exoticStatus === "void" ? (
+    {exoticStatus === "void" ? (
       <span className="pointer-events-none absolute inset-0 rounded-[16px] border border-zinc-400/45" />
     ) : isSelected ? (
       <span
