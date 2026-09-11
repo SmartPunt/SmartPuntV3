@@ -1286,42 +1286,31 @@ const maverickExoticTipsStartedAt =
   Date.now();
 
 /*
- * Maverick Exotics are race-day editorial tips only.
+ * Maverick Exotics remain available for all races
+ * currently visible to subscribers, including
+ * yesterday's resulted races.
  *
- * They remain visible while their linked race is
- * published. As soon as the race is closed/resulted,
- * it drops out of the subscriber Live Picks feed.
- *
- * The database record itself is retained, but no
- * settlement or performance reporting is required.
+ * Settlement is performed once during race resulting
+ * and the stored result is read here for historical
+ * display. Do not recalculate exotic results in this
+ * subscriber loader.
  */
-const activeExoticRaceIds =
+const visibleExoticRaceIds =
   uniqueNumbers(
-    subscriberCurrentRaces
-      .filter(
-        (race) =>
-          String(
-            race.status || "",
-          )
-            .trim()
-            .toLowerCase() ===
-          "published",
-      )
-      .map(
-        (race) =>
-          race.id,
-      ),
+    subscriberCurrentRaces.map(
+      (race) => race.id,
+    ),
   );
 
 maverickExoticTips =
-  activeExoticRaceIds.length
+  visibleExoticRaceIds.length
     ? await fetchServiceRoleRowsByRaceIds<any>(
         {
           table:
             "maverick_exotic_tips",
           select: "*",
           raceIds:
-            activeExoticRaceIds,
+            visibleExoticRaceIds,
           order:
             "created_at.desc",
         },
