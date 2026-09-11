@@ -1,4 +1,5 @@
 import "./globals.css";
+import GlobalNotificationListener from "@/components/global-notification-listener";
 
 export const metadata = {
   title: "SmartPunt",
@@ -48,7 +49,10 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/splash/apple-splash-1668-2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
         <link rel="apple-touch-startup-image" href="/splash/apple-splash-2048-2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
       </head>
-      <body className="bg-black text-white">{children}</body>
+      <body className="bg-black text-white">
+        <GlobalNotificationListener />
+        {children}
+      </body>
     </html>
   );
 }
