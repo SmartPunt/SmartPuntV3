@@ -371,8 +371,34 @@ initialSubscriberNotificationPreferences?: {
 
 const router = useRouter();
 const searchParams = useSearchParams();
-const [, startTransition] = useTransition();
 
+const focusedNotificationId =
+  searchParams.get("notificationId");
+
+const [, startTransition] = useTransition();
+useEffect(() => {
+  if (!focusedNotificationId) {
+    return;
+  }
+
+  setShowNotificationSettings(false);
+  setShowNotifications(true);
+
+  const scrollTimer = window.setTimeout(() => {
+    document
+      .getElementById(
+        `subscriber-notification-${focusedNotificationId}`,
+      )
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+  }, 150);
+
+  return () => {
+    window.clearTimeout(scrollTimer);
+  };
+}, [focusedNotificationId]);
   const allTips = useRealtimeTable("suggested_tips", initialSuggestedTips);
   const watchlistItems = useRealtimeTable("watchlist_items", initialWatchlistItems);
   const longTermBets = useRealtimeTable("long_term_bets", initialLongTermBets);
@@ -1913,8 +1939,9 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                     {subscriberNotifications.length > 0 ? (
                       subscriberNotifications.map(
                         (notification) => (
-                          <button
+                                                    <button
                             key={notification.id}
+                            id={`subscriber-notification-${notification.id}`}
                             type="button"
                             onClick={() =>
                               markNotificationRead(
@@ -1925,6 +1952,11 @@ function renderHeadTipperBetForm(tip: SuggestedTip) {
                               notification.is_read
                                 ? "bg-black/20 hover:bg-white/[0.04]"
                                 : "bg-amber-300/[0.07] hover:bg-amber-300/[0.1]"
+                            } ${
+                              focusedNotificationId ===
+                              String(notification.id)
+                                ? "ring-1 ring-inset ring-amber-300/70 bg-amber-300/[0.12]"
+                                : ""
                             }`}
                           >
                             <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/45 text-base">
