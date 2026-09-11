@@ -2101,24 +2101,36 @@ className="absolute left-1/2 top-1/2 w-[420px] -translate-x-1/2 -translate-y-1/2
                   </div>
                 </Link>
               ) : (
-                <div className="mt-5 max-w-2xl rounded-[1.5rem] border border-dashed border-white/15 bg-black/25 p-4">
+                <Link
+                  href="/fortune-on-5"
+                  className="group mt-5 block max-w-2xl rounded-[1.5rem] border border-dashed border-white/15 bg-black/25 p-4 transition hover:border-amber-300/35 hover:bg-amber-300/[0.05]"
+                >
                   <div className="flex items-center gap-3">
                     <img
                       src="/maverick/maverick-shield.png"
                       alt="The Maverick"
-                      className="h-10 w-10 object-contain opacity-70"
+                      className="h-10 w-10 shrink-0 object-contain opacity-70"
                     />
 
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-[9px] font-black uppercase tracking-[0.18em] text-zinc-400">
-                        The Maverick
+                        The Maverick · Fortune on 5
                       </p>
+
                       <p className="mt-1 text-sm font-bold text-zinc-300">
                         Today&apos;s Fortune on 5 has not been published yet.
                       </p>
+
+                      <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-amber-200">
+                        View Fortune on 5 &amp; previous results →
+                      </p>
                     </div>
+
+                    <span className="shrink-0 text-xl font-black text-amber-300 transition group-hover:translate-x-1">
+                      →
+                    </span>
                   </div>
-                </div>
+                </Link>
               )}
 
               <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
