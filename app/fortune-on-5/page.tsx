@@ -287,22 +287,105 @@ function FortuneFiveCard({
       </div>
 
       {isSettled ? (
-        <div
-          className={`border-b px-5 py-5 sm:px-6 ${
-            fortune.status === "void"
-              ? "border-zinc-200 bg-zinc-100"
-              : fortune.won === true
-                ? "border-emerald-200 bg-emerald-50"
+        fortune.won === true &&
+        fortune.status !== "void" ? (
+          <div className="relative overflow-hidden border-b border-emerald-300/40 bg-[linear-gradient(135deg,#050505_0%,#102018_48%,#07100c_100%)] px-5 py-7 text-white sm:px-6 sm:py-8">
+            <div className="relative z-10">
+              <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+                <div className="inline-flex items-center rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1.5">
+                  <span className="text-[9px] font-black uppercase tracking-[0.22em] text-amber-300">
+                    SmartPunt · Fortune on 5
+                  </span>
+                </div>
+
+                <p className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-emerald-300">
+                  All Five Legs Successful
+                </p>
+
+                <h3 className="mt-2 text-3xl font-black uppercase leading-none tracking-tight text-white sm:text-4xl">
+                  Fortune on 5 Landed
+                </h3>
+
+                <div className="mt-5 flex h-20 w-20 items-center justify-center rounded-full border-2 border-amber-300/70 bg-black/50 shadow-[0_0_24px_rgba(251,191,36,0.16)]">
+                  <span className="text-2xl font-black text-amber-300">
+                    5/5
+                  </span>
+                </div>
+
+                <p className="mt-4 text-xs font-bold uppercase tracking-[0.14em] text-zinc-300">
+                  Five selections. Five winners.
+                </p>
+
+                {accepted?.settled_at ? (
+                  <div className="mt-5 grid w-full grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.05] px-3 py-3">
+                      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                        Odds Taken
+                      </p>
+
+                      <p className="mt-1 text-xl font-black text-white">
+                        {toNumber(
+                          accepted.odds_taken,
+                        ).toFixed(2)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-300/25 bg-emerald-300/[0.08] px-3 py-3">
+                      <p className="text-[8px] font-black uppercase tracking-[0.16em] text-emerald-200">
+                        Return
+                      </p>
+
+                      <p className="mt-1 text-xl font-black text-emerald-200">
+                        {toNumber(
+                          accepted.return_points,
+                        ).toFixed(2)}{" "}
+                        pts
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {accepted?.settled_at ? (
+                  <div className="mt-3 w-full rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] px-4 py-3">
+                    <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-200">
+                      Profit / Loss
+                    </p>
+
+                    <p className="mt-1 text-2xl font-black text-amber-300">
+                      {toNumber(
+                        accepted.profit_loss_points,
+                      ) >= 0
+                        ? "+"
+                        : ""}
+                      {toNumber(
+                        accepted.profit_loss_points,
+                      ).toFixed(2)}{" "}
+                      pts
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="pointer-events-none absolute inset-2 rounded-[22px] border border-emerald-200/15" />
+          </div>
+        ) : (
+          <div
+            className={`border-b px-5 py-5 sm:px-6 ${
+              fortune.status === "void"
+                ? "border-zinc-200 bg-zinc-100"
                 : "border-rose-200 bg-rose-50"
-          }`}
-        >
-          <p className="text-center text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
-            Final multi result
-          </p>
-          <p className="mt-2 text-center text-3xl font-black uppercase tracking-tight text-zinc-950">
-            {finalResultText(fortune)}
-          </p>
-        </div>
+            }`}
+          >
+            <p className="text-center text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+              Final multi result
+            </p>
+
+            <p className="mt-2 text-center text-3xl font-black uppercase tracking-tight text-zinc-950">
+              {finalResultText(fortune)}
+            </p>
+          </div>
+        )
       ) : null}
 
       <div className="space-y-3 p-5 sm:p-6">
