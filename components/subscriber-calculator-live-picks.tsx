@@ -3842,13 +3842,25 @@ className="pointer-events-none absolute -bottom-3 -right-4 z-0 w-[248px] max-w-n
           {officialTipConfidence} Confidence
         </span>
       ) : null}
-
-      {officialTipAngle ? (
-        <span className="rounded-full border border-amber-300/40 bg-black/55 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
-          The Maverick&apos;s Angle
-        </span>
-      ) : null}
     </div>
+
+    {String(officialTipAngle || "")
+      .trim()
+      .toLowerCase() === "the vibe" ? (
+      <div className="mx-auto mt-4 w-full max-w-[330px]">
+        <img
+          src="/maverick/maverick-the-vibe.png"
+          alt="The Vibe — A Maverick Angle"
+          className="block h-auto w-full object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.65)]"
+        />
+      </div>
+    ) : officialTipAngle ? (
+      <div className="mt-3 flex justify-center">
+        <span className="rounded-full border border-amber-300/40 bg-black/55 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
+          {officialTipAngle}
+        </span>
+      </div>
+    ) : null}
   </div>
 
 {officialTipResult?.successful ? (
