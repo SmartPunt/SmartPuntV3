@@ -18,6 +18,7 @@ export type MaverickConfidence =
 
 export const MAVERICK_TIP_ANGLES = [
   "The Vibe",
+  "Lock It In",
   "Favourite Vulnerable",
   "Track Specialist",
   "Wet Tracker",
