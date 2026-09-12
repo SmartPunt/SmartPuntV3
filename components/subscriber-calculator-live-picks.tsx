@@ -1093,6 +1093,36 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
       )
     : undefined;
 
+  const availableMeetingsForDay = useMemo(() => {
+    const meetingIds = new Set(
+      orderedPublishedRaces.map((race) =>
+        Number(race.meeting_id),
+      ),
+    );
+
+    return meetings
+      .filter((meeting) =>
+        meetingIds.has(Number(meeting.id)),
+      )
+      .sort((a, b) =>
+        String(a.meeting_name || "").localeCompare(
+          String(b.meeting_name || ""),
+        ),
+      );
+  }, [meetings, orderedPublishedRaces]);
+
+  const activeMeetingRaces = useMemo(() => {
+    if (!activeMeeting) {
+      return [];
+    }
+
+    return orderedPublishedRaces.filter(
+      (race) =>
+        Number(race.meeting_id) ===
+        Number(activeMeeting.id),
+    );
+  }, [activeMeeting, orderedPublishedRaces]);
+
   const isClosedRace =
     String(activeRace?.status || "")
       .trim()
@@ -3528,35 +3558,76 @@ return (
   <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,12,0.96)_0%,rgba(2,6,12,0.88)_42%,rgba(2,6,12,0.58)_72%,rgba(2,6,12,0.38)_100%)]" />
 
   <div className="relative z-10 p-4">
-    <div>
-      <label className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-300">
-        Choose {selectedRaceDayLabel.toLowerCase()} race
-      </label>
+     <div className="grid gap-3 sm:grid-cols-2">
+      <div>
+        <label className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-300">
+          Choose {selectedRaceDayLabel.toLowerCase()} meeting
+        </label>
 
-      <select
-        value={String(activeRace.id)}
-        onChange={(event) => setSelectedRaceId(event.target.value)}
-        className="mt-2 w-full rounded-xl border border-white/20 bg-black/65 px-3 py-2.5 text-xs font-black text-white shadow-lg outline-none backdrop-blur-md focus:border-amber-300"
-      >
-        {orderedPublishedRaces.map((race) => {
-          const meeting = meetings.find(
-            (item) => item.id === race.meeting_id,
-          );
+        <select
+          value={
+            activeMeeting
+              ? String(activeMeeting.id)
+              : ""
+          }
+          onChange={(event) => {
+            const meetingId = Number(
+              event.target.value,
+            );
 
-          return (
+            const firstRaceAtMeeting =
+              orderedPublishedRaces.find(
+                (race) =>
+                  Number(race.meeting_id) ===
+                  meetingId,
+              );
+
+            if (firstRaceAtMeeting) {
+              setSelectedRaceId(
+                String(firstRaceAtMeeting.id),
+              );
+            }
+          }}
+          className="mt-2 w-full rounded-xl border border-white/20 bg-black/65 px-3 py-2.5 text-xs font-black text-white shadow-lg outline-none backdrop-blur-md focus:border-amber-300"
+        >
+          {availableMeetingsForDay.map(
+            (meeting) => (
+              <option
+                key={meeting.id}
+                value={String(meeting.id)}
+                className="bg-zinc-950 text-white"
+              >
+                {meeting.meeting_name}
+              </option>
+            ),
+          )}
+        </select>
+      </div>
+
+      <div>
+        <label className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-300">
+          Choose race
+        </label>
+
+        <select
+          value={String(activeRace.id)}
+          onChange={(event) =>
+            setSelectedRaceId(event.target.value)
+          }
+          className="mt-2 w-full rounded-xl border border-white/20 bg-black/65 px-3 py-2.5 text-xs font-black text-white shadow-lg outline-none backdrop-blur-md focus:border-amber-300"
+        >
+          {activeMeetingRaces.map((race) => (
             <option
               key={race.id}
               value={String(race.id)}
               className="bg-zinc-950 text-white"
             >
-              {meeting?.meeting_name || "Meeting"} · R
-              {race.race_number} {race.race_name}
+              R{race.race_number} · {race.race_name}
             </option>
-          );
-        })}
-      </select>
+          ))}
+        </select>
+      </div>
     </div>
-
     <div className="my-4 h-px bg-gradient-to-r from-amber-300/50 via-white/15 to-transparent" />
 
     <div className="flex items-start gap-3">
