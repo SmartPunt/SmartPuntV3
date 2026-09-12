@@ -3854,6 +3854,16 @@ className="pointer-events-none absolute -bottom-3 -right-4 z-0 w-[248px] max-w-n
           className="block h-auto w-full object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.65)]"
         />
       </div>
+    ) : String(officialTipAngle || "")
+        .trim()
+        .toLowerCase() === "lock it in" ? (
+      <div className="mx-auto mt-4 w-full max-w-[330px]">
+        <img
+          src="/maverick/maverick-lock-it-in.png"
+          alt="Lock It In — A Maverick Angle"
+          className="block h-auto w-full object-contain drop-shadow-[0_8px_18px_rgba(0,0,0,0.65)]"
+        />
+      </div>
     ) : officialTipAngle ? (
       <div className="mt-3 flex justify-center">
         <span className="rounded-full border border-amber-300/40 bg-black/55 px-3 py-1.5 text-[8px] font-black uppercase tracking-[0.12em] text-amber-100">
