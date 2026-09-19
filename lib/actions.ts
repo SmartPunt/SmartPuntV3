@@ -4170,9 +4170,17 @@ const jockeyRows: any[] = [];
     jockeyProfiles,
   });
 
-  if (!scoredRunners.length) {
-    return;
-  }
+if (!scoredRunners.length) {
+  throw new Error(
+    `Calculator snapshot produced zero scored runners for race ${raceId}. ` +
+      `Current field runners: ${fieldRunners.length}. ` +
+      `Active field runners: ${
+        fieldRunners.filter(
+          (runner) => runner.scratched !== true,
+        ).length
+      }.`,
+  );
+}
 
   const now = new Date().toISOString();
   const snapshotBatchId = crypto.randomUUID();
