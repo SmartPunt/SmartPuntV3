@@ -8044,17 +8044,60 @@ export async function toggleRacePublishAction(
     const nextStatus = String(formData.get("next_status") ?? "").trim();
 
     if (!raceId || !nextStatus) {
-      return { success: false, error: "Race and status are required." };
+      return {
+        success: false,
+        error: "Race and status are required.",
+      };
     }
 
-    if (!["draft", "published", "closed"].includes(nextStatus)) {
-      return { success: false, error: "Invalid race status." };
+    if (
+      !["draft", "published", "closed"].includes(
+        nextStatus,
+      )
+    ) {
+      return {
+        success: false,
+        error: "Invalid race status.",
+      };
+    }
+
+    const { data: raceBeforeUpdate, error: raceLoadError } =
+      await supabase
+        .from("races")
+        .select(
+          `
+            id,
+            meeting_id,
+            status,
+            meetings (
+              id,
+              calculator_released_at
+            )
+          `,
+        )
+        .eq("id", raceId)
+        .maybeSingle();
+
+    if (raceLoadError) {
+      return {
+        success: false,
+        error: raceLoadError.message,
+      };
+    }
+
+    if (!raceBeforeUpdate) {
+      return {
+        success: false,
+        error: "Race could not be found.",
+      };
     }
 
     const payload = {
       status: nextStatus,
       published_at:
-        nextStatus === "published" ? new Date().toISOString() : null,
+        nextStatus === "published"
+          ? new Date().toISOString()
+          : null,
       updated_at: new Date().toISOString(),
     };
 
@@ -8064,16 +8107,90 @@ export async function toggleRacePublishAction(
       .eq("id", raceId);
 
     if (error) {
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message,
+      };
     }
 
+    /*
+     * SMARTPUNT RACE REPUBLISH SNAPSHOT
+     *
+     * A race returned to Race Builder may have had its
+     * previous Calculator snapshot deliberately removed
+     * because the field was incorrect.
+     *
+     * When that race is published again, rebuild its
+     * authoritative pre-race prediction from the corrected
+     * field.
+     *
+     * If Race Day has already been released, this must use
+     * the approved live-refresh pathway.
+     *
+     * If Race Day has not yet been released, create the
+     * normal pre-release publish snapshot.
+     *
+     * This must never recalculate a race that has started
+     * being resulted.
+     */
+    if (nextStatus === "published") {
+      const linkedMeeting = Array.isArray(
+        (raceBeforeUpdate as any).meetings,
+      )
+        ? (raceBeforeUpdate as any).meetings[0]
+        : (raceBeforeUpdate as any).meetings;
 
+      try {
+        if (linkedMeeting?.calculator_released_at) {
+          await refreshReleasedCalculatorSnapshotForRace(
+            raceId,
+          );
+        } else {
+          await saveCalculatorPredictionsForRace(
+            raceId,
+            {
+              writeReason: "initial_publish",
+            },
+          );
+        }
+      } catch (snapshotError) {
+        console.error(
+          "Republished race Calculator snapshot failed:",
+          {
+            raceId,
+            meetingId:
+              Number(
+                raceBeforeUpdate.meeting_id || 0,
+              ) || null,
+            meetingReleased: Boolean(
+              linkedMeeting?.calculator_released_at,
+            ),
+            error: snapshotError,
+          },
+        );
+
+        return {
+          success: false,
+          error:
+            "The race was published, but SmartPunt could not rebuild its Calculator prediction. Do not result this race until the snapshot is repaired.",
+        };
+      }
+    }
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
     revalidatePath("/race-archive");
+    revalidatePath("/admin/calculator");
+    revalidatePath(
+      "/smartpunt-calculator-live-picks",
+    );
+    revalidatePath("/subscriber-dashboard");
     revalidatePath("/");
-    return { success: true, error: null };
+
+    return {
+      success: true,
+      error: null,
+    };
   } catch (error) {
     return {
       success: false,
