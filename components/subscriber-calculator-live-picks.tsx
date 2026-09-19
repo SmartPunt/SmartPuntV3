@@ -3579,87 +3579,116 @@ return (
   <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,12,0.96)_0%,rgba(2,6,12,0.88)_42%,rgba(2,6,12,0.58)_72%,rgba(2,6,12,0.38)_100%)]" />
 
   <div className="relative z-10 p-4">
-     <div className="grid gap-3 sm:grid-cols-2">
-      <div>
-        <label className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-300">
-          Choose {selectedRaceDayLabel.toLowerCase()} meeting
-        </label>
+<div className="space-y-3">
+  {/* MEETING PICKER */}
+  <div>
+    <p className="mb-2 text-[8px] font-black uppercase tracking-[0.18em] text-amber-300">
+      {selectedRaceDayLabel} Meetings
+    </p>
 
-        <select
-          value={
-            activeMeeting
-              ? String(activeMeeting.id)
-              : ""
-          }
-          onChange={(event) => {
-            const meetingId = Number(
-              event.target.value,
-            );
+    <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {availableMeetingsForDay.map((meeting) => {
+        const isActiveMeeting =
+          Number(activeMeeting?.id) ===
+          Number(meeting.id);
 
-            const firstRaceAtMeeting =
-              orderedPublishedRaces.find(
-                (race) =>
-                  Number(race.meeting_id) ===
-                  meetingId,
-              );
+        return (
+          <button
+            key={meeting.id}
+            type="button"
+            onClick={() => {
+              const firstRaceAtMeeting =
+                orderedPublishedRaces.find(
+                  (race) =>
+                    Number(race.meeting_id) ===
+                    Number(meeting.id),
+                );
 
-            if (firstRaceAtMeeting) {
-              setSelectedRaceId(
-                String(firstRaceAtMeeting.id),
-              );
-            }
-          }}
-          className="mt-2 w-full rounded-xl border border-white/20 bg-black/65 px-3 py-2.5 text-xs font-black text-white shadow-lg outline-none backdrop-blur-md focus:border-amber-300"
-        >
-          {availableMeetingsForDay.map(
-            (meeting) => (
-              <option
-                key={meeting.id}
-                value={String(meeting.id)}
-                className="bg-zinc-950 text-white"
-              >
-                {meeting.meeting_name}
-              </option>
-            ),
-          )}
-        </select>
-      </div>
-
-      <div>
-        <label className="text-[9px] font-black uppercase tracking-[0.18em] text-amber-300">
-          Choose race
-        </label>
-
-        <select
-          value={String(activeRace.id)}
-          onChange={(event) =>
-            setSelectedRaceId(event.target.value)
-          }
-          className="mt-2 w-full rounded-xl border border-white/20 bg-black/65 px-3 py-2.5 text-xs font-black text-white shadow-lg outline-none backdrop-blur-md focus:border-amber-300"
-        >
-          {activeMeetingRaces.map((race) => {
-            const indicators =
-              getRaceTipIndicators(Number(race.id));
-
-            const indicatorLabel =
-              indicators.length > 0
-                ? ` · ${indicators.join(" ")}`
-                : "";
-
-            return (
-              <option
-                key={race.id}
-                value={String(race.id)}
-                className="bg-zinc-950 text-white"
-              >
-                R{race.race_number}
-                {indicatorLabel} · {race.race_name}
-              </option>
-            );
-          })}
-        </select>
-      </div>
+              if (firstRaceAtMeeting) {
+                setSelectedRaceId(
+                  String(firstRaceAtMeeting.id),
+                );
+              }
+            }}
+            className={`shrink-0 rounded-xl border px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] transition ${
+              isActiveMeeting
+                ? "border-amber-300 bg-amber-300 text-black shadow-[0_0_16px_rgba(252,211,77,0.22)]"
+                : "border-white/15 bg-black/55 text-zinc-300 hover:border-amber-300/40 hover:text-white"
+            }`}
+          >
+            {meeting.meeting_name}
+          </button>
+        );
+      })}
     </div>
+  </div>
+
+  {/* RACE PICKER */}
+  <div>
+    <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {activeMeetingRaces.map((race) => {
+        const isActiveRace =
+          Number(activeRace.id) === Number(race.id);
+
+        const indicators =
+          getRaceTipIndicators(Number(race.id));
+
+        const hasMaverick =
+          indicators.includes("M");
+
+        const hasSmartPunt =
+          indicators.includes("S");
+
+        return (
+          <button
+            key={race.id}
+            type="button"
+            onClick={() =>
+              setSelectedRaceId(String(race.id))
+            }
+            className={`relative min-w-[54px] shrink-0 rounded-xl border px-3 py-2 transition ${
+              isActiveRace
+                ? "border-amber-300 bg-white text-black shadow-[0_0_16px_rgba(252,211,77,0.18)]"
+                : "border-white/15 bg-black/55 text-white hover:border-amber-300/40"
+            }`}
+          >
+            <span className="block text-[13px] font-black leading-none">
+              R{race.race_number}
+            </span>
+
+            {(hasMaverick || hasSmartPunt) && (
+              <span className="mt-1.5 flex items-center justify-center gap-1">
+                {hasMaverick && (
+                  <span
+                    className={`text-[7px] font-black leading-none ${
+                      isActiveRace
+                        ? "text-zinc-800"
+                        : "text-amber-300"
+                    }`}
+                  >
+                    M
+                  </span>
+                )}
+
+                {hasSmartPunt && (
+                  <span
+                    className={`text-[7px] font-black leading-none ${
+                      isActiveRace
+                        ? "text-emerald-700"
+                        : "text-emerald-300"
+                    }`}
+                  >
+                    S
+                  </span>
+                )}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+</div>
     <div className="my-4 h-px bg-gradient-to-r from-amber-300/50 via-white/15 to-transparent" />
 
     <div className="flex items-start gap-3">
