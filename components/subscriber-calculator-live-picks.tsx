@@ -1123,6 +1123,27 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
     );
   }, [activeMeeting, orderedPublishedRaces]);
 
+  const getRaceTipIndicators = (raceId: number) => {
+    const hasMaverickTip = officialTips.some(
+      (tip) =>
+        Number(tip.race_id || 0) === Number(raceId) &&
+        isLiveOfficialTipStatus(tip.status),
+    );
+
+    const hasSmartPuntTip =
+      calculatorPredictions.some(
+        (prediction) =>
+          Number(prediction.race_id) ===
+            Number(raceId) &&
+          prediction.is_smartpunt_tip === true,
+      );
+
+    return [
+      hasMaverickTip ? "M" : null,
+      hasSmartPuntTip ? "S" : null,
+    ].filter(Boolean);
+  };
+
   const isClosedRace =
     String(activeRace?.status || "")
       .trim()
@@ -3616,15 +3637,26 @@ return (
           }
           className="mt-2 w-full rounded-xl border border-white/20 bg-black/65 px-3 py-2.5 text-xs font-black text-white shadow-lg outline-none backdrop-blur-md focus:border-amber-300"
         >
-          {activeMeetingRaces.map((race) => (
-            <option
-              key={race.id}
-              value={String(race.id)}
-              className="bg-zinc-950 text-white"
-            >
-              R{race.race_number} · {race.race_name}
-            </option>
-          ))}
+          {activeMeetingRaces.map((race) => {
+            const indicators =
+              getRaceTipIndicators(Number(race.id));
+
+            const indicatorLabel =
+              indicators.length > 0
+                ? ` · ${indicators.join(" ")}`
+                : "";
+
+            return (
+              <option
+                key={race.id}
+                value={String(race.id)}
+                className="bg-zinc-950 text-white"
+              >
+                R{race.race_number}
+                {indicatorLabel} · {race.race_name}
+              </option>
+            );
+          })}
         </select>
       </div>
     </div>
