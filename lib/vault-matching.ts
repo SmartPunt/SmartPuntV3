@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { ensureVaultIntelligenceSnapshots } from "@/lib/vault-intelligence";
 
 type VaultAlert = {
   id: number;
@@ -607,20 +606,6 @@ export async function syncVaultNotifications({
     if (upsertError) {
       throw new Error(upsertError.message);
     }
-
-    /*
-     * Generate one shared Vault Intelligence snapshot per unique
-     * matched race runner.
-     *
-     * The intelligence helper deduplicates runners and only rebuilds
-     * a snapshot when it is missing, its version changes, or relevant
-     * pre-race context changes.
-     *
-     * Subscriber-facing read-only calls never enter this block.
-     */
-    await ensureVaultIntelligenceSnapshots(
-      liveMatches,
-    );
   }
 
 const { data: existingNotifications, error: existingError } =
