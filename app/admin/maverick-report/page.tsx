@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 type MaverickTip = {
   id: number;
+  race_id: number | null;
   race: string | null;
   horse: string | null;
   type: string | null;
@@ -21,8 +22,8 @@ type MaverickTip = {
   win_odds: number | string | null;
   place_odds: number | string | null;
   tip_angle: string | null;
+  race_date: string | null;
 };
-
 type ReportPreset =
   | "today"
   | "yesterday"
@@ -284,19 +285,17 @@ function filterTipsByDate(
   to: string,
 ) {
   return tips.filter((tip) => {
-    const settledDate = tip.settled_at
-      ? getPerthDateKey(tip.settled_at)
-      : "";
+    const raceDate = tip.race_date || "";
 
-    if (!settledDate) {
+    if (!raceDate) {
       return false;
     }
 
-    if (from && settledDate < from) {
+    if (from && raceDate < from) {
       return false;
     }
 
-    if (to && settledDate > to) {
+    if (to && raceDate > to) {
       return false;
     }
 
