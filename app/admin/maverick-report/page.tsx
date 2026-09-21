@@ -480,36 +480,129 @@ export default async function MaverickReportPage({
 const { data, error } = await supabase
   .from("suggested_tips")
   .select(
-    "id,race,horse,type,confidence,note,commentary,finishing_position,successful,settled_at,result_comment,win_odds,place_odds,tip_angle",
+    "id,race_id,race,horse,type,confidence,note,commentary,finishing_position,successful,settled_at,result_comment,win_odds,place_odds,tip_angle",
   )
   .not("successful", "is", null)
   .not("settled_at", "is", null)
   .order("settled_at", { ascending: false });
 
-  if (error) {
-    throw new Error(
-      error.message || "Failed to load The Maverick report.",
-    );
-  }
-
-const allTips = (data ?? []) as unknown as MaverickTip[];
-
-  const filteredTips = filterTipsByDate(
-    allTips,
-    selectedRange.from,
-    selectedRange.to,
+if (error) {
+  throw new Error(
+    error.message || "Failed to load The Maverick report.",
   );
+}
+
+const rawTips = (data ?? []) as unknown as Omit<
+  MaverickTip,
+  "race_date"
+>[];
+
+const raceIds = Array.from(
+  new Set(
+    rawTips
+      .map((tip) => Number(tip.race_id))
+      .filter((raceId) => Number.isFinite(raceId) && raceId > 0),
+  ),
+);
+
+const { data: raceRows, error: raceError } = raceIds.length
+  ? await supabase
+      .from("races")
+      .select("id,meeting_id")
+      .in("id", raceIds)
+  : { data: [], error: null };
+
+if (raceError) {
+  throw new Error(
+    raceError.message ||
+      "Failed to load races for The Maverick report.",
+  );
+}
+
+const meetingIds = Array.from(
+  new Set(
+    (raceRows ?? [])
+      .map((race: any) => Number(race.meeting_id))
+      .filter(
+        (meetingId) =>
+          Number.isFinite(meetingId) && meetingId > 0,
+      ),
+  ),
+);
+
+const { data: meetingRows, error: meetingError } =
+  meetingIds.length
+    ? await supabase
+        .from("meetings")
+        .select("id,meeting_date")
+        .in("id", meetingIds)
+    : { data: [], error: null };
+
+if (meetingError) {
+  throw new Error(
+    meetingError.message ||
+      "Failed to load meetings for The Maverick report.",
+  );
+}
+
+const meetingDateById = new Map<number, string>(
+  (meetingRows ?? []).map((meeting: any) => [
+    Number(meeting.id),
+    String(meeting.meeting_date || ""),
+  ]),
+);
+
+const meetingIdByRaceId = new Map<number, number>(
+  (raceRows ?? []).map((race: any) => [
+    Number(race.id),
+    Number(race.meeting_id),
+  ]),
+);
+
+const allTips: MaverickTip[] = rawTips
+  .map((tip) => {
+    const raceId = Number(tip.race_id);
+    const meetingId = meetingIdByRaceId.get(raceId);
+
+    return {
+      ...tip,
+      race_date: meetingId
+        ? meetingDateById.get(meetingId) || null
+        : null,
+    };
+  })
+  .sort((a, b) => {
+    const dateCompare = String(b.race_date || "").localeCompare(
+      String(a.race_date || ""),
+    );
+
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    return String(b.settled_at || "").localeCompare(
+      String(a.settled_at || ""),
+    );
+  });
+
+const filteredTips = filterTipsByDate(
+  allTips,
+  selectedRange.from,
+  selectedRange.to,
+);
 
   const summary = calculateSummary(filteredTips);
   const recentForm = filteredTips.slice(0, 10);
 const monthlyPerformance = Array.from(
   filteredTips.reduce((map, tip) => {
-    const key = tip.settled_at
+    const key = tip.race_date
       ? new Intl.DateTimeFormat("en-AU", {
           timeZone: "Australia/Perth",
           month: "long",
           year: "numeric",
-        }).format(new Date(tip.settled_at))
+        }).format(
+          new Date(`${tip.race_date}T12:00:00+08:00`),
+        )
       : "Unknown";
 
     if (!map.has(key)) {
@@ -520,12 +613,10 @@ const monthlyPerformance = Array.from(
 
     return map;
   }, new Map<string, MaverickTip[]>()),
-)
-  .map(([month, tips]) => ({
-    month,
-    summary: calculateSummary(tips),
-  }))
-  .reverse();
+).map(([month, tips]) => ({
+  month,
+  summary: calculateSummary(tips),
+}));
   const typeBreakdown = ["Win", "Place", "Each Way"].map(
     (type) => {
       const tips = filteredTips.filter(
@@ -841,7 +932,7 @@ const monthlyPerformance = Array.from(
     </h2>
 
     <p className="mt-1 text-sm text-zinc-500">
-      Performance grouped by settled month.
+Performance grouped by race month.
     </p>
 
     <div className="mt-5 overflow-x-auto">
@@ -1269,9 +1360,13 @@ const monthlyPerformance = Array.from(
                         </div>
 
                         <div className="text-right">
-                          <p className="text-sm text-zinc-400">
-                            {formatDate(tip.settled_at)}
-                          </p>
+<p className="text-sm text-zinc-400">
+  {formatDate(
+    tip.race_date
+      ? `${tip.race_date}T12:00:00+08:00`
+      : null,
+  )}
+</p>
 
                           <p
                             className={`mt-2 text-lg font-bold ${
