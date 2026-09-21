@@ -8,6 +8,9 @@ import {
   findVaultLiveMatches,
 } from "@/lib/vault-matching";
 import {
+  ensureVaultIntelligenceSnapshots,
+} from "@/lib/vault-intelligence";
+import {
   buildSmartPuntPowerRatings,
   summariseSmartPuntPowerRatings,
 } from "@/lib/power-rating";
@@ -656,6 +659,46 @@ async function processVaultMatchesTodayNotifications({
           ),
         ),
       },
+    );
+  }
+
+  /*
+   * SMARTPUNT VAULT INTELLIGENCE
+   *
+   * Genuine Vault matches have now been stored.
+   *
+   * Generate one shared historical intelligence snapshot for each
+   * unique matched race runner from this trusted Race Day workflow.
+   *
+   * IMPORTANT:
+   * - this runs from admin / Race Day work only;
+   * - subscriber page loads never generate intelligence;
+   * - the worker uses service-role database access;
+   * - same-day results are excluded from historical evidence;
+   * - this does not call or alter the SmartPunt Calculator;
+   * - intelligence failure must not undo genuine Vault matches or
+   *   prevent the subscriber's Vault notification from being created.
+   */
+  try {
+    await ensureVaultIntelligenceSnapshots(
+      liveMatches,
+    );
+
+    console.log(
+      "Race Day Vault Intelligence processing completed:",
+      {
+        matchedRunners:
+          new Set(
+            liveMatches.map((match) =>
+              Number(match.runner.id),
+            ),
+          ).size,
+      },
+    );
+  } catch (vaultIntelligenceError) {
+    console.error(
+      "Race Day Vault Intelligence processing failed:",
+      vaultIntelligenceError,
     );
   }
 
