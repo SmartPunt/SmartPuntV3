@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import SubscriberCalculatorLivePicks from "@/components/subscriber-calculator-live-picks";
 import { loadSubscriberLivePicksData } from "@/lib/subscriber-live-picks-data";
 import { syncVaultNotifications } from "@/lib/vault-matching";
+import { loadVaultIntelligenceSnapshots } from "@/lib/vault-intelligence";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,29 @@ const vaultResult = await syncVaultNotifications({
   },
 });
 
+const vaultIntelligenceSnapshots =
+  await loadVaultIntelligenceSnapshots(
+    vaultResult.matches.map((match) =>
+      Number(match.runner.id),
+    ),
+  );
+
+const vaultIntelligenceByRunnerId = new Map(
+  vaultIntelligenceSnapshots.map((snapshot) => [
+    Number(snapshot.race_runner_id),
+    snapshot,
+  ]),
+);
+
+const vaultMatchesWithIntelligence =
+  vaultResult.matches.map((match) => ({
+    ...match,
+    vaultIntelligence:
+      vaultIntelligenceByRunnerId.get(
+        Number(match.runner.id),
+      ) ?? null,
+  }));
+
 return (
 <SubscriberCalculatorLivePicks
   currentUser={profile}
@@ -54,7 +78,7 @@ watchSuggestions={livePicksData.watchSuggestions}
 getOnEarlyBets={livePicksData.getOnEarlyBets}
 maverickExoticTips={livePicksData.maverickExoticTips}
 activeUserBets={livePicksData.activeUserBets}
-vaultMatches={vaultResult.matches}
+vaultMatches={vaultMatchesWithIntelligence}
 dayDates={livePicksData.dayDates}
 initialRaceId={resolvedSearchParams?.raceId ?? ""}
 />
