@@ -485,7 +485,7 @@ async function processVaultMatchesTodayNotifications({
 
   const currentRunners =
     (await serviceRoleSelect(
-      `race_runners?select=id,race_id,horse_id,runner_number,jockey_name,trainer_name,barrier,scratched,track_form_last_6,distance_form_last_6,import_good_record,import_soft_record,import_heavy_record,import_synthetic_record` +
+      `race_runners?select=id,race_id,horse_id,runner_number,jockey_name,trainer_name,barrier,weight_kg,apprentice_claim_kg,scratched,track_form_last_6,distance_form_last_6,import_good_record,import_soft_record,import_heavy_record,import_synthetic_record` +
         `&race_id=${buildInFilter(
           raceIds,
         )}`,
