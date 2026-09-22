@@ -1165,6 +1165,15 @@ const [showGetOnEarlyOpportunities, setShowGetOnEarlyOpportunities] =
 const [showExoticOpportunities, setShowExoticOpportunities] =
   useState(true);
 
+const [showMaverickResults, setShowMaverickResults] =
+  useState(false);
+
+const [showSmartPuntResults, setShowSmartPuntResults] =
+  useState(false);
+
+const [showExoticResults, setShowExoticResults] =
+  useState(false);
+
 const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
     number[]
   >([]);
@@ -2769,6 +2778,810 @@ function resetOpportunityFilters() {
   setShowGetOnEarlyOpportunities(true);
   setShowExoticOpportunities(true);
 }
+
+/*
+ * TODAY'S RESULTS
+ *
+ * This section is presentation-only.
+ *
+ * The Maverick result is assessed against the actual finishing
+ * position and that race's own place terms.
+ *
+ * SmartPunt results come only from the frozen pre-race
+ * calculator_predictions snapshot.
+ *
+ * Nothing here recalculates the Calculator or changes settlement.
+ */
+const dayResultRaces = useMemo(
+  () =>
+    orderedPublishedRaces.filter((race) => {
+      const meeting = meetings.find(
+        (item) =>
+          Number(item.id) ===
+          Number(race.meeting_id),
+      );
+
+      return (
+        String(race.status || "")
+          .trim()
+          .toLowerCase() === "closed" &&
+        matchesRaceDay(
+          meeting,
+          raceDayFilter,
+          activeDayDates,
+        )
+      );
+    }),
+  [
+    activeDayDates,
+    meetings,
+    orderedPublishedRaces,
+    raceDayFilter,
+  ],
+);
+
+const maverickDayResults = useMemo(() => {
+  return dayResultRaces
+    .flatMap((race) => {
+      const meeting =
+        meetings.find(
+          (item) =>
+            Number(item.id) ===
+            Number(race.meeting_id),
+        ) || null;
+
+      const tip =
+        officialTips.find(
+          (item) =>
+            Number(item.race_id || 0) ===
+            Number(race.id),
+        ) || null;
+
+      if (!tip) {
+        return [];
+      }
+
+      const tipRunner =
+        runners.find((runner) => {
+          if (tip.race_runner_id) {
+            return (
+              Number(runner.id) ===
+              Number(tip.race_runner_id)
+            );
+          }
+
+          if (tip.horse_id) {
+            return (
+              Number(runner.horse_id) ===
+              Number(tip.horse_id)
+            );
+          }
+
+          return false;
+        }) || null;
+
+      if (!tipRunner) {
+        return [];
+      }
+
+      const finishingPosition = Number(
+        (tipRunner as any)
+          .finishing_position || 0,
+      );
+
+      if (finishingPosition <= 0) {
+        return [];
+      }
+
+      const betType =
+        formatOfficialTipType(tip);
+
+      const normalisedType = String(
+        betType,
+      )
+        .trim()
+        .toLowerCase()
+        .replace(/_/g, " ");
+
+      const placeTerms =
+        race.place_terms || "top_3";
+
+      const placeCutoff =
+        placeTerms === "win_only"
+          ? 1
+          : placeTerms === "top_2"
+            ? 2
+            : 3;
+
+      const won =
+        finishingPosition === 1;
+
+      const placed =
+        finishingPosition <=
+        placeCutoff;
+
+      const successful =
+        normalisedType === "win"
+          ? won
+          : normalisedType === "place"
+            ? placed
+            : normalisedType ===
+                  "each way" ||
+                normalisedType ===
+                  "eachway"
+              ? placed
+              : false;
+
+      const nearMiss =
+        !successful &&
+        (normalisedType === "win"
+          ? finishingPosition === 2
+          : normalisedType === "place" ||
+              normalisedType ===
+                "each way" ||
+              normalisedType ===
+                "eachway"
+            ? finishingPosition ===
+              placeCutoff + 1
+            : false);
+
+      const horse =
+        horses.find(
+          (item) =>
+            Number(item.id) ===
+            Number(
+              (tipRunner as any)
+                .horse_id ||
+                tip.horse_id ||
+                0,
+            ),
+        ) || null;
+
+      const horseName =
+        tip.horse ||
+        tip.horse_name ||
+        (tipRunner as any).horse_name ||
+        horse?.horse_name ||
+        "Maverick selection";
+
+      const resultLabel =
+        successful
+          ? normalisedType ===
+                "each way" ||
+              normalisedType ===
+                "eachway"
+            ? won
+              ? "Win + Place"
+              : "Place"
+            : normalisedType === "win"
+              ? "Win"
+              : "Placed"
+          : nearMiss
+            ? "Near Miss"
+            : "Missed";
+
+      return [
+        {
+          id: `maverick-${tip.id}`,
+          raceId: Number(race.id),
+          raceNumber: Number(
+            race.race_number || 0,
+          ),
+          meetingName:
+            meeting?.meeting_name ||
+            "Meeting",
+          horseName,
+          betType,
+          finishingPosition,
+          finishingPositionLabel:
+            formatFinishingPosition(
+              finishingPosition,
+            ) || `${finishingPosition}th`,
+          successful,
+          nearMiss,
+          resultLabel,
+        },
+      ];
+    })
+    .sort((a, b) => {
+      const meetingCompare =
+        a.meetingName.localeCompare(
+          b.meetingName,
+          "en-AU",
+          {
+            sensitivity: "base",
+          },
+        );
+
+      if (meetingCompare !== 0) {
+        return meetingCompare;
+      }
+
+      return (
+        a.raceNumber -
+        b.raceNumber
+      );
+    });
+}, [
+  dayResultRaces,
+  horses,
+  meetings,
+  officialTips,
+  runners,
+]);
+
+const smartPuntDayResults = useMemo(() => {
+  return dayResultRaces
+    .flatMap((race) => {
+      const meeting =
+        meetings.find(
+          (item) =>
+            Number(item.id) ===
+            Number(race.meeting_id),
+        ) || null;
+
+      const predictions =
+        calculatorPredictions.filter(
+          (prediction) =>
+            Number(
+              prediction.race_id,
+            ) === Number(race.id),
+        );
+
+      const tippedPredictions =
+        predictions.filter(
+          (prediction) =>
+            prediction.is_smartpunt_tip ===
+              true &&
+            Boolean(
+              String(
+                prediction.smartpunt_tip_type ||
+                  "",
+              ).trim(),
+            ),
+        );
+
+      return tippedPredictions.flatMap(
+        (prediction) => {
+          const finishingPosition =
+            Number(
+              prediction.finishing_position ||
+                0,
+            );
+
+          if (
+            finishingPosition <= 0
+          ) {
+            return [];
+          }
+
+          const runner =
+            runners.find(
+              (item) =>
+                Number(item.id) ===
+                Number(
+                  prediction.runner_id,
+                ),
+            ) || null;
+
+          const horse =
+            horses.find(
+              (item) =>
+                Number(item.id) ===
+                Number(
+                  prediction.horse_id,
+                ),
+            ) || null;
+
+          const rawBetType =
+            String(
+              prediction.smartpunt_tip_type ||
+                "Tip",
+            )
+              .trim()
+              .replace(/_/g, " ");
+
+          const normalisedType =
+            rawBetType.toLowerCase();
+
+          const betType =
+            normalisedType === "win"
+              ? "Win"
+              : normalisedType ===
+                    "place"
+                ? "Place"
+                : normalisedType ===
+                      "each way" ||
+                    normalisedType ===
+                      "eachway"
+                  ? "Each Way"
+                  : rawBetType;
+
+          const placeTerms =
+            race.place_terms ||
+            "top_3";
+
+          const placeCutoff =
+            placeTerms === "win_only"
+              ? 1
+              : placeTerms ===
+                    "top_2"
+                ? 2
+                : 3;
+
+          const won =
+            prediction.won ===
+              true ||
+            finishingPosition === 1;
+
+          const placed =
+            prediction.placed ===
+              true ||
+            finishingPosition <=
+              placeCutoff;
+
+          const successful =
+            normalisedType === "win"
+              ? won
+              : normalisedType ===
+                    "place"
+                ? placed
+                : normalisedType ===
+                      "each way" ||
+                    normalisedType ===
+                      "eachway"
+                  ? placed
+                  : false;
+
+          const nearMiss =
+            !successful &&
+            (normalisedType === "win"
+              ? finishingPosition ===
+                2
+              : normalisedType ===
+                    "place" ||
+                  normalisedType ===
+                    "each way" ||
+                  normalisedType ===
+                    "eachway"
+                ? finishingPosition ===
+                  placeCutoff + 1
+                : false);
+
+          const horseName =
+            (runner as any)
+              ?.horse_name ||
+            horse?.horse_name ||
+            "SmartPunt selection";
+
+          const resultLabel =
+            successful
+              ? normalisedType ===
+                    "each way" ||
+                  normalisedType ===
+                    "eachway"
+                ? won
+                  ? "Win + Place"
+                  : "Place"
+                : normalisedType ===
+                      "win"
+                  ? "Win"
+                  : "Placed"
+              : nearMiss
+                ? "Near Miss"
+                : "Missed";
+
+          return [
+            {
+              id: `smartpunt-${prediction.id}`,
+              raceId: Number(
+                race.id,
+              ),
+              raceNumber: Number(
+                race.race_number || 0,
+              ),
+              meetingName:
+                meeting?.meeting_name ||
+                "Meeting",
+              horseName,
+              betType,
+              finishingPosition,
+              finishingPositionLabel:
+                formatFinishingPosition(
+                  finishingPosition,
+                ) ||
+                `${finishingPosition}th`,
+              successful,
+              nearMiss,
+              resultLabel,
+            },
+          ];
+        },
+      );
+    })
+    .sort((a, b) => {
+      const meetingCompare =
+        a.meetingName.localeCompare(
+          b.meetingName,
+          "en-AU",
+          {
+            sensitivity: "base",
+          },
+        );
+
+      if (meetingCompare !== 0) {
+        return meetingCompare;
+      }
+
+      return (
+        a.raceNumber -
+        b.raceNumber
+      );
+    });
+}, [
+  calculatorPredictions,
+  dayResultRaces,
+  horses,
+  meetings,
+  runners,
+]);
+
+const maverickResultSummary =
+  useMemo(() => {
+    return {
+      total:
+        maverickDayResults.length,
+      wins:
+        maverickDayResults.filter(
+          (item) =>
+            item.successful &&
+            item.betType === "Win",
+        ).length,
+      places:
+        maverickDayResults.filter(
+          (item) =>
+            item.successful &&
+            item.betType === "Place",
+        ).length,
+      eachWays:
+        maverickDayResults.filter(
+          (item) =>
+            item.successful &&
+            item.betType ===
+              "Each Way",
+        ).length,
+      nearMisses:
+        maverickDayResults.filter(
+          (item) => item.nearMiss,
+        ).length,
+      misses:
+        maverickDayResults.filter(
+          (item) =>
+            !item.successful &&
+            !item.nearMiss,
+        ).length,
+    };
+  }, [maverickDayResults]);
+
+const smartPuntResultSummary =
+  useMemo(() => {
+    return {
+      total:
+        smartPuntDayResults.length,
+      wins:
+        smartPuntDayResults.filter(
+          (item) =>
+            item.successful &&
+            item.betType === "Win",
+        ).length,
+      places:
+        smartPuntDayResults.filter(
+          (item) =>
+            item.successful &&
+            item.betType === "Place",
+        ).length,
+      eachWays:
+        smartPuntDayResults.filter(
+          (item) =>
+            item.successful &&
+            item.betType ===
+              "Each Way",
+        ).length,
+      nearMisses:
+        smartPuntDayResults.filter(
+          (item) => item.nearMiss,
+        ).length,
+      misses:
+        smartPuntDayResults.filter(
+          (item) =>
+            !item.successful &&
+            !item.nearMiss,
+        ).length,
+    };
+  }, [smartPuntDayResults]);
+
+const maverickDayExoticResults =
+  useMemo(() => {
+    return maverickExoticTips
+      .flatMap((tip) => {
+        const status = String(
+          tip.status || "",
+        )
+          .trim()
+          .toLowerCase();
+
+        if (
+          status !== "won" &&
+          status !== "lost" &&
+          status !== "void"
+        ) {
+          return [];
+        }
+
+        const race =
+          dayResultRaces.find(
+            (item) =>
+              Number(item.id) ===
+              Number(tip.race_id),
+          ) || null;
+
+        if (!race) {
+          return [];
+        }
+
+        const meeting =
+          meetings.find(
+            (item) =>
+              Number(item.id) ===
+              Number(
+                race.meeting_id,
+              ),
+          ) || null;
+
+        const betType =
+          String(
+            tip.bet_type || "",
+          ).toLowerCase() ===
+          "trifecta"
+            ? "Trifecta"
+            : "Quinella";
+
+        const resultNumbers =
+          Array.isArray(
+            tip.result_order,
+          )
+            ? tip.result_order
+                .filter(
+                  (result) =>
+                    Number(
+                      result.finishing_position ||
+                        0,
+                    ) > 0,
+                )
+                .sort(
+                  (a, b) =>
+                    Number(
+                      a.finishing_position ||
+                        0,
+                    ) -
+                    Number(
+                      b.finishing_position ||
+                        0,
+                    ),
+                )
+                .map((result) => {
+                  const runner =
+                    runners.find(
+                      (item) =>
+                        Number(
+                          item.id,
+                        ) ===
+                        Number(
+                          result.race_runner_id ||
+                            0,
+                        ),
+                    );
+
+                  return Number(
+                    (runner as any)
+                      ?.runner_number ||
+                      0,
+                  );
+                })
+                .filter(Boolean)
+                .join(" · ")
+            : "";
+
+        return [
+          {
+            id: `maverick-exotic-${tip.id}`,
+            source: "Maverick" as const,
+            meetingName:
+              meeting?.meeting_name ||
+              "Meeting",
+            raceNumber: Number(
+              race.race_number || 0,
+            ),
+            betType,
+            status,
+            resultNumbers,
+          },
+        ];
+      })
+      .sort((a, b) => {
+        const meetingCompare =
+          a.meetingName.localeCompare(
+            b.meetingName,
+            "en-AU",
+            {
+              sensitivity:
+                "base",
+            },
+          );
+
+        if (
+          meetingCompare !== 0
+        ) {
+          return meetingCompare;
+        }
+
+        return (
+          a.raceNumber -
+          b.raceNumber
+        );
+      });
+  }, [
+    dayResultRaces,
+    maverickExoticTips,
+    meetings,
+    runners,
+  ]);
+
+const smartPuntDayExoticResults =
+  useMemo(() => {
+    return dayResultRaces.flatMap(
+      (race) => {
+        const meeting =
+          meetings.find(
+            (item) =>
+              Number(item.id) ===
+              Number(
+                race.meeting_id,
+              ),
+          ) || null;
+
+        const predictions =
+          calculatorPredictions
+            .filter(
+              (prediction) =>
+                Number(
+                  prediction.race_id,
+                ) ===
+                Number(race.id),
+            )
+            .sort(
+              (a, b) =>
+                Number(a.rank || 0) -
+                Number(b.rank || 0),
+            )
+            .slice(0, 3);
+
+        if (
+          predictions.length < 3
+        ) {
+          return [];
+        }
+
+        const positions =
+          predictions.map(
+            (prediction) =>
+              Number(
+                prediction.finishing_position ||
+                  0,
+              ),
+          );
+
+        if (
+          positions.some(
+            (position) =>
+              position <= 0,
+          )
+        ) {
+          return [];
+        }
+
+        const firstPosition =
+          positions[0];
+
+        const secondPosition =
+          positions[1];
+
+        const topTwoPositions = [
+          firstPosition,
+          secondPosition,
+        ].sort((a, b) => a - b);
+
+        const topThreePositions =
+          [...positions].sort(
+            (a, b) => a - b,
+          );
+
+        const quinella =
+          topTwoPositions[0] ===
+            1 &&
+          topTwoPositions[1] ===
+            2;
+
+        const exacta =
+          firstPosition === 1 &&
+          secondPosition === 2;
+
+        const trifecta =
+          topThreePositions[0] ===
+            1 &&
+          topThreePositions[1] ===
+            2 &&
+          topThreePositions[2] ===
+            3;
+
+        const base = {
+          source:
+            "SmartPunt" as const,
+          meetingName:
+            meeting?.meeting_name ||
+            "Meeting",
+          raceNumber: Number(
+            race.race_number || 0,
+          ),
+        };
+
+        return [
+          {
+            ...base,
+            id: `smartpunt-quinella-${race.id}`,
+            betType: "Quinella",
+            status: quinella
+              ? "won"
+              : "lost",
+            resultNumbers: "",
+          },
+          {
+            ...base,
+            id: `smartpunt-exacta-${race.id}`,
+            betType: "Exacta",
+            status: exacta
+              ? "won"
+              : "lost",
+            resultNumbers: "",
+          },
+          {
+            ...base,
+            id: `smartpunt-trifecta-${race.id}`,
+            betType:
+              "All Ways Trifecta",
+            status: trifecta
+              ? "won"
+              : "lost",
+            resultNumbers: "",
+          },
+        ];
+      },
+    );
+  }, [
+    calculatorPredictions,
+    dayResultRaces,
+    meetings,
+  ]);
+
+const dayExoticResults = [
+  ...maverickDayExoticResults,
+  ...smartPuntDayExoticResults,
+];
+
+const hasDayResults =
+  maverickDayResults.length > 0 ||
+  smartPuntDayResults.length > 0 ||
+  dayExoticResults.length > 0;
 
   return (
     <div className="min-h-screen bg-[#171107] px-3 py-5 text-white sm:px-5">
@@ -5765,6 +6578,489 @@ return (
               )}
             </div>
           </div>
+
+          {hasDayResults ? (
+            <section className="mt-4 overflow-hidden rounded-[24px] border border-amber-300/35 bg-[linear-gradient(180deg,#090806_0%,#050505_100%)] shadow-[0_18px_45px_rgba(0,0,0,0.5)]">
+              <div className="border-b border-amber-300/20 px-4 py-4 text-center">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">
+                  {selectedRaceDayLabel}
+                </p>
+
+                <h2 className="mt-1 text-xl font-black text-white">
+                  Today&apos;s Results
+                </h2>
+
+                <p className="mt-1 text-[10px] font-semibold text-zinc-400">
+                  Results update as races are settled.
+                </p>
+              </div>
+
+              <div className="space-y-3 p-3">
+                {maverickResultSummary.total >
+                0 ? (
+                  <div className="overflow-hidden rounded-[20px] border border-amber-300/25 bg-black/45">
+                    <div className="flex items-center gap-3 px-3 py-3">
+                      <img
+                        src="/maverick/maverick-shield.png"
+                        alt="The Maverick"
+                        className="h-14 w-14 shrink-0 object-contain drop-shadow-[0_0_14px_rgba(245,158,11,0.25)]"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-300">
+                          The Maverick
+                        </p>
+
+                        <p className="mt-1 text-sm font-black text-white">
+                          {
+                            maverickResultSummary.total
+                          }{" "}
+                          resulted{" "}
+                          {maverickResultSummary.total ===
+                          1
+                            ? "tip"
+                            : "tips"}
+                        </p>
+
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {maverickResultSummary.wins >
+                          0 ? (
+                            <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-emerald-200">
+                              {
+                                maverickResultSummary.wins
+                              }{" "}
+                              Win
+                              {maverickResultSummary.wins ===
+                              1
+                                ? ""
+                                : "s"}
+                            </span>
+                          ) : null}
+
+                          {maverickResultSummary.places >
+                          0 ? (
+                            <span className="rounded-full border border-sky-300/25 bg-sky-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-sky-200">
+                              {
+                                maverickResultSummary.places
+                              }{" "}
+                              Place
+                              {maverickResultSummary.places ===
+                              1
+                                ? ""
+                                : "s"}
+                            </span>
+                          ) : null}
+
+                          {maverickResultSummary.eachWays >
+                          0 ? (
+                            <span className="rounded-full border border-violet-300/25 bg-violet-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-violet-200">
+                              {
+                                maverickResultSummary.eachWays
+                              }{" "}
+                              EW
+                            </span>
+                          ) : null}
+
+                          {maverickResultSummary.nearMisses >
+                          0 ? (
+                            <span className="rounded-full border border-amber-300/30 bg-amber-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-amber-200">
+                              {
+                                maverickResultSummary.nearMisses
+                              }{" "}
+                              Near Miss
+                              {maverickResultSummary.nearMisses ===
+                              1
+                                ? ""
+                                : "es"}
+                            </span>
+                          ) : null}
+
+                          {maverickResultSummary.misses >
+                          0 ? (
+                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-zinc-400">
+                              {
+                                maverickResultSummary.misses
+                              }{" "}
+                              Miss
+                              {maverickResultSummary.misses ===
+                              1
+                                ? ""
+                                : "es"}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowMaverickResults(
+                          (value) => !value,
+                        )
+                      }
+                      className="flex w-full items-center justify-between border-t border-white/10 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-300">
+                        {showMaverickResults
+                          ? "Hide tip results"
+                          : `View all ${maverickResultSummary.total} tips`}
+                      </span>
+
+                      <span className="text-sm font-black text-amber-300">
+                        {showMaverickResults
+                          ? "−"
+                          : "+"}
+                      </span>
+                    </button>
+
+                    {showMaverickResults ? (
+                      <div className="border-t border-white/10">
+                        {maverickDayResults.map(
+                          (result) => (
+                            <div
+                              key={result.id}
+                              className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3 last:border-b-0"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                                  {
+                                    result.meetingName
+                                  }{" "}
+                                  · R
+                                  {
+                                    result.raceNumber
+                                  }
+                                </p>
+
+                                <p className="mt-1 truncate text-[12px] font-black text-white">
+                                  {
+                                    result.horseName
+                                  }
+                                </p>
+
+                                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                                  {
+                                    result.betType
+                                  }
+                                </p>
+                              </div>
+
+                              <div className="shrink-0 text-right">
+                                <p className="text-[11px] font-black text-white">
+                                  {
+                                    result.finishingPositionLabel
+                                  }
+                                </p>
+
+                                <span
+                                  className={`mt-1 inline-flex rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] ${
+                                    result.successful
+                                      ? "border-emerald-300/35 bg-emerald-500/12 text-emerald-200"
+                                      : result.nearMiss
+                                        ? "border-amber-300/40 bg-amber-500/12 text-amber-200"
+                                        : "border-white/10 bg-white/[0.04] text-zinc-400"
+                                  }`}
+                                >
+                                  {
+                                    result.resultLabel
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {smartPuntResultSummary.total >
+                0 ? (
+                  <div className="overflow-hidden rounded-[20px] border border-emerald-300/25 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(0,0,0,0.5))]">
+                    <div className="flex items-center gap-3 px-3 py-3">
+                      <img
+                        src="/maverick/smartpunt-tip-strip.png"
+                        alt="SmartPunt"
+                        className="h-12 w-20 shrink-0 object-contain"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[8px] font-black uppercase tracking-[0.16em] text-emerald-300">
+                          SmartPunt
+                        </p>
+
+                        <p className="mt-1 text-sm font-black text-white">
+                          {
+                            smartPuntResultSummary.total
+                          }{" "}
+                          resulted{" "}
+                          {smartPuntResultSummary.total ===
+                          1
+                            ? "tip"
+                            : "tips"}
+                        </p>
+
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {smartPuntResultSummary.wins >
+                          0 ? (
+                            <span className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-emerald-200">
+                              {
+                                smartPuntResultSummary.wins
+                              }{" "}
+                              Win
+                              {smartPuntResultSummary.wins ===
+                              1
+                                ? ""
+                                : "s"}
+                            </span>
+                          ) : null}
+
+                          {smartPuntResultSummary.places >
+                          0 ? (
+                            <span className="rounded-full border border-sky-300/25 bg-sky-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-sky-200">
+                              {
+                                smartPuntResultSummary.places
+                              }{" "}
+                              Place
+                              {smartPuntResultSummary.places ===
+                              1
+                                ? ""
+                                : "s"}
+                            </span>
+                          ) : null}
+
+                          {smartPuntResultSummary.eachWays >
+                          0 ? (
+                            <span className="rounded-full border border-violet-300/25 bg-violet-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-violet-200">
+                              {
+                                smartPuntResultSummary.eachWays
+                              }{" "}
+                              EW
+                            </span>
+                          ) : null}
+
+                          {smartPuntResultSummary.nearMisses >
+                          0 ? (
+                            <span className="rounded-full border border-amber-300/30 bg-amber-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-amber-200">
+                              {
+                                smartPuntResultSummary.nearMisses
+                              }{" "}
+                              Near Miss
+                              {smartPuntResultSummary.nearMisses ===
+                              1
+                                ? ""
+                                : "es"}
+                            </span>
+                          ) : null}
+
+                          {smartPuntResultSummary.misses >
+                          0 ? (
+                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-zinc-400">
+                              {
+                                smartPuntResultSummary.misses
+                              }{" "}
+                              Miss
+                              {smartPuntResultSummary.misses ===
+                              1
+                                ? ""
+                                : "es"}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowSmartPuntResults(
+                          (value) => !value,
+                        )
+                      }
+                      className="flex w-full items-center justify-between border-t border-white/10 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-300">
+                        {showSmartPuntResults
+                          ? "Hide tip results"
+                          : `View all ${smartPuntResultSummary.total} tips`}
+                      </span>
+
+                      <span className="text-sm font-black text-emerald-300">
+                        {showSmartPuntResults
+                          ? "−"
+                          : "+"}
+                      </span>
+                    </button>
+
+                    {showSmartPuntResults ? (
+                      <div className="border-t border-white/10">
+                        {smartPuntDayResults.map(
+                          (result) => (
+                            <div
+                              key={result.id}
+                              className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3 last:border-b-0"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                                  {
+                                    result.meetingName
+                                  }{" "}
+                                  · R
+                                  {
+                                    result.raceNumber
+                                  }
+                                </p>
+
+                                <p className="mt-1 truncate text-[12px] font-black text-white">
+                                  {
+                                    result.horseName
+                                  }
+                                </p>
+
+                                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                                  {
+                                    result.betType
+                                  }
+                                </p>
+                              </div>
+
+                              <div className="shrink-0 text-right">
+                                <p className="text-[11px] font-black text-white">
+                                  {
+                                    result.finishingPositionLabel
+                                  }
+                                </p>
+
+                                <span
+                                  className={`mt-1 inline-flex rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] ${
+                                    result.successful
+                                      ? "border-emerald-300/35 bg-emerald-500/12 text-emerald-200"
+                                      : result.nearMiss
+                                        ? "border-amber-300/40 bg-amber-500/12 text-amber-200"
+                                        : "border-white/10 bg-white/[0.04] text-zinc-400"
+                                  }`}
+                                >
+                                  {
+                                    result.resultLabel
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {dayExoticResults.length >
+                0 ? (
+                  <div className="overflow-hidden rounded-[20px] border border-fuchsia-300/20 bg-black/45">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowExoticResults(
+                          (value) => !value,
+                        )
+                      }
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[8px] font-black uppercase tracking-[0.16em] text-fuchsia-200">
+                          Exotics
+                        </p>
+
+                        <p className="mt-1 text-sm font-black text-white">
+                          {
+                            dayExoticResults.length
+                          }{" "}
+                          resulted exotic
+                          {dayExoticResults.length ===
+                          1
+                            ? ""
+                            : "s"}
+                        </p>
+                      </div>
+
+                      <span className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                        {showExoticResults
+                          ? "Hide"
+                          : "View"}
+                      </span>
+
+                      <span className="text-sm font-black text-fuchsia-200">
+                        {showExoticResults
+                          ? "−"
+                          : "+"}
+                      </span>
+                    </button>
+
+                    {showExoticResults ? (
+                      <div className="border-t border-white/10">
+                        {dayExoticResults.map(
+                          (result) => (
+                            <div
+                              key={result.id}
+                              className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3 last:border-b-0"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                                  {result.source} ·{" "}
+                                  {
+                                    result.meetingName
+                                  }{" "}
+                                  · R
+                                  {
+                                    result.raceNumber
+                                  }
+                                </p>
+
+                                <p className="mt-1 text-[12px] font-black text-white">
+                                  {
+                                    result.betType
+                                  }
+                                </p>
+
+                                {result.resultNumbers ? (
+                                  <p className="mt-1 text-[9px] font-bold text-zinc-400">
+                                    Result:{" "}
+                                    {
+                                      result.resultNumbers
+                                    }
+                                  </p>
+                                ) : null}
+                              </div>
+
+                              <span
+                                className={`shrink-0 rounded-full border px-2.5 py-1.5 text-[8px] font-black uppercase tracking-[0.1em] ${
+                                  result.status ===
+                                  "won"
+                                    ? "border-emerald-300/35 bg-emerald-500/12 text-emerald-200"
+                                    : result.status ===
+                                        "void"
+                                      ? "border-amber-300/30 bg-amber-500/10 text-amber-200"
+                                      : "border-white/10 bg-white/[0.04] text-zinc-400"
+                                }`}
+                              >
+                                {result.status ===
+                                "won"
+                                  ? "Landed"
+                                  : result.status ===
+                                      "void"
+                                    ? "Void"
+                                    : "Missed"}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           <footer className="mt-3 overflow-hidden rounded-[22px] border border-amber-300/40 bg-[linear-gradient(135deg,#05070c_0%,#0b1220_52%,#05070c_100%)] p-5 text-center shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
             <img
