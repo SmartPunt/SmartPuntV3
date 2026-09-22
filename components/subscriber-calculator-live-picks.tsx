@@ -6820,11 +6820,11 @@ return (
                 0 ? (
                   <div className="overflow-hidden rounded-[20px] border border-emerald-300/25 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(0,0,0,0.5))]">
                     <div className="flex items-center gap-3 px-3 py-3">
-                      <div className="flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-emerald-300/20 bg-black/35 px-2">
+                      <div className="flex h-16 w-20 shrink-0 items-center justify-center">
                         <img
-                          src="/header-logo.png"
+                          src="/smartpunt-results-horse.png"
                           alt="SmartPunt"
-                          className="block h-auto max-h-12 w-full object-contain"
+                          className="block h-16 w-20 object-contain drop-shadow-[0_0_14px_rgba(16,185,129,0.22)]"
                         />
                       </div>
 
