@@ -65,6 +65,12 @@ type VaultIntelligenceData = {
       status?: VaultRaceRelativeStatus | null;
     };
   };
+  appraisal?: {
+    text?: string | null;
+    positives?: string[];
+    cautions?: string[];
+    generatedFromEvidence?: boolean;
+  };
   recentForm?: VaultIntelligenceRecentRun[];
   totalHistoricalStarts?: number;
   source?: string;
@@ -4224,7 +4230,14 @@ return (
                       .slice(0, 5)
                   : [];
 
-               if (
+              const appraisalText =
+                typeof intelligence.appraisal
+                  ?.text === "string"
+                  ? intelligence.appraisal.text.trim()
+                  : "";
+
+              if (
+                !appraisalText &&
                 todaySetupRows.length === 0 &&
                 evidenceRows.length === 0 &&
                 recentForm.length === 0
@@ -4257,6 +4270,22 @@ return (
                   </summary>
 
                   <div className="border-t border-amber-300/15 px-3 pb-3 pt-3">
+                    {appraisalText ? (
+                      <div className="mb-4 overflow-hidden rounded-[14px] border border-amber-300/25 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(255,255,255,0.035))] px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
+
+                          <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-300">
+                            SmartPunt Appraisal
+                          </p>
+                        </div>
+
+                        <p className="mt-2 text-[11px] font-semibold leading-[1.65] text-zinc-100">
+                          {appraisalText}
+                        </p>
+                      </div>
+                    ) : null}
+
                     {todaySetupRows.length >
                     0 ? (
                       <div>
