@@ -3300,6 +3300,9 @@ const smartPuntResultSummary =
     };
   }, [smartPuntDayResults]);
 
+const selectedResultsDate =
+  activeDayDates[raceDayFilter];
+
 const maverickDayExoticResults =
   useMemo(() => {
     return maverickExoticTips
@@ -3337,6 +3340,23 @@ const maverickDayExoticResults =
                 race.meeting_id,
               ),
           ) || null;
+
+        /*
+         * RESULTS DAY INTEGRITY
+         *
+         * A resulted Maverick exotic belongs only to the
+         * exact race day currently selected on Live Picks.
+         * Do not allow historical exotic results to leak
+         * into Today or Yesterday.
+         */
+        if (
+          !meeting ||
+          String(
+            meeting.meeting_date || "",
+          ) !== selectedResultsDate
+        ) {
+          return [];
+        }
 
         const betType =
           String(
@@ -3435,6 +3455,7 @@ const maverickDayExoticResults =
     maverickExoticTips,
     meetings,
     runners,
+    selectedResultsDate,
   ]);
 
 const smartPuntDayExoticResults =
@@ -3449,6 +3470,21 @@ const smartPuntDayExoticResults =
                 race.meeting_id,
               ),
           ) || null;
+
+        /*
+         * RESULTS DAY INTEGRITY
+         *
+         * SmartPunt exotic results must belong to the
+         * exact race day currently selected.
+         */
+        if (
+          !meeting ||
+          String(
+            meeting.meeting_date || "",
+          ) !== selectedResultsDate
+        ) {
+          return [];
+        }
 
         const predictions =
           calculatorPredictions
@@ -3571,6 +3607,7 @@ const smartPuntDayExoticResults =
     calculatorPredictions,
     dayResultRaces,
     meetings,
+    selectedResultsDate,
   ]);
 
 const dayExoticResults = [
@@ -6587,7 +6624,11 @@ return (
                 </p>
 
                 <h2 className="mt-1 text-xl font-black text-white">
-                  Today&apos;s Results
+                  {raceDayFilter === "yesterday"
+                    ? "Yesterday's Results"
+                    : raceDayFilter === "tomorrow"
+                      ? "Tomorrow's Results"
+                      : "Today's Results"}
                 </h2>
 
                 <p className="mt-1 text-[10px] font-semibold text-zinc-400">
@@ -6779,11 +6820,13 @@ return (
                 0 ? (
                   <div className="overflow-hidden rounded-[20px] border border-emerald-300/25 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(0,0,0,0.5))]">
                     <div className="flex items-center gap-3 px-3 py-3">
-                      <img
-                        src="/maverick/smartpunt-tip-strip.png"
-                        alt="SmartPunt"
-                        className="h-12 w-20 shrink-0 object-contain"
-                      />
+                      <div className="flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-emerald-300/20 bg-black/35 px-2">
+                        <img
+                          src="/header-logo.png"
+                          alt="SmartPunt"
+                          className="block h-auto max-h-12 w-full object-contain"
+                        />
+                      </div>
 
                       <div className="min-w-0 flex-1">
                         <p className="text-[8px] font-black uppercase tracking-[0.16em] text-emerald-300">
