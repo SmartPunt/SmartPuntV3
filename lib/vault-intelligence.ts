@@ -5,6 +5,12 @@ type VaultIntelligenceMatch = {
     id: number;
     horse_id: number | null;
     jockey_name?: string | null;
+    track_form_last_6?: string | null;
+    distance_form_last_6?: string | null;
+    import_good_record?: string | null;
+    import_soft_record?: string | null;
+    import_heavy_record?: string | null;
+    import_synthetic_record?: string | null;
   };
   race: {
     id: number;
