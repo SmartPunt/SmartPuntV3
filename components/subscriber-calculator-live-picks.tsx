@@ -13,6 +13,88 @@ import {
 import { addUserBetAction } from "@/lib/actions";
 import VaultDoorIcon from "@/components/vault-door-icon";
 import type { VaultLiveMatch } from "@/lib/vault-matching";
+
+type VaultIntelligenceStats = {
+  starts: number;
+  wins: number;
+  places: number;
+  winRate: number;
+  placeRate: number;
+};
+
+type VaultIntelligenceRecentRun = {
+  meetingDate: string | null;
+  track: string | null;
+  distanceM: number | null;
+  jockey: string | null;
+  finishingPosition: number | null;
+};
+
+type VaultIntelligenceData = {
+  today?: {
+    meetingName?: string | null;
+    meetingDate?: string | null;
+    distanceM?: number | null;
+    trackCondition?: string | null;
+    conditionBucket?: string | null;
+    jockeyName?: string | null;
+  };
+  evidence?: {
+    courseDistance?: VaultIntelligenceStats;
+    track?: VaultIntelligenceStats;
+    distance?: VaultIntelligenceStats;
+    condition?: VaultIntelligenceStats;
+    jockey?: VaultIntelligenceStats;
+  };
+  recentForm?: VaultIntelligenceRecentRun[];
+  totalHistoricalStarts?: number;
+  source?: string;
+};
+
+type VaultLiveMatchWithIntelligence =
+  VaultLiveMatch & {
+    vaultIntelligence?: {
+      intelligence?: unknown;
+    } | null;
+  };
+
+function getVaultIntelligence(
+  match: VaultLiveMatchWithIntelligence,
+): VaultIntelligenceData | null {
+  const value =
+    match.vaultIntelligence?.intelligence;
+
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    return null;
+  }
+
+  return value as VaultIntelligenceData;
+}
+
+function formatVaultEvidence(
+  stats?: VaultIntelligenceStats,
+) {
+  if (!stats || Number(stats.starts) <= 0) {
+    return null;
+  }
+
+  const starts = Number(stats.starts);
+  const wins = Number(stats.wins);
+  const topThree = Number(stats.places);
+
+  return {
+    starts,
+    wins,
+    topThree,
+    text: `${wins} ${
+      wins === 1 ? "win" : "wins"
+    } · ${topThree} Top 3 from ${starts}`,
+  };
+}
 import {
   buildHorseHistory,
   calculateRaceConfidence,
@@ -972,7 +1054,7 @@ watchSuggestions?: WatchSuggestion[];
 getOnEarlyBets?: GetOnEarlyBet[];
 maverickExoticTips?: MaverickExoticTip[];
 activeUserBets?: UserBet[];
-vaultMatches?: VaultLiveMatch[];
+vaultMatches?: VaultLiveMatchWithIntelligence[];
 initialRaceId?: string;
 dayDates?: DayDates;
 }) {
@@ -3898,6 +3980,215 @@ return (
                 )}
               </div>
             ) : null}
+
+            {(() => {
+              const intelligence =
+                getVaultIntelligence(match);
+
+              if (!intelligence) {
+                return null;
+              }
+
+              const courseDistance =
+                formatVaultEvidence(
+                  intelligence.evidence
+                    ?.courseDistance,
+                );
+
+              const track =
+                formatVaultEvidence(
+                  intelligence.evidence?.track,
+                );
+
+              const distance =
+                formatVaultEvidence(
+                  intelligence.evidence
+                    ?.distance,
+                );
+
+              const condition =
+                formatVaultEvidence(
+                  intelligence.evidence
+                    ?.condition,
+                );
+
+              const jockey =
+                formatVaultEvidence(
+                  intelligence.evidence?.jockey,
+                );
+
+              const evidenceRows = [
+                courseDistance
+                  ? {
+                      label:
+                        "Course + Distance",
+                      value:
+                        courseDistance.text,
+                    }
+                  : null,
+
+                track
+                  ? {
+                      label:
+                        intelligence.today
+                          ?.meetingName ||
+                        "Track",
+                      value: track.text,
+                    }
+                  : null,
+
+                distance
+                  ? {
+                      label:
+                        intelligence.today
+                          ?.distanceM
+                          ? `${intelligence.today.distanceM}m`
+                          : "Distance",
+                      value: distance.text,
+                    }
+                  : null,
+
+                condition
+                  ? {
+                      label:
+                        intelligence.today
+                          ?.conditionBucket ||
+                        "Condition",
+                      value: condition.text,
+                    }
+                  : null,
+
+                jockey
+                  ? {
+                      label:
+                        intelligence.today
+                          ?.jockeyName
+                          ? `${intelligence.today.jockeyName} Combination`
+                          : "Jockey Combination",
+                      value: jockey.text,
+                    }
+                  : null,
+              ].filter(
+                (
+                  row,
+                ): row is {
+                  label: string;
+                  value: string;
+                } => row !== null,
+              );
+
+              const recentForm =
+                Array.isArray(
+                  intelligence.recentForm,
+                )
+                  ? intelligence.recentForm
+                      .filter(
+                        (run) =>
+                          run.finishingPosition !==
+                            null &&
+                          run.finishingPosition !==
+                            undefined,
+                      )
+                      .slice(0, 5)
+                  : [];
+
+              if (
+                evidenceRows.length === 0 &&
+                recentForm.length === 0
+              ) {
+                return null;
+              }
+
+              return (
+                <details className="group mt-3 overflow-hidden rounded-[14px] border border-amber-300/20 bg-[linear-gradient(135deg,rgba(245,158,11,0.08),rgba(255,255,255,0.025))]">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 [&::-webkit-details-marker]:hidden">
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-300">
+                        Vault Intelligence
+                      </p>
+
+                      <p className="mt-1 text-[10px] font-semibold text-zinc-400">
+                        Historical evidence for today&apos;s setup
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.1em] text-amber-200">
+                      <span className="group-open:hidden">
+                        View +
+                      </span>
+
+                      <span className="hidden group-open:inline">
+                        Close −
+                      </span>
+                    </span>
+                  </summary>
+
+                  <div className="border-t border-amber-300/15 px-3 pb-3 pt-2">
+                    {evidenceRows.length >
+                    0 ? (
+                      <div className="divide-y divide-white/[0.07]">
+                        {evidenceRows.map(
+                          (row) => (
+                            <div
+                              key={row.label}
+                              className="flex items-center justify-between gap-4 py-2.5"
+                            >
+                              <span className="text-[10px] font-bold text-zinc-400">
+                                {row.label}
+                              </span>
+
+                              <span className="text-right text-[10px] font-black text-white">
+                                {row.value}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    ) : null}
+
+                    {recentForm.length >
+                    0 ? (
+                      <div className="mt-2 border-t border-white/[0.07] pt-3">
+                        <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                          Recent Form
+                        </p>
+
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {recentForm.map(
+                            (run, index) => (
+                              <span
+                                key={`${match.notificationId}-vault-form-${index}`}
+                                className={`flex h-7 min-w-7 items-center justify-center rounded-lg border px-2 text-[10px] font-black ${
+                                  Number(
+                                    run.finishingPosition,
+                                  ) === 1
+                                    ? "border-amber-300/45 bg-amber-300/15 text-amber-100"
+                                    : Number(
+                                          run.finishingPosition,
+                                        ) <= 3
+                                      ? "border-emerald-300/30 bg-emerald-500/10 text-emerald-100"
+                                      : "border-white/10 bg-white/[0.05] text-zinc-300"
+                                }`}
+                              >
+                                {formatFinishingPosition(
+                                  Number(
+                                    run.finishingPosition,
+                                  ),
+                                )}
+                              </span>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <p className="mt-3 border-t border-white/[0.07] pt-3 text-[8px] font-semibold leading-4 text-zinc-500">
+                      Based on SmartPunt recorded race history prior to today&apos;s meeting.
+                    </p>
+                  </div>
+                </details>
+              );
+            })()}
 
             <Link
               href="/the-vault"
