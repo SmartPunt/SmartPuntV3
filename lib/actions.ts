@@ -5710,7 +5710,6 @@ export async function reprocessVaultTodayAction() {
 }
 
 export async function startRaceDayAction(
-export async function startRaceDayAction(
   formData: FormData,
 ): Promise<ActionResult> {
   try {
