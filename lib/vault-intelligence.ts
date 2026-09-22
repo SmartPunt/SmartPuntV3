@@ -1,10 +1,13 @@
-export const VAULT_INTELLIGENCE_VERSION = 1;
+export const VAULT_INTELLIGENCE_VERSION = 2;
 
 type VaultIntelligenceMatch = {
   runner: {
     id: number;
     horse_id: number | null;
     jockey_name?: string | null;
+    barrier?: number | null;
+    weight_kg?: number | null;
+    apprentice_claim_kg?: number | null;
     track_form_last_6?: string | null;
     distance_form_last_6?: string | null;
     import_good_record?: string | null;
@@ -177,7 +180,46 @@ function calculateStats(runs: HistoricalRun[]): EvidenceStats {
         : 0,
   };
 }
+type RaceRelativeEvidenceStatus =
+  | "positive"
+  | "neutral"
+  | "risk";
 
+function getRaceRelativeEvidenceStatus(
+  score: unknown,
+): RaceRelativeEvidenceStatus | null {
+  const numericScore = Number(score);
+
+  if (!Number.isFinite(numericScore)) {
+    return null;
+  }
+
+  if (numericScore >= 65) {
+    return "positive";
+  }
+
+  if (numericScore >= 50) {
+    return "neutral";
+  }
+
+  return "risk";
+}
+
+function toFiniteNumber(value: unknown) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue)
+    ? numericValue
+    : null;
+}
 function buildContextSignature(match: VaultIntelligenceMatch) {
   return [
     Number(match.race.id),
@@ -440,6 +482,37 @@ export async function ensureVaultIntelligenceSnapshots(
   );
 
   /*
+   * Barrier and weight must use the frozen pre-race Calculator
+   * component assessment already released for this runner.
+   *
+   * Vault Intelligence must never call or rerun Calculator scoring.
+   */
+  const calculatorPredictionRows =
+    (await vaultIntelligenceServiceRoleSelect(
+      `calculator_predictions?select=race_id,runner_id,barrier_score,weight_score` +
+        `&runner_id=${buildInFilter(
+          raceRunnerIds,
+        )}`,
+    )) as
+      | Array<{
+          race_id: number;
+          runner_id: number;
+          barrier_score: number | null;
+          weight_score: number | null;
+        }>
+      | null;
+
+  const calculatorPredictionByRunnerId =
+    new Map(
+      (calculatorPredictionRows || []).map(
+        (prediction) => [
+          Number(prediction.runner_id),
+          prediction,
+        ],
+      ),
+    );
+
+  /*
    * Load only resulted historical runner records for horses that
    * actually need a new/refreshed Vault Intelligence snapshot.
    */
@@ -661,6 +734,62 @@ export async function ensureVaultIntelligenceSnapshots(
         match.runner.jockey_name,
       );
 
+      const calculatorPrediction =
+        calculatorPredictionByRunnerId.get(
+          Number(match.runner.id),
+        );
+
+      const barrierScore = toFiniteNumber(
+        calculatorPrediction?.barrier_score,
+      );
+
+      const weightScore = toFiniteNumber(
+        calculatorPrediction?.weight_score,
+      );
+
+      const barrier =
+        toFiniteNumber(match.runner.barrier);
+
+      const listedWeightKg =
+        toFiniteNumber(match.runner.weight_kg);
+
+      const apprenticeClaimKg =
+        toFiniteNumber(
+          match.runner.apprentice_claim_kg,
+        );
+
+      const effectiveWeightKg =
+        listedWeightKg !== null
+          ? Number(
+              (
+                listedWeightKg -
+                (apprenticeClaimKg ?? 0)
+              ).toFixed(1),
+            )
+          : null;
+
+      const raceRelativeEvidence = {
+        barrier: {
+          barrier,
+          score: barrierScore,
+          status:
+            getRaceRelativeEvidenceStatus(
+              barrierScore,
+            ),
+        },
+
+        weight: {
+          listedWeightKg,
+          apprenticeClaimKg,
+          effectiveWeightKg,
+          score: weightScore,
+          status:
+            getRaceRelativeEvidenceStatus(
+              weightScore,
+            ),
+        },
+      };
+
       const importedTrackStats =
         parseImportedEvidenceStats(
           match.runner.track_form_last_6,
@@ -817,6 +946,15 @@ export async function ensureVaultIntelligenceSnapshots(
         },
 
         recentForm,
+
+        /*
+         * Today's Barrier and Weight assessments come from the
+         * already-released Calculator prediction.
+         *
+         * The factual runner values are included only so the
+         * subscriber explanation can show what was assessed.
+         */
+        raceRelativeEvidence,
 
         totalHistoricalStarts:
           history.length,
