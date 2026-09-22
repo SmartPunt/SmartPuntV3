@@ -18,6 +18,7 @@ import {
   updateMeetingConditionAction,
   updateMeetingDetailsAction,
   updateRaceDetailsAction,
+  reprocessVaultTodayAction,
 } from "@/lib/actions";
 
 type Horse = {
@@ -1315,6 +1316,36 @@ function handleScratchMissingResults(raceId: number) {
       [raceId]: [],
     }));
   }
+  function handleReprocessVaultToday() {
+  const confirmed = window.confirm(
+    "Reprocess today's genuine Vault matches?\n\n" +
+      "This is a temporary Vault Intelligence test. " +
+      "It will not restart Race Day or recalculate Calculator predictions.",
+  );
+
+  if (!confirmed) return;
+
+  startTransition(async () => {
+    const result =
+      await reprocessVaultTodayAction();
+
+    if (!result.success) {
+      setError(
+        result.error ||
+          "Failed to reprocess today's Vault matches.",
+      );
+      return;
+    }
+
+    setSuccess(
+      "Today's Vault matches were reprocessed. Check the Vault Intelligence snapshot table.",
+    );
+
+    router.refresh();
+  });
+}
+
+function handleStartRaceDay(meeting: Meeting) {
 function handleStartRaceDay(meeting: Meeting) {
   const confirmed = window.confirm(
     `Start race day for ${meeting.meeting_name}?\n\n` +
@@ -1672,6 +1703,33 @@ function handleStartRaceDay(meeting: Meeting) {
   </Panel>
 ) : null}
             <div>
+              {isAdmin ? (
+                <div className="mb-4 rounded-[24px] border border-violet-300 bg-violet-50 p-5 text-zinc-950">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">
+                        Temporary Vault Intelligence Test
+                      </p>
+
+                      <p className="mt-2 text-sm text-zinc-600">
+                        Re-run today's genuine Vault matching without restarting Race Day or recalculating SmartPunt predictions.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleReprocessVaultToday}
+                      disabled={isPending}
+                      className="rounded-2xl bg-violet-700 px-5 py-3 text-sm font-black text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isPending
+                        ? "Processing..."
+                        : "Reprocess Vault Today"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               <Panel className="bg-white/95">
                 <div className="space-y-5 p-6 text-zinc-950">
                   <div className="flex flex-wrap items-center justify-between gap-3">
