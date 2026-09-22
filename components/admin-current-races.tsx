@@ -1346,7 +1346,6 @@ function handleScratchMissingResults(raceId: number) {
 }
 
 function handleStartRaceDay(meeting: Meeting) {
-function handleStartRaceDay(meeting: Meeting) {
   const confirmed = window.confirm(
     `Start race day for ${meeting.meeting_name}?\n\n` +
       "This will make this meeting's Calculator predictions visible to subscribers.\n\n" +
