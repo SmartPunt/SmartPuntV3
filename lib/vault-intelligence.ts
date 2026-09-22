@@ -1,4 +1,4 @@
-export const VAULT_INTELLIGENCE_VERSION = 2;
+export const VAULT_INTELLIGENCE_VERSION = 3;
 
 type VaultIntelligenceMatch = {
   runner: {
@@ -24,6 +24,9 @@ type VaultIntelligenceMatch = {
     meeting_name?: string | null;
     meeting_date?: string | null;
     track_condition?: string | null;
+  };
+  horse?: {
+    horse_name?: string | null;
   };
 };
 
@@ -149,6 +152,41 @@ function parseImportedEvidenceStats(
   };
 }
 
+type HistoricalEvidenceStatus =
+  | "strong_positive"
+  | "positive"
+  | "mixed"
+  | "caution"
+  | "limited";
+
+function classifyHistoricalEvidence(
+  stats: EvidenceStats,
+): HistoricalEvidenceStatus {
+  if (stats.starts < 2) {
+    return "limited";
+  }
+
+  if (
+    stats.wins >= 2 ||
+    stats.placeRate >= 70
+  ) {
+    return "strong_positive";
+  }
+
+  if (
+    stats.wins >= 1 ||
+    stats.placeRate >= 50
+  ) {
+    return "positive";
+  }
+
+  if (stats.places === 0) {
+    return "caution";
+  }
+
+  return "mixed";
+}
+
 function calculateStats(runs: HistoricalRun[]): EvidenceStats {
   const starts = runs.length;
 
@@ -178,6 +216,305 @@ function calculateStats(runs: HistoricalRun[]): EvidenceStats {
       starts > 0
         ? Number(((places / starts) * 100).toFixed(1))
         : 0,
+  };
+}
+type VaultAppraisalInput = {
+  horseName?: string | null;
+  meetingName?: string | null;
+  distanceM?: number | null;
+  conditionBucket?: string | null;
+  jockeyName?: string | null;
+
+  evidence: {
+    courseDistance: EvidenceStats;
+    track: EvidenceStats;
+    distance: EvidenceStats;
+    condition: EvidenceStats;
+    jockey: EvidenceStats;
+  };
+
+  raceRelativeEvidence: {
+    barrier: {
+      barrier: number | null;
+      status: RaceRelativeEvidenceStatus | null;
+    };
+    weight: {
+      effectiveWeightKg: number | null;
+      status: RaceRelativeEvidenceStatus | null;
+    };
+  };
+
+  recentForm: Array<{
+    finishingPosition: number | null;
+  }>;
+};
+
+function buildVaultAppraisal(
+  input: VaultAppraisalInput,
+) {
+  const horseName =
+    String(input.horseName || "").trim() ||
+    "This horse";
+
+  const positives: string[] = [];
+  const cautions: string[] = [];
+
+  const courseDistanceStatus =
+    classifyHistoricalEvidence(
+      input.evidence.courseDistance,
+    );
+
+  const trackStatus =
+    classifyHistoricalEvidence(
+      input.evidence.track,
+    );
+
+  const distanceStatus =
+    classifyHistoricalEvidence(
+      input.evidence.distance,
+    );
+
+  const conditionStatus =
+    classifyHistoricalEvidence(
+      input.evidence.condition,
+    );
+
+  const jockeyStatus =
+    classifyHistoricalEvidence(
+      input.evidence.jockey,
+    );
+
+  /*
+   * Course + Distance is the most specific historical match,
+   * so meaningful evidence here is mentioned first.
+   */
+  if (
+    courseDistanceStatus ===
+      "strong_positive" ||
+    courseDistanceStatus === "positive"
+  ) {
+    positives.push(
+      courseDistanceStatus ===
+        "strong_positive"
+        ? "an excellent course-and-distance record"
+        : "a positive course-and-distance record",
+    );
+  } else if (
+    courseDistanceStatus === "caution"
+  ) {
+    cautions.push(
+      "its course-and-distance record is a query",
+    );
+  }
+
+  if (
+    trackStatus === "strong_positive" ||
+    trackStatus === "positive"
+  ) {
+    positives.push(
+      input.meetingName
+        ? `a strong record at ${input.meetingName}`
+        : "a strong record at this track",
+    );
+  } else if (trackStatus === "caution") {
+    cautions.push(
+      input.meetingName
+        ? `its record at ${input.meetingName} is a query`
+        : "its record at this track is a query",
+    );
+  }
+
+  if (
+    distanceStatus === "strong_positive" ||
+    distanceStatus === "positive"
+  ) {
+    positives.push(
+      input.distanceM
+        ? `a strong record over ${input.distanceM}m`
+        : "a strong record at this distance",
+    );
+  } else if (
+    distanceStatus === "caution"
+  ) {
+    cautions.push(
+      input.distanceM
+        ? `its record over ${input.distanceM}m is a query`
+        : "its record at this distance is a query",
+    );
+  }
+
+  if (
+    conditionStatus ===
+      "strong_positive" ||
+    conditionStatus === "positive"
+  ) {
+    positives.push(
+      input.conditionBucket
+        ? `proven form on ${input.conditionBucket} ground`
+        : "a positive record in these conditions",
+    );
+  } else if (
+    conditionStatus === "caution"
+  ) {
+    cautions.push(
+      input.conditionBucket
+        ? `its record on ${input.conditionBucket} ground is a query`
+        : "its record in these conditions is a query",
+    );
+  }
+
+  if (
+    jockeyStatus === "strong_positive" ||
+    jockeyStatus === "positive"
+  ) {
+    positives.push(
+      input.jockeyName
+        ? `a successful combination with ${input.jockeyName}`
+        : "a successful jockey combination",
+    );
+  } else if (jockeyStatus === "caution") {
+    cautions.push(
+      input.jockeyName
+        ? `the combination with ${input.jockeyName} has yet to produce a Top 3 finish`
+        : "the jockey combination has yet to produce a Top 3 finish",
+    );
+  }
+
+  if (
+    input.raceRelativeEvidence.barrier
+      .status === "positive"
+  ) {
+    positives.push(
+      input.raceRelativeEvidence.barrier
+        .barrier !== null
+        ? `a favourable Barrier ${input.raceRelativeEvidence.barrier.barrier}`
+        : "a favourable barrier profile",
+    );
+  } else if (
+    input.raceRelativeEvidence.barrier
+      .status === "risk"
+  ) {
+    cautions.push(
+      "today's barrier profile is a concern",
+    );
+  }
+
+  if (
+    input.raceRelativeEvidence.weight
+      .status === "positive"
+  ) {
+    positives.push(
+      "a favourable weight profile",
+    );
+  } else if (
+    input.raceRelativeEvidence.weight
+      .status === "risk"
+  ) {
+    const effectiveWeight =
+      input.raceRelativeEvidence.weight
+        .effectiveWeightKg;
+
+    cautions.push(
+      effectiveWeight !== null
+        ? `the ${effectiveWeight.toFixed(1)}kg effective weight is the main query`
+        : "today's weight profile is a query",
+    );
+  }
+
+  const recentPositions =
+    input.recentForm
+      .map((run) =>
+        Number(run.finishingPosition),
+      )
+      .filter(
+        (position) =>
+          Number.isFinite(position) &&
+          position > 0,
+      );
+
+  const recentTopThree =
+    recentPositions.filter(
+      (position) => position <= 3,
+    ).length;
+
+  const recentWins =
+    recentPositions.filter(
+      (position) => position === 1,
+    ).length;
+
+  let recentFormPhrase: string | null =
+    null;
+
+  if (
+    recentPositions.length >= 3 &&
+    recentWins >= 2
+  ) {
+    recentFormPhrase =
+      "Recent form also includes multiple wins.";
+  } else if (
+    recentPositions.length >= 3 &&
+    recentTopThree >= 3
+  ) {
+    recentFormPhrase =
+      "Recent form also shows consistent competitiveness.";
+  }
+
+  const leadPositives =
+    positives.slice(0, 3);
+
+  let firstSentence = "";
+
+  if (leadPositives.length >= 2) {
+    const lastPositive =
+      leadPositives[
+        leadPositives.length - 1
+      ];
+
+    const earlierPositives =
+      leadPositives.slice(0, -1);
+
+    firstSentence =
+      `${horseName} has plenty in its favour today, with ` +
+      `${earlierPositives.join(", ")} and ${lastPositive}.`;
+  } else if (leadPositives.length === 1) {
+    firstSentence =
+      `${horseName} has a positive factor in its favour today, with ${leadPositives[0]}.`;
+  } else {
+    firstSentence =
+      `${horseName} has limited positive evidence from the factors assessed for today's race.`;
+  }
+
+  let secondSentence = "";
+
+  if (cautions.length > 0) {
+    secondSentence =
+      `${cautions[0].charAt(0).toUpperCase()}${cautions[0].slice(1)}.`;
+
+    if (recentFormPhrase) {
+      secondSentence += ` ${recentFormPhrase}`;
+    }
+  } else if (recentFormPhrase) {
+    secondSentence = recentFormPhrase;
+  } else if (positives.length > 3) {
+    secondSentence =
+      "There are further positive indicators across the remaining historical evidence.";
+  }
+
+  return {
+    text: [firstSentence, secondSentence]
+      .filter(Boolean)
+      .join(" "),
+    positives,
+    cautions,
+    historicalStatus: {
+      courseDistance:
+        courseDistanceStatus,
+      track: trackStatus,
+      distance: distanceStatus,
+      condition: conditionStatus,
+      jockey: jockeyStatus,
+    },
+    generatedFromEvidence: true,
   };
 }
 type RaceRelativeEvidenceStatus =
@@ -898,7 +1235,47 @@ export async function ensureVaultIntelligenceSnapshots(
           finishingPosition:
             run.runner.finishing_position,
         }));
+      const evidence = {
+        courseDistance:
+          calculateStats(
+            courseDistanceRuns,
+          ),
 
+        track:
+          importedTrackStats ??
+          calculateStats(trackRuns),
+
+        distance:
+          importedDistanceStats ??
+          calculateStats(distanceRuns),
+
+        condition:
+          importedConditionStats ??
+          calculateStats(conditionRuns),
+
+        jockey:
+          calculateStats(jockeyRuns),
+      };
+
+      const appraisal =
+        buildVaultAppraisal({
+          horseName:
+            match.horse?.horse_name ||
+            null,
+          meetingName:
+            match.meeting.meeting_name ||
+            null,
+          distanceM:
+            currentDistance,
+          conditionBucket:
+            currentCondition,
+          jockeyName:
+            match.runner.jockey_name ||
+            null,
+          evidence,
+          raceRelativeEvidence,
+          recentForm,
+        });
       const intelligence = {
         version:
           VAULT_INTELLIGENCE_VERSION,
@@ -925,45 +1302,23 @@ export async function ensureVaultIntelligenceSnapshots(
             null,
         },
 
-        evidence: {
-          courseDistance:
-            calculateStats(
-              courseDistanceRuns,
-            ),
-
-          /*
-           * Track, distance and condition use the broader
-           * pre-race imported career records when available.
-           *
-           * These records were stored on this race_runner at
-           * import time, so they represent the evidence that
-           * was available for this particular race.
-           *
-           * SmartPunt run-level history remains the fallback
-           * when an imported record is unavailable or invalid.
-           */
-          track:
-            importedTrackStats ??
-            calculateStats(trackRuns),
-
-          distance:
-            importedDistanceStats ??
-            calculateStats(distanceRuns),
-
-          condition:
-            importedConditionStats ??
-            calculateStats(conditionRuns),
-
-          /*
-           * Jockey combination remains based on SmartPunt's
-           * actual recorded run-level history because there is
-           * no equivalent imported horse/jockey career record.
-           */
-          jockey:
-            calculateStats(jockeyRuns),
-        },
+        /*
+         * Track, distance and condition use the broader
+         * pre-race imported career records when available.
+         *
+         * Course + Distance and Jockey remain based on
+         * SmartPunt's actual recorded run-level history.
+         */
+        evidence,
 
         recentForm,
+
+        /*
+         * Deterministic plain-English interpretation of the
+         * stored Vault evidence. This is not a new prediction,
+         * probability or Calculator score.
+         */
+        appraisal,
 
         /*
          * Today's Barrier and Weight assessments come from the
@@ -1021,7 +1376,42 @@ async function writeEmptySnapshots(
         match,
         calculatorPrediction,
       );
+    const emptyEvidence = {
+      courseDistance:
+        calculateStats([]),
+      track:
+        calculateStats([]),
+      distance:
+        calculateStats([]),
+      condition:
+        calculateStats([]),
+      jockey:
+        calculateStats([]),
+    };
 
+    const appraisal =
+      buildVaultAppraisal({
+        horseName:
+          match.horse?.horse_name ||
+          null,
+        meetingName:
+          match.meeting.meeting_name ||
+          null,
+        distanceM:
+          toPositiveNumber(
+            match.race.distance_m,
+          ),
+        conditionBucket:
+          getConditionBucket(
+            match.meeting.track_condition,
+          ),
+        jockeyName:
+          match.runner.jockey_name ||
+          null,
+        evidence: emptyEvidence,
+        raceRelativeEvidence,
+        recentForm: [],
+      });
     return {
     race_id: Number(match.race.id),
     race_runner_id: Number(
@@ -1060,20 +1450,15 @@ async function writeEmptySnapshots(
           null,
       },
 
-      evidence: {
-        courseDistance:
-          calculateStats([]),
-        track:
-          calculateStats([]),
-        distance:
-          calculateStats([]),
-        condition:
-          calculateStats([]),
-        jockey:
-          calculateStats([]),
-      },
+      evidence: emptyEvidence,
 
       recentForm: [],
+
+      /*
+       * Even with no SmartPunt historical runs, the appraisal
+       * may still explain today's stored Barrier/Weight evidence.
+       */
+      appraisal,
 
       /*
        * Even when SmartPunt has no resulted history for this horse,
