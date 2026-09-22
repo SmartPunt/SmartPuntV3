@@ -220,6 +220,69 @@ function toFiniteNumber(value: unknown) {
     ? numericValue
     : null;
 }
+type VaultCalculatorPrediction = {
+  race_id: number;
+  runner_id: number;
+  barrier_score: number | null;
+  weight_score: number | null;
+};
+
+function buildRaceRelativeEvidence(
+  match: VaultIntelligenceMatch,
+  calculatorPrediction?: VaultCalculatorPrediction | null,
+) {
+  const barrierScore = toFiniteNumber(
+    calculatorPrediction?.barrier_score,
+  );
+
+  const weightScore = toFiniteNumber(
+    calculatorPrediction?.weight_score,
+  );
+
+  const barrier =
+    toFiniteNumber(match.runner.barrier);
+
+  const listedWeightKg =
+    toFiniteNumber(match.runner.weight_kg);
+
+  const apprenticeClaimKg =
+    toFiniteNumber(
+      match.runner.apprentice_claim_kg,
+    );
+
+  const effectiveWeightKg =
+    listedWeightKg !== null
+      ? Number(
+          (
+            listedWeightKg -
+            (apprenticeClaimKg ?? 0)
+          ).toFixed(1),
+        )
+      : null;
+
+  return {
+    barrier: {
+      barrier,
+      score: barrierScore,
+      status:
+        getRaceRelativeEvidenceStatus(
+          barrierScore,
+        ),
+    },
+
+    weight: {
+      listedWeightKg,
+      apprenticeClaimKg,
+      effectiveWeightKg,
+      score: weightScore,
+      status:
+        getRaceRelativeEvidenceStatus(
+          weightScore,
+        ),
+    },
+  };
+}
+
 function buildContextSignature(match: VaultIntelligenceMatch) {
   return [
     Number(match.race.id),
@@ -497,12 +560,7 @@ export async function ensureVaultIntelligenceSnapshots(
           raceRunnerIds,
         )}`,
     )) as
-      | Array<{
-          race_id: number;
-          runner_id: number;
-          barrier_score: number | null;
-          weight_score: number | null;
-        }>
+      | VaultCalculatorPrediction[]
       | null;
 
   const calculatorPredictionByRunnerId =
@@ -566,6 +624,7 @@ export async function ensureVaultIntelligenceSnapshots(
   if (!historicalRaceIds.length) {
     await writeEmptySnapshots(
       matchesToGenerate,
+      calculatorPredictionByRunnerId,
     );
 
     return;
@@ -608,6 +667,7 @@ export async function ensureVaultIntelligenceSnapshots(
   if (!historicalMeetingIds.length) {
     await writeEmptySnapshots(
       matchesToGenerate,
+      calculatorPredictionByRunnerId,
     );
 
     return;
@@ -742,56 +802,11 @@ export async function ensureVaultIntelligenceSnapshots(
           Number(match.runner.id),
         );
 
-      const barrierScore = toFiniteNumber(
-        calculatorPrediction?.barrier_score,
-      );
-
-      const weightScore = toFiniteNumber(
-        calculatorPrediction?.weight_score,
-      );
-
-      const barrier =
-        toFiniteNumber(match.runner.barrier);
-
-      const listedWeightKg =
-        toFiniteNumber(match.runner.weight_kg);
-
-      const apprenticeClaimKg =
-        toFiniteNumber(
-          match.runner.apprentice_claim_kg,
+      const raceRelativeEvidence =
+        buildRaceRelativeEvidence(
+          match,
+          calculatorPrediction,
         );
-
-      const effectiveWeightKg =
-        listedWeightKg !== null
-          ? Number(
-              (
-                listedWeightKg -
-                (apprenticeClaimKg ?? 0)
-              ).toFixed(1),
-            )
-          : null;
-
-      const raceRelativeEvidence = {
-        barrier: {
-          barrier,
-          score: barrierScore,
-          status:
-            getRaceRelativeEvidenceStatus(
-              barrierScore,
-            ),
-        },
-
-        weight: {
-          listedWeightKg,
-          apprenticeClaimKg,
-          effectiveWeightKg,
-          score: weightScore,
-          status:
-            getRaceRelativeEvidenceStatus(
-              weightScore,
-            ),
-        },
-      };
 
       const importedTrackStats =
         parseImportedEvidenceStats(
@@ -988,10 +1003,26 @@ export async function ensureVaultIntelligenceSnapshots(
 
 async function writeEmptySnapshots(
   matches: VaultIntelligenceMatch[],
+  calculatorPredictionByRunnerId: Map<
+    number,
+    VaultCalculatorPrediction
+  >,
 ) {
   const now = new Date().toISOString();
 
-  const rows = matches.map((match) => ({
+  const rows = matches.map((match) => {
+    const calculatorPrediction =
+      calculatorPredictionByRunnerId.get(
+        Number(match.runner.id),
+      );
+
+    const raceRelativeEvidence =
+      buildRaceRelativeEvidence(
+        match,
+        calculatorPrediction,
+      );
+
+    return {
     race_id: Number(match.race.id),
     race_runner_id: Number(
       match.runner.id,
@@ -1043,6 +1074,14 @@ async function writeEmptySnapshots(
       },
 
       recentForm: [],
+
+      /*
+       * Even when SmartPunt has no resulted history for this horse,
+       * today's frozen Calculator Barrier and Weight assessments
+       * remain useful Vault evidence.
+       */
+      raceRelativeEvidence,
+
       totalHistoricalStarts: 0,
       source:
         "smartpunt_resulted_history",
@@ -1051,7 +1090,8 @@ async function writeEmptySnapshots(
       VAULT_INTELLIGENCE_VERSION,
     generated_at: now,
     updated_at: now,
-  }));
+    };
+  });
 
   await upsertVaultIntelligenceRows(
     rows,
