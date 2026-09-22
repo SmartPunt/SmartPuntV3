@@ -5647,7 +5647,69 @@ export async function updateMeetingConditionAction(formData: FormData) {
     error: null,
   };
 }
+/*
+ * TEMPORARY ADMIN TEST ACTION
+ *
+ * Re-runs today's genuine Vault matching/notification workflow so
+ * Vault Intelligence snapshots can be generated for meetings that
+ * were already released before the intelligence worker was deployed.
+ *
+ * This does NOT restart Race Day, regenerate Calculator predictions,
+ * change calculator_released_at or alter settlement.
+ *
+ * Remove after Vault Intelligence has been verified.
+ */
+export async function reprocessVaultTodayAction() {
+  const profile = await getCurrentProfile();
 
+  if (
+    !profile ||
+    (profile.role !== "admin" &&
+      profile.role !== "staff_admin")
+  ) {
+    return {
+      success: false,
+      error: "Admin access required.",
+    };
+  }
+
+  try {
+    const perthToday = new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone: "Australia/Perth",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      },
+    ).format(new Date());
+
+    const result =
+      await processVaultMatchesTodayNotifications({
+        meetingDate: perthToday,
+      });
+
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    console.error(
+      "Manual Vault reprocess failed:",
+      error,
+    );
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Vault reprocessing failed.",
+    };
+  }
+}
+
+export async function startRaceDayAction(
 export async function startRaceDayAction(
   formData: FormData,
 ): Promise<ActionResult> {
