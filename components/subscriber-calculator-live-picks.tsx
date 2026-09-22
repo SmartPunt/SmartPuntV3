@@ -30,6 +30,11 @@ type VaultIntelligenceRecentRun = {
   finishingPosition: number | null;
 };
 
+type VaultRaceRelativeStatus =
+  | "positive"
+  | "neutral"
+  | "risk";
+
 type VaultIntelligenceData = {
   today?: {
     meetingName?: string | null;
@@ -45,6 +50,20 @@ type VaultIntelligenceData = {
     distance?: VaultIntelligenceStats;
     condition?: VaultIntelligenceStats;
     jockey?: VaultIntelligenceStats;
+  };
+  raceRelativeEvidence?: {
+    barrier?: {
+      barrier?: number | null;
+      score?: number | null;
+      status?: VaultRaceRelativeStatus | null;
+    };
+    weight?: {
+      listedWeightKg?: number | null;
+      apprenticeClaimKg?: number | null;
+      effectiveWeightKg?: number | null;
+      score?: number | null;
+      status?: VaultRaceRelativeStatus | null;
+    };
   };
   recentForm?: VaultIntelligenceRecentRun[];
   totalHistoricalStarts?: number;
@@ -86,14 +105,69 @@ function formatVaultEvidence(
   const wins = Number(stats.wins);
   const topThree = Number(stats.places);
 
+  let text = "";
+
+  if (
+    wins === starts &&
+    topThree === starts
+  ) {
+    text = `${wins} ${
+      wins === 1 ? "win" : "wins"
+    } from ${starts}`;
+  } else if (topThree === 0) {
+    text = `0 Top 3 from ${starts}`;
+  } else {
+    text = `${wins} ${
+      wins === 1 ? "win" : "wins"
+    } · ${topThree} Top 3 from ${starts}`;
+  }
+
   return {
     starts,
     wins,
     topThree,
-    text: `${wins} ${
-      wins === 1 ? "win" : "wins"
-    } · ${topThree} Top 3 from ${starts}`,
+    text,
   };
+}
+function getVaultRaceRelativePresentation(
+  status?: VaultRaceRelativeStatus | null,
+) {
+  if (status === "positive") {
+    return {
+      label: "Positive",
+      badgeClass:
+        "border-emerald-300/30 bg-emerald-500/10 text-emerald-100",
+      dotClass: "bg-emerald-300",
+    };
+  }
+
+  if (status === "risk") {
+    return {
+      label: "Caution",
+      badgeClass:
+        "border-amber-300/35 bg-amber-300/10 text-amber-100",
+      dotClass: "bg-amber-300",
+    };
+  }
+
+  return {
+    label: "Neutral",
+    badgeClass:
+      "border-white/10 bg-white/[0.05] text-zinc-300",
+    dotClass: "bg-zinc-400",
+  };
+}
+
+function formatVaultWeightKg(
+  value?: number | null,
+) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return null;
+  }
+
+  return `${numericValue.toFixed(1)}kg`;
 }
 import {
   buildHorseHistory,
@@ -4017,6 +4091,64 @@ return (
                   intelligence.evidence?.jockey,
                 );
 
+              const barrierEvidence =
+                intelligence
+                  .raceRelativeEvidence
+                  ?.barrier;
+
+              const weightEvidence =
+                intelligence
+                  .raceRelativeEvidence
+                  ?.weight;
+
+              const todaySetupRows = [
+                barrierEvidence?.status &&
+                barrierEvidence.barrier !==
+                  null &&
+                barrierEvidence.barrier !==
+                  undefined
+                  ? {
+                      label: "Barrier",
+                      value: `Barrier ${barrierEvidence.barrier}`,
+                      presentation:
+                        getVaultRaceRelativePresentation(
+                          barrierEvidence.status,
+                        ),
+                    }
+                  : null,
+
+                weightEvidence?.status &&
+                weightEvidence.effectiveWeightKg !==
+                  null &&
+                weightEvidence.effectiveWeightKg !==
+                  undefined
+                  ? {
+                      label:
+                        "Effective Weight",
+                      value:
+                        formatVaultWeightKg(
+                          weightEvidence.effectiveWeightKg,
+                        ) || "—",
+                      presentation:
+                        getVaultRaceRelativePresentation(
+                          weightEvidence.status,
+                        ),
+                    }
+                  : null,
+              ].filter(
+                (
+                  row,
+                ): row is {
+                  label: string;
+                  value: string;
+                  presentation: {
+                    label: string;
+                    badgeClass: string;
+                    dotClass: string;
+                  };
+                } => row !== null,
+              );
+
               const evidenceRows = [
                 courseDistance
                   ? {
@@ -4063,7 +4195,7 @@ return (
                       label:
                         intelligence.today
                           ?.jockeyName
-                          ? `${intelligence.today.jockeyName} Combination`
+                          ? `With ${intelligence.today.jockeyName}`
                           : "Jockey Combination",
                       value: jockey.text,
                     }
@@ -4092,7 +4224,8 @@ return (
                       .slice(0, 5)
                   : [];
 
-              if (
+               if (
+                todaySetupRows.length === 0 &&
                 evidenceRows.length === 0 &&
                 recentForm.length === 0
               ) {
@@ -4108,7 +4241,7 @@ return (
                       </p>
 
                       <p className="mt-1 text-[10px] font-semibold text-zinc-400">
-                        Historical evidence for today&apos;s setup
+                        Today&apos;s setup + historical evidence
                       </p>
                     </div>
 
@@ -4123,26 +4256,83 @@ return (
                     </span>
                   </summary>
 
-                  <div className="border-t border-amber-300/15 px-3 pb-3 pt-2">
+                  <div className="border-t border-amber-300/15 px-3 pb-3 pt-3">
+                    {todaySetupRows.length >
+                    0 ? (
+                      <div>
+                        <p className="text-[8px] font-black uppercase tracking-[0.14em] text-amber-300/80">
+                          Today&apos;s Setup
+                        </p>
+
+                        <div className="mt-2 space-y-2">
+                          {todaySetupRows.map(
+                            (row) => (
+                              <div
+                                key={row.label}
+                                className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-black/15 px-3 py-2.5"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${row.presentation.dotClass}`}
+                                    />
+
+                                    <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-zinc-500">
+                                      {row.label}
+                                    </span>
+                                  </div>
+
+                                  <p className="mt-1 text-[11px] font-black text-white">
+                                    {row.value}
+                                  </p>
+                                </div>
+
+                                <span
+                                  className={`shrink-0 rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] ${row.presentation.badgeClass}`}
+                                >
+                                  {
+                                    row.presentation
+                                      .label
+                                  }
+                                </span>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
+
                     {evidenceRows.length >
                     0 ? (
-                      <div className="divide-y divide-white/[0.07]">
-                        {evidenceRows.map(
-                          (row) => (
-                            <div
-                              key={row.label}
-                              className="flex items-center justify-between gap-4 py-2.5"
-                            >
-                              <span className="text-[10px] font-bold text-zinc-400">
-                                {row.label}
-                              </span>
+                      <div
+                        className={
+                          todaySetupRows.length > 0
+                            ? "mt-4 border-t border-white/[0.07] pt-3"
+                            : ""
+                        }
+                      >
+                        <p className="text-[8px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                          Historical Evidence
+                        </p>
 
-                              <span className="text-right text-[10px] font-black text-white">
-                                {row.value}
-                              </span>
-                            </div>
-                          ),
-                        )}
+                        <div className="mt-1 divide-y divide-white/[0.07]">
+                          {evidenceRows.map(
+                            (row) => (
+                              <div
+                                key={row.label}
+                                className="flex items-center justify-between gap-4 py-2.5"
+                              >
+                                <span className="text-[10px] font-bold text-zinc-400">
+                                  {row.label}
+                                </span>
+
+                                <span className="text-right text-[10px] font-black text-white">
+                                  {row.value}
+                                </span>
+                              </div>
+                            ),
+                          )}
+                        </div>
                       </div>
                     ) : null}
 
@@ -4183,7 +4373,7 @@ return (
                     ) : null}
 
                     <p className="mt-3 border-t border-white/[0.07] pt-3 text-[8px] font-semibold leading-4 text-zinc-500">
-                      Based on SmartPunt recorded race history prior to today&apos;s meeting.
+                      Based on pre-race career records, SmartPunt race history and today&apos;s race setup.
                     </p>
                   </div>
                 </details>
