@@ -1,4 +1,4 @@
-export const VAULT_INTELLIGENCE_VERSION = 3;
+export const VAULT_INTELLIGENCE_VERSION = 4;
 
 type VaultIntelligenceMatch = {
   runner: {
@@ -487,11 +487,21 @@ function buildVaultAppraisal(
   let secondSentence = "";
 
   if (cautions.length > 0) {
-    secondSentence =
-      `${cautions[0].charAt(0).toUpperCase()}${cautions[0].slice(1)}.`;
+    const cautionText =
+      `${cautions[0].charAt(0).toUpperCase()}${cautions[0].slice(1)}`;
 
     if (recentFormPhrase) {
-      secondSentence += ` ${recentFormPhrase}`;
+      const recentFormText =
+        recentFormPhrase.replace(
+          /\.$/,
+          "",
+        );
+
+      secondSentence =
+        `${cautionText}, although ${recentFormText.charAt(0).toLowerCase()}${recentFormText.slice(1)}.`;
+    } else {
+      secondSentence =
+        `${cautionText}.`;
     }
   } else if (recentFormPhrase) {
     secondSentence = recentFormPhrase;
