@@ -5,6 +5,12 @@ type VaultIntelligenceMatch = {
     id: number;
     horse_id: number | null;
     jockey_name?: string | null;
+    track_form_last_6?: string | null;
+    distance_form_last_6?: string | null;
+    import_good_record?: string | null;
+    import_soft_record?: string | null;
+    import_heavy_record?: string | null;
+    import_synthetic_record?: string | null;
   };
   race: {
     id: number;
@@ -77,6 +83,69 @@ function toPositiveNumber(value: unknown) {
     : null;
 }
 
+function parseImportedEvidenceStats(
+  value: unknown,
+): EvidenceStats | null {
+  const raw = String(value || "").trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  const match = raw.match(
+    /^(\d+)\s*:\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)$/,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const starts = Number(match[1]);
+  const wins = Number(match[2]);
+  const seconds = Number(match[3]);
+  const thirds = Number(match[4]);
+
+  if (
+    !Number.isFinite(starts) ||
+    !Number.isFinite(wins) ||
+    !Number.isFinite(seconds) ||
+    !Number.isFinite(thirds) ||
+    starts < 0 ||
+    wins < 0 ||
+    seconds < 0 ||
+    thirds < 0
+  ) {
+    return null;
+  }
+
+  const places = wins + seconds + thirds;
+
+  if (
+    wins > starts ||
+    places > starts
+  ) {
+    return null;
+  }
+
+  return {
+    starts,
+    wins,
+    places,
+    winRate:
+      starts > 0
+        ? Number(
+            ((wins / starts) * 100).toFixed(1),
+          )
+        : 0,
+    placeRate:
+      starts > 0
+        ? Number(
+            ((places / starts) * 100).toFixed(1),
+          )
+        : 0,
+  };
+}
+
 function calculateStats(runs: HistoricalRun[]): EvidenceStats {
   const starts = runs.length;
 
@@ -119,6 +188,12 @@ function buildContextSignature(match: VaultIntelligenceMatch) {
     toPositiveNumber(match.race.distance_m) ?? "",
     getConditionBucket(match.meeting.track_condition) || "",
     normaliseText(match.runner.jockey_name),
+    String(match.runner.track_form_last_6 || ""),
+    String(match.runner.distance_form_last_6 || ""),
+    String(match.runner.import_good_record || ""),
+    String(match.runner.import_soft_record || ""),
+    String(match.runner.import_heavy_record || ""),
+    String(match.runner.import_synthetic_record || ""),
   ].join("|");
 }
 
@@ -586,6 +661,32 @@ export async function ensureVaultIntelligenceSnapshots(
         match.runner.jockey_name,
       );
 
+      const importedTrackStats =
+        parseImportedEvidenceStats(
+          match.runner.track_form_last_6,
+        );
+
+      const importedDistanceStats =
+        parseImportedEvidenceStats(
+          match.runner.distance_form_last_6,
+        );
+
+      const importedConditionRecord =
+        currentCondition === "Good"
+          ? match.runner.import_good_record
+          : currentCondition === "Soft"
+            ? match.runner.import_soft_record
+            : currentCondition === "Heavy"
+              ? match.runner.import_heavy_record
+              : currentCondition === "Synthetic"
+                ? match.runner.import_synthetic_record
+                : null;
+
+      const importedConditionStats =
+        parseImportedEvidenceStats(
+          importedConditionRecord,
+        );
+
       const trackRuns = currentTrack
         ? history.filter(
             (run) =>
@@ -682,12 +783,35 @@ export async function ensureVaultIntelligenceSnapshots(
             calculateStats(
               courseDistanceRuns,
             ),
+
+          /*
+           * Track, distance and condition use the broader
+           * pre-race imported career records when available.
+           *
+           * These records were stored on this race_runner at
+           * import time, so they represent the evidence that
+           * was available for this particular race.
+           *
+           * SmartPunt run-level history remains the fallback
+           * when an imported record is unavailable or invalid.
+           */
           track:
+            importedTrackStats ??
             calculateStats(trackRuns),
+
           distance:
+            importedDistanceStats ??
             calculateStats(distanceRuns),
+
           condition:
+            importedConditionStats ??
             calculateStats(conditionRuns),
+
+          /*
+           * Jockey combination remains based on SmartPunt's
+           * actual recorded run-level history because there is
+           * no equivalent imported horse/jockey career record.
+           */
           jockey:
             calculateStats(jockeyRuns),
         },
