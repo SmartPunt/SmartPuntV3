@@ -43,7 +43,7 @@ const vaultResult = await syncVaultNotifications({
 const vaultIntelligenceSnapshots =
   await loadVaultIntelligenceSnapshots(
     vaultResult.matches.map((match) =>
-      Number(match.runner.id),
+      Number(match.raceRunnerId),
     ),
   );
 
@@ -59,7 +59,7 @@ const vaultMatchesWithIntelligence =
     ...match,
     vaultIntelligence:
       vaultIntelligenceByRunnerId.get(
-        Number(match.runner.id),
+        Number(match.raceRunnerId),
       ) ?? null,
   }));
 
