@@ -3612,7 +3612,6 @@ const smartPuntDayExoticResults =
 
 const dayExoticResults = [
   ...maverickDayExoticResults,
-  ...smartPuntDayExoticResults,
 ];
 
 const hasDayResults =
