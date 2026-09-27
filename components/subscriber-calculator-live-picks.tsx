@@ -1174,6 +1174,9 @@ const [showSmartPuntResults, setShowSmartPuntResults] =
 const [showExoticResults, setShowExoticResults] =
   useState(false);
 
+const [showVaultResults, setShowVaultResults] =
+  useState(false);
+
 const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
     number[]
   >([]);
@@ -3614,10 +3617,152 @@ const dayExoticResults = [
   ...maverickDayExoticResults,
 ];
 
+/*
+ * USER VAULT RESULTS
+ *
+ * Vault matches are historical subscriber-specific matches
+ * already persisted in vault_notifications.
+ *
+ * Do not rematch Vault rules here.
+ * Do not calculate any new Vault intelligence here.
+ * Do not treat a Vault match as a betting tip.
+ *
+ * We simply join the subscriber's stored Vault match to the
+ * already-loaded resulted runner and display the horse's
+ * actual finishing position for the selected race day.
+ */
+const vaultDayResults = useMemo(() => {
+  const resultedRaceIds = new Set(
+    dayResultRaces.map((race) =>
+      Number(race.id),
+    ),
+  );
+
+  return vaultMatches
+    .flatMap((match) => {
+      if (
+        String(match.meetingDate || "") !==
+        selectedResultsDate
+      ) {
+        return [];
+      }
+
+      if (
+        !resultedRaceIds.has(
+          Number(match.raceId),
+        )
+      ) {
+        return [];
+      }
+
+      const runner =
+        runners.find(
+          (item) =>
+            Number(item.id) ===
+            Number(match.raceRunnerId),
+        ) || null;
+
+      if (!runner) {
+        return [];
+      }
+
+      const finishingPosition =
+        Number(
+          (runner as any)
+            .finishing_position || 0,
+        );
+
+      /*
+       * A race without a stored finishing position has not
+       * produced a usable Vault result yet.
+       */
+      if (finishingPosition <= 0) {
+        return [];
+      }
+
+      return [
+        {
+          id: `vault-result-${match.notificationId}-${match.raceRunnerId}`,
+          notificationId: Number(
+            match.notificationId,
+          ),
+          raceId: Number(match.raceId),
+          raceRunnerId: Number(
+            match.raceRunnerId,
+          ),
+          horseName:
+            match.horseName ||
+            "Saved horse",
+          runnerNumber:
+            match.runnerNumber ?? null,
+          meetingName:
+            match.meetingName ||
+            "Meeting",
+          raceNumber: Number(
+            match.raceNumber || 0,
+          ),
+          finishingPosition,
+          matchedRules:
+            Array.isArray(
+              match.matchedRules,
+            )
+              ? match.matchedRules
+              : [],
+        },
+      ];
+    })
+    .sort((a, b) => {
+      const meetingCompare =
+        a.meetingName.localeCompare(
+          b.meetingName,
+          "en-AU",
+          {
+            sensitivity: "base",
+          },
+        );
+
+      if (meetingCompare !== 0) {
+        return meetingCompare;
+      }
+
+      return (
+        a.raceNumber -
+        b.raceNumber
+      );
+    });
+}, [
+  dayResultRaces,
+  runners,
+  selectedResultsDate,
+  vaultMatches,
+]);
+
+const vaultDayResultSummary =
+  useMemo(() => {
+    return {
+      total: vaultDayResults.length,
+      winners:
+        vaultDayResults.filter(
+          (result) =>
+            result.finishingPosition ===
+            1,
+        ).length,
+      topThree:
+        vaultDayResults.filter(
+          (result) =>
+            result.finishingPosition >=
+              1 &&
+            result.finishingPosition <=
+              3,
+        ).length,
+    };
+  }, [vaultDayResults]);
+
 const hasDayResults =
   maverickDayResults.length > 0 ||
   smartPuntDayResults.length > 0 ||
-  dayExoticResults.length > 0;
+  dayExoticResults.length > 0 ||
+  vaultDayResults.length > 0;
 
   return (
     <div className="min-h-screen bg-[#171107] px-3 py-5 text-white sm:px-5">
@@ -7095,6 +7240,190 @@ return (
                               </span>
                             </div>
                           ),
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {vaultDayResults.length > 0 ? (
+                  <div className="overflow-hidden rounded-[20px] border border-amber-300/25 bg-black/45">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowVaultResults(
+                          (value) => !value,
+                        )
+                      }
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+                    >
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] border border-amber-300/25 bg-amber-400/[0.07] text-amber-200">
+                        <VaultDoorIcon className="h-6 w-6" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[8px] font-black uppercase tracking-[0.16em] text-amber-200">
+                          Your Vault
+                        </p>
+
+                        <p className="mt-1 text-sm font-black text-white">
+                          {vaultDayResultSummary.total}{" "}
+                          Vault runner
+                          {vaultDayResultSummary.total ===
+                          1
+                            ? ""
+                            : "s"}
+                        </p>
+
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {vaultDayResultSummary.winners >
+                          0 ? (
+                            <span className="rounded-full border border-emerald-300/35 bg-emerald-500/12 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-emerald-200">
+                              {
+                                vaultDayResultSummary.winners
+                              }{" "}
+                              Winner
+                              {vaultDayResultSummary.winners ===
+                              1
+                                ? ""
+                                : "s"}
+                            </span>
+                          ) : null}
+
+                          {vaultDayResultSummary.topThree >
+                          0 ? (
+                            <span className="rounded-full border border-amber-300/30 bg-amber-500/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-amber-200">
+                              {
+                                vaultDayResultSummary.topThree
+                              }{" "}
+                              Top 3
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <span className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                          {showVaultResults
+                            ? "Hide"
+                            : "View"}
+                        </span>
+
+                        <span className="ml-2 text-sm font-black text-amber-200">
+                          {showVaultResults
+                            ? "−"
+                            : "+"}
+                        </span>
+                      </div>
+                    </button>
+
+                    {showVaultResults ? (
+                      <div className="border-t border-white/10">
+                        {vaultDayResults.map(
+                          (result) => {
+                            const isWinner =
+                              result.finishingPosition ===
+                              1;
+
+                            const isTopThree =
+                              result.finishingPosition <=
+                              3;
+
+                            const positionLabel =
+                              result.finishingPosition ===
+                              1
+                                ? "1st"
+                                : result.finishingPosition ===
+                                    2
+                                  ? "2nd"
+                                  : result.finishingPosition ===
+                                      3
+                                    ? "3rd"
+                                    : `${result.finishingPosition}th`;
+
+                            return (
+                              <div
+                                key={result.id}
+                                className="border-b border-white/[0.07] px-4 py-3 last:border-b-0"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                                      {
+                                        result.meetingName
+                                      }{" "}
+                                      · R
+                                      {
+                                        result.raceNumber
+                                      }
+                                    </p>
+
+                                    <p className="mt-1 truncate text-[12px] font-black text-white">
+                                      {result.runnerNumber
+                                        ? `#${result.runnerNumber} `
+                                        : ""}
+                                      {
+                                        result.horseName
+                                      }
+                                    </p>
+                                  </div>
+
+                                  <div className="shrink-0 text-right">
+                                    <p
+                                      className={`text-[12px] font-black ${
+                                        isWinner
+                                          ? "text-emerald-200"
+                                          : isTopThree
+                                            ? "text-amber-200"
+                                            : "text-white"
+                                      }`}
+                                    >
+                                      {
+                                        positionLabel
+                                      }
+                                    </p>
+
+                                    <span
+                                      className={`mt-1 inline-flex rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] ${
+                                        isWinner
+                                          ? "border-emerald-300/35 bg-emerald-500/12 text-emerald-200"
+                                          : isTopThree
+                                            ? "border-amber-300/30 bg-amber-500/10 text-amber-200"
+                                            : "border-white/10 bg-white/[0.04] text-zinc-400"
+                                      }`}
+                                    >
+                                      {isWinner
+                                        ? "Winner"
+                                        : isTopThree
+                                          ? positionLabel
+                                          : `Finished ${positionLabel}`}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {result.matchedRules.length >
+                                0 ? (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {result.matchedRules.map(
+                                      (
+                                        rule,
+                                        index,
+                                      ) => (
+                                        <span
+                                          key={`${result.id}-rule-${index}`}
+                                          className="rounded-full border border-amber-300/15 bg-amber-400/[0.05] px-2 py-1 text-[8px] font-bold text-amber-100/80"
+                                        >
+                                          {String(
+                                            rule,
+                                          )}
+                                        </span>
+                                      ),
+                                    )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            );
+                          },
                         )}
                       </div>
                     ) : null}
