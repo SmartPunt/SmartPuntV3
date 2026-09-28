@@ -7400,27 +7400,6 @@ return (
                                     </span>
                                   </div>
                                 </div>
-
-                                {result.matchedRules.length >
-                                0 ? (
-                                  <div className="mt-2 flex flex-wrap gap-1.5">
-                                    {result.matchedRules.map(
-                                      (
-                                        rule,
-                                        index,
-                                      ) => (
-                                        <span
-                                          key={`${result.id}-rule-${index}`}
-                                          className="rounded-full border border-amber-300/15 bg-amber-400/[0.05] px-2 py-1 text-[8px] font-bold text-amber-100/80"
-                                        >
-                                          {String(
-                                            rule,
-                                          )}
-                                        </span>
-                                      ),
-                                    )}
-                                  </div>
-                                ) : null}
                               </div>
                             );
                           },
