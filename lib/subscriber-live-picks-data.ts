@@ -27,10 +27,10 @@ export type SubscriberLivePicksData = {
 officialTips: any[];
 watchSuggestions: any[];
 getOnEarlyBets: any[];
-maverickExoticTips: any[];
-activeUserBets: any[];
+  maverickExoticTips: any[];
+  activeUserBets: any[];
+  racePlanItems: any[];
 };
-
 type SubscriberLivePicksDataOptions = {
   userId: string;
   includeScoringHistory?: boolean;
@@ -41,6 +41,7 @@ includeOfficialTips?: boolean;
 includeWatchSuggestions?: boolean;
 includeGetOnEarlyBets?: boolean;
 includeActiveUserBets?: boolean;
+includeRacePlanItems?: boolean;
 };
 
 export function getPerthDate(offsetDays = 0) {
@@ -422,6 +423,7 @@ includeOfficialTips = true,
 includeWatchSuggestions = true,
 includeGetOnEarlyBets = true,
 includeActiveUserBets = true,
+includeRacePlanItems = true,
 }: SubscriberLivePicksDataOptions): Promise<SubscriberLivePicksData> {
   const totalStartedAt = Date.now();
 
@@ -1374,6 +1376,67 @@ let activeUserBets: any[] = [];
       Date.now(),
     );
   }
+  /*
+ * SMARTPUNT — MY RACE PLAN
+ *
+ * Load only this subscriber's Race Plan items for the
+ * Live Picks three-day window:
+ *
+ *   Yesterday
+ *   Today
+ *   Tomorrow
+ *
+ * Race Plan is deliberately separate from user_bets.
+ * It represents selections the subscriber wants to
+ * organise/follow, not confirmation that a wager was placed.
+ */
+let racePlanItems: any[] = [];
+
+if (includeRacePlanItems) {
+  const racePlanStartedAt = Date.now();
+
+  const {
+    data: racePlanData,
+    error: racePlanError,
+  } = await supabase
+    .from("race_plan_items")
+    .select("*")
+    .eq("user_id", userId)
+    .in("race_date", loadedMeetingDates)
+    .order("race_date", {
+      ascending: true,
+    })
+    .order("sort_order", {
+      ascending: true,
+    })
+    .order("id", {
+      ascending: true,
+    });
+
+  if (racePlanError) {
+    throw new Error(
+      racePlanError.message,
+    );
+  }
+
+  racePlanItems =
+    racePlanData ?? [];
+
+  logStage(
+    "load My Race Plan",
+    racePlanStartedAt,
+    {
+      rowCount:
+        racePlanItems.length,
+    },
+  );
+} else {
+  logStage(
+    "skip My Race Plan",
+    Date.now(),
+  );
+}
+
 /*
  * SUBSCRIBER CALCULATOR DISPLAY INTEGRITY
  *
@@ -1522,6 +1585,7 @@ includeOfficialTips,
 includeWatchSuggestions,
 includeGetOnEarlyBets,
 includeActiveUserBets,
+includeRacePlanItems,
       currentMeetingCount:
         currentMeetings.length,
       currentRaceCount:
@@ -1571,5 +1635,6 @@ watchSuggestions,
 getOnEarlyBets,
 maverickExoticTips,
 activeUserBets,
+racePlanItems,
   };
 }
