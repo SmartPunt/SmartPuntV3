@@ -1215,18 +1215,80 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
       setTipError(result?.error || "Could not add this tip.");
     });
   }
+  /*
+   * LIVE PICKS VISIBILITY
+   *
+   * Only published/resulted races belong on Subscriber Live Picks.
+   *
+   * An abandoned race must never remain visible.
+   * If the entire meeting is abandoned, none of its races should
+   * remain visible either.
+   *
+   * This is presentation filtering only. Nothing is deleted and
+   * historical race/result records remain untouched.
+   */
   const publishedRaces = useMemo(
-    () => races.filter((race) => ["published", "closed"].includes(String(race.status || ""))),
+    () =>
+      races.filter((race) => {
+        const raceStatus = String(
+          race.status || "",
+        )
+          .trim()
+          .toLowerCase();
+
+        if (
+          raceStatus === "abandoned" ||
+          raceStatus === "abandon"
+        ) {
+          return false;
+        }
+
+        return [
+          "published",
+          "closed",
+        ].includes(raceStatus);
+      }),
     [races],
   );
 
   const dayPublishedRaces = useMemo(
     () =>
       publishedRaces.filter((race) => {
-        const meeting = meetings.find((item) => item.id === race.meeting_id);
-        return matchesRaceDay(meeting, raceDayFilter, activeDayDates);
+        const meeting = meetings.find(
+          (item) =>
+            Number(item.id) ===
+            Number(race.meeting_id),
+        );
+
+        if (!meeting) {
+          return false;
+        }
+
+        const meetingStatus = String(
+          (meeting as any).status || "",
+        )
+          .trim()
+          .toLowerCase();
+
+        if (
+          meetingStatus === "abandoned" ||
+          meetingStatus === "abandon"
+        ) {
+          return false;
+        }
+
+        return matchesRaceDay(
+          meeting,
+          raceDayFilter,
+          activeDayDates,
+        );
       }),
-    [activeDayDates, meetings, publishedRaces, raceDayFilter],
+    [
+      activeDayDates,
+      meetings,
+      publishedRaces,
+      raceDayFilter,
+    ],
   );
 
   const orderedPublishedRaces = useMemo(
