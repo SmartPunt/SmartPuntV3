@@ -6789,6 +6789,375 @@ export async function addUserBetAction(
     };
   }
 }
+// ============================================================
+// SMARTPUNT — MY RACE PLAN
+// ============================================================
+
+type RacePlanSource =
+  | "maverick"
+  | "smartpunt"
+  | "my_selection";
+
+type RacePlanBetType =
+  | "Win"
+  | "Place"
+  | "Each Way";
+
+export async function addRacePlanItemAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const profile = await getCurrentProfile();
+
+    if (!profile || profile.status !== "active") {
+      return {
+        success: false,
+        error: "Unauthorized",
+      };
+    }
+
+    const supabase = await createClient();
+
+    const raceId =
+      Number(formData.get("race_id") || 0);
+
+    const raceRunnerId =
+      Number(
+        formData.get("race_runner_id") || 0,
+      );
+
+    const horseId =
+      Number(formData.get("horse_id") || 0);
+
+    const source = String(
+      formData.get("source") ?? "",
+    )
+      .trim()
+      .toLowerCase();
+
+    const rawBetType = String(
+      formData.get("bet_type") ?? "",
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\s+/g, " ");
+
+    const suggestedTipIdRaw =
+      formData.get("suggested_tip_id");
+
+    const calculatorTipIdRaw =
+      formData.get("calculator_tip_id");
+
+    const allowedSources: RacePlanSource[] = [
+      "maverick",
+      "smartpunt",
+      "my_selection",
+    ];
+
+    if (
+      !allowedSources.includes(
+        source as RacePlanSource,
+      )
+    ) {
+      return {
+        success: false,
+        error: "Invalid Race Plan source.",
+      };
+    }
+
+    let betType: RacePlanBetType;
+
+    if (
+      rawBetType === "each way" ||
+      rawBetType === "eachway"
+    ) {
+      betType = "Each Way";
+    } else if (rawBetType === "place") {
+      betType = "Place";
+    } else if (rawBetType === "win") {
+      betType = "Win";
+    } else {
+      return {
+        success: false,
+        error: "Invalid Race Plan bet type.",
+      };
+    }
+
+    if (
+      !raceId ||
+      !raceRunnerId ||
+      !horseId
+    ) {
+      return {
+        success: false,
+        error:
+          "This selection could not be linked to its race runner. Refresh the page and try again.",
+      };
+    }
+
+    /*
+     * Validate the supplied runner against the database.
+     *
+     * Never trust race/runner/horse IDs supplied by the
+     * browser without checking that they genuinely belong
+     * together.
+     */
+    const {
+      data: matchingRunner,
+      error: runnerLookupError,
+    } = await supabase
+      .from("race_runners")
+      .select("id, race_id, horse_id")
+      .eq("id", raceRunnerId)
+      .eq("race_id", raceId)
+      .eq("horse_id", horseId)
+      .maybeSingle();
+
+    if (runnerLookupError) {
+      return {
+        success: false,
+        error: runnerLookupError.message,
+      };
+    }
+
+    if (!matchingRunner) {
+      return {
+        success: false,
+        error:
+          "This selection no longer matches the current race runner. Refresh the page and try again.",
+      };
+    }
+
+    /*
+     * Get the race's meeting date from SmartPunt itself.
+     *
+     * The browser does NOT decide which Race Plan day
+     * this selection belongs to.
+     */
+    const {
+      data: raceRow,
+      error: raceLookupError,
+    } = await supabase
+      .from("races")
+      .select(`
+        id,
+        meeting_id,
+        meetings (
+          id,
+          meeting_date
+        )
+      `)
+      .eq("id", raceId)
+      .maybeSingle();
+
+    if (raceLookupError) {
+      return {
+        success: false,
+        error: raceLookupError.message,
+      };
+    }
+
+    if (!raceRow) {
+      return {
+        success: false,
+        error: "Race could not be found.",
+      };
+    }
+
+    const meetingRelation =
+      Array.isArray((raceRow as any).meetings)
+        ? (raceRow as any).meetings[0]
+        : (raceRow as any).meetings;
+
+    const raceDate = String(
+      meetingRelation?.meeting_date || "",
+    ).trim();
+
+    if (!raceDate) {
+      return {
+        success: false,
+        error:
+          "Race date could not be determined.",
+      };
+    }
+
+    /*
+     * New selections go to the end of that subscriber's
+     * Race Plan. The subscriber can reorder them later.
+     */
+    const {
+      data: existingItems,
+      error: orderLookupError,
+    } = await supabase
+      .from("race_plan_items")
+      .select("sort_order")
+      .eq("user_id", profile.id)
+      .eq("race_date", raceDate)
+      .order("sort_order", {
+        ascending: false,
+      })
+      .limit(1);
+
+    if (orderLookupError) {
+      return {
+        success: false,
+        error: orderLookupError.message,
+      };
+    }
+
+    const highestSortOrder =
+      existingItems &&
+      existingItems.length > 0
+        ? Number(
+            existingItems[0].sort_order || 0,
+          )
+        : -1;
+
+    const payload = {
+      user_id: profile.id,
+
+      race_id: raceId,
+      race_runner_id: raceRunnerId,
+      horse_id: horseId,
+
+      source: source as RacePlanSource,
+      bet_type: betType,
+
+      suggested_tip_id:
+        suggestedTipIdRaw &&
+        Number(suggestedTipIdRaw) > 0
+          ? Number(suggestedTipIdRaw)
+          : null,
+
+      calculator_tip_id:
+        calculatorTipIdRaw &&
+        Number(calculatorTipIdRaw) > 0
+          ? Number(calculatorTipIdRaw)
+          : null,
+
+      race_date: raceDate,
+
+      sort_order:
+        highestSortOrder + 1,
+
+      created_at:
+        new Date().toISOString(),
+
+      updated_at:
+        new Date().toISOString(),
+    };
+
+    const { error: insertError } =
+      await supabase
+        .from("race_plan_items")
+        .insert(payload);
+
+    if (insertError) {
+      /*
+       * PostgreSQL unique violation.
+       *
+       * Treat duplicate tapping as a friendly Race Plan
+       * response rather than exposing a database error.
+       */
+      if (insertError.code === "23505") {
+        return {
+          success: false,
+          error:
+            "This selection is already in My Race Plan.",
+        };
+      }
+
+      return {
+        success: false,
+        error: insertError.message,
+      };
+    }
+
+    revalidatePath(
+      "/smartpunt-calculator-live-picks",
+    );
+
+    return {
+      success: true,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not add this selection to My Race Plan.",
+    };
+  }
+}
+
+export async function removeRacePlanItemAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const profile = await getCurrentProfile();
+
+    if (!profile || profile.status !== "active") {
+      return {
+        success: false,
+        error: "Unauthorized",
+      };
+    }
+
+    const racePlanItemId =
+      Number(
+        formData.get(
+          "race_plan_item_id",
+        ) || 0,
+      );
+
+    if (!racePlanItemId) {
+      return {
+        success: false,
+        error:
+          "Race Plan selection could not be identified.",
+      };
+    }
+
+    const supabase = await createClient();
+
+    /*
+     * Explicit user_id filter is intentional even though
+     * RLS also protects the table.
+     */
+    const { error } = await supabase
+      .from("race_plan_items")
+      .delete()
+      .eq("id", racePlanItemId)
+      .eq("user_id", profile.id);
+
+    if (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    revalidatePath(
+      "/smartpunt-calculator-live-picks",
+    );
+
+    return {
+      success: true,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not remove this selection from My Race Plan.",
+    };
+  }
+}
 export async function publishSmartPuntCalculatorTipAction(
   formData: FormData,
 ): Promise<void> {
