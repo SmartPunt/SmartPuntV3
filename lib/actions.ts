@@ -7158,6 +7158,191 @@ export async function removeRacePlanItemAction(
     };
   }
 }
+export async function reorderRacePlanItemsAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  try {
+    const profile = await getCurrentProfile();
+
+    if (!profile || profile.status !== "active") {
+      return {
+        success: false,
+        error: "Unauthorized",
+      };
+    }
+
+    const raceDate = String(
+      formData.get("race_date") ?? "",
+    ).trim();
+
+    const orderedIdsRaw = String(
+      formData.get("ordered_ids") ?? "",
+    ).trim();
+
+    if (!raceDate) {
+      return {
+        success: false,
+        error: "Race Plan date is required.",
+      };
+    }
+
+    let orderedIds: number[];
+
+    try {
+      const parsed = JSON.parse(orderedIdsRaw);
+
+      if (!Array.isArray(parsed)) {
+        throw new Error(
+          "Race Plan order must be an array.",
+        );
+      }
+
+      orderedIds = parsed.map((value) =>
+        Number(value),
+      );
+    } catch {
+      return {
+        success: false,
+        error:
+          "Race Plan order could not be read.",
+      };
+    }
+
+    if (
+      orderedIds.some(
+        (id) =>
+          !Number.isInteger(id) ||
+          id <= 0,
+      )
+    ) {
+      return {
+        success: false,
+        error:
+          "Race Plan contains an invalid selection.",
+      };
+    }
+
+    if (
+      new Set(orderedIds).size !==
+      orderedIds.length
+    ) {
+      return {
+        success: false,
+        error:
+          "Race Plan contains duplicate selections.",
+      };
+    }
+
+    const supabase = await createClient();
+
+    /*
+     * SECURITY / INTEGRITY:
+     *
+     * Read the subscriber's actual items for this date
+     * before changing anything.
+     *
+     * The browser is not allowed to reorder another
+     * subscriber's items or move selections between dates.
+     */
+    const {
+      data: existingItems,
+      error: lookupError,
+    } = await supabase
+      .from("race_plan_items")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("race_date", raceDate);
+
+    if (lookupError) {
+      return {
+        success: false,
+        error: lookupError.message,
+      };
+    }
+
+    const existingIds = (
+      existingItems || []
+    )
+      .map((item) => Number(item.id))
+      .sort((a, b) => a - b);
+
+    const requestedIds = [
+      ...orderedIds,
+    ].sort((a, b) => a - b);
+
+    /*
+     * Require the submitted order to contain exactly
+     * the subscriber's Race Plan items for that day.
+     *
+     * Nothing missing.
+     * Nothing extra.
+     */
+    if (
+      existingIds.length !==
+        requestedIds.length ||
+      existingIds.some(
+        (id, index) =>
+          id !== requestedIds[index],
+      )
+    ) {
+      return {
+        success: false,
+        error:
+          "My Race Plan changed while it was being reordered. Refresh and try again.",
+      };
+    }
+
+    /*
+     * Update each subscriber-owned item.
+     *
+     * RLS protects every update and user_id/date are
+     * explicitly included as an additional safeguard.
+     */
+    for (
+      let index = 0;
+      index < orderedIds.length;
+      index += 1
+    ) {
+      const itemId = orderedIds[index];
+
+      const { error: updateError } =
+        await supabase
+          .from("race_plan_items")
+          .update({
+            sort_order: index,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", itemId)
+          .eq("user_id", profile.id)
+          .eq("race_date", raceDate);
+
+      if (updateError) {
+        return {
+          success: false,
+          error: updateError.message,
+        };
+      }
+    }
+
+    revalidatePath(
+      "/smartpunt-calculator-live-picks",
+    );
+
+    return {
+      success: true,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not reorder My Race Plan.",
+    };
+  }
+}
 export async function publishSmartPuntCalculatorTipAction(
   formData: FormData,
 ): Promise<void> {
