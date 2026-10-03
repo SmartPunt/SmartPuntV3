@@ -78,6 +78,7 @@ watchSuggestions={livePicksData.watchSuggestions}
 getOnEarlyBets={livePicksData.getOnEarlyBets}
 maverickExoticTips={livePicksData.maverickExoticTips}
 activeUserBets={livePicksData.activeUserBets}
+racePlanItems={livePicksData.racePlanItems}
 vaultMatches={vaultMatchesWithIntelligence}
 dayDates={livePicksData.dayDates}
 initialRaceId={resolvedSearchParams?.raceId ?? ""}
