@@ -5970,79 +5970,87 @@ Maverick Insight
 
 <div className="relative z-10 mx-auto w-full max-w-[260px] pb-2 text-center">
   {!isClosedRace ? (
-<TipAcceptanceControl
-  tipKey={`head-${officialRaceTip.id}`}
-  activeKey={acceptingTipKey}
-  setActiveKey={setAcceptingTipKey}
-  activeBet={activeHeadTipperUserBet}
-  isSaving={isSavingTip}
-  formAction={addUserBetFormAction}
-  buttonLabel="Accept Maverick Tip"
-  hiddenFields={{
-    source: "head_tipper",
-    suggested_tip_id:
-      officialRaceTip.id,
-    race_id:
-      officialRaceTip.race_id ||
-      activeRace?.id ||
-      "",
-    race_runner_id:
-      officialRaceTip.race_runner_id ||
-      officialRaceTipRunner?.id ||
-      "",
-    horse_id:
-      officialRaceTip.horse_id ||
-      officialRaceTipRunner?.horse_id ||
-      "",
-    horse:
-      officialTipSelection,
-    race:
-      officialRaceTip.race ||
-      activeRaceLabel,
-    bet_type:
-      officialTipType,
-  }}
-/>
+    <>
+      <TipAcceptanceControl
+        tipKey={`head-${officialRaceTip.id}`}
+        activeKey={acceptingTipKey}
+        setActiveKey={setAcceptingTipKey}
+        activeBet={activeHeadTipperUserBet}
+        isSaving={isSavingTip}
+        formAction={addUserBetFormAction}
+        buttonLabel="Accept Maverick Tip"
+        hiddenFields={{
+          source: "head_tipper",
+          suggested_tip_id:
+            officialRaceTip.id,
+          race_id:
+            officialRaceTip.race_id ||
+            activeRace?.id ||
+            "",
+          race_runner_id:
+            officialRaceTip.race_runner_id ||
+            officialRaceTipRunner?.id ||
+            "",
+          horse_id:
+            officialRaceTip.horse_id ||
+            officialRaceTipRunner?.horse_id ||
+            "",
+          horse:
+            officialTipSelection,
+          race:
+            officialRaceTip.race ||
+            activeRaceLabel,
+          bet_type:
+            officialTipType,
+        }}
+      />
 
-{officialRaceTipRunner &&
-["win", "place", "each way", "eachway"].includes(
-  String(officialTipType || "")
-    .trim()
-    .toLowerCase(),
-) ? (
-  <button
-    type="button"
-    disabled={isSavingRacePlan}
-    onClick={() =>
-      addToRacePlan({
-        raceId:
-          officialRaceTip.race_id ||
-          activeRace?.id ||
-          "",
-        raceRunnerId:
-          officialRaceTip.race_runner_id ||
-          officialRaceTipRunner.id,
-        horseId:
-          officialRaceTip.horse_id ||
-          officialRaceTipRunner.horse_id ||
-          "",
-        source: "maverick",
-        betType: officialTipType,
-        suggestedTipId:
-          officialRaceTip.id,
-      })
-    }
-    className="mt-2 flex w-full items-center justify-center rounded-xl border border-amber-300/45 bg-amber-400/10 px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20 disabled:opacity-50"
-  >
-    {isSavingRacePlan &&
-    savingRacePlanKey?.startsWith(
-      `maverick-${officialRaceTipRunner.id}-`,
-    )
-      ? "Adding..."
-      : "+ My Race Plan"}
-  </button>
-) : null}
-                  </div>
+      {officialRaceTipRunner &&
+      ["win", "place", "each way", "eachway"].includes(
+        String(officialTipType || "")
+          .trim()
+          .toLowerCase(),
+      ) ? (
+        <button
+          type="button"
+          disabled={isSavingRacePlan}
+          onClick={() =>
+            addToRacePlan({
+              raceId:
+                officialRaceTip.race_id ||
+                activeRace?.id ||
+                "",
+              raceRunnerId:
+                officialRaceTip.race_runner_id ||
+                officialRaceTipRunner.id,
+              horseId:
+                officialRaceTip.horse_id ||
+                officialRaceTipRunner.horse_id ||
+                "",
+              source: "maverick",
+              betType:
+                officialTipType,
+              suggestedTipId:
+                officialRaceTip.id,
+            })
+          }
+          className="mt-2 flex w-full items-center justify-center rounded-xl border border-amber-300/45 bg-amber-400/10 px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20 disabled:opacity-50"
+        >
+          {isSavingRacePlan &&
+          savingRacePlanKey?.startsWith(
+            `maverick-${officialRaceTipRunner.id}-`,
+          )
+            ? "Adding..."
+            : "+ My Race Plan"}
+        </button>
+      ) : null}
+    </>
+  ) : (
+    <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
+      Race Finalised
+    </div>
+  )}
+</div>
                 </div>
 ) : null}
 
