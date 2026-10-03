@@ -1222,7 +1222,10 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
 
   const [savingRacePlanKey, setSavingRacePlanKey] =
     useState<string | null>(null);
-
+  const [
+    manualRacePlanRunnerId,
+    setManualRacePlanRunnerId,
+  ] = useState<number | null>(null);
   const [
     isSavingRacePlan,
     startSavingRacePlanTransition,
@@ -1237,7 +1240,8 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
       horseId: number | string;
       source:
         | "maverick"
-        | "smartpunt";
+        | "smartpunt"
+        | "my_selection";
       betType: string;
       suggestedTipId?: number | string | null;
       calculatorTipId?: number | string | null;
@@ -6989,6 +6993,9 @@ in the SmartPunt Calculator Top 3 above.
                           <th className="px-3 py-3 font-black text-center">
                             Vault
                           </th>
+                          <th className="px-3 py-3 font-black text-center">
+                            Plan
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/10 bg-black/35">
@@ -7176,6 +7183,93 @@ return (
       <VaultDoorIcon className="h-5 w-5 shrink-0" />
       <span>Vault</span>
     </Link>
+  )}
+</td>
+
+<td className="px-3 py-3 text-center">
+  {!isClosedRace ? (
+    manualRacePlanRunnerId ===
+    Number(runner.id) ? (
+      <div className="min-w-[180px] rounded-2xl border border-amber-300/30 bg-black/90 p-2">
+        <p className="mb-2 text-[8px] font-black uppercase tracking-[0.12em] text-amber-300">
+          Add to My Race Plan
+        </p>
+
+        <div className="grid grid-cols-3 gap-1">
+          {[
+            {
+              label: "Win",
+              value: "Win",
+            },
+            {
+              label: "Place",
+              value: "Place",
+            },
+            {
+              label: "E/W",
+              value: "Each Way",
+            },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              disabled={isSavingRacePlan}
+              onClick={() => {
+                addToRacePlan({
+                  raceId:
+                    activeRace?.id ||
+                    "",
+                  raceRunnerId:
+                    runner.id,
+                  horseId:
+                    runner.horse_id ||
+                    "",
+                  source:
+                    "my_selection",
+                  betType:
+                    option.value,
+                });
+
+                setManualRacePlanRunnerId(
+                  null,
+                );
+              }}
+              className="rounded-lg border border-amber-300/30 bg-amber-400/10 px-2 py-2 text-[8px] font-black uppercase text-amber-100 transition hover:border-amber-300 hover:bg-amber-400/20 disabled:opacity-40"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setManualRacePlanRunnerId(
+              null,
+            )
+          }
+          className="mt-2 w-full text-[8px] font-bold uppercase tracking-[0.1em] text-zinc-500"
+        >
+          Cancel
+        </button>
+      </div>
+    ) : (
+      <button
+        type="button"
+        onClick={() =>
+          setManualRacePlanRunnerId(
+            Number(runner.id),
+          )
+        }
+        className="inline-flex items-center justify-center rounded-xl border border-amber-300/45 bg-amber-400/10 px-3 py-2 text-[9px] font-black uppercase tracking-[0.1em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20"
+      >
+        + Plan
+      </button>
+    )
+  ) : (
+    <span className="text-zinc-600">
+      —
+    </span>
   )}
 </td>
                             </tr>
