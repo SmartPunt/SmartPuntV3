@@ -6043,7 +6043,6 @@ Maverick Insight
       </button>
     ) : null}
   ) : (
-  ) : (
     <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
       Race Finalised
     </div>
