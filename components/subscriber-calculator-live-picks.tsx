@@ -6051,6 +6051,7 @@ Maverick Insight
     </div>
   )}
 </div>
+                  </div>
                 </div>
 ) : null}
 
