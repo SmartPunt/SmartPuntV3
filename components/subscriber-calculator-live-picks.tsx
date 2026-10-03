@@ -6003,7 +6003,6 @@ Maverick Insight
           officialTipType,
       }}
     />
-      />
 
     {officialRaceTipRunner &&
     ["win", "place", "each way", "eachway"].includes(
