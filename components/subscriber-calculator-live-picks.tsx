@@ -313,7 +313,27 @@ type UserBet = {
   place_stake_points?: number | string | null;
   settled_at?: string | null;
 };
-
+type RacePlanItem = {
+  id: number;
+  user_id: string;
+  race_id: number;
+  race_runner_id: number;
+  horse_id: number;
+  source:
+    | "maverick"
+    | "smartpunt"
+    | "my_selection";
+  suggested_tip_id?: number | null;
+  calculator_tip_id?: number | null;
+  bet_type:
+    | "Win"
+    | "Place"
+    | "Each Way";
+  race_date: string;
+  sort_order: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
 type SpecialistAlert = {
   horseName: string;
   label: string;
@@ -1117,6 +1137,7 @@ watchSuggestions = [],
 getOnEarlyBets = [],
 maverickExoticTips = [],
 activeUserBets = [],
+racePlanItems = [],
 vaultMatches = [],
 dayDates,
 initialRaceId = "",
@@ -1134,6 +1155,7 @@ watchSuggestions?: WatchSuggestion[];
 getOnEarlyBets?: GetOnEarlyBet[];
 maverickExoticTips?: MaverickExoticTip[];
 activeUserBets?: UserBet[];
+racePlanItems?: RacePlanItem[];
 vaultMatches?: VaultLiveMatchWithIntelligence[];
 initialRaceId?: string;
 dayDates?: DayDates;
