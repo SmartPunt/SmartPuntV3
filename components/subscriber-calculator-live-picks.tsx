@@ -10,7 +10,11 @@ import {
   useTransition,
   type ReactNode,
 } from "react";
-import { addUserBetAction } from "@/lib/actions";
+import {
+  addRacePlanItemAction,
+  addUserBetAction,
+  removeRacePlanItemAction,
+} from "@/lib/actions";
 import VaultDoorIcon from "@/components/vault-door-icon";
 import type { VaultLiveMatch } from "@/lib/vault-matching";
 
@@ -1206,7 +1210,178 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
   const [tipMessage, setTipMessage] = useState<string | null>(null);
   const [tipError, setTipError] = useState<string | null>(null);
   const [isSavingTip, startSavingTipTransition] = useTransition();
+
+  const [showRacePlan, setShowRacePlan] =
+    useState(false);
+
+  const [racePlanMessage, setRacePlanMessage] =
+    useState<string | null>(null);
+
+  const [racePlanError, setRacePlanError] =
+    useState<string | null>(null);
+
+  const [savingRacePlanKey, setSavingRacePlanKey] =
+    useState<string | null>(null);
+
+  const [
+    isSavingRacePlan,
+    startSavingRacePlanTransition,
+  ] = useTransition();
+
   const router = useRouter();
+
+  function addToRacePlan(
+    fields: {
+      raceId: number | string;
+      raceRunnerId: number | string;
+      horseId: number | string;
+      source:
+        | "maverick"
+        | "smartpunt";
+      betType: string;
+      suggestedTipId?: number | string | null;
+      calculatorTipId?: number | string | null;
+    },
+  ) {
+    const normalisedBetType = String(
+      fields.betType || "",
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\s+/g, " ");
+
+    const betType =
+      normalisedBetType === "win"
+        ? "Win"
+        : normalisedBetType === "place"
+          ? "Place"
+          : normalisedBetType === "each way" ||
+              normalisedBetType === "eachway"
+            ? "Each Way"
+            : "";
+
+    if (!betType) {
+      setRacePlanError(
+        "This tip type cannot currently be added to My Race Plan.",
+      );
+      return;
+    }
+
+    const key = `${fields.source}-${fields.raceRunnerId}-${betType}`;
+
+    setRacePlanMessage(null);
+    setRacePlanError(null);
+    setSavingRacePlanKey(key);
+
+    const formData = new FormData();
+
+    formData.set(
+      "race_id",
+      String(fields.raceId),
+    );
+
+    formData.set(
+      "race_runner_id",
+      String(fields.raceRunnerId),
+    );
+
+    formData.set(
+      "horse_id",
+      String(fields.horseId),
+    );
+
+    formData.set(
+      "source",
+      fields.source,
+    );
+
+    formData.set(
+      "bet_type",
+      betType,
+    );
+
+    if (fields.suggestedTipId) {
+      formData.set(
+        "suggested_tip_id",
+        String(fields.suggestedTipId),
+      );
+    }
+
+    if (fields.calculatorTipId) {
+      formData.set(
+        "calculator_tip_id",
+        String(fields.calculatorTipId),
+      );
+    }
+
+    startSavingRacePlanTransition(
+      async () => {
+        const result =
+          await addRacePlanItemAction(
+            formData,
+          );
+
+        if (result?.success) {
+          setRacePlanMessage(
+            "Added to My Race Plan.",
+          );
+          setSavingRacePlanKey(null);
+          router.refresh();
+          return;
+        }
+
+        setRacePlanError(
+          result?.error ||
+            "Could not add this selection to My Race Plan.",
+        );
+
+        setSavingRacePlanKey(null);
+      },
+    );
+  }
+
+  function removeFromRacePlan(
+    racePlanItemId: number,
+  ) {
+    setRacePlanMessage(null);
+    setRacePlanError(null);
+    setSavingRacePlanKey(
+      `remove-${racePlanItemId}`,
+    );
+
+    const formData = new FormData();
+
+    formData.set(
+      "race_plan_item_id",
+      String(racePlanItemId),
+    );
+
+    startSavingRacePlanTransition(
+      async () => {
+        const result =
+          await removeRacePlanItemAction(
+            formData,
+          );
+
+        if (result?.success) {
+          setRacePlanMessage(
+            "Removed from My Race Plan.",
+          );
+          setSavingRacePlanKey(null);
+          router.refresh();
+          return;
+        }
+
+        setRacePlanError(
+          result?.error ||
+            "Could not remove this selection.",
+        );
+
+        setSavingRacePlanKey(null);
+      },
+    );
+  }
 
   const activeDayDates = useMemo<DayDates>(
     () =>
@@ -1218,7 +1393,114 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
     [dayDates],
   );
 
-  const selectedRaceDayLabel = getRaceDayLabel(raceDayFilter);
+  const selectedRaceDayLabel =
+    getRaceDayLabel(raceDayFilter);
+
+  const selectedRacePlanDate =
+    raceDayFilter === "yesterday"
+      ? activeDayDates.yesterday
+      : raceDayFilter === "tomorrow"
+        ? activeDayDates.tomorrow
+        : activeDayDates.today;
+
+  const selectedRacePlanItems =
+    useMemo(() => {
+      return racePlanItems
+        .filter(
+          (item) =>
+            String(item.race_date) ===
+            String(
+              selectedRacePlanDate,
+            ),
+        )
+        .map((item) => {
+          const race =
+            races.find(
+              (candidate) =>
+                Number(candidate.id) ===
+                Number(item.race_id),
+            ) || null;
+
+          const meeting = race
+            ? meetings.find(
+                (candidate) =>
+                  Number(candidate.id) ===
+                  Number(
+                    race.meeting_id,
+                  ),
+              ) || null
+            : null;
+
+          const runner =
+            runners.find(
+              (candidate) =>
+                Number(candidate.id) ===
+                Number(
+                  item.race_runner_id,
+                ),
+            ) || null;
+
+          const horse =
+            horses.find(
+              (candidate) =>
+                Number(candidate.id) ===
+                Number(item.horse_id),
+            ) || null;
+
+          const horseName =
+            String(
+              (runner as any)
+                ?.horse_name ||
+                (horse as any)?.name ||
+                (horse as any)
+                  ?.horse_name ||
+                "Horse",
+            ).trim();
+
+          const runnerNumber =
+            Number(
+              (runner as any)
+                ?.runner_number || 0,
+            );
+
+          return {
+            ...item,
+            horseName,
+            runnerNumber:
+              runnerNumber > 0
+                ? runnerNumber
+                : null,
+            meetingName:
+              meeting?.meeting_name ||
+              "Meeting",
+            raceNumber:
+              Number(
+                race?.race_number || 0,
+              ),
+          };
+        })
+        .sort((a, b) => {
+          const orderDifference =
+            Number(a.sort_order || 0) -
+            Number(b.sort_order || 0);
+
+          if (orderDifference !== 0) {
+            return orderDifference;
+          }
+
+          return (
+            Number(a.id) -
+            Number(b.id)
+          );
+        });
+    }, [
+      horses,
+      meetings,
+      racePlanItems,
+      races,
+      runners,
+      selectedRacePlanDate,
+    ]);
 
   function addUserBetFormAction(formData: FormData) {
     setTipMessage(null);
@@ -5721,6 +6003,46 @@ Maverick Insight
           officialTipType,
       }}
     />
+      />
+
+    {officialRaceTipRunner &&
+    ["win", "place", "each way", "eachway"].includes(
+      String(officialTipType || "")
+        .trim()
+        .toLowerCase(),
+    ) ? (
+      <button
+        type="button"
+        disabled={isSavingRacePlan}
+        onClick={() =>
+          addToRacePlan({
+            raceId:
+              officialRaceTip.race_id ||
+              activeRace?.id ||
+              "",
+            raceRunnerId:
+              officialRaceTip.race_runner_id ||
+              officialRaceTipRunner.id,
+            horseId:
+              officialRaceTip.horse_id ||
+              officialRaceTipRunner.horse_id ||
+              "",
+            source: "maverick",
+            betType:
+              officialTipType,
+            suggestedTipId:
+              officialRaceTip.id,
+          })
+        }
+        className="mt-2 flex w-full items-center justify-center rounded-xl border border-amber-300/45 bg-amber-400/10 px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20 disabled:opacity-50"
+      >
+        {savingRacePlanKey ===
+        `maverick-${officialRaceTipRunner.id}-${officialTipType}`
+          ? "Adding..."
+          : "+ My Race Plan"}
+      </button>
+    ) : null}
+  ) : (
   ) : (
     <div className="mt-3 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-center text-[9px] font-black uppercase tracking-[0.12em] text-zinc-300">
       Race Finalised
@@ -6409,6 +6731,35 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
                     calculatorTipType,
                 }}
               />
+
+              <button
+                type="button"
+                disabled={
+                  isSavingRacePlan
+                }
+                onClick={() =>
+                  addToRacePlan({
+                    raceId:
+                      activeRace?.id ||
+                      "",
+                    raceRunnerId:
+                      runner.id,
+                    horseId:
+                      runner.horse_id ||
+                      "",
+                    source:
+                      "smartpunt",
+                    betType:
+                      calculatorTipType,
+                    calculatorTipId:
+                      calculatorRaceTip?.id ||
+                      null,
+                  })
+                }
+                className="mt-2 flex w-full items-center justify-center rounded-xl border border-amber-300/45 bg-amber-400/10 px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-200 transition hover:border-amber-300 hover:bg-amber-400/20 disabled:opacity-50"
+              >
+                + My Race Plan
+              </button>
             ) : null}
 
             {!isClosedRace &&
@@ -7494,6 +7845,221 @@ return (
                 ) : null}
               </div>
             </section>
+          ) : null}
+          {/* ==================================================
+              MY RACE PLAN
+              ================================================== */}
+
+          {racePlanMessage ? (
+            <div className="fixed bottom-24 left-1/2 z-[75] w-[calc(100%-32px)] max-w-sm -translate-x-1/2 rounded-2xl border border-emerald-300/35 bg-emerald-950/95 px-4 py-3 text-center text-[10px] font-black text-emerald-100 shadow-2xl backdrop-blur-xl">
+              {racePlanMessage}
+            </div>
+          ) : null}
+
+          {racePlanError ? (
+            <div className="fixed bottom-24 left-1/2 z-[75] w-[calc(100%-32px)] max-w-sm -translate-x-1/2 rounded-2xl border border-red-300/35 bg-red-950/95 px-4 py-3 text-center text-[10px] font-black text-red-100 shadow-2xl backdrop-blur-xl">
+              {racePlanError}
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() =>
+              setShowRacePlan(true)
+            }
+            className="fixed bottom-5 left-1/2 z-[70] flex w-[calc(100%-32px)] max-w-sm -translate-x-1/2 items-center justify-between rounded-[18px] border border-amber-300/50 bg-[linear-gradient(135deg,rgba(5,7,12,0.98),rgba(28,21,8,0.98))] px-4 py-3 shadow-[0_16px_45px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+          >
+            <div className="text-left">
+              <p className="text-[8px] font-black uppercase tracking-[0.18em] text-amber-300">
+                My Race Plan
+              </p>
+
+              <p className="mt-0.5 text-[11px] font-black text-white">
+                {
+                  selectedRacePlanItems.length
+                }{" "}
+                selection
+                {selectedRacePlanItems.length ===
+                1
+                  ? ""
+                  : "s"}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 min-w-8 items-center justify-center rounded-full border border-amber-300/40 bg-amber-400/10 px-2 text-[11px] font-black text-amber-200">
+                {
+                  selectedRacePlanItems.length
+                }
+              </span>
+
+              <span className="text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
+                View
+              </span>
+            </div>
+          </button>
+
+          {showRacePlan ? (
+            <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/75 backdrop-blur-sm">
+              <button
+                type="button"
+                aria-label="Close My Race Plan"
+                onClick={() =>
+                  setShowRacePlan(false)
+                }
+                className="absolute inset-0"
+              />
+
+              <div className="relative z-10 max-h-[82vh] w-full max-w-lg overflow-hidden rounded-t-[28px] border border-amber-300/30 bg-[linear-gradient(180deg,#11100c_0%,#08090c_35%,#050608_100%)] shadow-[0_-20px_60px_rgba(0,0,0,0.75)]">
+                <div className="border-b border-white/10 px-5 pb-4 pt-5">
+                  <div className="mx-auto mb-4 h-1 w-12 rounded-full bg-zinc-700" />
+
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">
+                        SmartPunt
+                      </p>
+
+                      <h2 className="mt-1 text-xl font-black text-white">
+                        My Race Plan
+                      </h2>
+
+                      <p className="mt-1 text-[10px] font-bold text-zinc-400">
+                        {
+                          selectedRaceDayLabel
+                        }{" "}
+                        ·{" "}
+                        {
+                          selectedRacePlanItems.length
+                        }{" "}
+                        selection
+                        {selectedRacePlanItems.length ===
+                        1
+                          ? ""
+                          : "s"}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowRacePlan(false)
+                      }
+                      className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-lg font-black text-zinc-300"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-[calc(82vh-120px)] overflow-y-auto px-4 pb-8 pt-3">
+                  {selectedRacePlanItems.length ===
+                  0 ? (
+                    <div className="rounded-[20px] border border-dashed border-amber-300/25 bg-amber-400/[0.04] px-5 py-8 text-center">
+                      <p className="text-sm font-black text-white">
+                        Your Race Plan is empty.
+                      </p>
+
+                      <p className="mt-2 text-[10px] font-semibold leading-5 text-zinc-400">
+                        Add SmartPunt or Maverick
+                        selections as you work
+                        through the races.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedRacePlanItems.map(
+                        (item, index) => (
+                          <div
+                            key={item.id}
+                            className="rounded-[18px] border border-white/10 bg-white/[0.035] p-3"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-[11px] font-black text-zinc-400">
+                                {index + 1}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[8px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                                  {
+                                    item.meetingName
+                                  }{" "}
+                                  · R
+                                  {
+                                    item.raceNumber
+                                  }
+                                </p>
+
+                                <p className="mt-1 truncate text-[12px] font-black uppercase text-white">
+                                  {item.runnerNumber
+                                    ? `#${item.runnerNumber} `
+                                    : ""}
+                                  {
+                                    item.horseName
+                                  }
+                                </p>
+
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  <span className="rounded-full border border-amber-300/35 bg-amber-400/10 px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] text-amber-200">
+                                    {
+                                      item.bet_type
+                                    }
+                                  </span>
+
+                                  <span
+                                    className={`rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-[0.08em] ${
+                                      item.source ===
+                                      "maverick"
+                                        ? "border-zinc-300/25 bg-zinc-300/10 text-zinc-200"
+                                        : item.source ===
+                                            "smartpunt"
+                                          ? "border-emerald-300/30 bg-emerald-500/10 text-emerald-200"
+                                          : "border-blue-300/30 bg-blue-500/10 text-blue-200"
+                                    }`}
+                                  >
+                                    {item.source ===
+                                    "maverick"
+                                      ? "The Maverick"
+                                      : item.source ===
+                                          "smartpunt"
+                                        ? "SmartPunt"
+                                        : "My Selection"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  isSavingRacePlan
+                                }
+                                onClick={() =>
+                                  removeFromRacePlan(
+                                    item.id,
+                                  )
+                                }
+                                className="shrink-0 rounded-xl border border-red-300/20 bg-red-500/[0.06] px-2.5 py-2 text-[8px] font-black uppercase tracking-[0.08em] text-red-200 disabled:opacity-40"
+                              >
+                                {savingRacePlanKey ===
+                                `remove-${item.id}`
+                                  ? "..."
+                                  : "Remove"}
+                              </button>
+                            </div>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  )}
+
+                  <p className="mt-4 text-center text-[8px] font-semibold leading-4 text-zinc-600">
+                    My Race Plan helps you
+                    organise selections. Adding
+                    an item does not place a bet.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : null}
 
           <footer className="mt-3 overflow-hidden rounded-[22px] border border-amber-300/40 bg-[linear-gradient(135deg,#05070c_0%,#0b1220_52%,#05070c_100%)] p-5 text-center shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
