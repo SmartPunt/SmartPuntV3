@@ -6692,6 +6692,7 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
 
             {calculatorTipType &&
             !isClosedRace ? (
+            <>
               <TipAcceptanceControl
                 tipKey={`calculator-${activeRace?.id}-${runner.id}`}
                 activeKey={
@@ -6761,7 +6762,8 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
               >
                 + My Race Plan
               </button>
-            ) : null}
+            </>
+          ) : null}
 
             {!isClosedRace &&
             activeRace ? (
