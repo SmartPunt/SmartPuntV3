@@ -14,6 +14,7 @@ import {
   addRacePlanItemAction,
   addUserBetAction,
   removeRacePlanItemAction,
+  reorderRacePlanItemsAction,
 } from "@/lib/actions";
 import VaultDoorIcon from "@/components/vault-door-icon";
 import type { VaultLiveMatch } from "@/lib/vault-matching";
@@ -1226,6 +1227,17 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
     manualRacePlanRunnerId,
     setManualRacePlanRunnerId,
   ] = useState<number | null>(null);
+
+  const [
+    racePlanOrderIds,
+    setRacePlanOrderIds,
+  ] = useState<number[]>([]);
+
+  const [
+    draggingRacePlanItemId,
+    setDraggingRacePlanItemId,
+  ] = useState<number | null>(null);
+
   const [
     isSavingRacePlan,
     startSavingRacePlanTransition,
@@ -1505,6 +1517,263 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
       runners,
       selectedRacePlanDate,
     ]);
+
+  /*
+   * MY RACE PLAN — USER ORDER
+   *
+   * Keep a local copy of the subscriber's saved ordering
+   * so cards can move immediately while being dragged.
+   *
+   * The server remains authoritative after the drop.
+   */
+  useEffect(() => {
+    if (draggingRacePlanItemId != null) {
+      return;
+    }
+
+    setRacePlanOrderIds(
+      selectedRacePlanItems.map((item) =>
+        Number(item.id),
+      ),
+    );
+  }, [
+    draggingRacePlanItemId,
+    selectedRacePlanItems,
+  ]);
+
+  const orderedRacePlanItems =
+    useMemo(() => {
+      if (racePlanOrderIds.length === 0) {
+        return selectedRacePlanItems;
+      }
+
+      const itemById = new Map(
+        selectedRacePlanItems.map((item) => [
+          Number(item.id),
+          item,
+        ]),
+      );
+
+      const ordered =
+        racePlanOrderIds
+          .map((id) => itemById.get(id))
+          .filter(
+            (
+              item,
+            ): item is (typeof selectedRacePlanItems)[number] =>
+              Boolean(item),
+          );
+
+      /*
+       * Defensive fallback:
+       * if a new item arrives while the drawer is open,
+       * don't hide it merely because it wasn't yet present
+       * in the local order array.
+       */
+      const orderedIds = new Set(
+        ordered.map((item) =>
+          Number(item.id),
+        ),
+      );
+
+      const missing =
+        selectedRacePlanItems.filter(
+          (item) =>
+            !orderedIds.has(
+              Number(item.id),
+            ),
+        );
+
+      return [
+        ...ordered,
+        ...missing,
+      ];
+    }, [
+      racePlanOrderIds,
+      selectedRacePlanItems,
+    ]);
+
+  function moveRacePlanItem(
+    draggedId: number,
+    targetId: number,
+  ) {
+    if (draggedId === targetId) {
+      return;
+    }
+
+    setRacePlanOrderIds(
+      (currentOrder) => {
+        const fallbackOrder =
+          selectedRacePlanItems.map(
+            (item) =>
+              Number(item.id),
+          );
+
+        const workingOrder =
+          currentOrder.length > 0
+            ? [...currentOrder]
+            : fallbackOrder;
+
+        const fromIndex =
+          workingOrder.indexOf(
+            draggedId,
+          );
+
+        const toIndex =
+          workingOrder.indexOf(
+            targetId,
+          );
+
+        if (
+          fromIndex < 0 ||
+          toIndex < 0 ||
+          fromIndex === toIndex
+        ) {
+          return workingOrder;
+        }
+
+        const [movedId] =
+          workingOrder.splice(
+            fromIndex,
+            1,
+          );
+
+        workingOrder.splice(
+          toIndex,
+          0,
+          movedId,
+        );
+
+        return workingOrder;
+      },
+    );
+  }
+
+  function handleRacePlanDragMove(
+    event: React.PointerEvent<HTMLButtonElement>,
+    draggedId: number,
+  ) {
+    if (
+      draggingRacePlanItemId !==
+      draggedId
+    ) {
+      return;
+    }
+
+    const element =
+      document.elementFromPoint(
+        event.clientX,
+        event.clientY,
+      );
+
+    const targetCard =
+      element?.closest(
+        "[data-race-plan-item-id]",
+      );
+
+    if (!targetCard) {
+      return;
+    }
+
+    const targetId = Number(
+      targetCard.getAttribute(
+        "data-race-plan-item-id",
+      ) || 0,
+    );
+
+    if (
+      targetId > 0 &&
+      targetId !== draggedId
+    ) {
+      moveRacePlanItem(
+        draggedId,
+        targetId,
+      );
+    }
+  }
+
+  function saveRacePlanOrder(
+    draggedId: number,
+  ) {
+    if (
+      draggingRacePlanItemId !==
+      draggedId
+    ) {
+      return;
+    }
+
+    setDraggingRacePlanItemId(
+      null,
+    );
+
+    const orderedIds =
+      racePlanOrderIds.length > 0
+        ? racePlanOrderIds
+        : selectedRacePlanItems.map(
+            (item) =>
+              Number(item.id),
+          );
+
+    if (orderedIds.length === 0) {
+      return;
+    }
+
+    setRacePlanMessage(null);
+    setRacePlanError(null);
+    setSavingRacePlanKey(
+      "reorder",
+    );
+
+    const formData = new FormData();
+
+    formData.set(
+      "race_date",
+      selectedRacePlanDate,
+    );
+
+    formData.set(
+      "ordered_ids",
+      JSON.stringify(
+        orderedIds,
+      ),
+    );
+
+    startSavingRacePlanTransition(
+      async () => {
+        const result =
+          await reorderRacePlanItemsAction(
+            formData,
+          );
+
+        if (result?.success) {
+          setRacePlanMessage(
+            "Race Plan order saved.",
+          );
+          setSavingRacePlanKey(null);
+          router.refresh();
+          return;
+        }
+
+        setRacePlanError(
+          result?.error ||
+            "Could not save your Race Plan order.",
+        );
+
+        setSavingRacePlanKey(null);
+
+        /*
+         * Restore the last server-backed order if saving
+         * failed.
+         */
+        setRacePlanOrderIds(
+          selectedRacePlanItems.map(
+            (item) =>
+              Number(item.id),
+          ),
+        );
+      },
+    );
+  }
 
   function addUserBetFormAction(formData: FormData) {
     setTipMessage(null);
@@ -8059,21 +8328,129 @@ return (
                       </p>
 
                       <p className="mt-2 text-[10px] font-semibold leading-5 text-zinc-400">
-                        Add SmartPunt or Maverick
-                        selections as you work
-                        through the races.
+                        Add SmartPunt, Maverick or
+                        your own selections as you
+                        work through the races.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {selectedRacePlanItems.map(
+                      {orderedRacePlanItems.map(
                         (item, index) => (
                           <div
                             key={item.id}
-                            className="rounded-[18px] border border-white/10 bg-white/[0.035] p-3"
+                            data-race-plan-item-id={
+                              item.id
+                            }
+                            className={`rounded-[18px] border p-3 transition-[transform,opacity,border-color,background-color] duration-150 ${
+                              draggingRacePlanItemId ===
+                              Number(item.id)
+                                ? "scale-[1.02] border-amber-300/60 bg-amber-400/[0.08] opacity-90 shadow-[0_12px_30px_rgba(0,0,0,0.5)]"
+                                : "border-white/10 bg-white/[0.035]"
+                            }`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-[11px] font-black text-zinc-400">
+                              <button
+                                type="button"
+                                aria-label={`Reorder ${item.horseName}`}
+                                disabled={
+                                  isSavingRacePlan
+                                }
+                                onPointerDown={(
+                                  event,
+                                ) => {
+                                  event.preventDefault();
+
+                                  setDraggingRacePlanItemId(
+                                    Number(
+                                      item.id,
+                                    ),
+                                  );
+
+                                  setRacePlanOrderIds(
+                                    (
+                                      current,
+                                    ) =>
+                                      current.length >
+                                      0
+                                        ? current
+                                        : selectedRacePlanItems.map(
+                                            (
+                                              planItem,
+                                            ) =>
+                                              Number(
+                                                planItem.id,
+                                              ),
+                                          ),
+                                  );
+
+                                  event.currentTarget.setPointerCapture(
+                                    event.pointerId,
+                                  );
+                                }}
+                                onPointerMove={(
+                                  event,
+                                ) =>
+                                  handleRacePlanDragMove(
+                                    event,
+                                    Number(
+                                      item.id,
+                                    ),
+                                  )
+                                }
+                                onPointerUp={(
+                                  event,
+                                ) => {
+                                  if (
+                                    event.currentTarget.hasPointerCapture(
+                                      event.pointerId,
+                                    )
+                                  ) {
+                                    event.currentTarget.releasePointerCapture(
+                                      event.pointerId,
+                                    );
+                                  }
+
+                                  saveRacePlanOrder(
+                                    Number(
+                                      item.id,
+                                    ),
+                                  );
+                                }}
+                                onPointerCancel={(
+                                  event,
+                                ) => {
+                                  if (
+                                    event.currentTarget.hasPointerCapture(
+                                      event.pointerId,
+                                    )
+                                  ) {
+                                    event.currentTarget.releasePointerCapture(
+                                      event.pointerId,
+                                    );
+                                  }
+
+                                  setDraggingRacePlanItemId(
+                                    null,
+                                  );
+
+                                  setRacePlanOrderIds(
+                                    selectedRacePlanItems.map(
+                                      (
+                                        planItem,
+                                      ) =>
+                                        Number(
+                                          planItem.id,
+                                        ),
+                                    ),
+                                  );
+                                }}
+                                className="flex h-11 w-9 shrink-0 touch-none select-none items-center justify-center rounded-xl border border-amber-300/20 bg-amber-400/[0.06] text-lg font-black leading-none text-amber-200 active:border-amber-300/60 active:bg-amber-400/15 disabled:opacity-40"
+                              >
+                                ≡
+                              </button>
+
+                              <div className="flex h-9 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-[10px] font-black text-zinc-400">
                                 {index + 1}
                               </div>
 
