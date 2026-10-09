@@ -309,6 +309,20 @@ const [openTipIds, setOpenTipIds] = useState<Record<string, boolean>>({});
   const [selectedPublishedRaceId, setSelectedPublishedRaceId] = useState("");
   const [selectedRunnerId, setSelectedRunnerId] = useState("");
 
+  const [selectedAdminRaceDate, setSelectedAdminRaceDate] = useState(() => {
+    const parts = new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Perth",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+
+    const get = (type: string) =>
+      parts.find((part) => part.type === type)?.value || "";
+
+    return `${get("year")}-${get("month")}-${get("day")}`;
+  });
+
   const [tipRace, setTipRace] = useState("");
   const [tipHorse, setTipHorse] = useState("");
   const [tipType, setTipType] = useState("Win");
@@ -365,6 +379,21 @@ const [newUserIdentifierHint, setNewUserIdentifierHint] = useState("subscriber@e
   const meetingMap = useMemo(() => {
     return new Map(initialMeetings.map((meeting) => [meeting.id, meeting]));
   }, [initialMeetings]);
+
+  const racesForSelectedAdminDate = useMemo(() => {
+    return initialPublishedRaces.filter((race) => {
+      const meeting = meetingMap.get(race.meeting_id);
+
+      return (
+        meeting?.meeting_date?.slice(0, 10) ===
+        selectedAdminRaceDate
+      );
+    });
+  }, [
+    initialPublishedRaces,
+    meetingMap,
+    selectedAdminRaceDate,
+  ]);
 
   const horseMap = useMemo(() => {
     return new Map(initialHorses.map((horse) => [horse.id, horse]));
@@ -478,6 +507,20 @@ const watchSelectedMeeting =
 
   function loadTipIntoForm(tip: any) {
     setTipEdit(tip);
+
+    const existingRace = initialPublishedRaces.find(
+      (race) => String(race.id) === String(tip.race_id),
+    );
+
+    const existingMeeting = existingRace
+      ? meetingMap.get(existingRace.meeting_id)
+      : null;
+
+    if (existingMeeting?.meeting_date) {
+      setSelectedAdminRaceDate(
+        existingMeeting.meeting_date.slice(0, 10),
+      );
+    }
 
     setSelectedPublishedRaceId(tip.race_id ? String(tip.race_id) : "");
     setSelectedRunnerId(tip.race_runner_id ? String(tip.race_runner_id) : "");
@@ -1089,6 +1132,27 @@ async function handleDeleteGetOnEarly(
                     </div>
                   </div>
 
+                  <div className="mb-4">
+                    <Field label="Select Race Day">
+                      <input
+                        type="date"
+                        value={selectedAdminRaceDate}
+                        onChange={(event) => {
+                          setSelectedAdminRaceDate(event.target.value);
+                          setSelectedPublishedRaceId("");
+                          setSelectedRunnerId("");
+                          setTipRace("");
+                          setTipHorse("");
+                          setWatchSelectedRaceId("");
+                          setWatchSelectedRunnerId("");
+                          setWatchRace("");
+                          setWatchHorse("");
+                        }}
+                        className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+                      />
+                    </Field>
+                  </div>
+
                   <div className="grid gap-4 md:grid-cols-2">
                     <Field label="Published race">
                       <select
@@ -1115,7 +1179,7 @@ async function handleDeleteGetOnEarly(
                         className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
                       >
                         <option value="">Select published race</option>
-                        {initialPublishedRaces.map((race) => (
+                        {racesForSelectedAdminDate.map((race) => (
                           <option key={race.id} value={String(race.id)}>
                             {buildRaceLabel(race, meetingMap.get(race.meeting_id) || null)}
                           </option>
@@ -1709,6 +1773,27 @@ async function handleDeleteGetOnEarly(
   readOnly
 />
 
+<div className="mb-4">
+  <Field label="Select Race Day">
+    <input
+      type="date"
+      value={selectedAdminRaceDate}
+      onChange={(event) => {
+        setSelectedAdminRaceDate(event.target.value);
+        setWatchSelectedRaceId("");
+        setWatchSelectedRunnerId("");
+        setWatchRace("");
+        setWatchHorse("");
+        setSelectedPublishedRaceId("");
+        setSelectedRunnerId("");
+        setTipRace("");
+        setTipHorse("");
+      }}
+      className="w-full rounded-2xl border border-amber-200/30 px-3 py-3 outline-none transition focus:border-amber-300"
+    />
+  </Field>
+</div>
+
 <div className="grid gap-4 md:grid-cols-2">
   <Field label="Published race">
     <select
@@ -1754,7 +1839,7 @@ async function handleDeleteGetOnEarly(
         Select published race
       </option>
 
-      {initialPublishedRaces.map(
+      {racesForSelectedAdminDate.map(
         (race) => (
           <option
             key={race.id}
