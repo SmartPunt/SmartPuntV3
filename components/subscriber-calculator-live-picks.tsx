@@ -492,6 +492,145 @@ type RatingExplanation = {
   } | null;
 };
 
+type DistanceRatingEvidence = {
+  distance: number | null;
+  source: "race-history" | "distance-record" | "none";
+  relevantStarts: number;
+  exactStarts: number;
+  wins: number;
+  topThree: number;
+};
+
+function getDistanceRatingEvidence(
+  section: RatingExplanation["section"],
+): DistanceRatingEvidence | null {
+  if (!section || !Array.isArray(section.details)) {
+    return null;
+  }
+
+  const details = section.details.filter(
+    (value): value is string => typeof value === "string",
+  );
+
+  const findDetail = (prefix: string) =>
+    details.find((value) => value.startsWith(prefix));
+
+  const readNumber = (prefix: string): number | null => {
+    const value = findDetail(prefix);
+
+    if (!value) return null;
+
+    const match = value.slice(prefix.length).match(/^\s*(\d+)/);
+
+    return match ? Number(match[1]) : null;
+  };
+
+  const distance = readNumber("Today's race distance:");
+  const relevantStarts = readNumber("Relevant historical runs:");
+  const exactStarts = readNumber("Exact-distance historical runs:");
+
+  const sourceDetail = findDetail("Selected source:") ?? "";
+
+  const source =
+    sourceDetail.includes("Individual race history")
+      ? "race-history"
+      : sourceDetail.includes("Provisional imported record")
+        ? "distance-record"
+        : "none";
+
+  if (source === "race-history") {
+    const results = findDetail("Relevant history results:");
+
+    const match = results?.match(
+      /(\d+) wins and (\d+) top-three finishes from (\d+) runs/,
+    );
+
+    if (
+      !match ||
+      relevantStarts === null ||
+      exactStarts === null
+    ) {
+      return null;
+    }
+
+    return {
+      distance,
+      source,
+      relevantStarts,
+      exactStarts,
+      wins: Number(match[1]),
+      topThree: Number(match[2]),
+    };
+  }
+
+  if (source === "distance-record") {
+    const record = findDetail("Imported distance record:");
+
+    const match = record?.match(
+      /(\d+)\s*:\s*(\d+),(\d+),(\d+)/,
+    );
+
+    if (!match) return null;
+
+    return {
+      distance,
+      source,
+      relevantStarts: Number(match[1]),
+      exactStarts: 0,
+      wins: Number(match[2]),
+      topThree:
+        Number(match[2]) +
+        Number(match[3]) +
+        Number(match[4]),
+    };
+  }
+
+  return {
+    distance,
+    source: "none",
+    relevantStarts: 0,
+    exactStarts: 0,
+    wins: 0,
+    topThree: 0,
+  };
+}
+
+function getDistanceAssessment(
+  evidence: DistanceRatingEvidence,
+  score: number,
+): string {
+  if (evidence.source === "none") {
+    return "There is not enough relevant distance form to establish a clear advantage. SmartPunt has taken a balanced approach to this rating.";
+  }
+
+  const { relevantStarts, wins, topThree } = evidence;
+
+  if (relevantStarts === 0) {
+    return "There is not enough relevant distance form to establish a clear advantage.";
+  }
+
+  const placeRate = topThree / relevantStarts;
+
+  const performance =
+    wins > 0 && placeRate >= 0.6
+      ? "The horse has demonstrated strong competitive form at relevant distances."
+      : placeRate >= 0.5
+        ? "The horse has shown consistent ability to finish among the leading runners at relevant distances."
+        : placeRate >= 0.3
+          ? "The horse has produced some competitive performances at relevant distances, although its record is mixed."
+          : "The horse's relevant distance record offers limited evidence of consistent success.";
+
+  const rating =
+    score >= 80
+      ? "SmartPunt considers distance suitability a significant positive."
+      : score >= 65
+        ? "Distance suitability is a positive factor in SmartPunt's assessment."
+        : score >= 50
+          ? "SmartPunt gives the horse a balanced distance assessment."
+          : "SmartPunt has reservations about the horse's distance suitability.";
+
+  return `${performance} ${rating}`;
+}
 const ratingMethodology: Record<RatingKey, string> = {
   recentForm:
     "Recent performances, consistency and overall current form.",
@@ -4629,24 +4768,115 @@ const hasDayResults =
               </span>
             </div>
 
-            <div className="mt-4 space-y-3">
-              <p className="text-sm leading-6 text-zinc-100">
-                {getCustomerRatingExplanation(
-                  ratingExplanation.key,
-                  ratingExplanation.score,
-                )}
-              </p>
+            {ratingExplanation.key === "distance" ? (
+              (() => {
+                const evidence = getDistanceRatingEvidence(
+                  ratingExplanation.section,
+                );
 
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
-                  What SmartPunt considers
+                if (!evidence) {
+                  return (
+                    <p className="mt-4 text-sm leading-6 text-zinc-200">
+                      The detailed distance form behind this rating
+                      is not available for this assessment.
+                    </p>
+                  );
+                }
+
+                return (
+                  <div className="mt-4 space-y-4">
+                    {evidence.distance !== null &&
+                    evidence.distance > 0 ? (
+                      <p className="text-sm font-bold text-amber-200">
+                        Today's distance: {evidence.distance}m
+                      </p>
+                    ) : null}
+
+                    {evidence.source !== "none" ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-[10px] text-zinc-400">
+                              Relevant starts
+                            </p>
+                            <p className="mt-1 text-xl font-black text-white">
+                              {evidence.relevantStarts}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-[10px] text-zinc-400">
+                              Wins
+                            </p>
+                            <p className="mt-1 text-xl font-black text-white">
+                              {evidence.wins}
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                            <p className="text-[10px] text-zinc-400">
+                              Top-three finishes
+                            </p>
+                            <p className="mt-1 text-xl font-black text-white">
+                              {evidence.topThree}
+                            </p>
+                          </div>
+
+                          {evidence.source === "race-history" ? (
+                            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                              <p className="text-[10px] text-zinc-400">
+                                Exact-distance starts
+                              </p>
+                              <p className="mt-1 text-xl font-black text-white">
+                                {evidence.exactStarts}
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <p className="text-xs leading-5 text-zinc-400">
+                          {evidence.source === "race-history"
+                            ? "Relevant starts include previous races at today's distance and nearby distances considered suitable for comparison."
+                            : "These figures represent the horse's available distance form record. Individual starts have not been separated into exact and nearby distances."}
+                        </p>
+                      </>
+                    ) : null}
+
+                    <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                        SmartPunt assessment
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-zinc-100">
+                        {getDistanceAssessment(
+                          evidence,
+                          ratingExplanation.score,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm leading-6 text-zinc-100">
+                  {getCustomerRatingExplanation(
+                    ratingExplanation.key,
+                    ratingExplanation.score,
+                  )}
                 </p>
 
-                <p className="mt-2 text-xs leading-5 text-zinc-300">
-                  {ratingMethodology[ratingExplanation.key]}
-                </p>
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                    What SmartPunt considers
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-zinc-300">
+                    {ratingMethodology[ratingExplanation.key]}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       ) : null}
