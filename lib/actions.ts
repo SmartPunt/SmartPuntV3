@@ -1413,11 +1413,13 @@ function getDistanceBucket(
     return null;
   }
 
-if (value >= 1000 && value < 1200) return "1000-1199";
-if (value >= 1200 && value < 1400) return "1200-1399";
-if (value >= 1400 && value < 1600) return "1400-1599";
-if (value >= 1600 && value < 1800) return "1600-1799";
-if (value >= 1800 && value < 2200) return "1800-2199";
+
+if (value < 1000) return "Under 1000m";
+if (value < 1200) return "1000-1199";
+if (value < 1400) return "1200-1399";
+if (value < 1600) return "1400-1599";
+if (value < 1800) return "1600-1799";
+if (value < 2200) return "1800-2199";
 
 return "2200+";
 }
