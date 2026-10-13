@@ -7232,12 +7232,13 @@ in the SmartPunt Calculator Top 3 above.
                     </span>
                   </div>
 
+
 <div
   data-no-race-swipe="true"
-  className="mt-4 overflow-x-auto rounded-2xl border border-white/10"
+  className="mt-4 max-h-[65vh] overflow-auto overscroll-contain rounded-2xl border border-white/10"
 >
                     <table className="min-w-[980px] divide-y divide-white/10 text-left text-[11px]">
-                      <thead className="bg-white/[0.06] text-[9px] uppercase tracking-[0.14em] text-zinc-400">
+<thead className="sticky top-0 z-20 bg-[#181818] text-[9px] uppercase tracking-[0.14em] text-zinc-300 shadow-[0_2px_0_rgba(255,255,255,0.12)]">
                         <tr>
 <th className="px-3 py-3 font-black">Rank</th>
 <th className="px-3 py-3 font-black">Result</th>
