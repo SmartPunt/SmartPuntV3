@@ -106,6 +106,15 @@ export type FactorStatus = {
 
 export type ScoreAuditStatus = "positive" | "neutral" | "risk" | "fallback";
 
+export type DistanceFormBreakdown = {
+  distanceM: number;
+  starts: number;
+  wins: number;
+  seconds: number;
+  thirds: number;
+  relevance: number;
+};
+
 export type ScoreAuditSection = {
   label: string;
   score: number;
@@ -113,6 +122,9 @@ export type ScoreAuditSection = {
   summary: string;
   details: string[];
   decisionLog: string[];
+
+  // Historical evidence captured when the prediction is calculated.
+  distanceBreakdown?: DistanceFormBreakdown[];
 };
 
 export type RunnerScoringAudit = {
@@ -1992,6 +2004,60 @@ const score = clamp(
 );
 
 const distanceStats = getRunStatsForAudit(distanceHistoryRuns);
+
+// Capture the actual race distances and results available
+// when this prediction was calculated.
+const distanceBreakdownMap = new Map<
+  number,
+  DistanceFormBreakdown
+>();
+
+for (const run of distanceHistoryRuns) {
+  const distanceM = Number(run.race?.distance_m);
+  const position = Number(run.finishing_position);
+
+  if (
+    !Number.isFinite(distanceM) ||
+    distanceM <= 0 ||
+    !Number.isFinite(position) ||
+    position <= 0
+  ) {
+    continue;
+  }
+
+  const relevance = getDistanceRelevance(
+    distanceM,
+    activeRace.distance_m,
+  );
+
+  const existing = distanceBreakdownMap.get(distanceM);
+
+  const record: DistanceFormBreakdown = existing ?? {
+    distanceM,
+    starts: 0,
+    wins: 0,
+    seconds: 0,
+    thirds: 0,
+    relevance,
+  };
+
+  record.starts += 1;
+
+  if (position === 1) record.wins += 1;
+  if (position === 2) record.seconds += 1;
+  if (position === 3) record.thirds += 1;
+
+  distanceBreakdownMap.set(distanceM, record);
+}
+
+const distanceFormBreakdown = Array.from(
+  distanceBreakdownMap.values(),
+).sort(
+  (a, b) =>
+    b.relevance - a.relevance ||
+    a.distanceM - b.distanceM,
+);
+
 const trackStats = getRunStatsForAudit(trackHistoryRuns);
 const conditionStats = getRunStatsForAudit(conditionHistoryRuns);
 const recentStats = getRunStatsForAudit(historyRuns.slice(0, 5));
