@@ -501,6 +501,7 @@ type DistanceRatingEvidence = {
   topThree: number;
 };
 
+
 function getDistanceRatingEvidence(
   section: RatingExplanation["section"],
 ): DistanceRatingEvidence | null {
@@ -525,20 +526,77 @@ function getDistanceRatingEvidence(
     return match ? Number(match[1]) : null;
   };
 
-  const distance = readNumber("Today's race distance:");
-  const relevantStarts = readNumber("Relevant historical runs:");
-  const exactStarts = readNumber("Exact-distance historical runs:");
+  const distance =
+    readNumber("Race distance:") ??
+    readNumber("Today's race distance:");
 
   const sourceDetail = findDetail("Selected source:") ?? "";
 
-  const source =
-    sourceDetail.includes("Individual race history")
-      ? "race-history"
-      : sourceDetail.includes("Provisional imported record")
-        ? "distance-record"
-        : "none";
+  const parseRecord = (
+    value: string | undefined,
+  ): {
+    starts: number;
+    wins: number;
+    seconds: number;
+    thirds: number;
+  } | null => {
+    if (!value) return null;
 
-  if (source === "race-history") {
+    const match = value.match(
+      /(\d+)\s*:\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/,
+    );
+
+    if (!match) return null;
+
+    const starts = Number(match[1]);
+    const wins = Number(match[2]);
+    const seconds = Number(match[3]);
+    const thirds = Number(match[4]);
+
+    if (
+      wins + seconds + thirds > starts
+    ) {
+      return null;
+    }
+
+    return { starts, wins, seconds, thirds };
+  };
+
+  const selectedStoredRecord =
+    sourceDetail.includes("Stored record") ||
+    sourceDetail.includes("Provisional imported record");
+
+  if (selectedStoredRecord) {
+    const record = parseRecord(
+      findDetail("Stored runner distance record:") ??
+      findDetail("Imported distance record:"),
+    );
+
+    if (record) {
+      return {
+        distance,
+        source: "distance-record",
+        relevantStarts: record.starts,
+        exactStarts: 0,
+        wins: record.wins,
+        topThree:
+          record.wins +
+          record.seconds +
+          record.thirds,
+      };
+    }
+  }
+
+  const selectedRaceHistory =
+    sourceDetail.includes("Individual race history");
+
+  if (selectedRaceHistory) {
+    const relevantStarts =
+      readNumber("Relevant historical runs:");
+
+    const exactStarts =
+      readNumber("Exact-distance historical runs:");
+
     const results = findDetail("Relevant history results:");
 
     const match = results?.match(
@@ -546,43 +604,19 @@ function getDistanceRatingEvidence(
     );
 
     if (
-      !match ||
-      relevantStarts === null ||
-      exactStarts === null
+      match &&
+      relevantStarts !== null &&
+      exactStarts !== null
     ) {
-      return null;
+      return {
+        distance,
+        source: "race-history",
+        relevantStarts,
+        exactStarts,
+        wins: Number(match[1]),
+        topThree: Number(match[2]),
+      };
     }
-
-    return {
-      distance,
-      source,
-      relevantStarts,
-      exactStarts,
-      wins: Number(match[1]),
-      topThree: Number(match[2]),
-    };
-  }
-
-  if (source === "distance-record") {
-    const record = findDetail("Imported distance record:");
-
-    const match = record?.match(
-      /(\d+)\s*:\s*(\d+),(\d+),(\d+)/,
-    );
-
-    if (!match) return null;
-
-    return {
-      distance,
-      source,
-      relevantStarts: Number(match[1]),
-      exactStarts: 0,
-      wins: Number(match[2]),
-      topThree:
-        Number(match[2]) +
-        Number(match[3]) +
-        Number(match[4]),
-    };
   }
 
   return {
@@ -594,7 +628,6 @@ function getDistanceRatingEvidence(
     topThree: 0,
   };
 }
-
 function getDistanceAssessment(
   evidence: DistanceRatingEvidence,
   score: number,
