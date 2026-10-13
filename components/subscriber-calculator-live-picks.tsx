@@ -494,18 +494,107 @@ type RatingExplanation = {
 
 const ratingMethodology: Record<RatingKey, string> = {
   recentForm:
-    "Assesses the horse's recent performances and the quality of available form evidence.",
+    "Recent performances, consistency and overall current form.",
   distance:
-    "Assesses suitability for today's distance using relevant historical distance performances.",
+    "How well the horse's performances suit today's race distance.",
   track:
-    "Assesses the horse's previous performances at this track.",
+    "The horse's suitability for racing at today's venue.",
   condition:
-    "Assesses performances on the relevant track surface and condition.",
+    "How well the horse is suited to today's track conditions.",
   jockey:
-    "Assesses the available jockey and horse-jockey performance evidence.",
+    "The jockey's contribution to the horse's overall prospects.",
   barrier:
-    "Assesses the effective barrier in the context of today's field and race distance.",
+    "How favourable the horse's effective starting position is for today's race.",
 };
+
+function getCustomerRatingExplanation(
+  key: RatingKey,
+  score: number,
+): string {
+  const level =
+    score >= 80 ? "excellent" :
+    score >= 65 ? "strong" :
+    score >= 50 ? "reasonable" :
+    score >= 35 ? "moderate" :
+    "limited";
+
+  const descriptions: Record<RatingKey, Record<string, string>> = {
+    recentForm: {
+      excellent:
+        "SmartPunt gives this horse an excellent recent form assessment. Its overall form profile is a major positive.",
+      strong:
+        "SmartPunt rates this horse's recent form favourably, making current performance a positive factor.",
+      reasonable:
+        "This horse receives a reasonable recent form assessment, although its overall form profile is not among the strongest.",
+      moderate:
+        "SmartPunt has some reservations about this horse's recent form. Its current performance profile is not a major advantage.",
+      limited:
+        "Recent form is a weakness in SmartPunt's assessment of this horse.",
+    },
+    distance: {
+      excellent:
+        "SmartPunt considers today's distance an excellent match for this horse's assessed capabilities.",
+      strong:
+        "Today's distance is a positive factor in this horse's assessment.",
+      reasonable:
+        "SmartPunt considers this horse reasonably suited to today's distance, without a particularly strong advantage.",
+      moderate:
+        "Distance suitability is a question mark in this horse's assessment.",
+      limited:
+        "SmartPunt has significant reservations about this horse's suitability for today's distance.",
+    },
+    track: {
+      excellent:
+        "SmartPunt gives this horse an excellent assessment for today's racing venue.",
+      strong:
+        "Today's track is considered a favourable factor for this horse.",
+      reasonable:
+        "SmartPunt considers this horse reasonably suited to today's track.",
+      moderate:
+        "The track assessment provides limited support for this horse's chances.",
+      limited:
+        "Today's track is a weakness in SmartPunt's overall assessment.",
+    },
+    condition: {
+      excellent:
+        "SmartPunt considers today's track conditions particularly favourable for this horse.",
+      strong:
+        "Today's track conditions are a positive factor in this horse's assessment.",
+      reasonable:
+        "SmartPunt considers this horse reasonably suited to the expected track conditions.",
+      moderate:
+        "Suitability for today's track conditions is not a strong point in this assessment.",
+      limited:
+        "SmartPunt has significant reservations about this horse's suitability for today's track conditions.",
+    },
+    jockey: {
+      excellent:
+        "The jockey receives an excellent assessment and is a major positive for this runner.",
+      strong:
+        "SmartPunt considers the jockey a positive influence on this horse's prospects.",
+      reasonable:
+        "The jockey receives a reasonable assessment without providing a major advantage.",
+      moderate:
+        "The jockey assessment offers limited support for this horse's overall chances.",
+      limited:
+        "The jockey rating is a weaker component of this horse's overall assessment.",
+    },
+    barrier: {
+      excellent:
+        "SmartPunt considers this horse's effective barrier position highly favourable for today's race.",
+      strong:
+        "The effective barrier is a positive factor in this horse's assessment.",
+      reasonable:
+        "The effective barrier is considered reasonably suitable for today's race.",
+      moderate:
+        "The effective barrier offers limited advantage in today's race.",
+      limited:
+        "SmartPunt considers the effective barrier position a disadvantage for this runner.",
+    },
+  };
+
+  return descriptions[key][level];
+}
 
 function ScoreStars({
   score,
@@ -4540,67 +4629,24 @@ const hasDayResults =
               </span>
             </div>
 
-            {ratingExplanation.section ? (
-              <>
-                {ratingExplanation.section.summary ? (
-                  <p className="mt-4 text-sm leading-6 text-zinc-100">
-                    {ratingExplanation.section.summary}
-                  </p>
-                ) : null}
+            <div className="mt-4 space-y-3">
+              <p className="text-sm leading-6 text-zinc-100">
+                {getCustomerRatingExplanation(
+                  ratingExplanation.key,
+                  ratingExplanation.score,
+                )}
+              </p>
 
-                {Array.isArray(ratingExplanation.section.details) &&
-                ratingExplanation.section.details.length > 0 ? (
-                  <ul className="mt-3 space-y-2 text-xs leading-5 text-zinc-300">
-                    {ratingExplanation.section.details
-                      .filter(
-                        (detail) => typeof detail === "string",
-                      )
-                      .slice(0, 6)
-                      .map((detail, index) => (
-                        <li key={index}>• {detail}</li>
-                      ))}
-                  </ul>
-                ) : null}
+              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                  What SmartPunt considers
+                </p>
 
-                {Array.isArray(
-                  ratingExplanation.section.decisionLog,
-                ) &&
-                ratingExplanation.section.decisionLog.length > 0 ? (
-                  <div className="mt-4 border-t border-white/10 pt-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
-                      How SmartPunt assessed it
-                    </p>
-
-                    {ratingExplanation.section.decisionLog
-                      .filter(
-                        (entry) => typeof entry === "string",
-                      )
-                      .slice(0, 4)
-                      .map((entry, index) => (
-                        <p
-                          key={index}
-                          className="mt-2 text-xs leading-5 text-zinc-300"
-                        >
-                          {entry}
-                        </p>
-                      ))}
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <p className="mt-4 text-sm leading-6 text-zinc-200">
+                <p className="mt-2 text-xs leading-5 text-zinc-300">
                   {ratingMethodology[ratingExplanation.key]}
                 </p>
-
-                <p className="mt-3 text-xs leading-5 text-zinc-400">
-                  The original detailed scoring evidence is not
-                  available for this prediction. This describes
-                  the rating method, not a verified horse-specific
-                  reason.
-                </p>
-              </>
-            )}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
