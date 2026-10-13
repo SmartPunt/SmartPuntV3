@@ -499,6 +499,126 @@ type RatingExplanation = {
     }[];
   } | null;
 };
+type HistoricalDistanceRow = {
+  distanceM: number;
+  starts: number;
+  wins: number;
+  seconds: number;
+  thirds: number;
+  relevance: number;
+};
+
+function getHistoricalDistanceBreakdown({
+  horseId,
+  currentRaceId,
+  predictionDate,
+  raceDate,
+  runners,
+  races,
+  meetings,
+}: {
+  horseId: number;
+  currentRaceId: number;
+  predictionDate: string;
+  raceDate: string;
+  runners: Runner[];
+  races: Race[];
+  meetings: Meeting[];
+}): HistoricalDistanceRow[] {
+  if (!predictionDate || !raceDate) return [];
+
+  const predictedAt = new Date(predictionDate);
+
+  if (!Number.isFinite(predictedAt.getTime())) {
+    return [];
+  }
+
+  const predictionDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(predictedAt);
+
+  const cutoffDate =
+    predictionDay < raceDate.slice(0, 10)
+      ? predictionDay
+      : raceDate.slice(0, 10);
+
+  const racesById = new Map(
+    races.map((race) => [Number(race.id), race]),
+  );
+
+  const meetingsById = new Map(
+    meetings.map((meeting) => [
+      Number(meeting.id),
+      meeting,
+    ]),
+  );
+
+  const breakdown = new Map<number, HistoricalDistanceRow>();
+
+  for (const runner of runners) {
+    if (Number(runner.horse_id) !== horseId) continue;
+    if (Number(runner.race_id) === currentRaceId) continue;
+
+    const position = Number(runner.finishing_position);
+
+    if (
+      runner.finishing_position == null ||
+      !Number.isInteger(position) ||
+      position <= 0
+    ) {
+      continue;
+    }
+
+    const race = racesById.get(Number(runner.race_id));
+    if (!race) continue;
+
+    const meeting = meetingsById.get(Number(race.meeting_id));
+    const historicalDate = String(
+      meeting?.meeting_date ?? "",
+    ).slice(0, 10);
+
+    // Exclude same-day, future and undated results.
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(historicalDate) ||
+      historicalDate >= cutoffDate
+    ) {
+      continue;
+    }
+
+    const distanceM = Number(race.distance_m);
+
+    if (
+      !Number.isInteger(distanceM) ||
+      distanceM <= 0
+    ) {
+      continue;
+    }
+
+    const row = breakdown.get(distanceM) ?? {
+      distanceM,
+      starts: 0,
+      wins: 0,
+      seconds: 0,
+      thirds: 0,
+      relevance: 0,
+    };
+
+    row.starts += 1;
+    if (position === 1) row.wins += 1;
+    if (position === 2) row.seconds += 1;
+    if (position === 3) row.thirds += 1;
+
+    breakdown.set(distanceM, row);
+  }
+
+  return [...breakdown.values()].sort(
+    (a, b) => a.distanceM - b.distanceM,
+  );
+}
 type DistanceRatingEvidence = {
   distance: number | null;
   source: "race-history" | "distance-record" | "none";
@@ -1518,15 +1638,63 @@ function explainRating(
       ? audit.sections[key]
       : null;
 
+  const savedSection =
+    section && typeof section === "object"
+      ? section
+      : null;
+
+  let explanationSection = savedSection;
+
+  if (
+    key === "distance" &&
+    !(
+      Array.isArray(savedSection?.distanceBreakdown) &&
+      savedSection.distanceBreakdown.length > 0
+    )
+  ) {
+    const prediction = calculatorPredictions.find(
+      (item) =>
+        Number(item.runner_id) === Number(runner.id) &&
+        Number(item.race_id) === Number(runner.race_id),
+    );
+
+    const race = races.find(
+      (item) =>
+        Number(item.id) === Number(runner.race_id),
+    );
+
+    const meeting = meetings.find(
+      (item) =>
+        Number(item.id) === Number(race?.meeting_id),
+    );
+
+    const historicalBreakdown =
+      prediction?.predicted_at && meeting?.meeting_date
+        ? getHistoricalDistanceBreakdown({
+            horseId: Number(runner.horse_id),
+            currentRaceId: Number(runner.race_id),
+            predictionDate: prediction.predicted_at,
+            raceDate: meeting.meeting_date,
+            runners,
+            races,
+            meetings,
+          })
+        : [];
+
+    if (historicalBreakdown.length > 0) {
+      explanationSection = {
+        ...(savedSection ?? {}),
+        distanceBreakdown: historicalBreakdown,
+      };
+    }
+  }
+
   setRatingExplanation({
     horseName: runner.horse_name,
     label,
     key,
     score: Number(runner.components[key] ?? 0),
-    section:
-      section && typeof section === "object"
-        ? section
-        : null,
+    section: explanationSection,
   });
 }
   const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
@@ -4897,11 +5065,11 @@ const hasDayResults =
                         </div>
 
                         <p className="text-xs leading-5 text-zinc-400">
-                          These are the horse's previous performances
-                          at the distances shown, recorded when this
-                          race was assessed. Distances closer to
-                          today's race generally carry more weight
-                          in SmartPunt's assessment.
+                          Previous race results at each distance,
+                          limited to performances dated before
+                          this prediction. SmartPunt generally gives
+                          greater consideration to performances
+                          closer to today's race distance.
                         </p>
                       </div>
                     ) : evidence.source !== "none" ? (
