@@ -3959,11 +3959,13 @@ async function saveCalculatorPredictionsForRace(
     excludeScratched = false,
     saveClassificationSnapshot = false,
     skipPowerRatingWrite = false,
+    skipTipEvolutionWrite = false,
   }: {
     writeReason: CalculatorSnapshotWriteReason;
     excludeScratched?: boolean;
     saveClassificationSnapshot?: boolean;
     skipPowerRatingWrite?: boolean;
+    skipTipEvolutionWrite?: boolean;
   },
 ) {
   const supabase = await createClient();
@@ -4251,21 +4253,23 @@ const qualifiedTip = getQualifiedCalculatorTip(scoredRunners, {
     meetingForSnapshot?.meeting_date || null,
 });
 
-try {
-  await recordCalculatorTipEvolution({
-    raceId,
-    scoredRunners,
-    raceConfidence,
-    qualifiedTip,
-    changedAt: now,
-  });
-} catch (tipEvolutionError) {
-console.error(
-  "Calculator tip evolution recording failed:",
-  tipEvolutionError,
-);
+if (!skipTipEvolutionWrite) {
+  try {
+    await recordCalculatorTipEvolution({
+      raceId,
+      scoredRunners,
+      raceConfidence,
+      qualifiedTip,
+      changedAt: now,
+    });
+  } catch (tipEvolutionError) {
+    console.error(
+      "Calculator tip evolution recording failed:",
+      tipEvolutionError,
+    );
 
-throw tipEvolutionError;
+    throw tipEvolutionError;
+  }
 }
 
 if (saveClassificationSnapshot) {
