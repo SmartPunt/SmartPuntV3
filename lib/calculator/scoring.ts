@@ -1599,6 +1599,7 @@ function buildAuditSection({
   summary,
   details,
   decisionLog = [],
+  distanceBreakdown,
 }: {
   label: string;
   score: number;
@@ -1606,6 +1607,7 @@ function buildAuditSection({
   summary: string;
   details: string[];
   decisionLog?: string[];
+  distanceBreakdown?: DistanceFormBreakdown[];
 }): ScoreAuditSection {
   return {
     label,
@@ -1614,6 +1616,9 @@ function buildAuditSection({
     summary,
     details,
     decisionLog,
+    ...(distanceBreakdown !== undefined
+      ? { distanceBreakdown }
+      : {}),
   };
 }
 
@@ -2253,6 +2258,7 @@ const audit: RunnerScoringAudit = {
       label: "Distance",
       score: distance,
       fallbackUsed: distanceFallbackUsed,
+      distanceBreakdown: distanceFormBreakdown,
       summary:
         distanceEvidenceDecision.source === "stored"
           ? "Used provisional imported distance evidence. Five stars are unavailable without verified exact-distance form."
