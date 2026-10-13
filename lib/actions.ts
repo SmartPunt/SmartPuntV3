@@ -3960,12 +3960,14 @@ async function saveCalculatorPredictionsForRace(
     saveClassificationSnapshot = false,
     skipPowerRatingWrite = false,
     skipTipEvolutionWrite = false,
+    preserveExistingVersion = false,
   }: {
     writeReason: CalculatorSnapshotWriteReason;
     excludeScratched?: boolean;
     saveClassificationSnapshot?: boolean;
     skipPowerRatingWrite?: boolean;
     skipTipEvolutionWrite?: boolean;
+    preserveExistingVersion?: boolean;
   },
 ) {
   const supabase = await createClient();
@@ -4387,11 +4389,13 @@ function getSmartPuntTipType(runnerId: number) {
   }));
 
   try {
-    await serviceRoleDelete(
-      `calculator_predictions?race_id=eq.${raceId}&scoring_version=eq.${encodeURIComponent(
-        SMARTPUNT_SCORING_VERSION,
-      )}`,
-    );
+    if (!preserveExistingVersion) {
+      await serviceRoleDelete(
+        `calculator_predictions?race_id=eq.${raceId}&scoring_version=eq.${encodeURIComponent(
+          SMARTPUNT_SCORING_VERSION,
+        )}`,
+      );
+    }
 
     await serviceRoleFetch("calculator_predictions", {
       method: "POST",
