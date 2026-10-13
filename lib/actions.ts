@@ -3958,10 +3958,12 @@ async function saveCalculatorPredictionsForRace(
     writeReason,
     excludeScratched = false,
     saveClassificationSnapshot = false,
+    skipPowerRatingWrite = false,
   }: {
     writeReason: CalculatorSnapshotWriteReason;
     excludeScratched?: boolean;
     saveClassificationSnapshot?: boolean;
+    skipPowerRatingWrite?: boolean;
   },
 ) {
   const supabase = await createClient();
@@ -4404,15 +4406,17 @@ function getSmartPuntTipType(runnerId: number) {
     throw error;
   }
 
-  await serviceRoleDelete(`power_rating_predictions?race_id=eq.${raceId}`);
+  if (!skipPowerRatingWrite) {
+    await serviceRoleDelete(`power_rating_predictions?race_id=eq.${raceId}`);
 
-  await serviceRoleFetch("power_rating_predictions", {
-    method: "POST",
-    headers: {
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(powerRatingPayload),
-  });
+    await serviceRoleFetch("power_rating_predictions", {
+      method: "POST",
+      headers: {
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(powerRatingPayload),
+    });
+  }
 }
 export async function loadCalculatorReportResultsAction(
   formData: FormData,
