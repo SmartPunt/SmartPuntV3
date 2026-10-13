@@ -232,6 +232,7 @@ type CalculatorPrediction = {
   race_confidence_percent?: number | string | null;
   race_confidence_tier?: string | null;
   suggested_bet?: string | null;
+  audit_json?: unknown;
 };
 
 type OfficialTip = {
@@ -471,23 +472,87 @@ function getStarRating(score?: number | null) {
   return 0;
 }
 
-function ScoreStars({ score }: { score?: number | null }) {
+type RatingKey =
+  | "recentForm"
+  | "distance"
+  | "track"
+  | "condition"
+  | "jockey"
+  | "barrier";
+
+type RatingExplanation = {
+  horseName: string;
+  label: string;
+  key: RatingKey;
+  score: number;
+  section: {
+    summary?: string;
+    details?: string[];
+    decisionLog?: string[];
+  } | null;
+};
+
+const ratingMethodology: Record<RatingKey, string> = {
+  recentForm:
+    "Assesses the horse's recent performances and the quality of available form evidence.",
+  distance:
+    "Assesses suitability for today's distance using relevant historical distance performances.",
+  track:
+    "Assesses the horse's previous performances at this track.",
+  condition:
+    "Assesses performances on the relevant track surface and condition.",
+  jockey:
+    "Assesses the available jockey and horse-jockey performance evidence.",
+  barrier:
+    "Assesses the effective barrier in the context of today's field and race distance.",
+};
+
+function ScoreStars({
+  score,
+  onExplain,
+}: {
+  score?: number | null;
+  onExplain?: () => void;
+}) {
   const filled = getStarRating(score);
+
+  const stars = Array.from({ length: 5 }).map((_, index) => (
+    <span
+      key={index}
+      className={
+        index < filled ? "text-amber-300" : "text-zinc-700"
+      }
+    >
+      ★
+    </span>
+  ));
+
+  if (onExplain) {
+    return (
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onExplain();
+        }}
+        aria-label={`Explain ${filled} out of 5 stars`}
+        title="Tap to explain this rating"
+        className="inline-flex items-center gap-0.5 whitespace-nowrap rounded px-1 py-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300"
+      >
+        {stars}
+        <span className="ml-1 text-[10px] text-amber-200/70">
+          ⓘ
+        </span>
+      </button>
+    );
+  }
 
   return (
     <span
       aria-label={`${filled} out of 5 stars`}
-      title={`${roundScore(Number(score || 0))}/100`}
       className="inline-flex items-center gap-0.5 whitespace-nowrap"
     >
-      {Array.from({ length: 5 }).map((_, index) => (
-        <span
-          key={index}
-          className={index < filled ? "text-amber-300" : "text-zinc-700"}
-        >
-          ★
-        </span>
-      ))}
+      {stars}
     </span>
   );
 }
@@ -1122,7 +1187,7 @@ function buildSnapshotScoredRunners({
             ),
             powerAdjustment: 0,
           },
-          audit: undefined as any,
+audit: (prediction.audit_json ?? null) as any,
         },
       ];
     }) as ReturnType<
@@ -1166,6 +1231,36 @@ initialRaceId?: string;
 dayDates?: DayDates;
 }) {
 const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
+
+const [ratingExplanation, setRatingExplanation] =
+  useState<RatingExplanation | null>(null);
+
+function explainRating(
+  runner: any,
+  key: RatingKey,
+  label: string,
+) {
+  const audit = runner.audit;
+
+  const section =
+    audit &&
+    typeof audit === "object" &&
+    audit.sections &&
+    typeof audit.sections === "object"
+      ? audit.sections[key]
+      : null;
+
+  setRatingExplanation({
+    horseName: runner.horse_name,
+    label,
+    key,
+    score: Number(runner.components[key] ?? 0),
+    section:
+      section && typeof section === "object"
+        ? section
+        : null,
+  });
+}
   const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
   const [expandedOfficialTipComment, setExpandedOfficialTipComment] =
     useState(false);
@@ -4405,6 +4500,111 @@ const hasDayResults =
 
   return (
     <div className="min-h-screen bg-[#171107] px-3 py-5 text-white sm:px-5">
+      {ratingExplanation ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 px-4 py-6"
+          onClick={() => setRatingExplanation(null)}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${ratingExplanation.label} rating explanation`}
+            onClick={(event) => event.stopPropagation()}
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-amber-300/40 bg-[#171717] p-5 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold text-amber-200">
+                  {ratingExplanation.horseName}
+                </p>
+                <h2 className="mt-1 text-lg font-black text-white">
+                  {ratingExplanation.label}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setRatingExplanation(null)}
+                aria-label="Close rating explanation"
+                className="rounded-lg border border-white/20 px-3 py-1 text-sm text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
+              <ScoreStars score={ratingExplanation.score} />
+              <span className="text-sm font-bold text-zinc-200">
+                {roundScore(ratingExplanation.score)}/100
+              </span>
+            </div>
+
+            {ratingExplanation.section ? (
+              <>
+                {ratingExplanation.section.summary ? (
+                  <p className="mt-4 text-sm leading-6 text-zinc-100">
+                    {ratingExplanation.section.summary}
+                  </p>
+                ) : null}
+
+                {Array.isArray(ratingExplanation.section.details) &&
+                ratingExplanation.section.details.length > 0 ? (
+                  <ul className="mt-3 space-y-2 text-xs leading-5 text-zinc-300">
+                    {ratingExplanation.section.details
+                      .filter(
+                        (detail) => typeof detail === "string",
+                      )
+                      .slice(0, 6)
+                      .map((detail, index) => (
+                        <li key={index}>• {detail}</li>
+                      ))}
+                  </ul>
+                ) : null}
+
+                {Array.isArray(
+                  ratingExplanation.section.decisionLog,
+                ) &&
+                ratingExplanation.section.decisionLog.length > 0 ? (
+                  <div className="mt-4 border-t border-white/10 pt-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                      How SmartPunt assessed it
+                    </p>
+
+                    {ratingExplanation.section.decisionLog
+                      .filter(
+                        (entry) => typeof entry === "string",
+                      )
+                      .slice(0, 4)
+                      .map((entry, index) => (
+                        <p
+                          key={index}
+                          className="mt-2 text-xs leading-5 text-zinc-300"
+                        >
+                          {entry}
+                        </p>
+                      ))}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="mt-4 text-sm leading-6 text-zinc-200">
+                  {ratingMethodology[ratingExplanation.key]}
+                </p>
+
+                <p className="mt-3 text-xs leading-5 text-zinc-400">
+                  The original detailed scoring evidence is not
+                  available for this prediction. This describes
+                  the rating method, not a verified horse-specific
+                  reason.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-auto max-w-[430px]">
         <div className="sticky top-0 z-30 mb-3 rounded-[22px] border border-amber-300/40 bg-[#171107]/95 p-2 shadow-[0_18px_45px_rgba(0,0,0,0.6)] backdrop-blur-md">
           <div className="mb-2 flex items-center justify-between gap-3 px-1">
@@ -6864,8 +7064,9 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
                 </div>
 
                 <ScoreStars
-                  score={
-                    runner.components.recentForm
+                  score={runner.components.recentForm}
+                  onExplain={() =>
+                    explainRating(runner, "recentForm", "Recent Form")
                   }
                 />
               </div>
@@ -6878,8 +7079,9 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
                 </div>
 
                 <ScoreStars
-                  score={
-                    runner.components.distance
+                  score={runner.components.distance}
+                  onExplain={() =>
+                    explainRating(runner, "distance", "Distance")
                   }
                 />
               </div>
@@ -6892,8 +7094,9 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
                 </div>
 
                 <ScoreStars
-                  score={
-                    runner.components.track
+                  score={runner.components.track}
+                  onExplain={() =>
+                    explainRating(runner, "track", "Track")
                   }
                 />
               </div>
@@ -6906,8 +7109,9 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
                 </div>
 
                 <ScoreStars
-                  score={
-                    runner.components.condition
+                  score={runner.components.condition}
+                  onExplain={() =>
+                    explainRating(runner, "condition", "Conditions")
                   }
                 />
               </div>
@@ -6925,8 +7129,9 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
                 </div>
 
                 <ScoreStars
-                  score={
-                    runner.components.jockey
+                  score={runner.components.jockey}
+                  onExplain={() =>
+                    explainRating(runner, "jockey", "Jockey")
                   }
                 />
               </div>
@@ -6945,8 +7150,13 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
                 </div>
 
                 <ScoreStars
-                  score={
-                    runner.components.barrier
+                  score={runner.components.barrier}
+                  onExplain={() =>
+                    explainRating(
+                      runner,
+                      "barrier",
+                      "Effective Barrier",
+                    )
                   }
                 />
               </div>
@@ -7376,6 +7586,13 @@ return (
                               <td className="px-3 py-3 text-center">
                                 <ScoreStars
                                   score={runner.components.recentForm}
+                                  onExplain={() =>
+                                    explainRating(
+                                      runner,
+                                      "recentForm",
+                                      "Recent Form",
+                                    )
+                                  }
                                 />
                                 <p className="mt-1 text-[9px] font-semibold text-zinc-500">
                                   {roundScore(runner.components.recentForm)}
@@ -7384,13 +7601,29 @@ return (
                               <td className="px-3 py-3 text-center">
                                 <ScoreStars
                                   score={runner.components.distance}
+                                  onExplain={() =>
+                                    explainRating(
+                                      runner,
+                                      "distance",
+                                      "Distance",
+                                    )
+                                  }
                                 />
                                 <p className="mt-1 text-[9px] font-semibold text-zinc-500">
                                   {roundScore(runner.components.distance)}
                                 </p>
                               </td>
                               <td className="px-3 py-3 text-center">
-                                <ScoreStars score={runner.components.track} />
+                                <ScoreStars
+                                  score={runner.components.track}
+                                  onExplain={() =>
+                                    explainRating(
+                                      runner,
+                                      "track",
+                                      "Track",
+                                    )
+                                  }
+                                />
                                 <p className="mt-1 text-[9px] font-semibold text-zinc-500">
                                   {roundScore(runner.components.track)}
                                 </p>
@@ -7398,6 +7631,13 @@ return (
                               <td className="px-3 py-3 text-center">
                                 <ScoreStars
                                   score={runner.components.condition}
+                                  onExplain={() =>
+                                    explainRating(
+                                      runner,
+                                      "condition",
+                                      "Conditions",
+                                    )
+                                  }
                                 />
                                 <p className="mt-1 text-[9px] font-semibold text-zinc-500">
                                   {roundScore(runner.components.condition)}
