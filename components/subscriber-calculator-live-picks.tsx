@@ -489,9 +489,16 @@ type RatingExplanation = {
     summary?: string;
     details?: string[];
     decisionLog?: string[];
+    distanceBreakdown?: {
+      distanceM: number;
+      starts: number;
+      wins: number;
+      seconds: number;
+      thirds: number;
+      relevance: number;
+    }[];
   } | null;
 };
-
 type DistanceRatingEvidence = {
   distance: number | null;
   source: "race-history" | "distance-record" | "none";
@@ -4825,7 +4832,79 @@ const hasDayResults =
                       </p>
                     ) : null}
 
-                    {evidence.source !== "none" ? (
+                    {Array.isArray(
+                      ratingExplanation.section?.distanceBreakdown,
+                    ) &&
+                    ratingExplanation.section.distanceBreakdown.length > 0 ? (
+                      <div className="space-y-3">
+                        <p className="text-sm font-bold text-white">
+                          Previous distance performances
+                        </p>
+
+                        <div className="overflow-x-auto rounded-xl border border-white/10">
+                          <table className="w-full text-center text-xs">
+                            <thead className="bg-amber-300/10 text-amber-200">
+                              <tr>
+                                <th className="px-2 py-3 text-left">
+                                  Distance
+                                </th>
+                                <th className="px-2 py-3">Starts</th>
+                                <th className="px-2 py-3">1st</th>
+                                <th className="px-2 py-3">2nd</th>
+                                <th className="px-2 py-3">3rd</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {ratingExplanation.section.distanceBreakdown
+                                .filter(
+                                  (row) =>
+                                    Number.isFinite(row.distanceM) &&
+                                    row.distanceM > 0 &&
+                                    Number.isInteger(row.starts) &&
+                                    row.starts > 0 &&
+                                    [row.wins, row.seconds, row.thirds].every(
+                                      (value) =>
+                                        Number.isInteger(value) &&
+                                        value >= 0,
+                                    ) &&
+                                    row.wins + row.seconds + row.thirds <=
+                                      row.starts,
+                                )
+                                .map((row) => (
+                                  <tr
+                                    key={row.distanceM}
+                                    className="border-t border-white/10 text-zinc-200"
+                                  >
+                                    <td className="px-2 py-3 text-left font-bold text-white">
+                                      {row.distanceM}m
+                                    </td>
+                                    <td className="px-2 py-3">
+                                      {row.starts}
+                                    </td>
+                                    <td className="px-2 py-3">
+                                      {row.wins}
+                                    </td>
+                                    <td className="px-2 py-3">
+                                      {row.seconds}
+                                    </td>
+                                    <td className="px-2 py-3">
+                                      {row.thirds}
+                                    </td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <p className="text-xs leading-5 text-zinc-400">
+                          These are the horse's previous performances
+                          at the distances shown, recorded when this
+                          race was assessed. Distances closer to
+                          today's race generally carry more weight
+                          in SmartPunt's assessment.
+                        </p>
+                      </div>
+                    ) : evidence.source !== "none" ? (
                       <>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
