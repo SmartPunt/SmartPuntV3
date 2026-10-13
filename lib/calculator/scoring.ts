@@ -1,4 +1,4 @@
-export const SMARTPUNT_SCORING_VERSION = "v7.3";
+export const SMARTPUNT_SCORING_VERSION = "v7.4";
 
 export type Race = {
   id: number;
