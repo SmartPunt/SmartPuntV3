@@ -326,7 +326,59 @@ export function getDistanceBucket(distance?: number | null) {
   if (distance <= 2200) return "1801–2200m";
   return "2200m+";
 }
+// v7.4: Distance relevance is based on actual metres, not broad buckets.
+// The same difference matters more in a sprint than in a staying race.
+function getDistanceRelevance(
+  historicalDistance: number | null | undefined,
+  targetDistance: number | null | undefined,
+): number {
+  const historical = Number(historicalDistance);
+  const target = Number(targetDistance);
 
+  // Exclude missing, invalid and suspiciously short distances.
+  if (
+    !Number.isFinite(historical) ||
+    !Number.isFinite(target) ||
+    historical < 800 ||
+    target < 800
+  ) {
+    return 0;
+  }
+
+  const relativeDifference = Math.abs(historical - target) / target;
+
+  // Exact distance: full credit.
+  // Nearby distances: progressively discounted.
+  // Distances differing by 30% or more: no contribution.
+  return clamp(1 - relativeDifference / 0.3, 0, 1);
+}
+// v7.4: Smooth evidence cap for distance suitability.
+// Uses fractional effective runs so nearby-distance history
+// contributes without being rounded down to zero.
+// Other Calculator components retain the original evidenceCap().
+function distanceEvidenceCap(
+  score: number,
+  effectiveRuns: number,
+): number {
+  if (!Number.isFinite(effectiveRuns) || effectiveRuns <= 0) {
+    return 50;
+  }
+
+  // Gradually increase the maximum available score
+  // as relevant historical evidence accumulates.
+  const maximumScore =
+    effectiveRuns <= 1
+      ? 50 + effectiveRuns * 10
+      : effectiveRuns <= 2
+        ? 60 + (effectiveRuns - 1) * 12
+        : Math.min(95, 72 + (effectiveRuns - 2) * 23);
+
+  return clamp(
+    Math.round(score),
+    25,
+    Math.round(maximumScore),
+  );
+}
 function parseMeetingDate(value?: string | null) {
   if (!value) return 0;
   const time = new Date(value).getTime();
@@ -696,51 +748,89 @@ function scoreDistanceSuitability(
   currentDistance: number | null | undefined,
   importedRecord?: string | null,
 ) {
-  if (!currentDistance) return 50;
+  if (!currentDistance || currentDistance < 800) return 50;
 
-  const targetBucket = getDistanceBucket(currentDistance);
+  const relevantRuns = historyRuns
+    .map((run) => ({
+      run,
+      relevance: getDistanceRelevance(
+        run.race?.distance_m,
+        currentDistance,
+      ),
+    }))
+    .filter(
+      ({ run, relevance }) =>
+        relevance > 0 &&
+        run.finishing_position !== null &&
+        run.finishing_position !== undefined &&
+        Number(run.finishing_position) > 0,
+    );
 
-  const matchingRuns = historyRuns.filter(
-    (run) => getDistanceBucket(run.race?.distance_m) === targetBucket,
+  const exactRuns = relevantRuns.filter(
+    ({ run }) => Number(run.race?.distance_m) === currentDistance,
   );
 
-  const importedStats = parseImportedStatRecord(importedRecord);
+  const totalWeight = relevantRuns.reduce(
+    (sum, item) => sum + item.relevance,
+    0,
+  );
 
-  const evidenceDecision = chooseEvidence({
-    smartPuntRuns: matchingRuns.length,
-    storedRuns: importedStats.runs,
-  });
+  if (totalWeight <= 0) {
+    // Imported distance records do not identify exact metres.
+    // They can support a provisional rating, but cannot verify 5 stars.
+    const importedStats = parseImportedStatRecord(importedRecord);
 
-  if (evidenceDecision.source === "stored") {
-    return scoreImportedStatRecord(importedRecord);
-  }
+    if (importedStats.runs > 0) {
+      return Math.min(84, scoreImportedStatRecord(importedRecord));
+    }
 
-  if (evidenceDecision.source === "none") {
     return 50;
   }
 
-  const places = matchingRuns.filter((run) => {
-    const position = run.finishing_position;
+  const weightedPlaces = relevantRuns.reduce(
+    (sum, { run, relevance }) =>
+      sum +
+      (Number(run.finishing_position) <= 3 ? relevance : 0),
+    0,
+  );
 
-    return (
-      position !== null &&
-      position !== undefined &&
-      position <= 3
-    );
-  }).length;
+  const weightedWins = relevantRuns.reduce(
+    (sum, { run, relevance }) =>
+      sum +
+      (Number(run.finishing_position) === 1 ? relevance : 0),
+    0,
+  );
 
-  const wins = matchingRuns.filter(
-    (run) => run.finishing_position === 1,
-  ).length;
-
-  const placeRate = places / matchingRuns.length;
-  const winRate = wins / matchingRuns.length;
+  const placeRate = weightedPlaces / totalWeight;
+  const winRate = weightedWins / totalWeight;
 
   const rawScore = Math.round(
     40 + placeRate * 35 + winRate * 20,
   );
 
-  return evidenceCap(rawScore, matchingRuns.length);
+  // v7.4: Apply a smooth distance-specific evidence cap.
+  // Fractional nearby-distance evidence must not disappear.
+  const score = distanceEvidenceCap(
+    rawScore,
+    totalWeight,
+  );
+
+  // Five stars require strong, verified exact-distance results.
+  const exactPlaces = exactRuns.filter(
+    ({ run }) => Number(run.finishing_position) <= 3,
+  ).length;
+
+  const exactWins = exactRuns.filter(
+    ({ run }) => Number(run.finishing_position) === 1,
+  ).length;
+
+  const verifiedExactForm =
+    exactRuns.length >= 3 &&
+    (exactWins >= 1 || exactPlaces >= 2);
+
+  return verifiedExactForm
+    ? score
+    : Math.min(score, 84);
 }
 function scoreTrackSuitability(
   historyRuns: HistoryRun[],
@@ -1433,10 +1523,19 @@ function buildAllHistoryRuns(
         return true;
       }
 
-      return (
-        String(run.meeting?.meeting_date || "") !==
-        String(excludeMeetingDate)
-      );
+      const targetDate = String(excludeMeetingDate).slice(0, 10);
+      const historyDate = String(
+        run.meeting?.meeting_date || "",
+      ).slice(0, 10);
+
+      // Only completed races from strictly earlier dates
+      // may contribute to the current race calculation.
+      // Same-day, future-dated and undated history is excluded.
+      if (!historyDate) {
+        return false;
+      }
+
+      return historyDate < targetDate;
     })
     .sort(sortHistoryRuns);
 }
@@ -1719,9 +1818,30 @@ powerRankedField.forEach((item, index) => {
       ) || [];
 
 const recentHistoryRunCount = historyRuns.length;
-const distanceBucket = getDistanceBucket(activeRace.distance_m);
+// v7.4: Identify distance evidence using actual race metres.
+// The shared legacy bucket helper remains unchanged for other features.
 const distanceHistoryRuns = historyRuns.filter(
-  (run) => getDistanceBucket(run.race?.distance_m) === distanceBucket,
+  (run) =>
+    Number(run.finishing_position) > 0 &&
+    getDistanceRelevance(
+      run.race?.distance_m,
+      activeRace.distance_m,
+    ) > 0,
+);
+
+const exactDistanceHistoryRuns = distanceHistoryRuns.filter(
+  (run) =>
+    Number(run.race?.distance_m) === Number(activeRace.distance_m),
+);
+
+const distanceEffectiveRuns = distanceHistoryRuns.reduce(
+  (total, run) =>
+    total +
+    getDistanceRelevance(
+      run.race?.distance_m,
+      activeRace.distance_m,
+    ),
+  0,
 );
 const trackHistoryRuns = historyRuns.filter(
   (run) => run.meeting?.meeting_name === raceMeeting?.meeting_name,
@@ -1907,10 +2027,26 @@ const importedConditionScore = scoreImportedStatRecord(
   conditionRecord,
 );
 
-const distanceEvidenceDecision = chooseEvidence({
+// v7.4: Distance evidence must reflect the source actually used
+// by scoreDistanceSuitability(), not the legacy bucket comparison.
+const distanceEvidenceDecision = {
+  source:
+    distanceEffectiveRuns > 0
+      ? "smartpunt"
+      : importedDistanceStats.runs > 0
+        ? "stored"
+        : "none",
+
   smartPuntRuns: distanceHistoryRuns.length,
   storedRuns: importedDistanceStats.runs,
-});
+
+  reason:
+    distanceEffectiveRuns > 0
+      ? `Used ${distanceHistoryRuns.length} relevant historical runs, including ${exactDistanceHistoryRuns.length} at the exact race distance. Effective weighted evidence: ${distanceEffectiveRuns.toFixed(2)} runs.`
+      : importedDistanceStats.runs > 0
+        ? "No relevant individual race history was available. Used the imported distance record as provisional evidence, capped below five stars."
+        : "No relevant individual race history or imported distance evidence was available. Neutral score applied.",
+};
 
 const trackEvidenceDecision = chooseEvidence({
   smartPuntRuns: trackHistoryRuns.length,
@@ -1944,9 +2080,9 @@ const auditDecisionLog = [
     ? "Recent form used imported form fallback because SmartPunt history sample was below 3 runs."
     : `Recent form used ${recentHistoryRunCount} SmartPunt historical run${recentHistoryRunCount === 1 ? "" : "s"}.`,
 distanceEvidenceDecision.source === "stored"
-  ? `Distance selected the stored record: ${distanceEvidenceDecision.storedRuns} stored runs versus ${distanceEvidenceDecision.smartPuntRuns} SmartPunt runs. ${distanceEvidenceDecision.reason}`
+  ? `Distance used provisional imported evidence because no relevant individual race history was available. ${distanceEvidenceDecision.reason}`
   : distanceEvidenceDecision.source === "smartpunt"
-    ? `Distance selected SmartPunt history: ${distanceEvidenceDecision.smartPuntRuns} SmartPunt runs versus ${distanceEvidenceDecision.storedRuns} stored runs. ${distanceEvidenceDecision.reason}`
+    ? `Distance used exact and nearby-distance race history. ${distanceEvidenceDecision.reason}`
     : "Distance had no usable evidence. Neutral score applied.",
 
 trackEvidenceDecision.source === "stored"
@@ -2053,22 +2189,26 @@ const audit: RunnerScoringAudit = {
       fallbackUsed: distanceFallbackUsed,
       summary:
         distanceEvidenceDecision.source === "stored"
-          ? "Stored distance evidence was selected by the SmartPunt Evidence Engine."
+          ? "Used provisional imported distance evidence. Five stars are unavailable without verified exact-distance form."
           : distanceEvidenceDecision.source === "smartpunt"
-            ? `SmartPunt exact ${distanceBucket} distance history was selected by the SmartPunt Evidence Engine.`
-            : `No usable ${distanceBucket} distance evidence was available. Neutral score applied.`,
+            ? `Assessed suitability for ${activeRace.distance_m}m using exact and nearby-distance race history.`
+            : "No usable distance evidence was available. Neutral score applied.",
       details: [
         `Score: ${formatAuditScore(distance)}`,
-        `Race distance: ${activeRace.distance_m || "Unknown"}m`,
-        `Bucket: ${distanceBucket}`,
-        `SmartPunt exact bucket history: ${distanceStats.runs} runs, ${distanceStats.wins} wins, ${distanceStats.places} places (${distanceStats.placeRate}% place rate)`,
-        `Stored runner distance record: ${runner.distance_form_last_6 || "Not supplied"}`,
-        `Stored distance score: ${formatAuditScore(importedDistanceScore)}`,
+        `Today's race distance: ${activeRace.distance_m || "Unknown"}m`,
+        `Relevant historical runs: ${distanceHistoryRuns.length}`,
+        `Exact-distance historical runs: ${exactDistanceHistoryRuns.length}`,
+        `Effective weighted historical runs: ${distanceEffectiveRuns.toFixed(2)}`,
+        `Relevant history results: ${distanceStats.wins} wins and ${distanceStats.places} top-three finishes from ${distanceStats.runs} runs`,
+        `Nearby-distance performances receive reduced relevance according to their distance difference.`,
+        `Five-star eligibility requires at least three exact-distance starts and either one win or two top-three finishes.`,
+        `Imported distance record: ${runner.distance_form_last_6 || "Not supplied"}`,
+        `Imported distance score: ${formatAuditScore(importedDistanceScore)}`,
         `Selected source: ${
           distanceEvidenceDecision.source === "stored"
-            ? "Stored record"
+            ? "Provisional imported record"
             : distanceEvidenceDecision.source === "smartpunt"
-              ? "SmartPunt history"
+              ? "Individual race history"
               : "None"
         }`,
       ],
