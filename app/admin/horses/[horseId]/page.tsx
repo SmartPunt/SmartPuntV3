@@ -136,13 +136,16 @@ function getConditionBucket(condition?: string | null) {
 }
 
 function getDistanceBucket(distance?: number | null) {
-  if (!distance) return "Unknown";
+  if (distance === null || distance === undefined || !Number.isFinite(distance)) {
+    return "Unknown";
+  }
 
-  if (distance <= 1200) return "1000–1200m";
-  if (distance <= 1400) return "1201–1400m";
-  if (distance <= 1600) return "1401–1600m";
-  if (distance <= 1800) return "1601–1800m";
-  if (distance <= 2200) return "1801–2200m";
+  if (distance < 1000) return "Under 1000m";
+  if (distance < 1200) return "1000–1199m";
+  if (distance < 1400) return "1200–1399m";
+  if (distance < 1600) return "1400–1599m";
+  if (distance < 1800) return "1600–1799m";
+  if (distance < 2200) return "1800–2199m";
   return "2200m+";
 }
 
