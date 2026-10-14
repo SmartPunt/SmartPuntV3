@@ -479,12 +479,21 @@ type RatingKey =
   | "condition"
   | "jockey"
   | "barrier";
-
+type RecentFormRun = {
+  date: string;
+  distanceM: number | null;
+  track: string;
+  going: string;
+  jockey: string;
+  finish: number;
+};
 type RatingExplanation = {
   horseName: string;
   label: string;
   key: RatingKey;
   score: number;
+  formFigures?: string | null;
+  recentRuns?: RecentFormRun[];
   section: {
     summary?: string;
     details?: string[];
@@ -1622,7 +1631,89 @@ const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
 
 const [ratingExplanation, setRatingExplanation] =
   useState<RatingExplanation | null>(null);
+function getRecentFormHistory({
+  horseId,
+  currentRaceId,
+  predictionDate,
+  raceDate,
+  runners,
+  races,
+  meetings,
+}: {
+  horseId: number;
+  currentRaceId: number;
+  predictionDate: string;
+  raceDate: string;
+  runners: Runner[];
+  races: Race[];
+  meetings: Meeting[];
+}): RecentFormRun[] {
+  const predictedAt = new Date(predictionDate);
 
+  if (!Number.isFinite(predictedAt.getTime())) {
+    return [];
+  }
+
+  const predictionDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(predictedAt);
+
+  const cutoffDate =
+    predictionDay < raceDate.slice(0, 10)
+      ? predictionDay
+      : raceDate.slice(0, 10);
+
+  const racesById = new Map(
+    races.map((race) => [Number(race.id), race]),
+  );
+
+  const meetingsById = new Map(
+    meetings.map((meeting) => [Number(meeting.id), meeting]),
+  );
+
+  return runners
+    .filter(
+      (runner) =>
+        Number(runner.horse_id) === horseId &&
+        Number(runner.race_id) !== currentRaceId &&
+        runner.finishing_position != null &&
+        Number.isInteger(Number(runner.finishing_position)) &&
+        Number(runner.finishing_position) > 0,
+    )
+    .flatMap((runner) => {
+      const race = racesById.get(Number(runner.race_id));
+      if (!race) return [];
+
+      const meeting = meetingsById.get(Number(race.meeting_id));
+      const date = String(meeting?.meeting_date ?? "").slice(0, 10);
+
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        date >= cutoffDate
+      ) {
+        return [];
+      }
+
+      const distance = Number(race.distance_m);
+
+      return [{
+        date,
+        distanceM:
+          Number.isInteger(distance) && distance > 0
+            ? distance
+            : null,
+        track: String(meeting?.meeting_name || "—"),
+        going: String(meeting?.track_condition || "—"),
+        jockey: String(runner.jockey_name || "—"),
+        finish: Number(runner.finishing_position),
+      }];
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
+}
 function explainRating(
   runner: any,
   key: RatingKey,
@@ -1689,11 +1780,49 @@ function explainRating(
     }
   }
 
+  let recentRuns: RecentFormRun[] = [];
+  let formFigures: string | null = null;
+
+  if (key === "recentForm") {
+    const prediction = calculatorPredictions.find(
+      (item) =>
+        Number(item.runner_id) === Number(runner.id) &&
+        Number(item.race_id) === Number(runner.race_id),
+    );
+
+    const race = races.find(
+      (item) => Number(item.id) === Number(runner.race_id),
+    );
+
+    const meeting = meetings.find(
+      (item) => Number(item.id) === Number(race?.meeting_id),
+    );
+
+    formFigures =
+      typeof runner.form_last_6 === "string"
+        ? runner.form_last_6.trim()
+        : null;
+
+    if (prediction?.predicted_at && meeting?.meeting_date) {
+      recentRuns = getRecentFormHistory({
+        horseId: Number(runner.horse_id),
+        currentRaceId: Number(runner.race_id),
+        predictionDate: prediction.predicted_at,
+        raceDate: meeting.meeting_date,
+        runners,
+        races,
+        meetings,
+      });
+    }
+  }
+
   setRatingExplanation({
     horseName: runner.horse_name,
     label,
     key,
     score: Number(runner.components[key] ?? 0),
+    formFigures,
+    recentRuns,
     section: explanationSection,
   });
 }
@@ -5134,6 +5263,137 @@ const hasDayResults =
                         )}
                       </p>
                     </div>
+                  </div>
+                );
+              })()
+            ) : ratingExplanation.key === "recentForm" ? (
+              (() => {
+                const runs = ratingExplanation.recentRuns ?? [];
+                const wins = runs.filter(
+                  (run) => run.finish === 1,
+                ).length;
+                const topThree = runs.filter(
+                  (run) => run.finish <= 3,
+                ).length;
+
+                return (
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                        Traditional form
+                      </p>
+
+                      <p className="mt-2 text-2xl font-black tracking-[0.15em] text-white">
+                        {ratingExplanation.formFigures || "Not available"}
+                      </p>
+
+                      <p className="mt-1 text-[11px] text-zinc-400">
+                        As shown in the horse's form record
+                      </p>
+                    </div>
+
+                    {runs.length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { label: "Recent runs", value: runs.length },
+                            { label: "Wins", value: wins },
+                            { label: "Top three", value: topThree },
+                          ].map((stat) => (
+                            <div
+                              key={stat.label}
+                              className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-center"
+                            >
+                              <p className="text-xl font-black text-white">
+                                {stat.value}
+                              </p>
+                              <p className="mt-1 text-[10px] text-zinc-400">
+                                {stat.label}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-sm font-bold text-white">
+                            Last {runs.length} runs
+                          </p>
+
+                          <div className="overflow-x-auto rounded-xl border border-white/10">
+                            <table className="min-w-[440px] w-full text-left text-xs">
+                              <thead className="bg-amber-300/10 text-amber-200">
+                                <tr>
+                                  <th className="px-2 py-3">Finish</th>
+                                  <th className="px-2 py-3">Distance</th>
+                                  <th className="px-2 py-3">Track</th>
+                                  <th className="px-2 py-3">Going</th>
+                                  <th className="px-2 py-3">Jockey</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {runs.map((run, index) => (
+                                  <tr
+                                    key={`${run.date}-${index}`}
+                                    className="border-t border-white/10 text-zinc-200"
+                                  >
+                                    <td className={`px-2 py-3 font-bold ${
+                                      run.finish === 1
+                                        ? "text-emerald-300"
+                                        : "text-white"
+                                    }`}>
+                                      {run.finish}
+                                    </td>
+                                    <td className="px-2 py-3">
+                                      {run.distanceM != null
+                                        ? `${run.distanceM}m`
+                                        : "—"}
+                                    </td>
+                                    <td className="px-2 py-3">
+                                      {run.track}
+                                    </td>
+                                    <td className="px-2 py-3">
+                                      {run.going}
+                                    </td>
+                                    <td className="px-2 py-3">
+                                      {run.jockey}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <p className="mt-2 text-[11px] text-zinc-400">
+                            Most recent first. Swipe sideways to view
+                            all race details.
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                            SmartPunt assessment
+                          </p>
+
+                          <p className="mt-2 text-sm leading-6 text-zinc-100">
+                            {wins} {wins === 1 ? "win" : "wins"} and{" "}
+                            {topThree} top-three{" "}
+                            {topThree === 1 ? "finish" : "finishes"} from
+                            the {runs.length} previous{" "}
+                            {runs.length === 1 ? "run" : "runs"} shown.
+                            SmartPunt places greater emphasis on
+                            more recent performances when assessing
+                            current form.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm leading-6 text-zinc-300">
+                        Individual previous race results are not
+                        available for this assessment. The form
+                        figures above may still provide useful
+                        context.
+                      </p>
+                    )}
                   </div>
                 );
               })()
