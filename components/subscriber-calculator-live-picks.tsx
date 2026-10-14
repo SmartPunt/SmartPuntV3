@@ -10775,41 +10775,20 @@ return (
             </div>
           ) : null}
 
+
           <button
             type="button"
-            onClick={() =>
-              setShowRacePlan(true)
-            }
-            className="fixed bottom-5 left-1/2 z-[70] flex w-[calc(100%-32px)] max-w-sm -translate-x-1/2 items-center justify-between rounded-[18px] border border-amber-300/50 bg-[linear-gradient(135deg,rgba(5,7,12,0.98),rgba(28,21,8,0.98))] px-4 py-3 shadow-[0_16px_45px_rgba(0,0,0,0.65)] backdrop-blur-xl"
+            onClick={() => setShowRacePlan(true)}
+            aria-label={`Open My Race Plan, ${selectedRacePlanItems.length} selections`}
+            className="fixed bottom-[max(20px,env(safe-area-inset-bottom))] right-4 z-[70] flex items-center gap-2 rounded-full border border-amber-300/60 bg-[linear-gradient(135deg,#11100c,#241b0b)] px-3 py-2.5 text-amber-100 shadow-[0_8px_28px_rgba(0,0,0,0.65)] transition-colors hover:border-amber-200"
           >
-            <div className="text-left">
-              <p className="text-[8px] font-black uppercase tracking-[0.18em] text-amber-300">
-                My Race Plan
-              </p>
+            <span className="text-[10px] font-black uppercase tracking-[0.08em]">
+              My Race Plan
+            </span>
 
-              <p className="mt-0.5 text-[11px] font-black text-white">
-                {
-                  selectedRacePlanItems.length
-                }{" "}
-                selection
-                {selectedRacePlanItems.length ===
-                1
-                  ? ""
-                  : "s"}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="flex h-8 min-w-8 items-center justify-center rounded-full border border-amber-300/40 bg-amber-400/10 px-2 text-[11px] font-black text-amber-200">
-                {
-                  selectedRacePlanItems.length
-                }
-              </span>
-
-              <span className="text-[9px] font-black uppercase tracking-[0.12em] text-amber-100">
-                View
-              </span>
-            </div>
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full border border-amber-300/40 bg-amber-400/15 px-1.5 text-[10px] font-black text-amber-200">
+              {selectedRacePlanItems.length}
+            </span>
           </button>
 
           {showRacePlan ? (
