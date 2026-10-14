@@ -1351,7 +1351,7 @@ if (includeWatchSuggestions) {
       ),
     );
 
-    historicalWatchSuggestions =
+    const qualifyingWatchRecords =
       recentWatchRecords.flatMap(
         (watch: any) => {
           const race = closedRaceMap.get(
@@ -1377,8 +1377,98 @@ if (includeWatchSuggestions) {
               finishing_position:
                 runner.finishing_position,
               race_status: race.status,
+              historical_meeting_id:
+                race.meeting_id,
+              historical_horse_id:
+                runner.horse_id,
             },
           ];
+        },
+      );
+
+    const requiredHistoricalMeetingIds =
+      uniqueNumbers(
+        qualifyingWatchRecords.map(
+          (watch: any) =>
+            watch.historical_meeting_id,
+        ),
+      );
+
+    const requiredHistoricalHorseIds =
+      uniqueNumbers(
+        qualifyingWatchRecords.map(
+          (watch: any) =>
+            watch.historical_horse_id,
+        ),
+      );
+
+    const [
+      historicalMeetings,
+      historicalHorses,
+    ] = await Promise.all([
+      requiredHistoricalMeetingIds.length
+        ? fetchRowsByIds<any>({
+            supabase,
+            table: "meetings",
+            ids: requiredHistoricalMeetingIds,
+          })
+        : Promise.resolve([]),
+      requiredHistoricalHorseIds.length
+        ? fetchRowsByIds<any>({
+            supabase,
+            table: "horses",
+            ids: requiredHistoricalHorseIds,
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const historicalMeetingMap = new Map(
+      historicalMeetings.map(
+        (meeting: any) => [
+          Number(meeting.id),
+          meeting,
+        ],
+      ),
+    );
+
+    const historicalHorseMap = new Map(
+      historicalHorses.map(
+        (horse: any) => [
+          Number(horse.id),
+          horse,
+        ],
+      ),
+    );
+
+    historicalWatchSuggestions =
+      qualifyingWatchRecords.map(
+        (watch: any) => {
+          const meeting =
+            historicalMeetingMap.get(
+              Number(
+                watch.historical_meeting_id,
+              ),
+            );
+
+          const horse =
+            historicalHorseMap.get(
+              Number(
+                watch.historical_horse_id,
+              ),
+            );
+
+          return {
+            ...watch,
+            horse_name:
+              horse?.horse_name ??
+              "Unknown horse",
+            meeting_name:
+              meeting?.meeting_name ??
+              "Unknown meeting",
+            meeting_date:
+              meeting?.meeting_date ??
+              null,
+          };
         },
       );
   }
