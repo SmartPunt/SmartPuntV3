@@ -5272,9 +5272,9 @@ const hasDayResults =
                 const wins = runs.filter(
                   (run) => run.finish === 1,
                 ).length;
-                const topThree = runs.filter(
-                  (run) => run.finish <= 3,
-                ).length;
+const placings = runs.filter(
+  (run) => run.finish === 2 || run.finish === 3,
+).length;
 
                 return (
                   <div className="mt-4 space-y-4">
@@ -5298,7 +5298,7 @@ const hasDayResults =
                           {[
                             { label: "Recent runs", value: runs.length },
                             { label: "Wins", value: wins },
-                            { label: "Top three", value: topThree },
+{ label: "Placings", value: placings },
                           ].map((stat) => (
                             <div
                               key={stat.label}
@@ -5376,8 +5376,8 @@ const hasDayResults =
 
                           <p className="mt-2 text-sm leading-6 text-zinc-100">
                             {wins} {wins === 1 ? "win" : "wins"} and{" "}
-                            {topThree} top-three{" "}
-                            {topThree === 1 ? "finish" : "finishes"} from
+{placings} additional{" "}
+{placings === 1 ? "placing" : "placings"} from
                             the {runs.length} previous{" "}
                             {runs.length === 1 ? "run" : "runs"} shown.
                             SmartPunt places greater emphasis on
