@@ -508,6 +508,14 @@ type JockeyRatingEvidence = {
   widerRecordSource: "profile" | "history" | null;
   ratingBasis: "combination" | "broader" | "limited";
 };
+type BarrierRatingEvidence = {
+  originalBarrier: number | null;
+  effectiveBarrier: number | null;
+  scratchingsInside: number;
+  remainingRunners: number;
+  distanceM: number | null;
+  isFlemington: boolean;
+};
 type RatingExplanation = {
   horseName: string;
   label: string;
@@ -520,6 +528,7 @@ type RatingExplanation = {
   todayGoing?: string;
   conditionRuns?: ConditionHistoryRow[];
   jockeyEvidence?: JockeyRatingEvidence;
+  barrierEvidence?: BarrierRatingEvidence;
   section: {
     summary?: string;
     details?: string[];
@@ -2337,7 +2346,69 @@ function explainRating(
       jockeyProfiles,
     });
   }
+  let barrierEvidence: BarrierRatingEvidence | undefined;
 
+  if (key === "barrier") {
+    const race = races.find(
+      (item) => Number(item.id) === Number(runner.race_id),
+    );
+
+    const meeting = meetings.find(
+      (item) => Number(item.id) === Number(race?.meeting_id),
+    );
+
+    const raceRunners = runners.filter(
+      (item) => Number(item.race_id) === Number(runner.race_id),
+    );
+
+    const originalValue = Number(runner.barrier);
+
+    const originalBarrier =
+      runner.barrier != null &&
+      Number.isInteger(originalValue) &&
+      originalValue > 0
+        ? originalValue
+        : null;
+
+    const scratchingsInside =
+      originalBarrier === null
+        ? 0
+        : raceRunners.filter((item) => {
+            const barrier = Number(item.barrier);
+
+            return (
+              item.scratched === true &&
+              item.barrier != null &&
+              Number.isInteger(barrier) &&
+              barrier > 0 &&
+              barrier < originalBarrier
+            );
+          }).length;
+
+    const effectiveBarrier =
+      originalBarrier === null
+        ? null
+        : Math.max(1, originalBarrier - scratchingsInside);
+
+    const distance = Number(race?.distance_m);
+
+    barrierEvidence = {
+      originalBarrier,
+      effectiveBarrier,
+      scratchingsInside,
+      remainingRunners: raceRunners.filter(
+        (item) => item.scratched !== true,
+      ).length,
+      distanceM:
+        Number.isFinite(distance) && distance > 0
+          ? distance
+          : null,
+      isFlemington:
+        String(meeting?.meeting_name ?? "")
+          .trim()
+          .toLowerCase() === "flemington",
+    };
+  }
   setRatingExplanation({
     horseName: runner.horse_name,
     label,
@@ -2350,6 +2421,7 @@ function explainRating(
     todayGoing,
     conditionRuns,
     jockeyEvidence,
+    barrierEvidence,
     section: explanationSection,
   });
 }
@@ -6367,6 +6439,168 @@ const placings = runs.filter(
                             : "Limited jockey evidence is available. SmartPunt applies a neutral assessment when there is insufficient information."}
                       </p>
                     </div>
+                  </div>
+                );
+              })()
+            ) : ratingExplanation.key === "barrier" ? (
+              (() => {
+                const evidence = ratingExplanation.barrierEvidence;
+
+                if (
+                  !evidence ||
+                  evidence.originalBarrier === null ||
+                  evidence.effectiveBarrier === null
+                ) {
+                  return (
+                    <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-4">
+                      <p className="text-sm leading-6 text-zinc-200">
+                        Detailed barrier information is not available
+                        for this runner.
+                      </p>
+                    </div>
+                  );
+                }
+
+                const {
+                  originalBarrier,
+                  effectiveBarrier,
+                  scratchingsInside,
+                  remainingRunners,
+                  distanceM,
+                  isFlemington,
+                } = evidence;
+
+                const barrierGroup =
+                  effectiveBarrier <= 4
+                    ? "Inside draw (1–4)"
+                    : effectiveBarrier <= 8
+                      ? "Middle draw (5–8)"
+                      : effectiveBarrier <= 12
+                        ? "Outside draw (9–12)"
+                        : "Wide draw (13+)";
+
+                const distanceGroup =
+                  distanceM === null
+                    ? "Distance unavailable"
+                    : distanceM <= 1200
+                      ? "Sprint — up to 1200m"
+                      : distanceM <= 1400
+                        ? "1201–1400m"
+                        : "Over 1400m";
+
+                return (
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4">
+                      <p className="text-center text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                        Current effective barrier
+                      </p>
+
+                      <p className="mt-2 text-center text-4xl font-black text-white">
+                        {effectiveBarrier}
+                      </p>
+
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        {[
+                          {
+                            label: "Original draw",
+                            value: originalBarrier,
+                          },
+                          {
+                            label: "Inside scratchings",
+                            value: scratchingsInside,
+                          },
+                          {
+                            label: "Effective draw",
+                            value: effectiveBarrier,
+                          },
+                        ].map((item) => (
+                          <div
+                            key={item.label}
+                            className="rounded-lg border border-white/10 bg-black/20 p-2 text-center"
+                          >
+                            <p className="text-xl font-black text-white">
+                              {item.value}
+                            </p>
+                            <p className="mt-1 text-[10px] leading-4 text-zinc-400">
+                              {item.label}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                      <p className="mb-3 text-sm font-bold text-white">
+                        Today's race
+                      </p>
+
+                      <div className="space-y-2 text-xs">
+                        {[
+                          {
+                            label: "Distance",
+                            value:
+                              distanceM === null
+                                ? "Unavailable"
+                                : `${distanceM}m`,
+                          },
+                          {
+                            label: "Distance category",
+                            value: distanceGroup,
+                          },
+                          {
+                            label: "Remaining runners",
+                            value: String(remainingRunners),
+                          },
+                          {
+                            label: "Barrier position",
+                            value: barrierGroup,
+                          },
+                        ].map((item) => (
+                          <div
+                            key={item.label}
+                            className="flex items-center justify-between gap-3 border-b border-white/10 pb-2 last:border-0 last:pb-0"
+                          >
+                            <span className="text-zinc-400">
+                              {item.label}
+                            </span>
+                            <span className="text-right font-semibold text-white">
+                              {item.value}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                        SmartPunt assessment
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-zinc-100">
+                        {scratchingsInside > 0
+                          ? `${scratchingsInside} ${scratchingsInside === 1 ? "scratching" : "scratchings"} inside this horse's original barrier ${originalBarrier} ${scratchingsInside === 1 ? "has" : "have"} improved its current effective starting position to barrier ${effectiveBarrier}. `
+                          : `This horse currently retains its original barrier ${originalBarrier}. `}
+
+                        {isFlemington
+                          ? "SmartPunt applies a separate barrier assessment at Flemington, reflecting the different characteristics of the venue."
+                          : effectiveBarrier <= 4
+                            ? "An inside draw is generally treated favourably by SmartPunt, particularly in shorter races."
+                            : effectiveBarrier <= 8
+                              ? "A middle draw offers a relatively balanced starting position under SmartPunt's barrier assessment."
+                              : distanceM !== null &&
+                                  distanceM <= 1200
+                                ? "A wider draw can present an additional challenge in sprint races. SmartPunt also considers field size when assessing this risk."
+                                : "A wider draw is assessed in the context of race distance, with its impact generally less severe over longer distances."}
+                      </p>
+                    </div>
+
+                    <p className="text-[11px] leading-5 text-zinc-400">
+                      The barrier figures above reflect the currently
+                      available race information. The star rating is
+                      the saved SmartPunt assessment and may reflect
+                      the draw and scratchings recorded when that
+                      prediction was calculated.
+                    </p>
                   </div>
                 );
               })()
