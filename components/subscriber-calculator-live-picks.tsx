@@ -6849,30 +6849,32 @@ const placings = runs.filter(
       <div className="mx-auto max-w-[430px]">
         <div className="sticky top-0 z-30 mb-3 rounded-[22px] border border-amber-300/40 bg-[#171107]/95 p-2 shadow-[0_18px_45px_rgba(0,0,0,0.6)] backdrop-blur-md">
           <div className="mb-2 flex items-center justify-between gap-3 px-1">
-            <div>
-              <h1 className="text-sm font-black leading-tight text-white">
-                SmartPunt Calculator Live Picks
-              </h1>
-              <button
-                type="button"
-                onClick={() => setShowBestOpportunities((value) => !value)}
-                className="mt-1 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-500/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-amber-300 transition hover:bg-amber-500/20 hover:text-amber-200"
-                aria-expanded={showBestOpportunities}
-              >
-                <span>Best Opportunities</span>
-<span className="rounded-full border border-amber-300/30 bg-black/30 px-1.5 py-0.5 text-[8px] leading-none text-amber-100">
-{bestOpportunities.length +
-  vaultOpportunities.length +
-  maverickWatchOpportunities.length}
-</span>
-                <span className="text-[8px] text-amber-100">
-                  {showBestOpportunities ? "▲" : "▼"}
-                </span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowBestOpportunities((value) => !value)}
+              data-no-race-swipe="true"
+              aria-expanded={showBestOpportunities}
+              aria-label="Open SmartPunt Live Picks opportunities"
+              className="inline-flex min-w-0 items-center gap-2 rounded-full border border-amber-300/45 bg-amber-500/10 px-3 py-2 text-[10px] font-black text-amber-200 transition-colors hover:border-amber-200"
+            >
+              <span className="whitespace-nowrap">
+                Live Picks
+              </span>
+
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full border border-amber-300/30 bg-black/40 px-1 text-[9px] font-black text-amber-100">
+                {bestOpportunities.length +
+                  vaultOpportunities.length +
+                  maverickWatchOpportunities.length}
+              </span>
+
+              <span className="text-[9px] text-amber-200">
+                {showBestOpportunities ? "▲" : "▼"}
+              </span>
+            </button>
+
             <Link
               href="/subscriber-dashboard"
-              className="rounded-full border border-amber-300/40 bg-black/45 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100"
+              className="shrink-0 rounded-full border border-amber-300/30 bg-black/45 px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.12em] text-amber-100"
             >
               Dashboard
             </Link>
@@ -6923,7 +6925,7 @@ const placings = runs.filter(
               [
                 ["all", "All"],
                 ["maverick", "Maverick"],
-                ["calculator", "Calculator"],
+                ["calculator", "SmartPunt"],
               ] as const
             ).map(([value, label]) => (
               <button
