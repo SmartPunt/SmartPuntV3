@@ -1282,8 +1282,106 @@ if (includeWatchSuggestions) {
     );
   }
 
-  historicalWatchSuggestions =
+  const recentWatchRecords =
     (await historicalWatchResponse.json()) as any[];
+
+  const historicalWatchRaceIds = uniqueNumbers(
+    recentWatchRecords.map(
+      (watch: any) => watch.race_id,
+    ),
+  );
+
+  const historicalWatchRunnerIds = uniqueNumbers(
+    recentWatchRecords.map(
+      (watch: any) => watch.race_runner_id,
+    ),
+  );
+
+  if (
+    historicalWatchRaceIds.length > 0 &&
+    historicalWatchRunnerIds.length > 0
+  ) {
+    const {
+      data: historicalWatchRaces,
+      error: historicalWatchRacesError,
+    } = await supabase
+      .from("races")
+      .select("id, meeting_id, status")
+      .in("id", historicalWatchRaceIds)
+      .eq("status", "closed");
+
+    if (historicalWatchRacesError) {
+      throw new Error(
+        historicalWatchRacesError.message,
+      );
+    }
+
+    const {
+      data: historicalWatchRunners,
+      error: historicalWatchRunnersError,
+    } = await supabase
+      .from("race_runners")
+      .select(
+        "id, race_id, horse_id, finishing_position",
+      )
+      .in("id", historicalWatchRunnerIds)
+      .not("finishing_position", "is", null);
+
+    if (historicalWatchRunnersError) {
+      throw new Error(
+        historicalWatchRunnersError.message,
+      );
+    }
+
+    const closedRaceMap = new Map(
+      (historicalWatchRaces ?? []).map(
+        (race: any) => [
+          Number(race.id),
+          race,
+        ],
+      ),
+    );
+
+    const resultedRunnerMap = new Map(
+      (historicalWatchRunners ?? []).map(
+        (runner: any) => [
+          Number(runner.id),
+          runner,
+        ],
+      ),
+    );
+
+    historicalWatchSuggestions =
+      recentWatchRecords.flatMap(
+        (watch: any) => {
+          const race = closedRaceMap.get(
+            Number(watch.race_id),
+          );
+
+          const runner = resultedRunnerMap.get(
+            Number(watch.race_runner_id),
+          );
+
+          if (
+            !race ||
+            !runner ||
+            Number(runner.race_id) !==
+              Number(watch.race_id)
+          ) {
+            return [];
+          }
+
+          return [
+            {
+              ...watch,
+              finishing_position:
+                runner.finishing_position,
+              race_status: race.status,
+            },
+          ];
+        },
+      );
+  }
 
   logStage(
     "load historical Maverick Watch",
