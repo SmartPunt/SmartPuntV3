@@ -496,6 +496,8 @@ type RatingExplanation = {
   recentRuns?: RecentFormRun[];
   trackName?: string;
   trackRuns?: HistoricalDistanceRow[];
+  todayGoing?: string;
+  conditionRuns?: ConditionHistoryRow[];
   section: {
     summary?: string;
     details?: string[];
@@ -509,6 +511,13 @@ type RatingExplanation = {
       relevance: number;
     }[];
   } | null;
+};
+type ConditionHistoryRow = {
+  condition: "Good" | "Soft" | "Heavy" | "Synthetic";
+  starts: number;
+  wins: number;
+  seconds: number;
+  thirds: number;
 };
 type HistoricalDistanceRow = {
   distanceM: number;
@@ -1839,6 +1848,120 @@ function getRecentFormHistory({
     (a, b) => a.distanceM - b.distanceM,
   );
 }
+  function getHistoricalConditionBreakdown({
+  horseId,
+  currentRaceId,
+  predictionDate,
+  raceDate,
+  runners,
+  races,
+  meetings,
+}: {
+  horseId: number;
+  currentRaceId: number;
+  predictionDate: string;
+  raceDate: string;
+  runners: Runner[];
+  races: Race[];
+  meetings: Meeting[];
+}): ConditionHistoryRow[] {
+  const categories = [
+    "Good",
+    "Soft",
+    "Heavy",
+    "Synthetic",
+  ] as const;
+
+  const rows: ConditionHistoryRow[] = categories.map(
+    (condition) => ({
+      condition,
+      starts: 0,
+      wins: 0,
+      seconds: 0,
+      thirds: 0,
+    }),
+  );
+
+  if (!predictionDate || !raceDate) return rows;
+
+  const predictedAt = new Date(predictionDate);
+
+  if (!Number.isFinite(predictedAt.getTime())) {
+    return rows;
+  }
+
+  const predictionDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(predictedAt);
+
+  const cutoffDate =
+    predictionDay < raceDate.slice(0, 10)
+      ? predictionDay
+      : raceDate.slice(0, 10);
+
+  const racesById = new Map(
+    races.map((race) => [Number(race.id), race]),
+  );
+
+  const meetingsById = new Map(
+    meetings.map((meeting) => [
+      Number(meeting.id),
+      meeting,
+    ]),
+  );
+
+  for (const runner of runners) {
+    if (Number(runner.horse_id) !== horseId) continue;
+    if (Number(runner.race_id) === currentRaceId) continue;
+    if (runner.finishing_position == null) continue;
+
+    const position = Number(runner.finishing_position);
+
+    if (!Number.isInteger(position) || position <= 0) {
+      continue;
+    }
+
+    const race = racesById.get(Number(runner.race_id));
+    if (!race) continue;
+
+    const meeting = meetingsById.get(Number(race.meeting_id));
+    if (!meeting) continue;
+
+    const historicalDate = String(
+      meeting.meeting_date ?? "",
+    ).slice(0, 10);
+
+    // Only performances dated before the original prediction.
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(historicalDate) ||
+      historicalDate >= cutoffDate
+    ) {
+      continue;
+    }
+
+    const condition = getSpecialistConditionBucket(
+      meeting.track_condition,
+    );
+
+    const row = rows.find(
+      (item) => item.condition === condition,
+    );
+
+    // Unknown or unrecognised conditions are not guessed.
+    if (!row) continue;
+
+    row.starts += 1;
+
+    if (position === 1) row.wins += 1;
+    if (position === 2) row.seconds += 1;
+    if (position === 3) row.thirds += 1;
+  }
+
+  return rows;
+}
 function explainRating(
   runner: any,
   key: RatingKey,
@@ -1979,6 +2102,39 @@ function explainRating(
     }
   }
 
+  let todayGoing = "";
+  let conditionRuns: ConditionHistoryRow[] = [];
+
+  if (key === "condition") {
+    const prediction = calculatorPredictions.find(
+      (item) =>
+        Number(item.runner_id) === Number(runner.id) &&
+        Number(item.race_id) === Number(runner.race_id),
+    );
+
+    const race = races.find(
+      (item) => Number(item.id) === Number(runner.race_id),
+    );
+
+    const meeting = meetings.find(
+      (item) => Number(item.id) === Number(race?.meeting_id),
+    );
+
+    todayGoing = String(meeting?.track_condition ?? "").trim();
+
+    if (prediction?.predicted_at && meeting?.meeting_date) {
+      conditionRuns = getHistoricalConditionBreakdown({
+        horseId: Number(runner.horse_id),
+        currentRaceId: Number(runner.race_id),
+        predictionDate: prediction.predicted_at,
+        raceDate: meeting.meeting_date,
+        runners,
+        races,
+        meetings,
+      });
+    }
+  }
+
   setRatingExplanation({
     horseName: runner.horse_name,
     label,
@@ -1988,6 +2144,8 @@ function explainRating(
     recentRuns,
     trackName,
     trackRuns,
+    todayGoing,
+    conditionRuns,
     section: explanationSection,
   });
 }
@@ -5428,6 +5586,176 @@ const hasDayResults =
                         )}
                       </p>
                     </div>
+                  </div>
+                );
+              })()
+                        ) : ratingExplanation.key === "condition" ? (
+              (() => {
+                const rows = ratingExplanation.conditionRuns ?? [];
+
+                const todayCategory = getSpecialistConditionBucket(
+                  ratingExplanation.todayGoing,
+                );
+
+                const todayRow = rows.find(
+                  (row) => row.condition === todayCategory,
+                );
+
+                const totalStarts = rows.reduce(
+                  (sum, row) => sum + row.starts,
+                  0,
+                );
+
+                const starts = todayRow?.starts ?? 0;
+                const wins = todayRow?.wins ?? 0;
+                const placings =
+                  (todayRow?.seconds ?? 0) +
+                  (todayRow?.thirds ?? 0);
+
+                return (
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                        Today's track condition
+                      </p>
+
+                      <p className="mt-2 text-xl font-black text-white">
+                        {ratingExplanation.todayGoing || "Not available"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-sm font-bold text-white">
+                        Previous performances by condition
+                      </p>
+
+                      <div className="overflow-x-auto rounded-xl border border-white/10">
+                        <table className="w-full text-center text-xs">
+                          <thead className="bg-amber-300/10 text-amber-200">
+                            <tr>
+                              <th className="px-2 py-3 text-left">
+                                Going
+                              </th>
+                              <th className="px-2 py-3">Starts</th>
+                              <th className="px-2 py-3">1st</th>
+                              <th className="px-2 py-3">2nd</th>
+                              <th className="px-2 py-3">3rd</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {rows.map((row) => {
+                              const isToday =
+                                row.condition === todayCategory;
+
+                              return (
+                                <tr
+                                  key={row.condition}
+                                  className={
+                                    isToday
+                                      ? "border-t border-amber-300/30 bg-amber-300/10 text-white"
+                                      : "border-t border-white/10 text-zinc-200"
+                                  }
+                                >
+                                  <td className="px-2 py-3 text-left font-bold">
+                                    {row.condition}
+                                    {isToday ? " ★" : ""}
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    {row.starts}
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    {row.wins}
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    {row.seconds}
+                                  </td>
+                                  <td className="px-2 py-3">
+                                    {row.thirds}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <p className="mt-2 text-[11px] text-zinc-400">
+                        The highlighted row matches today's
+                        condition category. Wins and placings
+                        are counted separately.
+                      </p>
+                    </div>
+
+                    {totalStarts > 0 &&
+                    todayCategory !== "Other" ? (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            {
+                              label: `${todayCategory} starts`,
+                              value: starts,
+                            },
+                            { label: "Wins", value: wins },
+                            { label: "Placings", value: placings },
+                          ].map((stat) => (
+                            <div
+                              key={stat.label}
+                              className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-center"
+                            >
+                              <p className="text-xl font-black text-white">
+                                {stat.value}
+                              </p>
+                              <p className="mt-1 text-[10px] text-zinc-400">
+                                {stat.label}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                            SmartPunt assessment
+                          </p>
+
+                          <p className="mt-2 text-sm leading-6 text-zinc-100">
+                            {starts > 0 ? (
+                              <>
+                                This horse has {wins}{" "}
+                                {wins === 1 ? "win" : "wins"} and{" "}
+                                {placings} additional{" "}
+                                {placings === 1
+                                  ? "placing"
+                                  : "placings"}{" "}
+                                from {starts} previous{" "}
+                                {starts === 1 ? "start" : "starts"}{" "}
+                                on {todayCategory} tracks.
+                                These results provide useful context
+                                for today's conditions.
+                              </>
+                            ) : (
+                              <>
+                                No previous {todayCategory}-track
+                                performances are available in the
+                                individual race history shown.
+                                Results on other surfaces may still
+                                provide useful context.
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                        <p className="text-sm leading-6 text-zinc-300">
+                          {todayCategory === "Other"
+                            ? "Today's condition cannot be matched to a recognised category."
+                            : "Individual historical performances by condition are not available to display."}
+                          The rating may also consider the horse's
+                          existing condition-form figures.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 );
               })()
