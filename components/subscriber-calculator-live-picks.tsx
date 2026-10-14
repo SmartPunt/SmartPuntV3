@@ -487,6 +487,27 @@ type RecentFormRun = {
   jockey: string;
   finish: number;
 };
+type JockeyHistoryRun = {
+  date: string;
+  track: string;
+  distanceM: number | null;
+  finish: number;
+};
+
+type JockeyRecord = {
+  rides: number;
+  wins: number;
+  seconds: number;
+  thirds: number;
+};
+
+type JockeyRatingEvidence = {
+  jockeyName: string;
+  combinationRuns: JockeyHistoryRun[];
+  widerRecord: JockeyRecord | null;
+  widerRecordSource: "profile" | "history" | null;
+  ratingBasis: "combination" | "broader" | "limited";
+};
 type RatingExplanation = {
   horseName: string;
   label: string;
@@ -498,6 +519,7 @@ type RatingExplanation = {
   trackRuns?: HistoricalDistanceRow[];
   todayGoing?: string;
   conditionRuns?: ConditionHistoryRow[];
+  jockeyEvidence?: JockeyRatingEvidence;
   section: {
     summary?: string;
     details?: string[];
@@ -1962,6 +1984,159 @@ function getRecentFormHistory({
 
   return rows;
 }
+  function getJockeyRatingEvidence({
+  runner,
+  predictionDate,
+  raceDate,
+  runners,
+  races,
+  meetings,
+  jockeyProfiles,
+}: {
+  runner: Runner;
+  predictionDate: string;
+  raceDate: string;
+  runners: Runner[];
+  races: Race[];
+  meetings: Meeting[];
+  jockeyProfiles: JockeyProfile[];
+}): JockeyRatingEvidence {
+  const jockeyName = String(runner.jockey_name ?? "").trim();
+  const normalizedName = jockeyName.toLowerCase();
+
+  const empty: JockeyRatingEvidence = {
+    jockeyName,
+    combinationRuns: [],
+    widerRecord: null,
+    widerRecordSource: null,
+    ratingBasis: "limited",
+  };
+
+  if (!normalizedName || !predictionDate || !raceDate) {
+    return empty;
+  }
+
+  const predictedAt = new Date(predictionDate);
+
+  if (!Number.isFinite(predictedAt.getTime())) {
+    return empty;
+  }
+
+  const predictionDay = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Perth",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(predictedAt);
+
+  const cutoffDate =
+    predictionDay < raceDate.slice(0, 10)
+      ? predictionDay
+      : raceDate.slice(0, 10);
+
+  const racesById = new Map(
+    races.map((race) => [Number(race.id), race]),
+  );
+
+  const meetingsById = new Map(
+    meetings.map((meeting) => [Number(meeting.id), meeting]),
+  );
+
+  const historicalRuns = runners.flatMap((historicalRunner) => {
+    if (
+      String(historicalRunner.jockey_name ?? "")
+        .trim()
+        .toLowerCase() !== normalizedName ||
+      historicalRunner.finishing_position == null
+    ) {
+      return [];
+    }
+
+    const finish = Number(historicalRunner.finishing_position);
+
+    if (!Number.isInteger(finish) || finish <= 0) {
+      return [];
+    }
+
+    const race = racesById.get(Number(historicalRunner.race_id));
+    if (!race) return [];
+
+    const meeting = meetingsById.get(Number(race.meeting_id));
+    if (!meeting) return [];
+
+    const date = String(meeting.meeting_date ?? "").slice(0, 10);
+
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+      date >= cutoffDate
+    ) {
+      return [];
+    }
+
+    const distance = Number(race.distance_m);
+
+    return [{
+      horseId: Number(historicalRunner.horse_id),
+      date,
+      track: String(meeting.meeting_name ?? "—"),
+      distanceM:
+        Number.isInteger(distance) && distance > 0
+          ? distance
+          : null,
+      finish,
+    }];
+  });
+
+  const combinationRuns = historicalRuns
+    .filter((run) => run.horseId === Number(runner.horse_id))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map(({ date, track, distanceM, finish }) => ({
+      date,
+      track,
+      distanceM,
+      finish,
+    }));
+
+  const profile = jockeyProfiles.find(
+    (item) =>
+      String(item.jockey_name ?? "")
+        .trim()
+        .toLowerCase() === normalizedName,
+  );
+
+  const widerRecord: JockeyRecord | null = profile
+    ? {
+        rides: Number(profile.rides) || 0,
+        wins: Number(profile.wins) || 0,
+        seconds: Number(profile.seconds) || 0,
+        thirds: Number(profile.thirds) || 0,
+      }
+    : historicalRuns.length >= 3
+      ? {
+          rides: historicalRuns.length,
+          wins: historicalRuns.filter((run) => run.finish === 1).length,
+          seconds: historicalRuns.filter((run) => run.finish === 2).length,
+          thirds: historicalRuns.filter((run) => run.finish === 3).length,
+        }
+      : null;
+
+  return {
+    jockeyName,
+    combinationRuns,
+    widerRecord,
+    widerRecordSource: profile
+      ? "profile"
+      : widerRecord
+        ? "history"
+        : null,
+    ratingBasis:
+      combinationRuns.length >= 2
+        ? "combination"
+        : historicalRuns.length >= 3 || profile
+          ? "broader"
+          : "limited",
+  };
+}
 function explainRating(
   runner: any,
   key: RatingKey,
@@ -2135,6 +2310,34 @@ function explainRating(
     }
   }
 
+  let jockeyEvidence: JockeyRatingEvidence | undefined;
+
+  if (key === "jockey") {
+    const prediction = calculatorPredictions.find(
+      (item) =>
+        Number(item.runner_id) === Number(runner.id) &&
+        Number(item.race_id) === Number(runner.race_id),
+    );
+
+    const race = races.find(
+      (item) => Number(item.id) === Number(runner.race_id),
+    );
+
+    const meeting = meetings.find(
+      (item) => Number(item.id) === Number(race?.meeting_id),
+    );
+
+    jockeyEvidence = getJockeyRatingEvidence({
+      runner,
+      predictionDate: prediction?.predicted_at ?? "",
+      raceDate: meeting?.meeting_date ?? "",
+      runners,
+      races,
+      meetings,
+      jockeyProfiles,
+    });
+  }
+
   setRatingExplanation({
     horseName: runner.horse_name,
     label,
@@ -2146,6 +2349,7 @@ function explainRating(
     trackRuns,
     todayGoing,
     conditionRuns,
+    jockeyEvidence,
     section: explanationSection,
   });
 }
@@ -6023,6 +6227,146 @@ const placings = runs.filter(
                         context.
                       </p>
                     )}
+                  </div>
+                );
+              })()
+            ) : ratingExplanation.key === "jockey" ? (
+              (() => {
+                const evidence = ratingExplanation.jockeyEvidence;
+                const combination = evidence?.combinationRuns ?? [];
+                const wins = combination.filter(
+                  (run) => run.finish === 1,
+                ).length;
+                const placings = combination.filter(
+                  (run) => run.finish === 2 || run.finish === 3,
+                ).length;
+
+                const wider = evidence?.widerRecord;
+
+                return (
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                        Today's jockey
+                      </p>
+                      <p className="mt-2 text-xl font-black text-white">
+                        {evidence?.jockeyName || "Not available"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-sm font-bold text-white">
+                        Previous rides on this horse
+                      </p>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { label: "Rides", value: combination.length },
+                          { label: "Wins", value: wins },
+                          { label: "Placings", value: placings },
+                        ].map((stat) => (
+                          <div
+                            key={stat.label}
+                            className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-center"
+                          >
+                            <p className="text-xl font-black text-white">
+                              {stat.value}
+                            </p>
+                            <p className="mt-1 text-[10px] text-zinc-400">
+                              {stat.label}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {combination.length > 0 ? (
+                        <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-amber-300/10 text-amber-200">
+                              <tr>
+                                <th className="px-2 py-3">Track</th>
+                                <th className="px-2 py-3">Distance</th>
+                                <th className="px-2 py-3">Finish</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {combination.map((run, index) => (
+                                <tr
+                                  key={`${run.date}-${index}`}
+                                  className="border-t border-white/10 text-zinc-200"
+                                >
+                                  <td className="px-2 py-3">{run.track}</td>
+                                  <td className="px-2 py-3">
+                                    {run.distanceM != null
+                                      ? `${run.distanceM}m`
+                                      : "—"}
+                                  </td>
+                                  <td className="px-2 py-3 font-bold">
+                                    {run.finish}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-xs leading-5 text-zinc-400">
+                          No previous rides together are available
+                          in the individual race history shown.
+                        </p>
+                      )}
+                    </div>
+
+                    {wider ? (
+                      <div>
+                        <p className="mb-2 text-sm font-bold text-white">
+                          Jockey's wider record
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { label: "Rides", value: wider.rides },
+                            { label: "Wins", value: wider.wins },
+                            {
+                              label: "Placings",
+                              value: wider.seconds + wider.thirds,
+                            },
+                          ].map((stat) => (
+                            <div
+                              key={stat.label}
+                              className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-center"
+                            >
+                              <p className="text-xl font-black text-white">
+                                {stat.value}
+                              </p>
+                              <p className="mt-1 text-[10px] text-zinc-400">
+                                {stat.label}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <p className="mt-2 text-[11px] text-zinc-400">
+                          {evidence?.widerRecordSource === "profile"
+                            ? "Available jockey profile figures. These may have been updated since this race was assessed."
+                            : "Previous jockey results available in SmartPunt's race history."}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-200">
+                        SmartPunt assessment
+                      </p>
+
+                      <p className="mt-2 text-sm leading-6 text-zinc-100">
+                        {evidence?.ratingBasis === "combination"
+                          ? `This jockey has ${wins} ${wins === 1 ? "win" : "wins"} and ${placings} additional ${placings === 1 ? "placing" : "placings"} from ${combination.length} previous rides on this horse. SmartPunt gives priority to an established horse-and-jockey combination.`
+                          : evidence?.ratingBasis === "broader"
+                            ? "With limited previous rides on this horse, SmartPunt considers the jockey's wider performance history and available profile information."
+                            : "Limited jockey evidence is available. SmartPunt applies a neutral assessment when there is insufficient information."}
+                      </p>
+                    </div>
                   </div>
                 );
               })()
