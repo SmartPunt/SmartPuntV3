@@ -2712,13 +2712,17 @@ const secondaryText =
       : ` ${secondaryDrivers[0]}, while ${secondaryDrivers[1]}.`;
 
 const summary =
-  tier === "Elite"
-    ? `Very strong race confidence because ${primaryDriver}.${secondaryText}`
-    : tier === "High"
-      ? `Strong race confidence because ${primaryDriver}.${secondaryText}`
-      : tier === "Medium"
-        ? `Moderate race confidence because ${primaryDriver}.${secondaryText}`
-        : `Confidence is limited because ${primaryDriver}.${secondaryText}`;
+  gap >= 8 && tier === "Low"
+    ? `SmartPunt has identified a clear ratings advantage for the top selection. However, the overall race confidence remains low after accounting for the other race factors. ${secondaryText.trim()}`
+    : gap >= 8 && tier === "Medium"
+      ? `SmartPunt has identified a clear ratings advantage for the top selection. Overall race confidence remains moderate after accounting for the other race factors. ${secondaryText.trim()}`
+      : tier === "Elite"
+        ? `Very strong race confidence because ${primaryDriver}.${secondaryText}`
+        : tier === "High"
+          ? `Strong race confidence because ${primaryDriver}.${secondaryText}`
+          : tier === "Medium"
+            ? `Moderate race confidence because ${primaryDriver}.${secondaryText}`
+            : `Confidence is limited because ${primaryDriver}.${secondaryText}`;
 
   return {
     tier,
