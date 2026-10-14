@@ -75,6 +75,7 @@ return (
   calculatorPredictions={livePicksData.calculatorPredictions}
 officialTips={livePicksData.officialTips}
 watchSuggestions={livePicksData.watchSuggestions}
+historicalWatchSuggestions={livePicksData.historicalWatchSuggestions}
 getOnEarlyBets={livePicksData.getOnEarlyBets}
 maverickExoticTips={livePicksData.maverickExoticTips}
 activeUserBets={livePicksData.activeUserBets}
