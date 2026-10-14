@@ -11082,28 +11082,6 @@ return (
               </div>
             </div>
           ) : null}
-
-          <footer className="mt-3 overflow-hidden rounded-[22px] border border-amber-300/40 bg-[linear-gradient(135deg,#05070c_0%,#0b1220_52%,#05070c_100%)] p-5 text-center shadow-[0_14px_35px_rgba(0,0,0,0.45)]">
-            <img
-              src="/header-logo.png"
-              alt="Fortune on 5"
-              className="mx-auto h-40 w-auto object-contain drop-shadow-[0_0_32px_rgba(250,204,21,0.72)] sm:h-48"
-            />
-            <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
-              Fortune on 5
-            </p>
-            <h2 className="mt-2 text-xl font-black leading-tight text-white">
-              SmartPunt Calculator Live Picks
-            </h2>
-            <p className="mt-2 text-[11px] font-bold leading-5 text-zinc-300">
-              Every race analysed. Every recommendation explained.
-            </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Pill tone="green">{orderedPublishedRaces.length} {selectedRaceDayLabel.toLowerCase()} races</Pill>
-              <Pill tone="gold">Live calculator</Pill>
-<Pill tone="blue">The Maverick</Pill>
-            </div>
-          </footer>
         </div>
       </div>
     </div>
