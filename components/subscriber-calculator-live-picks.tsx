@@ -1643,6 +1643,7 @@ export default function SubscriberCalculatorLivePicks({
 calculatorPredictions = [],
 officialTips = [],
 watchSuggestions = [],
+historicalWatchSuggestions = [],
 getOnEarlyBets = [],
 maverickExoticTips = [],
 activeUserBets = [],
@@ -1661,6 +1662,10 @@ initialRaceId = "",
 calculatorPredictions?: CalculatorPrediction[];
 officialTips?: OfficialTip[];
 watchSuggestions?: WatchSuggestion[];
+historicalWatchSuggestions?: (WatchSuggestion & {
+  finishing_position: number | null;
+  race_status: string;
+})[];
 getOnEarlyBets?: GetOnEarlyBet[];
 maverickExoticTips?: MaverickExoticTip[];
 activeUserBets?: UserBet[];
