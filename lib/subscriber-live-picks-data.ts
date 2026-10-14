@@ -1306,9 +1306,9 @@ if (includeWatchSuggestions) {
       error: historicalWatchRacesError,
     } = await supabase
       .from("races")
-      .select("id, meeting_id, status")
-      .in("id", historicalWatchRaceIds)
-      .eq("status", "closed");
+.select("id, meeting_id, race_number, status")
+.in("id", historicalWatchRaceIds)
+.eq("status", "closed");
 
     if (historicalWatchRacesError) {
       throw new Error(
@@ -1377,10 +1377,12 @@ if (includeWatchSuggestions) {
               finishing_position:
                 runner.finishing_position,
               race_status: race.status,
-              historical_meeting_id:
-                race.meeting_id,
-              historical_horse_id:
-                runner.horse_id,
+historical_meeting_id:
+  race.meeting_id,
+historical_horse_id:
+  runner.horse_id,
+race_number:
+  race.race_number,
             },
           ];
         },
