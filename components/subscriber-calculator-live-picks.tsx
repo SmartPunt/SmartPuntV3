@@ -10640,7 +10640,11 @@ return (
               Never included in official betting statistics.
               ================================================== */}
 
-          {historicalWatchSuggestions.length > 0 ? (
+          {historicalWatchSuggestions.some(
+            (watch) =>
+              String(watch.meeting_date ?? "").slice(0, 10) ===
+              activeDayDates[raceDayFilter],
+          ) ? (
             <section className="mt-5 overflow-hidden rounded-[22px] border border-amber-300/30 bg-[linear-gradient(135deg,#080a10,#171207)] shadow-[0_14px_35px_rgba(0,0,0,0.35)]">
               <div className="border-b border-amber-300/15 px-4 py-4">
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">
@@ -10658,7 +10662,13 @@ return (
               </div>
 
               <div className="divide-y divide-white/10">
-                {historicalWatchSuggestions.map((watch) => {
+                {historicalWatchSuggestions
+                  .filter(
+                    (watch) =>
+                      String(watch.meeting_date ?? "").slice(0, 10) ===
+                      activeDayDates[raceDayFilter],
+                  )
+                  .map((watch) => {
                   const position =
                     Number(watch.finishing_position);
 
