@@ -391,19 +391,6 @@ async function processVaultMatchesTodayNotifications({
 }) {
   const today = perthTodayDateString();
 
-  /*
-   * "Vault Matches Today" means today in Perth.
-   * Starting a future meeting must not create today's alert.
-   */
-  if (String(meetingDate) !== today) {
-    return {
-      matchedUsers: 0,
-      storedMatches: 0,
-      createdNotifications: 0,
-      updatedNotifications: 0,
-    };
-  }
-
   const tomorrowDate = new Date(
     `${today}T12:00:00.000Z`,
   );
@@ -416,7 +403,23 @@ async function processVaultMatchesTodayNotifications({
     tomorrowDate
       .toISOString()
       .slice(0, 10);
+  /*
+   * Prepare Vault matches and intelligence for today's
+   * or tomorrow's released meetings.
+   *
+   * Daily subscriber alerts remain restricted to today.
+   * Never process dates outside this two-day window.
+   */
+  const targetDate = String(meetingDate);
 
+  if (targetDate !== today && targetDate !== tomorrow) {
+    return {
+      matchedUsers: 0,
+      storedMatches: 0,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
   /*
    * Only meetings already released to subscribers
    * are eligible for today's Vault notification.
@@ -425,7 +428,7 @@ async function processVaultMatchesTodayNotifications({
     (await serviceRoleSelect(
       `meetings?select=id,meeting_name,meeting_date,track_condition,calculator_released_at` +
         `&meeting_date=eq.${encodeURIComponent(
-          today,
+          targetDate,
         )}` +
         `&calculator_released_at=not.is.null`,
     )) as any[] | null;
@@ -701,7 +704,23 @@ async function processVaultMatchesTodayNotifications({
       vaultIntelligenceError,
     );
   }
-
+  /*
+   * Tomorrow's Vault matches and intelligence are now
+   * prepared, but "Vault Matches Today" notifications
+   * must only be sent on the actual racing day.
+   */
+  if (targetDate !== today) {
+    return {
+      matchedUsers: new Set(
+        liveMatches.map((match) =>
+          String(match.alert.user_id),
+        ),
+      ).size,
+      storedMatches: liveMatches.length,
+      createdNotifications: 0,
+      updatedNotifications: 0,
+    };
+  }
   /*
    * Count unique matched runners per subscriber.
    *
