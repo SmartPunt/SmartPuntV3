@@ -1665,6 +1665,10 @@ watchSuggestions?: WatchSuggestion[];
 historicalWatchSuggestions?: (WatchSuggestion & {
   finishing_position: number | null;
   race_status: string;
+  horse_name?: string | null;
+  meeting_name?: string | null;
+  meeting_date?: string | null;
+  race_number?: number | null;
 })[];
 getOnEarlyBets?: GetOnEarlyBet[];
 maverickExoticTips?: MaverickExoticTip[];
@@ -10645,6 +10649,121 @@ return (
               </div>
             </section>
           ) : null}
+          {/* ==================================================
+              MAVERICK WATCH RESULTS
+              Historical editorial selections only.
+              Never included in official betting statistics.
+              ================================================== */}
+
+          {historicalWatchSuggestions.length > 0 ? (
+            <section className="mt-5 overflow-hidden rounded-[22px] border border-amber-300/30 bg-[linear-gradient(135deg,#080a10,#171207)] shadow-[0_14px_35px_rgba(0,0,0,0.35)]">
+              <div className="border-b border-amber-300/15 px-4 py-4">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300">
+                  The Maverick
+                </p>
+
+                <h2 className="mt-1 text-lg font-black text-white">
+                  Watch Results
+                </h2>
+
+                <p className="mt-2 text-[10px] leading-5 text-zinc-400">
+                  See how The Maverick's horses to watch
+                  performed when they raced.
+                </p>
+              </div>
+
+              <div className="divide-y divide-white/10">
+                {historicalWatchSuggestions.map((watch) => {
+                  const position =
+                    Number(watch.finishing_position);
+
+                  const positionLabel =
+                    position === 1
+                      ? "1st"
+                      : position === 2
+                        ? "2nd"
+                        : position === 3
+                          ? "3rd"
+                          : `${position}th`;
+
+                  const isWinner = position === 1;
+                  const isTopThree =
+                    position >= 1 && position <= 3;
+
+                  const meetingDate =
+                    watch.meeting_date
+                      ? String(watch.meeting_date)
+                          .slice(0, 10)
+                          .split("-")
+                          .reverse()
+                          .join("/")
+                      : "";
+
+                  return (
+                    <div
+                      key={watch.id}
+                      className="px-4 py-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[9px] font-black uppercase tracking-[0.1em] text-amber-200">
+                            {watch.meeting_name ??
+                              "Meeting unavailable"}
+                            {watch.race_number != null
+                              ? ` · Race ${watch.race_number}`
+                              : ""}
+                          </p>
+
+                          {meetingDate ? (
+                            <p className="mt-1 text-[9px] text-zinc-500">
+                              {meetingDate}
+                            </p>
+                          ) : null}
+
+                          <h3 className="mt-2 text-base font-black text-white">
+                            {watch.horse_name ??
+                              watch.horse ??
+                              "Horse unavailable"}
+                          </h3>
+                        </div>
+
+                        <div className="shrink-0 text-right">
+                          <span
+                            className={`inline-flex rounded-xl border px-3 py-2 text-sm font-black ${
+                              isWinner
+                                ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-200"
+                                : isTopThree
+                                  ? "border-amber-300/40 bg-amber-500/10 text-amber-200"
+                                  : "border-white/15 bg-white/[0.05] text-zinc-200"
+                            }`}
+                          >
+                            {positionLabel}
+                          </span>
+
+                          <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-zinc-500">
+                            Finished
+                          </p>
+                        </div>
+                      </div>
+
+                      {watch.commentary ? (
+                        <div className="mt-4 rounded-xl border border-white/10 bg-black/30 px-3 py-3">
+                          <p className="text-[8px] font-black uppercase tracking-[0.14em] text-amber-300">
+                            Original Maverick Watch Insight
+                          </p>
+
+                          <p className="mt-2 whitespace-pre-wrap text-[11px] leading-5 text-zinc-200">
+                            {watch.commentary}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
           {/* ==================================================
               MY RACE PLAN
               ================================================== */}
