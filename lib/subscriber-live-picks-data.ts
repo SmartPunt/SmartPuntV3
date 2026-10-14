@@ -26,6 +26,7 @@ export type SubscriberLivePicksData = {
   calculatorPredictions: any[];
 officialTips: any[];
 watchSuggestions: any[];
+historicalWatchSuggestions: any[];
 getOnEarlyBets: any[];
   maverickExoticTips: any[];
   activeUserBets: any[];
@@ -1202,6 +1203,7 @@ raceIds:
     );
   }
 let watchSuggestions: any[] = [];
+let historicalWatchSuggestions: any[] = [];
 
 if (includeWatchSuggestions) {
   const watchSuggestionsStartedAt =
@@ -1240,6 +1242,55 @@ if (includeWatchSuggestions) {
   logStage(
     "skip Watch Suggestions",
     Date.now(),
+  );
+}
+
+/*
+ * Maverick Watch historical retrieval.
+ *
+ * Load a bounded set of original Watch records.
+ * Race settlement and finishing-position validation
+ * will be handled separately.
+ *
+ * Never recalculate predictions or alter Watch records.
+ */
+if (includeWatchSuggestions) {
+  const historicalWatchStartedAt = Date.now();
+
+  const { supabaseUrl, headers } =
+    getServiceRoleConfig();
+
+  const historicalWatchResponse = await fetch(
+    `${supabaseUrl}/rest/v1/watchlist_items` +
+      `?select=*` +
+      `&order=created_at.desc` +
+      `&limit=50`,
+    {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    },
+  );
+
+  if (!historicalWatchResponse.ok) {
+    const errorText =
+      await historicalWatchResponse.text();
+
+    throw new Error(
+      errorText ||
+        "Failed to load historical Maverick Watch records.",
+    );
+  }
+
+  historicalWatchSuggestions =
+    (await historicalWatchResponse.json()) as any[];
+
+  logStage(
+    "load historical Maverick Watch",
+    historicalWatchStartedAt,
+    {
+      rowCount: historicalWatchSuggestions.length,
+    },
   );
 }
 
@@ -1632,6 +1683,7 @@ races: includeScoringHistory
     calculatorPredictions,
 officialTips,
 watchSuggestions,
+historicalWatchSuggestions,
 getOnEarlyBets,
 maverickExoticTips,
 activeUserBets,
