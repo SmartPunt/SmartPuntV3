@@ -6847,7 +6847,7 @@ const placings = runs.filter(
       ) : null}
 
       <div className="mx-auto max-w-[430px]">
-                <div className="sticky top-0 z-30 mb-3">
+        <div className="sticky top-0 z-30 mb-3 rounded-[22px] border border-amber-300/40 bg-[#171107]/95 p-2 shadow-[0_18px_45px_rgba(0,0,0,0.6)] backdrop-blur-md">
           <div className="mb-2 flex items-center justify-between gap-3 px-1">
             <button
               type="button"
@@ -7844,7 +7844,7 @@ filteredMaverickWatchOpportunities.length === 0 ? (
           ) : null}
         </div>
 
-        <div className="mb-4 overflow-hidden rounded-[26px]
+        <div className="mb-4 overflow-hidden rounded-[26px] border border-amber-300/40 bg-[#f7f0df] p-3 shadow-[0_24px_70px_rgba(0,0,0,0.55)]">
 <div
   className="rounded-[20px] border border-black/10 bg-[#f7f0df]"
   onTouchStart={handleRaceSwipeStart}
