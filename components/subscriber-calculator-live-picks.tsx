@@ -4426,7 +4426,92 @@ return items.sort((a, b) => {
   orderedPublishedRaces,
   runners,
 ]);
+/*
+ * MAVERICK WATCH — BEST OPPORTUNITIES
+ *
+ * Display-only selections for the current race day.
+ * Watch alerts are not official betting tips and
+ * must not affect betting statistics or settlement.
+ */
+const maverickWatchOpportunities = useMemo(() => {
+  const availableRaces = new Map(
+    orderedPublishedRaces
+      .filter(
+        (race) =>
+          String(race.status || "")
+            .trim()
+            .toLowerCase() !== "closed",
+      )
+      .map((race) => [Number(race.id), race]),
+  );
 
+  return watchSuggestions
+    .flatMap((suggestion) => {
+      const race = availableRaces.get(
+        Number(suggestion.race_id || 0),
+      );
+
+      if (!race) return [];
+
+      const meeting = meetings.find(
+        (item) =>
+          Number(item.id) === Number(race.meeting_id),
+      );
+
+      if (!meeting) return [];
+
+      const runner = runners.find(
+        (item) =>
+          Number(item.id) ===
+          Number(suggestion.race_runner_id || 0),
+      );
+
+      return [
+        {
+          suggestion,
+          race,
+          meeting,
+          runner,
+        },
+      ];
+    })
+    .sort((a, b) => {
+      const meetingOrder =
+        a.meeting.meeting_name.localeCompare(
+          b.meeting.meeting_name,
+        );
+
+      if (meetingOrder !== 0) return meetingOrder;
+
+      return (
+        Number(a.race.race_number || 0) -
+        Number(b.race.race_number || 0)
+      );
+    });
+}, [
+  meetings,
+  orderedPublishedRaces,
+  runners,
+  watchSuggestions,
+]);
+
+const filteredMaverickWatchOpportunities =
+  useMemo(
+    () =>
+      opportunitySourceFilter === "calculator"
+        ? []
+        : maverickWatchOpportunities.filter(
+            (item) =>
+              meetingPassesOpportunityFilter(
+                item.meeting.meeting_name,
+              ),
+          ),
+    [
+      maverickWatchOpportunities,
+      opportunityMeetings,
+      opportunitySourceFilter,
+    ],
+  );
 const opportunityMeetingOptions = useMemo(() => {
   const names = new Set<string>();
 
@@ -4445,6 +4530,16 @@ const opportunityMeetingOptions = useMemo(() => {
   getOnEarlyBets.forEach((bet) => {
     if (bet.meeting) {
       names.add(String(bet.meeting));
+    }
+  });
+
+  /*
+   * Include meetings containing Maverick Watch
+   * selections in the Best Opportunities filters.
+   */
+  maverickWatchOpportunities.forEach((item) => {
+    if (item.meeting.meeting_name) {
+      names.add(item.meeting.meeting_name);
     }
   });
 
@@ -4477,6 +4572,7 @@ const opportunityMeetingOptions = useMemo(() => {
   bestOpportunities,
   getOnEarlyBets,
   maverickExoticTips,
+  maverickWatchOpportunities,
   meetings,
   races,
   vaultOpportunities,
@@ -6643,8 +6739,9 @@ const placings = runs.filter(
               >
                 <span>Best Opportunities</span>
 <span className="rounded-full border border-amber-300/30 bg-black/30 px-1.5 py-0.5 text-[8px] leading-none text-amber-100">
-  {bestOpportunities.length +
-    vaultOpportunities.length}
+{bestOpportunities.length +
+  vaultOpportunities.length +
+  maverickWatchOpportunities.length}
 </span>
                 <span className="text-[8px] text-amber-100">
                   {showBestOpportunities ? "▲" : "▼"}
@@ -6895,6 +6992,71 @@ const placings = runs.filter(
     ) : null}
 
     <div className="max-h-[188px] space-y-1.5 overflow-y-auto pr-1">
+      {filteredMaverickWatchOpportunities.length > 0 ? (
+  <div className="mb-3 space-y-2">
+    <div className="flex items-center gap-2 px-1">
+      <img
+        src="/maverick/maverick-shield.png"
+        alt="The Maverick"
+        className="h-7 w-7 shrink-0 object-contain"
+      />
+
+      <div className="min-w-0">
+        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-200">
+          The Maverick Watch
+        </p>
+        <p className="text-[8px] text-zinc-400">
+          Horses The Maverick is watching
+        </p>
+      </div>
+
+      <span className="ml-auto rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-1 text-[8px] font-black text-amber-200">
+        {filteredMaverickWatchOpportunities.length}
+      </span>
+    </div>
+
+    {filteredMaverickWatchOpportunities.map(
+      ({ suggestion, race, meeting }) => (
+        <button
+          key={`maverick-watch-${suggestion.id}`}
+          type="button"
+          onClick={() =>
+            setSelectedRaceId(String(race.id))
+          }
+          className="group flex w-full items-center gap-3 rounded-[15px] border border-amber-300/35 bg-[linear-gradient(135deg,#090909_0%,#191919_65%,#32220c_100%)] px-3 py-3 text-left shadow-[0_8px_20px_rgba(0,0,0,0.3)] transition hover:border-amber-300/65 active:scale-[0.995]"
+        >
+          <img
+            src="/maverick/maverick-shield.png"
+            alt=""
+            className="h-10 w-10 shrink-0 object-contain"
+          />
+
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[9px] font-bold uppercase tracking-[0.1em] text-amber-200">
+              {meeting.meeting_name} · R
+              {race.race_number}
+            </p>
+
+            <p className="mt-1 truncate text-[13px] font-black uppercase text-white">
+              {suggestion.horse ||
+                "Watch Selection"}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            <span className="rounded-md border border-amber-300/60 bg-amber-300/15 px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-amber-200">
+              Watch
+            </span>
+
+            <span className="text-[8px] font-bold text-zinc-400">
+              View Race ›
+            </span>
+          </div>
+        </button>
+      ),
+    )}
+  </div>
+) : null}
 {filteredMaverickExoticTips.length > 0 ? (
       <div className="mb-2 space-y-1.5">
         {filteredMaverickExoticTips
@@ -7533,10 +7695,11 @@ return (
                 </div>
               ) : null}
 
-              {filteredBestOpportunities.length === 0 &&
-              filteredVaultOpportunities.length === 0 &&
-              filteredGetOnEarlyBets.length === 0 &&
-              filteredMaverickExoticTips.length === 0 ? (
+{filteredBestOpportunities.length === 0 &&
+filteredVaultOpportunities.length === 0 &&
+filteredGetOnEarlyBets.length === 0 &&
+filteredMaverickExoticTips.length === 0 &&
+filteredMaverickWatchOpportunities.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/15 bg-black/55 px-4 py-4 text-center">
                   <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-300">
                     No opportunities match these filters
