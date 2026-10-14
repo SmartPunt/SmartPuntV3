@@ -8857,23 +8857,78 @@ className="pointer-events-none absolute -bottom-3 -right-1 z-0 w-[285px] max-w-n
             : "Today’s SmartPunt rankings."}
         </p>
 
-<span
-  className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[9px] font-black uppercase tracking-[0.12em] ${
-    qualifiedTip?.type === "Win"
-      ? "border-amber-300/50 bg-amber-400/15 text-amber-100"
-      : qualifiedTip?.type === "Place"
-        ? "border-emerald-300/45 bg-emerald-400/15 text-emerald-100"
-        : "border-zinc-500/40 bg-zinc-500/10 text-zinc-300"
-  }`}
+<details
+  data-no-race-swipe="true"
+  className="group mt-2 rounded-xl border border-amber-300/30 bg-black/70 text-left"
 >
-  <span>{qualifiedTip?.type || "No Bet"}</span>
+  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+    <div className="min-w-0">
+      <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+        Race Confidence
+      </p>
 
-  <span className="opacity-50">•</span>
+      <div className="mt-1 flex items-baseline gap-2">
+        <span className="text-xl font-black leading-none text-amber-300">
+          {raceConfidence?.confidencePercent ?? 0}%
+        </span>
 
-  <span>
-    {raceConfidence?.confidencePercent ?? 0}% Confidence
-  </span>
-</span>
+        <span className="text-[9px] font-bold uppercase text-zinc-300">
+          {raceConfidence?.tier ?? "Unrated"}
+        </span>
+      </div>
+    </div>
+
+    <div className="shrink-0 text-right">
+      <p
+        className={`text-[11px] font-black uppercase ${
+          qualifiedTip?.type === "Win"
+            ? "text-amber-300"
+            : qualifiedTip?.type === "Place"
+              ? "text-emerald-300"
+              : "text-zinc-200"
+        }`}
+      >
+        {qualifiedTip?.type || "No Bet"}
+      </p>
+
+      <p className="mt-1 text-[8px] text-zinc-400">
+        <span className="group-open:hidden">
+          View reasoning ↓
+        </span>
+        <span className="hidden group-open:inline">
+          Hide reasoning ↑
+        </span>
+      </p>
+    </div>
+  </summary>
+
+  {raceConfidence ? (
+    <div className="border-t border-white/10 px-3 py-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.08em] text-amber-200">
+        Why this race scores {raceConfidence.confidencePercent}%
+      </p>
+
+      <p className="mt-2 text-[11px] font-medium leading-5 text-zinc-200">
+        {raceConfidence.summary}
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-zinc-400">
+        <span>
+          Ratings gap: {raceConfidence.gap}
+        </span>
+
+        <span>
+          {raceConfidence.volatility}
+        </span>
+      </div>
+
+      <p className="mt-3 border-t border-white/10 pt-2 text-[9px] leading-4 text-zinc-500">
+        Race Confidence assesses the betting opportunity
+        across the field, not just the top-rated horse.
+      </p>
+    </div>
+  ) : null}
+</details>
       </div>
     </div>
 
