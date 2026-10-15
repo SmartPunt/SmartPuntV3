@@ -19,6 +19,82 @@ import {
 import VaultDoorIcon from "@/components/vault-door-icon";
 import type { VaultLiveMatch } from "@/lib/vault-matching";
 
+/**
+ * Subscriber-facing explanations of saved Race Confidence factors.
+ * Presentation only. Does not change scoring or stored values.
+ */
+function describeRaceConfidenceFactor(
+  label: string,
+  positive: boolean,
+): string {
+  const key = label.toLowerCase();
+
+  if (key.includes("gap") || key.includes("separation")) {
+    return positive
+      ? "The leading runner has useful separation from its nearest challenger."
+      : "The leading runners are closely matched, making the race harder to separate.";
+  }
+
+  if (
+    key.includes("place") &&
+    (key.includes("term") || key.includes("pay"))
+  ) {
+    return positive
+      ? "The available place terms support a more favourable betting setup."
+      : "The available place terms reduce the attractiveness of a place recommendation.";
+  }
+
+  if (key.includes("place") || key.includes("probability")) {
+    return positive
+      ? "The estimated place chance strengthens the overall assessment."
+      : "The estimated place chance provides less support for the leading selection.";
+  }
+
+  if (
+    key.includes("condition") ||
+    key.includes("track") ||
+    key.includes("weather")
+  ) {
+    return positive
+      ? "The recorded race conditions support the confidence assessment."
+      : "The recorded race conditions introduce additional uncertainty.";
+  }
+
+  if (
+    key.includes("compression") ||
+    key.includes("competitive") ||
+    key.includes("tight")
+  ) {
+    return positive
+      ? "The ratings provide useful separation between the leading runners."
+      : "Several runners are closely rated, increasing the difficulty of finding a clear selection.";
+  }
+
+  if (
+    key.includes("field") ||
+    key.includes("runner count") ||
+    key.includes("size")
+  ) {
+    return positive
+      ? "The field size contributes favourably to the overall assessment."
+      : "The field size increases uncertainty in the overall assessment.";
+  }
+
+  if (
+    key.includes("top score") ||
+    key.includes("rating") ||
+    key.includes("leader")
+  ) {
+    return positive
+      ? "The leading runner's rating strengthens the overall assessment."
+      : "The leading ratings provide less confidence in a clear selection.";
+  }
+
+  return positive
+    ? "This saved factor strengthens the overall race confidence assessment."
+    : "This saved factor reduces the overall race confidence assessment.";
+}
+
 type VaultIntelligenceStats = {
   starts: number;
   wins: number;
@@ -5859,8 +5935,10 @@ const hasDayResults =
 
                 <div className="space-y-4">
                   <h3 className="text-xs font-black text-amber-200">
-                    Why this race scores{" "}
-                    {raceConfidence.confidencePercent}%
+                    {activeSnapshotRows.length > 0 &&
+                    raceConfidence.factors?.length > 0
+                      ? "What shapes this race confidence"
+                      : "SmartPunt Assessment"}
                   </h3>
 
                   {activeSnapshotRows.length > 0 &&
@@ -5899,9 +5977,11 @@ const hasDayResults =
                                     {factor.label}
                                   </p>
 
-                                  <p className="mt-1 text-[11px] leading-5 text-zinc-400">
-                                    This factor strengthens SmartPunt's
-                                    overall race confidence assessment.
+                                  <p className="mt-1 text-[11px] leading-5 text-zinc-300">
+                                    {describeRaceConfidenceFactor(
+                                      factor.label,
+                                      true,
+                                    )}
                                   </p>
                                 </div>
 
@@ -5952,9 +6032,11 @@ const hasDayResults =
                                     {factor.label}
                                   </p>
 
-                                  <p className="mt-1 text-[11px] leading-5 text-zinc-400">
-                                    This factor reduces SmartPunt's
-                                    overall race confidence assessment.
+                                  <p className="mt-1 text-[11px] leading-5 text-zinc-300">
+                                    {describeRaceConfidenceFactor(
+                                      factor.label,
+                                      false,
+                                    )}
                                   </p>
                                 </div>
 
@@ -5980,14 +6062,20 @@ const hasDayResults =
                         ) : null}
                       </div>
 
-                      <div className="border-t border-white/10 pt-3">
+                      <div className="rounded-xl border border-amber-300/20 bg-amber-400/[0.05] px-4 py-3">
                         <h4 className="text-xs font-black text-amber-200">
                           SmartPunt Assessment
                         </h4>
-                        <p className="mt-2 text-xs leading-5 text-zinc-200">
-                          {raceConfidence.tier} race confidence.
-                          These adjustments help explain the assessment,
-                          but do not represent the complete confidence
+
+                        <p className="mt-2 text-sm leading-6 text-zinc-200">
+                          {raceConfidence.suggestedBet === "No Bet"
+                            ? "Some individual factors may be favourable, but SmartPunt's overall race assessment does not support a recommended bet."
+                            : "The saved confidence factors highlight the main strengths and risks behind SmartPunt's overall race assessment."}
+                        </p>
+
+                        <p className="mt-2 text-[11px] leading-5 text-zinc-400">
+                          The factors shown are the strongest saved
+                          adjustments, not the complete confidence
                           calculation.
                         </p>
                       </div>
@@ -5995,38 +6083,23 @@ const hasDayResults =
                   ) : (
                     <div>
                       {activeSnapshotRows.length > 0 ? (
-                        <div className="space-y-3">
-                          <h4 className="text-xs font-black uppercase tracking-[0.12em] text-amber-200">
-                            SmartPunt Assessment
-                          </h4>
-
+                        <div className="rounded-xl border border-amber-300/20 bg-amber-400/[0.05] px-4 py-3">
                           <p className="text-sm leading-6 text-zinc-200">
-                            SmartPunt has assessed this race at{" "}
-                            <span className="font-black text-white">
-                              {raceConfidence.confidencePercent}%
-                            </span>{" "}
-                            confidence, placing it in the{" "}
-                            <span className="font-black text-amber-200">
-                              {raceConfidence.tier}
-                            </span>{" "}
-                            confidence category.
+                            {raceConfidence.suggestedBet === "No Bet"
+                              ? "SmartPunt's overall race assessment does not support a recommended bet, even when an individual runner has a strong rating."
+                              : "SmartPunt's saved race assessment supports the betting recommendation displayed above."}
                           </p>
 
-                          <p className="text-xs leading-5 text-zinc-300">
-                            The assessment considers the strength of the
-                            leading runners, the competitiveness of the
-                            field and relevant race conditions.
+                          <p className="mt-2 text-xs leading-5 text-zinc-400">
+                            The assessment considers the strength of
+                            the leading runners, field competitiveness
+                            and relevant race conditions.
                           </p>
 
-                          <div className="rounded-xl border border-amber-300/20 bg-amber-400/[0.05] px-3 py-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-300">
-                              SmartPunt Verdict
-                            </p>
-
-                            <p className="mt-1 text-sm font-black text-white">
-                              {raceConfidence.suggestedBet}
-                            </p>
-                          </div>
+                          <p className="mt-2 text-[11px] leading-5 text-zinc-500">
+                            A detailed factor breakdown is not
+                            available for this earlier prediction.
+                          </p>
                         </div>
                       ) : (
                         <p className="text-sm leading-6 text-zinc-200">
