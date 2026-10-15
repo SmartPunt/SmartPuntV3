@@ -5863,8 +5863,8 @@ const hasDayResults =
                     {raceConfidence.confidencePercent}%
                   </h3>
 
-                  {activeSnapshotRows.length === 0 &&
-                  raceConfidence.factors ? (
+                  {activeSnapshotRows.length > 0 &&
+                  raceConfidence.factors?.length > 0 ? (
                     <>
                       <div className="space-y-2">
                         <h4 className="text-xs font-black text-emerald-300">
