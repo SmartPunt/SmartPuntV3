@@ -2637,92 +2637,108 @@ const maidenPenalty = 0;
               : "Place"
             : "No Bet";
 
-const confidenceDrivers: string[] = [];
 
-if (gap >= 8) {
-  confidenceDrivers.push(
-    "SmartPunt has found a clear ratings gap between the top selection and its main danger",
-  );
-} else if (gap >= 4) {
-  confidenceDrivers.push(
-    "there is useful ratings separation at the top of the field",
-  );
-} else {
-  confidenceDrivers.push(
-    "the leading chances are tightly matched with little ratings separation",
-  );
-}
+const confidenceFactors: {
+  label: string;
+  contribution: number;
+}[] = [
+  {
+    label: "the leading runner's overall rating",
+    contribution: topScoreBoost,
+  },
+  {
+    label: `the ${gap}-point ratings gap`,
+    contribution: gapBoost,
+  },
+  {
+    label: "the leading runner's place probability",
+    contribution: placeBoost,
+  },
+  {
+    label: "closely matched leading runners",
+    contribution: -compressionPenalty,
+  },
+  {
+    label:
+      fieldSizeAdjustment > 0
+        ? "the smaller field"
+        : "the field size",
+    contribution: fieldSizeAdjustment,
+  },
+  {
+    label: `${trackCondition || "the"} track conditions`,
+    contribution: -conditionPenalty,
+  },
+  {
+    label:
+      placeTerms === "win_only"
+        ? "win-only place terms"
+        : "Pay 1 & 2 place terms",
+    contribution: -placeTermsPenalty,
+  },
+];
 
-if (sorted.length >= 4 && topFourCompression <= 3) {
-  confidenceDrivers.push(
-    "the main chances are also tightly compressed",
-  );
-} else if (sorted.length >= 4 && topFourCompression <= 5) {
-  confidenceDrivers.push(
-    "several of the leading chances remain closely matched",
-  );
-}
+const positiveFactors = confidenceFactors
+  .filter((factor) => factor.contribution > 0)
+  .sort((a, b) => b.contribution - a.contribution);
 
-if (trackCondition.startsWith("heavy")) {
-  confidenceDrivers.push(
-    "Heavy conditions add significant uncertainty",
-  );
-} else if (trackCondition.startsWith("soft")) {
-  confidenceDrivers.push(
-    "Soft conditions add some uncertainty",
-  );
-}
+const negativeFactors = confidenceFactors
+  .filter((factor) => factor.contribution < 0)
+  .sort((a, b) => a.contribution - b.contribution);
 
-if (sorted.length <= 7) {
-  confidenceDrivers.push(
-    "the smaller field improves the overall race setup",
-  );
-} else if (sorted.length >= 14) {
-  confidenceDrivers.push(
-    "the large field adds further uncertainty",
-  );
-} else if (sorted.length >= 11) {
-  confidenceDrivers.push(
-    "the bigger field adds some additional risk",
-  );
-}
+const describeFactor = (factor: {
+  label: string;
+  contribution: number;
+}) =>
+  `${factor.label} (${factor.contribution > 0 ? "+" : ""}${factor.contribution} points)`;
 
-if (placeTerms === "win_only") {
-  confidenceDrivers.push(
-    "win-only terms make the race less forgiving",
-  );
-} else if (placeTerms === "top_2") {
-  confidenceDrivers.push(
-    "Pay 1 & 2 terms reduce the margin for error",
-  );
-}
+const strongestPositive = positiveFactors[0];
+const strongestNegative = negativeFactors[0];
 
-const primaryDriver =
-  confidenceDrivers[0] ||
-  "the race presents a balanced overall profile";
+const confidenceOpening =
+  tier === "Elite"
+    ? "SmartPunt rates this race as an elite-confidence opportunity."
+    : tier === "High"
+      ? "SmartPunt rates this race as a high-confidence opportunity."
+      : tier === "Medium"
+        ? "SmartPunt rates this race as a moderate-confidence opportunity."
+        : "SmartPunt rates this race as a low-confidence opportunity.";
 
-const secondaryDrivers =
-  confidenceDrivers.slice(1, 3);
+const positiveExplanation = strongestPositive
+  ? `The strongest positive influence is ${describeFactor(strongestPositive)}.`
+  : "No additional positive confidence adjustments were identified.";
 
-const secondaryText =
-  secondaryDrivers.length === 0
-    ? ""
-    : secondaryDrivers.length === 1
-      ? ` ${secondaryDrivers[0]}.`
-      : ` ${secondaryDrivers[0]}, while ${secondaryDrivers[1]}.`;
+const negativeExplanation = strongestNegative
+  ? `The largest confidence reduction comes from ${describeFactor(strongestNegative)}.`
+  : "No confidence-reducing adjustments were identified.";
 
-const summary =
-  gap >= 8 && tier === "Low"
-    ? `SmartPunt has identified a clear ratings advantage for the top selection. However, the overall race confidence remains low after accounting for the other race factors. ${secondaryText.trim()}`
-    : gap >= 8 && tier === "Medium"
-      ? `SmartPunt has identified a clear ratings advantage for the top selection. Overall race confidence remains moderate after accounting for the other race factors. ${secondaryText.trim()}`
-      : tier === "Elite"
-        ? `Very strong race confidence because ${primaryDriver}.${secondaryText}`
-        : tier === "High"
-          ? `Strong race confidence because ${primaryDriver}.${secondaryText}`
-          : tier === "Medium"
-            ? `Moderate race confidence because ${primaryDriver}.${secondaryText}`
-            : `Confidence is limited because ${primaryDriver}.${secondaryText}`;
+const additionalFactors = [
+  ...positiveFactors.slice(1, 2),
+  ...negativeFactors.slice(1, 2),
+];
+
+const additionalExplanation =
+  additionalFactors.length > 0
+    ? `Other influences include ${additionalFactors
+        .map(describeFactor)
+        .join(" and ")}.`
+    : "";
+
+const verdictExplanation =
+  suggestedBet === "No Bet"
+    ? "SmartPunt's final recommendation is No Bet."
+    : `SmartPunt's final recommendation is ${suggestedBet}.`;
+
+const summary = [
+  confidenceOpening,
+  positiveExplanation,
+  negativeExplanation,
+  additionalExplanation,
+  verdictExplanation,
+]
+  .filter(Boolean)
+  .join(" ");
+
 
   return {
     tier,
