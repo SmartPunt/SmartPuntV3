@@ -5944,19 +5944,37 @@ const hasDayResults =
                     <div>
                       {activeSnapshotRows.length > 0 ? (
                         <div className="space-y-3">
-                          <p className="text-xs leading-5 text-zinc-200">
-                            SmartPunt's stored race assessment gives this
-                            race a {raceConfidence.confidencePercent}%
-                            confidence rating.
+                          <h4 className="text-xs font-black uppercase tracking-[0.12em] text-amber-200">
+                            SmartPunt Assessment
+                          </h4>
+
+                          <p className="text-sm leading-6 text-zinc-200">
+                            SmartPunt has assessed this race at{" "}
+                            <span className="font-black text-white">
+                              {raceConfidence.confidencePercent}%
+                            </span>{" "}
+                            confidence, placing it in the{" "}
+                            <span className="font-black text-amber-200">
+                              {raceConfidence.tier}
+                            </span>{" "}
+                            confidence category.
                           </p>
 
-                          <p className="text-xs leading-5 text-zinc-400">
-                            The original factor-by-factor contributions
-                            were not saved with this prediction.
-                            SmartPunt will not substitute a newly
-                            calculated breakdown for the original
-                            pre-race assessment.
+                          <p className="text-xs leading-5 text-zinc-300">
+                            The assessment considers the strength of the
+                            leading runners, the competitiveness of the
+                            field and relevant race conditions.
                           </p>
+
+                          <div className="rounded-xl border border-amber-300/20 bg-amber-400/[0.05] px-3 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-300">
+                              SmartPunt Verdict
+                            </p>
+
+                            <p className="mt-1 text-sm font-black text-white">
+                              {raceConfidence.suggestedBet}
+                            </p>
+                          </div>
                         </div>
                       ) : (
                         <p className="text-sm leading-6 text-zinc-200">
