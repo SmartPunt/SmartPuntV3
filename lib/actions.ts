@@ -4399,6 +4399,7 @@ function getSmartPuntTipType(runnerId: number) {
     race_gap: getRaceGapForRunner(Number(runner.id)),
     race_confidence_tier: raceConfidence.tier,
     race_confidence_percent: raceConfidence.confidencePercent,
+    race_confidence_factors: raceConfidence.factors,
     suggested_bet: raceConfidence.suggestedBet,
     audit_json: runner.audit,
     predicted_at: now,
