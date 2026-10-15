@@ -5922,16 +5922,27 @@ const hasDayResults =
                     </>
                   ) : (
                     <div>
-                      <p className="text-sm leading-6 text-zinc-200">
-                        {raceConfidence.summary}
-                      </p>
                       {activeSnapshotRows.length > 0 ? (
-                        <p className="mt-2 text-[11px] leading-5 text-zinc-400">
-                          Confidence reflects the stored race assessment.
-                          An original factor-by-factor breakdown is not
-                          available for this snapshot.
+                        <div className="space-y-3">
+                          <p className="text-xs leading-5 text-zinc-200">
+                            SmartPunt's stored race assessment gives this
+                            race a {raceConfidence.confidencePercent}%
+                            confidence rating.
+                          </p>
+
+                          <p className="text-xs leading-5 text-zinc-400">
+                            The original factor-by-factor contributions
+                            were not saved with this prediction.
+                            SmartPunt will not substitute a newly
+                            calculated breakdown for the original
+                            pre-race assessment.
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-6 text-zinc-200">
+                          {raceConfidence.summary}
                         </p>
-                      ) : null}
+                      )}
                     </div>
                   )}
                 </div>
