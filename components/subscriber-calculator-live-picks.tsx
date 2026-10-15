@@ -5932,17 +5932,43 @@ const hasDayResults =
                           )
                           .slice(0, 3)
                           .map((factor) => (
+
                             <div
                               key={factor.label}
-                              className="flex items-start justify-between gap-3 rounded-xl border border-rose-400/20 bg-rose-400/[0.05] px-3 py-3"
+                              className="rounded-xl border border-rose-400/25 bg-rose-400/[0.05] px-3 py-3"
                             >
-                              <p className="text-xs leading-5 text-zinc-200">
-                                {factor.label}
-                              </p>
-                              <span className="shrink-0 text-sm font-black text-rose-300">
-                                {factor.contribution}
-                              </span>
+                              <div className="flex items-start gap-3">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-rose-400/30 bg-rose-400/10">
+                                  <span
+                                    aria-hidden="true"
+                                    className="text-base font-black text-rose-300"
+                                  >
+                                    ↓
+                                  </span>
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-black leading-5 text-white">
+                                    {factor.label}
+                                  </p>
+
+                                  <p className="mt-1 text-[11px] leading-5 text-zinc-400">
+                                    This factor reduces SmartPunt's
+                                    overall race confidence assessment.
+                                  </p>
+                                </div>
+
+                                <div className="shrink-0 text-right">
+                                  <p className="text-base font-black text-rose-300">
+                                    {factor.contribution}
+                                  </p>
+                                  <p className="text-[9px] font-bold uppercase tracking-wide text-rose-300/70">
+                                    Points
+                                  </p>
+                                </div>
+                              </div>
                             </div>
+
                           ))}
 
                         {!raceConfidence.factors.some(
