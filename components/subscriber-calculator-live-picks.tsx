@@ -231,6 +231,10 @@ type CalculatorPrediction = {
   smartpunt_tip_type?: string | null;
   race_confidence_percent?: number | string | null;
   race_confidence_tier?: string | null;
+  race_confidence_factors?: {
+    label: string;
+    contribution: number;
+  }[] | null;
   suggested_bet?: string | null;
   audit_json?: unknown;
 };
