@@ -5836,16 +5836,106 @@ const hasDayResults =
 
             {raceConfidence ? (
               <div className="mt-5 space-y-4">
-                <div>
+
+                <div className="space-y-4">
                   <h3 className="text-xs font-black text-amber-200">
                     Why this race scores{" "}
                     {raceConfidence.confidencePercent}%
                   </h3>
 
-                  <p className="mt-3 text-sm leading-6 text-zinc-200">
-                    {raceConfidence.summary}
-                  </p>
+                  {activeSnapshotRows.length === 0 &&
+                  raceConfidence.factors ? (
+                    <>
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-black text-emerald-300">
+                          What's working in this race
+                        </h4>
+
+                        {raceConfidence.factors
+                          .filter((factor) => factor.contribution > 0)
+                          .sort(
+                            (a, b) =>
+                              b.contribution - a.contribution,
+                          )
+                          .slice(0, 3)
+                          .map((factor) => (
+                            <div
+                              key={factor.label}
+                              className="flex items-start justify-between gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/[0.05] px-3 py-3"
+                            >
+                              <p className="text-xs leading-5 text-zinc-200">
+                                {factor.label}
+                              </p>
+                              <span className="shrink-0 text-sm font-black text-emerald-300">
+                                +{factor.contribution}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-black text-rose-300">
+                          What's reducing confidence
+                        </h4>
+
+                        {raceConfidence.factors
+                          .filter((factor) => factor.contribution < 0)
+                          .sort(
+                            (a, b) =>
+                              a.contribution - b.contribution,
+                          )
+                          .slice(0, 3)
+                          .map((factor) => (
+                            <div
+                              key={factor.label}
+                              className="flex items-start justify-between gap-3 rounded-xl border border-rose-400/20 bg-rose-400/[0.05] px-3 py-3"
+                            >
+                              <p className="text-xs leading-5 text-zinc-200">
+                                {factor.label}
+                              </p>
+                              <span className="shrink-0 text-sm font-black text-rose-300">
+                                {factor.contribution}
+                              </span>
+                            </div>
+                          ))}
+
+                        {!raceConfidence.factors.some(
+                          (factor) => factor.contribution < 0,
+                        ) ? (
+                          <p className="text-xs text-zinc-400">
+                            No negative confidence adjustments identified.
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="border-t border-white/10 pt-3">
+                        <h4 className="text-xs font-black text-amber-200">
+                          SmartPunt Assessment
+                        </h4>
+                        <p className="mt-2 text-xs leading-5 text-zinc-200">
+                          {raceConfidence.tier} race confidence.
+                          These adjustments help explain the assessment,
+                          but do not represent the complete confidence
+                          calculation.
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <p className="text-sm leading-6 text-zinc-200">
+                        {raceConfidence.summary}
+                      </p>
+                      {activeSnapshotRows.length > 0 ? (
+                        <p className="mt-2 text-[11px] leading-5 text-zinc-400">
+                          Confidence reflects the stored race assessment.
+                          An original factor-by-factor breakdown is not
+                          available for this snapshot.
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
+
 
                 <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
