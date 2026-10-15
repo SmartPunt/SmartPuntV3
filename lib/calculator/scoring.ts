@@ -2511,6 +2511,10 @@ export type RaceConfidence = {
   volatility: string;
   suggestedBet: string;
   summary: string;
+  factors: {
+    label: string;
+    contribution: number;
+  }[];
 };
 
 export function calculateRaceConfidence(
@@ -2747,6 +2751,7 @@ const summary = [
     volatility,
     suggestedBet,
     summary,
+    factors: confidenceFactors,
   };
 }
 export type CalculatorTipCandidate = {
