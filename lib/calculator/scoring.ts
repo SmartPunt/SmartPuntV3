@@ -2580,11 +2580,12 @@ const fieldSizeAdjustment =
         ? -6
         : 0;
 
+  // Heavy conditions retain their existing uncertainty penalty.
+  // Soft conditions carry no automatic race confidence penalty.
+  // Individual horse suitability is assessed separately.
   const conditionPenalty = trackCondition.startsWith("heavy")
     ? 14
-    : trackCondition.startsWith("soft")
-      ? 5
-      : 0;
+    : 0;
 
   const placeTermsPenalty =
     placeTerms === "win_only" ? 10 : placeTerms === "top_2" ? 5 : 0;
