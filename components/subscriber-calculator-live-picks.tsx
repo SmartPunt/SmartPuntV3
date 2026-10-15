@@ -31,8 +31,8 @@ function describeRaceConfidenceFactor(
 
   if (key.includes("gap") || key.includes("separation")) {
     return positive
-      ? "The leading runner has useful separation from its nearest challenger."
-      : "The leading runners are closely matched, making the race harder to separate.";
+      ? "The leading runner has established a clear ratings advantage over its closest rivals, providing a stronger starting point for the race assessment."
+      : "The leading runners are closely matched, making it harder to identify a reliable standout.";
   }
 
   if (
@@ -40,14 +40,14 @@ function describeRaceConfidenceFactor(
     (key.includes("term") || key.includes("pay"))
   ) {
     return positive
-      ? "The available place terms support a more favourable betting setup."
-      : "The available place terms reduce the attractiveness of a place recommendation.";
+      ? "The available place terms improve the betting opportunity by allowing more finishing positions to qualify."
+      : "Fewer paid finishing positions make a place bet less forgiving, reducing overall confidence.";
   }
 
   if (key.includes("place") || key.includes("probability")) {
     return positive
-      ? "The estimated place chance strengthens the overall assessment."
-      : "The estimated place chance provides less support for the leading selection.";
+      ? "The leading runner's estimated chance of finishing in the placings adds support to its overall assessment."
+      : "The estimated place probability provides less reassurance about the leading runner's prospects.";
   }
 
   if (
@@ -56,8 +56,8 @@ function describeRaceConfidenceFactor(
     key.includes("weather")
   ) {
     return positive
-      ? "The recorded race conditions support the confidence assessment."
-      : "The recorded race conditions introduce additional uncertainty.";
+      ? "The recorded track conditions contribute positively to SmartPunt's assessment of this race."
+      : "The recorded track conditions introduce uncertainty, reducing confidence in the overall betting opportunity.";
   }
 
   if (
@@ -66,8 +66,8 @@ function describeRaceConfidenceFactor(
     key.includes("tight")
   ) {
     return positive
-      ? "The ratings provide useful separation between the leading runners."
-      : "Several runners are closely rated, increasing the difficulty of finding a clear selection.";
+      ? "The ratings provide useful separation between the main contenders, making the race easier to assess."
+      : "Several runners have similar ratings, increasing competition and making the result harder to predict.";
   }
 
   if (
@@ -76,8 +76,8 @@ function describeRaceConfidenceFactor(
     key.includes("size")
   ) {
     return positive
-      ? "The field size contributes favourably to the overall assessment."
-      : "The field size increases uncertainty in the overall assessment.";
+      ? "A smaller or more manageable field reduces the number of competing runners and supports the overall assessment."
+      : "The field presents additional competitive uncertainty, making a confident selection more difficult.";
   }
 
   if (
@@ -86,13 +86,74 @@ function describeRaceConfidenceFactor(
     key.includes("leader")
   ) {
     return positive
-      ? "The leading runner's rating strengthens the overall assessment."
-      : "The leading ratings provide less confidence in a clear selection.";
+      ? "The leading runner's strong rating provides additional support for SmartPunt's assessment."
+      : "The leading ratings are not strong enough to provide the same level of confidence.";
   }
 
   return positive
     ? "This saved factor strengthens the overall race confidence assessment."
     : "This saved factor reduces the overall race confidence assessment.";
+}
+
+/**
+ * Makes saved factor labels easier for subscribers to read.
+ * The original saved labels and contribution values are unchanged.
+ */
+function formatRaceConfidenceFactor(label: string): string {
+  const key = label.toLowerCase().trim();
+
+  if (key.includes("gap") || key.includes("separation")) {
+    const points = label.match(/\d+(?:\.\d+)?/);
+
+    return points
+      ? `${points[0]}-Point Ratings Advantage`
+      : "Ratings Advantage";
+  }
+
+  if (
+    key.includes("place") &&
+    (key.includes("term") || key.includes("pay"))
+  ) {
+    return "Place Betting Terms";
+  }
+
+  if (key.includes("place") || key.includes("probability")) {
+    return "Leading Runner's Place Prospects";
+  }
+
+  if (
+    key.includes("condition") ||
+    key.includes("track") ||
+    key.includes("weather")
+  ) {
+    return "Track Conditions";
+  }
+
+  if (
+    key.includes("compression") ||
+    key.includes("competitive") ||
+    key.includes("tight")
+  ) {
+    return "Field Competitiveness";
+  }
+
+  if (
+    key.includes("field") ||
+    key.includes("runner count") ||
+    key.includes("size")
+  ) {
+    return "Field Size";
+  }
+
+  if (
+    key.includes("top score") ||
+    key.includes("rating") ||
+    key.includes("leader")
+  ) {
+    return "Leading Runner's Rating";
+  }
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 type VaultIntelligenceStats = {
@@ -5974,7 +6035,7 @@ const hasDayResults =
 
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-black leading-5 text-white">
-                                    {factor.label}
+                                    {formatRaceConfidenceFactor(factor.label)}
                                   </p>
 
                                   <p className="mt-1 text-[11px] leading-5 text-zinc-300">
@@ -6029,7 +6090,7 @@ const hasDayResults =
 
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-black leading-5 text-white">
-                                    {factor.label}
+                                    {formatRaceConfidenceFactor(factor.label)}
                                   </p>
 
                                   <p className="mt-1 text-[11px] leading-5 text-zinc-300">
@@ -6062,22 +6123,80 @@ const hasDayResults =
                         ) : null}
                       </div>
 
-                      <div className="rounded-xl border border-amber-300/20 bg-amber-400/[0.05] px-4 py-3">
+                      <div className="rounded-xl border border-amber-300/25 bg-amber-400/[0.05] px-4 py-4">
                         <h4 className="text-xs font-black text-amber-200">
                           SmartPunt Assessment
                         </h4>
 
-                        <p className="mt-2 text-sm leading-6 text-zinc-200">
-                          {raceConfidence.suggestedBet === "No Bet"
-                            ? "Some individual factors may be favourable, but SmartPunt's overall race assessment does not support a recommended bet."
-                            : "The saved confidence factors highlight the main strengths and risks behind SmartPunt's overall race assessment."}
-                        </p>
+                        {(() => {
+                          const positiveFactors = raceConfidence.factors
+                            .filter((factor) => factor.contribution > 0)
+                            .sort(
+                              (a, b) =>
+                                b.contribution - a.contribution,
+                            );
 
-                        <p className="mt-2 text-[11px] leading-5 text-zinc-400">
-                          The factors shown are the strongest saved
-                          adjustments, not the complete confidence
-                          calculation.
-                        </p>
+                          const negativeFactors = raceConfidence.factors
+                            .filter((factor) => factor.contribution < 0)
+                            .sort(
+                              (a, b) =>
+                                a.contribution - b.contribution,
+                            );
+
+                          const strongestPositive = positiveFactors[0];
+                          const strongestNegative = negativeFactors[0];
+
+                          return (
+                            <div className="mt-3 space-y-3">
+                              {strongestPositive ? (
+                                <p className="text-sm leading-6 text-zinc-200">
+                                  <span className="font-bold text-emerald-300">
+                                    Working in SmartPunt's favour:{" "}
+                                  </span>
+                                  {formatRaceConfidenceFactor(
+                                    strongestPositive.label,
+                                  )}{" "}
+                                  provides a positive contribution of{" "}
+                                  <span className="font-bold text-emerald-300">
+                                    +{strongestPositive.contribution} points
+                                  </span>
+                                  .
+                                </p>
+                              ) : null}
+
+                              {strongestNegative ? (
+                                <p className="text-sm leading-6 text-zinc-200">
+                                  <span className="font-bold text-rose-300">
+                                    The main concern:{" "}
+                                  </span>
+                                  {formatRaceConfidenceFactor(
+                                    strongestNegative.label,
+                                  )}{" "}
+                                  reduces confidence by{" "}
+                                  <span className="font-bold text-rose-300">
+                                    {Math.abs(strongestNegative.contribution)} points
+                                  </span>
+                                  .
+                                </p>
+                              ) : null}
+
+                              <div className="border-t border-amber-300/15 pt-3">
+                                <p className="text-sm font-medium leading-6 text-white">
+                                  {raceConfidence.suggestedBet === "No Bet"
+                                    ? "Despite the positive indicators, SmartPunt's overall assessment does not meet its requirements for a recommended bet."
+                                    : `After considering the overall race assessment, SmartPunt's confidence model supports a ${raceConfidence.suggestedBet} recommendation.`}
+                                </p>
+                              </div>
+
+                              <p className="text-[11px] leading-5 text-zinc-400">
+                                These are the strongest saved positive and
+                                negative adjustments. The overall confidence
+                                rating also reflects other elements of the
+                                assessment.
+                              </p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </>
                   ) : (
