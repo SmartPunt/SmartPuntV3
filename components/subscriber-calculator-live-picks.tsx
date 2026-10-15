@@ -3468,6 +3468,22 @@ if (!activeSnapshotRows.length) {
 
       summary:
         calculatedConfidence.summary,
+      factors:
+        Array.isArray(storedConfidence?.race_confidence_factors)
+          ? storedConfidence.race_confidence_factors
+              .filter(
+                (factor) =>
+                  factor !== null &&
+                  typeof factor === "object" &&
+                  typeof factor.label === "string" &&
+                  typeof factor.contribution === "number" &&
+                  Number.isFinite(factor.contribution),
+              )
+              .map((factor) => ({
+                label: factor.label,
+                contribution: factor.contribution,
+              }))
+          : [],
     };
   }, [
     activeRace?.place_terms,
