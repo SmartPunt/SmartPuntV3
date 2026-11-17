@@ -789,6 +789,11 @@ async function handleDeleteGetOnEarly(
 <ToolLink
   href="/admin/intelligence-platform"
   label="🧠 Intelligence Platform"
+/ />
+
+<ToolLink
+  href="/admin/v2-data-explorer"
+  label="V2 Data Explorer"
 />
 <ToolLink href="/admin/calculator-report" label="Calculator Report" />
 <ToolLink
