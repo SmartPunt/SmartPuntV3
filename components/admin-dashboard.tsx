@@ -791,10 +791,17 @@ async function handleDeleteGetOnEarly(
   label="🧠 Intelligence Platform"
 />
 
+
+<ToolLink
+  href="/admin/v2-racing-centre"
+  label="V2 Racing Centre"
+/>
+
 <ToolLink
   href="/admin/v2-data-explorer"
   label="V2 Data Explorer"
 />
+
 <ToolLink href="/admin/calculator-report" label="Calculator Report" />
 <ToolLink
   href="/admin/maverick-report"
