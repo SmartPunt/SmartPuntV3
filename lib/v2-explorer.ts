@@ -32,8 +32,8 @@ function getConnection() {
   }
 
   connection = postgres(url, {
-    max: 2,
-    idle_timeout: 10,
+    max: 1,
+    idle_timeout: 5,
     connect_timeout: 10,
     ssl: "require",
     prepare: false,
