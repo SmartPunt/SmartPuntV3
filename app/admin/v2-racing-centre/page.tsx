@@ -118,7 +118,17 @@ export default async function RacingCentre({searchParams}:{searchParams?:Promise
    horseProfile=record;
    form=rows(record?.forms);
   }
- } catch { error=true; }
+ } catch (err) {
+   error = true;
+   console.error("[V2 Racing Centre] Data load failed", {
+     date,
+     meeting,
+     race,
+     message: err instanceof Error
+       ? err.message.replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[REDACTED]")
+       : "Unknown error",
+   });
+ }
  let scratches: SavedFeed | undefined, conditions: SavedFeed | undefined;
  let evidenceError=false;
  if(meeting) {
