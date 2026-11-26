@@ -99,7 +99,7 @@ function HorseProfile({record,form,freshness}:{record:Row|undefined;form:Row[];f
 export default async function RacingCentre({searchParams}:{searchParams?:Promise<Params>}) {
  const profile=await getCurrentProfile(); if(!profile) redirect("/login"); if(!isFullAdmin(profile)) redirect("/");
  const p=(await searchParams)??{}; const today=perthDate();
- const days=Array.from({length:4},(_,i)=>{const d=new Date(`${today}T00:00:00Z`); d.setUTCDate(d.getUTCDate()+i); return d.toISOString().slice(0,10);});
+ const days=Array.from({length:5},(_,i)=>{const d=new Date(`${today}T00:00:00Z`); d.setUTCDate(d.getUTCDate()+i-1); return d.toISOString().slice(0,10);});
  const date=days.includes(s(p.date))?s(p.date):today;
  let meetings:Row[]=[], races:Row[]=[], runners:Row[]=[], form:Row[]=[], error=false;
  let meeting="", race="", runner="", freshness="";
@@ -138,7 +138,7 @@ export default async function RacingCentre({searchParams}:{searchParams?:Promise
  return <main className="min-h-screen bg-neutral-950 p-3 text-white md:p-6"><div className="mx-auto max-w-6xl space-y-4">
  <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-widest text-amber-300">SMARTPUNT V2 · PRIVATE ADMIN</p><h1 className="text-2xl font-bold">Racing Centre</h1></div><Link href="/" className={button}>Dashboard</Link></header>
  <p className="text-xs text-zinc-400">Saved warehouse fields and latest saved update evidence · Perth times · Not a live or officially resulted feed</p>
- <nav className="grid grid-cols-4 gap-2">{days.map((d,i)=><Link key={d} href={href({date:d})} className={`rounded-lg p-2 text-center text-sm ${date===d?"bg-amber-300 font-bold text-black":"bg-zinc-800"}`}>{i===0?"Today":i===1?"Tomorrow":new Intl.DateTimeFormat("en-AU",{weekday:"short",timeZone:"UTC"}).format(new Date(d))}<span className="block text-xs">{d.slice(8)}/{d.slice(5,7)}</span></Link>)}</nav>
+ <nav className="grid grid-cols-5 gap-1 sm:gap-2">{days.map((d,i)=><Link key={d} href={href({date:d})} className={`rounded-lg px-1 py-2 text-center text-xs sm:text-sm ${date===d?"bg-amber-300 font-bold text-black":"bg-zinc-800"}`}>{i===0?"Yesterday":i===1?"Today":i===2?"Tomorrow":new Intl.DateTimeFormat("en-AU",{weekday:"short",timeZone:"UTC"}).format(new Date(d))}<span className="block text-xs">{d.slice(8)}/{d.slice(5,7)}</span></Link>)}</nav>
  {error&&<p className="rounded-lg bg-red-950 p-3 text-red-200">Some V2 data could not be loaded. Refresh or check the Data Explorer.</p>}
  <section className={panel}><h2 className="mb-2 font-bold text-amber-200">Meetings</h2><div className="flex flex-wrap gap-2">{meetings.map(m=><Link key={id(m.meeting_id)} href={href({date,meeting:id(m.meeting_id)})} className={`${button} ${meeting===id(m.meeting_id)?"bg-amber-300/20":""}`}>{show(m.track_name)} <span className="text-xs text-zinc-400">{show(m.state)}</span></Link>)}</div>{!meetings.length&&!error&&<p>No stored meetings for this date.</p>}</section>
  {meeting&&<section className={panel}><nav className="flex flex-wrap gap-2">{races.map(r=><Link key={id(r.race_id)} href={href({date,meeting,race:id(r.race_id)})} className={`${button} ${race===id(r.race_id)?"bg-amber-300/20":""}`}>R{show(r.race_number)}</Link>)}</nav>{selected&&<><h2 className="mt-4 text-xl font-bold">R{show(selected.race_number)} · {show(selected.race_name)}</h2><p className="text-sm text-zinc-400">{show(selected.distance_m)} m · {time(selected.start_time_utc)} Perth · {runners.length} stored runners</p></>}</section>}
