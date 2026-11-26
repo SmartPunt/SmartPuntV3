@@ -43,6 +43,43 @@ function evidenceDate(v:unknown) {
   const raw=s(v); if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) return raw.slice(6)+"-"+raw.slice(3,5)+"-"+raw.slice(0,2);
   return raw.slice(0,10);
 }
+type RaceEvidence = { record: Row; runners: Row[]; freshness: string; updated: unknown };
+async function savedResults(meeting: string, race: string, date: string): Promise<RaceEvidence | undefined> {
+  const snapshots = await v2Rows("api_response_snapshots", {select:"raw_response,request_started_utc",filters:{endpoint:"results",meeting_id:meeting},order:"request_started_utc.desc,id.desc",limit:1});
+  const snap=snapshots[0], raw=obj(snap?.raw_response);
+  if (!snap || numeric(raw.statusCode)!==200 || !Array.isArray(raw.payLoad)) return undefined;
+  const matches=rows(raw.payLoad).filter(m=>id(m.meetingId)===meeting && evidenceDate(m.meetingDate)===date);
+  if(matches.length!==1) return undefined;
+  const m=matches[0], races=rows(m.raceResults).filter(r=>id(r.raceId)===race);
+  if(races.length!==1) return undefined;
+  const record=races[0], resultRows=rows(record.runners);
+  const ids=resultRows.map(r=>id(r.runnerId));
+  if(!ids.length || ids.some(x=>!x) || new Set(ids).size!==ids.length) return undefined;
+  return {record,runners:resultRows,freshness:s(snap.request_started_utc),updated:m.resultsUpdated};
+}
+function normalPosition(r:Row, count:number) { const n=numeric(r.position); return n!==null && Number.isInteger(n) && n>=1 && n<=count && n!==99 ? n : null; }
+function RaceResults({evidence,field,failed,start}:{evidence:RaceEvidence|undefined;field:Row[];failed:boolean;start:unknown}) {
+  const startMs=new Date(s(start)).getTime();
+  const upcoming=Number.isFinite(startMs)&&startMs>Date.now();
+  const resultRows=evidence?.runners??[];
+  const placed=resultRows.filter(r=>normalPosition(r,resultRows.length)!==null).sort((a,b)=>Number(a.position)-Number(b.position));
+  const unplaced=resultRows.filter(r=>normalPosition(r,resultRows.length)===null);
+  const raceTime=s(evidence?.record.officialRaceTime);
+  const hasTime=/^\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(raceTime)&&/[1-9]/.test(raceTime);
+  const fieldIds=new Set(field.map(r=>id(r.runner_id)));
+  const unknown=resultRows.filter(r=>!fieldIds.has(id(r.runnerId))).length;
+  const missing=field.filter(r=>!resultRows.some(x=>id(x.runnerId)===id(r.runner_id))).length;
+  return <section className={panel}><h2 className="mb-2 font-bold text-amber-200">Race results</h2>
+  {failed?<p className="text-sm text-red-200">Results evidence could not be loaded.</p>:!placed.length?<p className="text-sm text-zinc-400">{upcoming?"Upcoming — no saved finishing positions":"Awaiting results — no usable saved finishing positions"}</p>:<><p className="mb-2 text-sm font-semibold text-amber-200">Provisional results — reconciliation not established</p>
+  {(!hasTime||!placed.some(r=>numeric(r.position)===1)||unplaced.length>0||unknown>0)&&<p className="mb-2 text-xs text-amber-200">Incomplete or unusual results evidence — review required.</p>}
+  <Facts items={[["Race time",hasTime?(evidence?.record.officialRaceTimeString??raceTime):"Unavailable"],["Result track condition",`${s(evidence?.record.trackConditionLabel)} ${s(evidence?.record.trackConditionNumber)}`.trim()],["Provider update",stamp(evidence?.updated)]]}/>
+  <Table headers={["Finish","No.","Horse","SP (saved price)","Provider margin"]} data={[...placed,...unplaced].map(r=>[normalPosition(r,resultRows.length)??`Unconfirmed (${show(r.position)})`,r.tabNo,r.runner,(numeric(r.price)??0)>0?decimal(r.price):"—",r.margin])}/>
+  {missing>0&&<p className="text-xs text-zinc-400">{missing} stored runners absent from this results snapshot; absence does not establish scratching status.</p>}
+  {unknown>0&&<p className="text-xs text-amber-200">{unknown} result runners not matched to stored field.</p>}
+  </>}
+  {evidence&&<p className="mt-2 text-xs text-zinc-400">Results source: {stamp(evidence.freshness)} · Saved provider evidence only; not official finality or settlement.</p>}</section>;
+}
+
 function HorseProfile({record,form,freshness}:{record:Row|undefined;form:Row[];freshness:string}) {
  if(!record) return <p className="text-sm text-zinc-400">No matching saved horse profile available.</p>;
  const r=record;
@@ -96,6 +133,8 @@ export default async function RacingCentre({searchParams}:{searchParams?:Promise
  const matchedCount=runners.filter(r=>scratchIds.has(id(r.runner_id))).length;
  const unmatchedCount=[...scratchIds].filter(rid=>!runners.some(r=>id(r.runner_id)===rid)).length;
  const selected=races.find(r=>id(r.race_id)===race);
+ let resultEvidence: RaceEvidence | undefined, resultError=false;
+ if(meeting && race && date<=today) { try { resultEvidence=await savedResults(meeting,race,date); } catch { resultError=true; } }
  return <main className="min-h-screen bg-neutral-950 p-3 text-white md:p-6"><div className="mx-auto max-w-6xl space-y-4">
  <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-widest text-amber-300">SMARTPUNT V2 · PRIVATE ADMIN</p><h1 className="text-2xl font-bold">Racing Centre</h1></div><Link href="/" className={button}>Dashboard</Link></header>
  <p className="text-xs text-zinc-400">Saved warehouse fields and latest saved update evidence · Perth times · Not a live or officially resulted feed</p>
@@ -107,6 +146,7 @@ export default async function RacingCentre({searchParams}:{searchParams?:Promise
  {evidenceError&&<p className="text-sm text-red-200">Some update evidence could not be loaded.</p>}
  {condition?<><div className="mb-3 flex flex-wrap items-center gap-3"><span className="rounded-lg bg-amber-300/15 px-3 py-2 font-bold text-amber-200">{show(condition.trackCondition)} {s(condition.trackConditionNumber)}</span><span>{show(condition.weather)}</span>{condition.abandonded===true&&<span className="font-bold text-red-300">ABANDONED — saved provider status</span>}</div><Facts items={[["Rail",condition.rail],["Rainfall",condition.rainfall],["Irrigation",condition.irrigation],["Penetrometer",condition.penetrometer],["Provider update",stamp(condition.lastUpdate)],["Abandoned",condition.abandonded===true?"Yes":condition.abandonded===false?"No":"Unknown"]]}/>{s(condition.comment)&&<p className="mt-2 text-xs text-zinc-300">{s(condition.comment)}</p>}</>:<p className="text-sm text-zinc-400">No unique matching meeting conditions in latest saved feed.</p>}
  <p className="mt-2 text-xs text-zinc-400">Conditions source: {conditions?stamp(conditions.freshness):"Unavailable"} · Meeting-level evidence only</p></section>}
+ {race&&<RaceResults evidence={resultEvidence} field={runners} failed={resultError} start={selected?.start_time_utc}/>}
  {race&&<section className="space-y-2"><h2 className="font-bold text-amber-200">Stored race field</h2><div className="rounded-lg border border-white/10 p-3 text-xs text-zinc-300"><p>{scratches?`${matchedCount} stored runners listed scratched in latest saved feed`:"Scratching evidence unavailable"}</p><p>Scratchings source: {scratches?stamp(scratches.freshness):"Unavailable"} · Unlisted runners are not confirmed starters.</p>{unmatchedCount>0&&<p className="text-amber-200">{unmatchedCount} scratching IDs not in stored field.</p>}</div>{runners.map(r=>{const raw=obj(r.raw_record);const rid=id(r.runner_id);const scratched=scratchIds.has(rid);return <article key={rid} className={panel}><div className="flex items-start gap-3"><span className="text-xl font-bold text-amber-300">{show(r.tab_number)}</span><div className="min-w-0 flex-1"><h3 className={`font-bold ${scratched?"line-through text-zinc-500":""}`}>{show(r.horse_name)}</h3>{scratched&&<p className="text-xs font-bold text-red-300">SCRATCHED — saved evidence</p>}<p className="text-sm text-zinc-300">{show(obj(raw.jockey).fullName)} · {show(raw.weight)} kg · Barrier {show(r.barrier)}</p><p className="text-xs text-zinc-400">Trainer: {show(obj(raw.trainer).fullName)} · Form: {show(raw.last10)}</p></div><Link className={button} href={href({date,meeting,race,runner:runner===rid?"":rid})}>{runner===rid?"Close":"Form"}</Link></div>
  {runner===rid&&<div className="mt-4 border-t border-white/10 pt-3"><HorseProfile record={horseProfile} form={form} freshness={freshness}/></div>}
  </article>;})}{!runners.length&&!error&&<p>No stored runners.</p>}</section>}
