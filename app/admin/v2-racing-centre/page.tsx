@@ -32,6 +32,17 @@ function Section({title,children,initial=false}:{title:string;children:React.Rea
 function recordLine(v:unknown) { const r=obj(v); return [r.starts,r.firsts,r.seconds,r.thirds].map(show).join(" / "); }
 function rate(v:unknown,place=false) { const r=obj(v), n=numeric(r.starts), w=numeric(r.firsts), a=numeric(r.seconds), b=numeric(r.thirds); if(n===0)return "Untried"; if(n===null||n<0||w===null||(place&&(a===null||b===null)))return "—"; return decimal(100*(w+(place?(a!+b!):0))/n,"%"); }
 function pairs(v:unknown) { return s(v).split(";").filter(Boolean).map(x=>x.replace(",",": ")).join(" · ") || "—"; }
+type SavedFeed = { records: Row[]; freshness: string };
+async function savedFeed(endpoint: "scratchings" | "conditions"): Promise<SavedFeed | undefined> {
+  const snapshots = await v2Rows("api_response_snapshots", {select:"raw_response,request_started_utc",filters:{endpoint},order:"request_started_utc.desc,id.desc",limit:1});
+  const snap = snapshots[0], raw = obj(snap?.raw_response);
+  if (!snap || numeric(raw.statusCode)!==200 || !Array.isArray(raw.payLoad) || !s(snap.request_started_utc)) return undefined;
+  return {records:rows(raw.payLoad),freshness:s(snap.request_started_utc)};
+}
+function evidenceDate(v:unknown) {
+  const raw=s(v); if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) return raw.slice(6)+"-"+raw.slice(3,5)+"-"+raw.slice(0,2);
+  return raw.slice(0,10);
+}
 function HorseProfile({record,form,freshness}:{record:Row|undefined;form:Row[];freshness:string}) {
  if(!record) return <p className="text-sm text-zinc-400">No matching saved horse profile available.</p>;
  const r=record;
@@ -71,15 +82,32 @@ export default async function RacingCentre({searchParams}:{searchParams?:Promise
    form=rows(record?.forms);
   }
  } catch { error=true; }
+ let scratches: SavedFeed | undefined, conditions: SavedFeed | undefined;
+ let evidenceError=false;
+ if(meeting) {
+   const feeds=await Promise.allSettled([savedFeed("scratchings"),savedFeed("conditions")]);
+   if(feeds[0].status==="fulfilled") scratches=feeds[0].value; else evidenceError=true;
+   if(feeds[1].status==="fulfilled") conditions=feeds[1].value; else evidenceError=true;
+ }
+ const conditionMatches=conditions?.records.filter(c=>id(c.meetingId)===meeting && evidenceDate(c.meetingDate)===date) ?? [];
+ const condition=conditionMatches.length===1?conditionMatches[0]:undefined;
+ const raceScratches=scratches?.records.filter(c=>id(c.meetingId)===meeting && id(c.raceId)===race && evidenceDate(c.meetingDate)===date) ?? [];
+ const scratchIds=new Set(raceScratches.map(c=>id(c.runnerId)).filter(Boolean));
+ const matchedCount=runners.filter(r=>scratchIds.has(id(r.runner_id))).length;
+ const unmatchedCount=[...scratchIds].filter(rid=>!runners.some(r=>id(r.runner_id)===rid)).length;
  const selected=races.find(r=>id(r.race_id)===race);
  return <main className="min-h-screen bg-neutral-950 p-3 text-white md:p-6"><div className="mx-auto max-w-6xl space-y-4">
  <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold tracking-widest text-amber-300">SMARTPUNT V2 · PRIVATE ADMIN</p><h1 className="text-2xl font-bold">Racing Centre</h1></div><Link href="/" className={button}>Dashboard</Link></header>
- <p className="text-xs text-zinc-400">Saved warehouse fields · Perth times · Not a live or officially resulted feed</p>
+ <p className="text-xs text-zinc-400">Saved warehouse fields and latest saved update evidence · Perth times · Not a live or officially resulted feed</p>
  <nav className="grid grid-cols-4 gap-2">{days.map((d,i)=><Link key={d} href={href({date:d})} className={`rounded-lg p-2 text-center text-sm ${date===d?"bg-amber-300 font-bold text-black":"bg-zinc-800"}`}>{i===0?"Today":i===1?"Tomorrow":new Intl.DateTimeFormat("en-AU",{weekday:"short",timeZone:"UTC"}).format(new Date(d))}<span className="block text-xs">{d.slice(8)}/{d.slice(5,7)}</span></Link>)}</nav>
  {error&&<p className="rounded-lg bg-red-950 p-3 text-red-200">Some V2 data could not be loaded. Refresh or check the Data Explorer.</p>}
  <section className={panel}><h2 className="mb-2 font-bold text-amber-200">Meetings</h2><div className="flex flex-wrap gap-2">{meetings.map(m=><Link key={id(m.meeting_id)} href={href({date,meeting:id(m.meeting_id)})} className={`${button} ${meeting===id(m.meeting_id)?"bg-amber-300/20":""}`}>{show(m.track_name)} <span className="text-xs text-zinc-400">{show(m.state)}</span></Link>)}</div>{!meetings.length&&!error&&<p>No stored meetings for this date.</p>}</section>
  {meeting&&<section className={panel}><nav className="flex flex-wrap gap-2">{races.map(r=><Link key={id(r.race_id)} href={href({date,meeting,race:id(r.race_id)})} className={`${button} ${race===id(r.race_id)?"bg-amber-300/20":""}`}>R{show(r.race_number)}</Link>)}</nav>{selected&&<><h2 className="mt-4 text-xl font-bold">R{show(selected.race_number)} · {show(selected.race_name)}</h2><p className="text-sm text-zinc-400">{show(selected.distance_m)} m · {time(selected.start_time_utc)} Perth · {runners.length} stored runners</p></>}</section>}
- {race&&<section className="space-y-2"><h2 className="font-bold text-amber-200">Stored race field</h2>{runners.map(r=>{const raw=obj(r.raw_record);const rid=id(r.runner_id);return <article key={rid} className={panel}><div className="flex items-start gap-3"><span className="text-xl font-bold text-amber-300">{show(r.tab_number)}</span><div className="min-w-0 flex-1"><h3 className="font-bold">{show(r.horse_name)}</h3><p className="text-sm text-zinc-300">{show(obj(raw.jockey).fullName)} · {show(raw.weight)} kg · Barrier {show(r.barrier)}</p><p className="text-xs text-zinc-400">Trainer: {show(obj(raw.trainer).fullName)} · Form: {show(raw.last10)}</p></div><Link className={button} href={href({date,meeting,race,runner:runner===rid?"":rid})}>{runner===rid?"Close":"Form"}</Link></div>
+ {meeting&&<section className={panel}><h2 className="mb-2 font-bold text-amber-200">Saved meeting conditions</h2>
+ {evidenceError&&<p className="text-sm text-red-200">Some update evidence could not be loaded.</p>}
+ {condition?<><div className="mb-3 flex flex-wrap items-center gap-3"><span className="rounded-lg bg-amber-300/15 px-3 py-2 font-bold text-amber-200">{show(condition.trackCondition)} {s(condition.trackConditionNumber)}</span><span>{show(condition.weather)}</span>{condition.abandonded===true&&<span className="font-bold text-red-300">ABANDONED — saved provider status</span>}</div><Facts items={[["Rail",condition.rail],["Rainfall",condition.rainfall],["Irrigation",condition.irrigation],["Penetrometer",condition.penetrometer],["Provider update",stamp(condition.lastUpdate)],["Abandoned",condition.abandonded===true?"Yes":condition.abandonded===false?"No":"Unknown"]]}/>{s(condition.comment)&&<p className="mt-2 text-xs text-zinc-300">{s(condition.comment)}</p>}</>:<p className="text-sm text-zinc-400">No unique matching meeting conditions in latest saved feed.</p>}
+ <p className="mt-2 text-xs text-zinc-400">Conditions source: {conditions?stamp(conditions.freshness):"Unavailable"} · Meeting-level evidence only</p></section>}
+ {race&&<section className="space-y-2"><h2 className="font-bold text-amber-200">Stored race field</h2><div className="rounded-lg border border-white/10 p-3 text-xs text-zinc-300"><p>{scratches?`${matchedCount} stored runners listed scratched in latest saved feed`:"Scratching evidence unavailable"}</p><p>Scratchings source: {scratches?stamp(scratches.freshness):"Unavailable"} · Unlisted runners are not confirmed starters.</p>{unmatchedCount>0&&<p className="text-amber-200">{unmatchedCount} scratching IDs not in stored field.</p>}</div>{runners.map(r=>{const raw=obj(r.raw_record);const rid=id(r.runner_id);const scratched=scratchIds.has(rid);return <article key={rid} className={panel}><div className="flex items-start gap-3"><span className="text-xl font-bold text-amber-300">{show(r.tab_number)}</span><div className="min-w-0 flex-1"><h3 className={`font-bold ${scratched?"line-through text-zinc-500":""}`}>{show(r.horse_name)}</h3>{scratched&&<p className="text-xs font-bold text-red-300">SCRATCHED — saved evidence</p>}<p className="text-sm text-zinc-300">{show(obj(raw.jockey).fullName)} · {show(raw.weight)} kg · Barrier {show(r.barrier)}</p><p className="text-xs text-zinc-400">Trainer: {show(obj(raw.trainer).fullName)} · Form: {show(raw.last10)}</p></div><Link className={button} href={href({date,meeting,race,runner:runner===rid?"":rid})}>{runner===rid?"Close":"Form"}</Link></div>
  {runner===rid&&<div className="mt-4 border-t border-white/10 pt-3"><HorseProfile record={horseProfile} form={form} freshness={freshness}/></div>}
  </article>;})}{!runners.length&&!error&&<p>No stored runners.</p>}</section>}
  <Link href="/admin/v2-data-explorer" className={button}>Open technical Data Explorer</Link>
