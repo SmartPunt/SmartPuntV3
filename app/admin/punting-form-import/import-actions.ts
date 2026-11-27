@@ -1,18 +1,34 @@
 "use server";
 
 import { getCurrentProfile, isRacingOpsAdmin } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
 import { v2Rows } from "@/lib/v2-explorer";
 import { translateMeeting } from "./translate";
 import { attachEvidence } from "./evidence";
 
-export async function validatePuntingFormMeeting(meetingId: string) {
+export async function validatePuntingFormMeeting(
+  meetingId: string
+) {
+  return processPuntingFormMeeting(meetingId, true);
+}
+
+export async function importPuntingFormMeeting(
+  meetingId: string
+) {
+  return processPuntingFormMeeting(meetingId, false);
+}
+
+async function processPuntingFormMeeting(
+  meetingId: string,
+  validateOnly: boolean
+) {
   try {
     const profile = await getCurrentProfile();
 
-    if (!isRacingOpsAdmin(profile)) {
-      throw new Error("Unauthorised");
-    }
+if (!profile || !isRacingOpsAdmin(profile)) {
+  throw new Error("Unauthorised");
+}
 
     if (!/^\d{1,18}$/.test(meetingId)) {
       throw new Error("Invalid meeting ID");
@@ -97,11 +113,36 @@ export async function validatePuntingFormMeeting(meetingId: string) {
       throw new Error("Unsupported or missing track condition");
     }
 
-    const meetingPayload = {
-      meeting_name: preview.meeting.meeting_name,
-      meeting_date: preview.meeting.meeting_date,
-      track_condition: condition,
-    };
+const now = Date.now();
+
+if (!validateOnly) {
+  const maxEvidenceAgeMs = 24 * 60 * 60 * 1000;
+
+  for (const timestamp of [
+    preview.meeting.scratchings_collected_utc,
+    preview.meeting.conditions_collected_utc,
+  ]) {
+    const collected = Date.parse(String(timestamp));
+    const age = now - collected;
+
+    if (
+      !Number.isFinite(collected) ||
+      age < 0 ||
+      age > maxEvidenceAgeMs
+    ) {
+      throw new Error(
+        "Stored evidence is older than 24 hours or invalid. Refresh V2 evidence before importing."
+      );
+    }
+  }
+}
+
+const meetingPayload = {
+  meeting_name: preview.meeting.meeting_name,
+  meeting_date: preview.meeting.meeting_date,
+  track_condition: condition,
+  actor_id: profile.id,
+};
 
     const racePayload = preview.races.map((race) => ({
       number: race.race.race_number,
@@ -134,25 +175,51 @@ export async function validatePuntingFormMeeting(meetingId: string) {
       })),
     }));
 
-    const supabase = await createClient();
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const { data, error } = await supabase.rpc(
-      "smartpunt_import_draft_meeting",
-      {
-        p_meeting: meetingPayload,
-        p_races: racePayload,
-        p_validate_only: true,
-      }
-    );
+if (!url || !serviceKey) {
+  throw new Error("V1 backend database connection not configured");
+}
+
+if (
+  new URL(url).hostname !==
+  "fmjzbtnvusbzmdwxzxlu.supabase.co"
+) {
+  throw new Error("Unexpected V1 database destination");
+}
+
+const supabase = createClient(url, serviceKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+});
+
+const { data, error } = await supabase.rpc(
+  "smartpunt_import_draft_meeting",
+  {
+    p_meeting: meetingPayload,
+    p_races: racePayload,
+    p_validate_only: validateOnly,
+  }
+);
 
     if (error) {
       throw new Error(error.message);
     }
 
-    return {
-      success: true,
-      result: data,
-    };
+if (!validateOnly) {
+  revalidatePath("/admin/race-builder");
+  revalidatePath("/admin/calculator");
+  revalidatePath("/admin/punting-form-import");
+}
+
+return {
+  success: true,
+  result: data,
+};
   } catch (error) {
     console.error("Punting Form validation failed", error);
 
