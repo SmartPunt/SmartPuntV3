@@ -10413,15 +10413,6 @@ export async function removeAllRaceRunnersAction(
     }
 
     /*
-     * Clear disposable Calculator/research data created
-     * from the incorrect draft field.
-     */
-    await Promise.all([
-      serviceRoleDelete(
-        `calculator_predictions?race_id=eq.${raceId}`,
-      ),
-
-     /*
      * Atomically clear disposable draft predictions,
      * research data and runners, then reset the
      * meeting's Calculator release.
