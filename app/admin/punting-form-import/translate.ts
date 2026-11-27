@@ -4,7 +4,10 @@ const s = (v: unknown) => v == null ? '' : String(v);
 const raw = (r: Row): Row => typeof r.raw_record === 'string' ? JSON.parse(r.raw_record) : r.raw_record;
 function record(v: any) { if(v == null) return ''; const a = [v.starts,v.firsts,v.seconds,v.thirds]; check(a.every(x=>Number.isInteger(x)&&x>=0)&&a[1]+a[2]+a[3]<=a[0],'Invalid statistical record'); return `${a[0]}:${a.slice(1).join(',')}`; }
 export function translateMeeting(m: Row, races: Row[], runners: Row[]) {
- const d=raw(m), t=d.track, mid=s(m.meeting_id), date=s(m.meeting_date).slice(0,10);
+ const d=raw(m), t=d.track, mid=s(m.meeting_id);
+ const date=m.meeting_date instanceof Date
+   ? m.meeting_date.toISOString().slice(0,10)
+   : s(m.meeting_date).slice(0,10);
  check(s(d.meetingId)===mid && s(d.meetingDate).slice(0,10)===date && s(t.trackId)===s(m.track_id)&&t.name===m.track_name&&t.state===m.state&&t.country===m.country,'Meeting identity mismatch');
  const ids=new Set(races.map(r=>s(r.race_id))); check(races.length>0&&races.length<=50&&ids.size===races.length&&new Set(races.map(r=>Number(r.race_number))).size===races.length&&races.every(r=>s(r.meeting_id)===mid)&&runners.every(u=>ids.has(s(u.race_id))),'Duplicate or foreign race/runner');
  const horses=new Map<string,string>();
