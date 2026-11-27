@@ -4,10 +4,7 @@ const s = (v: unknown) => v == null ? '' : String(v);
 const raw = (r: Row): Row => typeof r.raw_record === 'string' ? JSON.parse(r.raw_record) : r.raw_record;
 function record(v: any) { if(v == null) return ''; const a = [v.starts,v.firsts,v.seconds,v.thirds]; check(a.every(x=>Number.isInteger(x)&&x>=0)&&a[1]+a[2]+a[3]<=a[0],'Invalid statistical record'); return `${a[0]}:${a.slice(1).join(',')}`; }
 export function translateMeeting(m: Row, races: Row[], runners: Row[]) {
- const d=raw(m), t=d.track, mid=s(m.meeting_id);
- const date=m.meeting_date instanceof Date
-   ? m.meeting_date.toISOString().slice(0,10)
-   : s(m.meeting_date).slice(0,10);
+ const d=raw(m), t=d.track, mid=s(m.meeting_id), date=m.meeting_date instanceof Date ? m.meeting_date.toISOString().slice(0,10) : s(m.meeting_date).slice(0,10);
  check(s(d.meetingId)===mid && s(d.meetingDate).slice(0,10)===date && s(t.trackId)===s(m.track_id)&&t.name===m.track_name&&t.state===m.state&&t.country===m.country,'Meeting identity mismatch');
  const ids=new Set(races.map(r=>s(r.race_id))); check(races.length>0&&races.length<=50&&ids.size===races.length&&new Set(races.map(r=>Number(r.race_number))).size===races.length&&races.every(r=>s(r.meeting_id)===mid)&&runners.every(u=>ids.has(s(u.race_id))),'Duplicate or foreign race/runner');
  const horses=new Map<string,string>();
@@ -21,7 +18,7 @@ export function translateMeeting(m: Row, races: Row[], runners: Row[]) {
  const f=(v.last10||'').trim(); check(/^[0-9xX\s]*$/.test(f),'Unsupported form'); const form=f.replace(/[^0-9]/g,''); check(Number.isInteger(v.careerStarts)&&form.length<=v.careerStarts,'Invalid career starts');
  const [w,c,a]=['weightAllocated','jockeyClaim','weight'].map(k=>{check(v[k]!=null&&s(v[k]).trim()!=='','Missing weight');return Number(v[k]);}); check(Number.isFinite(w)&&Number.isFinite(c)&&Number.isFinite(a)&&w>0&&c>=0&&Math.abs(w-c-a)<1e-8,'Weight reconciliation failed');
  const j=v.jockey||{}, tr=v.trainer||{}; const unallocated=s(j.jockeyId)==='0'&&['','null'].includes(s(u.jockey_id))&&!(j.fullName||'').trim()&&!(j.name||'').trim()&&c===0; check((unallocated||s(j.jockeyId)===s(u.jockey_id))&&s(tr.trainerId)===s(u.trainer_id),'Jockey/trainer mismatch'); if(unallocated) warnings.push(`${name}: jockey unallocated`);
- const p:Row={horse_name:name,runner_number:n,barrier:s(b),weight_kg:s(w),apprentice_claim_kg:s(c),is_apprentice:!!j.isApprentice,jockey_name:(j.fullName||j.name||'').trim(),trainer_name:tr.fullName||tr.name||'',form_last_6:form.slice(-6),market_price:'',prize_money:s(v.prizeMoney)};
+ const p:Row={horse_name:name,runner_number:n,barrier:s(b),weight_kg:s(w),apprentice_claim_kg:s(c),is_apprentice:!!j.isApprentice,jockey_name:(j.fullName||j.name||'').trim(),trainer_name:tr.fullName||tr.name||'',form_last_6:f.replace(/\s+/g,''),recent_finishes_preview:form.slice(-6),scratching_status_preview:'UNVERIFIED',market_price:'',prize_money:s(v.prizeMoney)};
  for(const [dest,src] of Object.entries({track_form_last_6:'trackRecord',distance_form_last_6:'distanceRecord',good_track_record:'goodRecord',soft_track_record:'softRecord',heavy_track_record:'heavyRecord',synthetic_track_record:'syntheticRecord'})){p[dest]=record(v[src]);if(!p[dest])warnings.push(`${name}: missing ${src}`);}
  const prov={runner_number:n,provider_runner_id:id,provider_jockey_id:s(u.jockey_id),provider_trainer_id:s(u.trainer_id),career_starts:v.careerStarts,effective_weight_kg:s(a),source_file_id:s(u.source_file_id)}; (v.emergencyIndicator?emergency:ordinary).push(p); (v.emergencyIndicator?emergencyProvenance:provenance).push(prov);
  }
