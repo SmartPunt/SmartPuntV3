@@ -138,42 +138,97 @@ if (!validateOnly) {
 }
 
 const meetingPayload = {
+  pf_meeting_id: preview.meeting.provider_meeting_id,
   meeting_name: preview.meeting.meeting_name,
   meeting_date: preview.meeting.meeting_date,
   track_condition: condition,
   actor_id: profile.id,
 };
 
-    const racePayload = preview.races.map((race) => ({
-      number: race.race.race_number,
-      name: race.race.race_name,
-      distance: race.race.distance_m,
-      entries: race.runners_json_preview.map((runner) => ({
-        name: runner.horse_name,
-        number: runner.runner_number,
-        barrier: Number(runner.barrier),
-        weight: Number(runner.weight_kg),
-        claim: Number(runner.apprentice_claim_kg),
-        apprentice: Boolean(runner.is_apprentice),
-        jockey: runner.jockey_name,
-        trainer: runner.trainer_name,
-        form: runner.form_last_6,
-        track: runner.track_form_last_6,
-        distance: runner.distance_form_last_6,
-        good: runner.good_track_record,
-        soft: runner.soft_track_record,
-        heavy: runner.heavy_track_record,
-        synthetic: runner.synthetic_track_record,
-        prize:
-          runner.prize_money === ""
-            ? null
-            : Number(runner.prize_money),
-        scratched:
-          runner.scratching_status_preview ===
-          "SCRATCHED (snapshot)",
-        emergency: false,
-      })),
-    }));
+    const racePayload = preview.races.map((race) => {
+      const ordinaryIds = new Map(
+        race.provenance.map((entry) => [
+          Number(entry.runner_number),
+          String(entry.provider_runner_id),
+        ])
+      );
+
+      const emergencyIds = new Map(
+        race.emergency_provenance.map((entry) => [
+          Number(entry.runner_number),
+          String(entry.provider_runner_id),
+        ])
+      );
+
+      const getProviderId = (
+        identities: Map<number, string>,
+        runnerNumber: number
+      ) => {
+        const id = identities.get(Number(runnerNumber));
+
+        if (!id || !/^[1-9]\d{0,17}$/.test(id)) {
+          throw new Error(
+            `Missing provider identity for race ${
+              race.race.race_number
+            }, runner ${runnerNumber}`
+          );
+        }
+
+        return id;
+      };
+
+      return {
+        pf_race_id: race.race.provider_race_id,
+        number: race.race.race_number,
+        name: race.race.race_name,
+        distance: race.race.distance_m,
+
+        entries: race.runners_json_preview.map((runner) => ({
+          pf_runner_id: getProviderId(
+            ordinaryIds,
+            runner.runner_number
+          ),
+          name: runner.horse_name,
+          number: runner.runner_number,
+          barrier: Number(runner.barrier),
+          weight: Number(runner.weight_kg),
+          claim: Number(runner.apprentice_claim_kg),
+          apprentice: Boolean(runner.is_apprentice),
+          jockey: runner.jockey_name,
+          trainer: runner.trainer_name,
+          form: runner.form_last_6,
+          track: runner.track_form_last_6,
+          distance: runner.distance_form_last_6,
+          good: runner.good_track_record,
+          soft: runner.soft_track_record,
+          heavy: runner.heavy_track_record,
+          synthetic: runner.synthetic_track_record,
+          prize:
+            runner.prize_money === ""
+              ? null
+              : Number(runner.prize_money),
+          scratched:
+            runner.scratching_status_preview ===
+            "SCRATCHED (snapshot)",
+          emergency: false,
+        })),
+
+        emergencies: race.emergency_runners_preview.map(
+          (runner) => ({
+            pf_runner_id: getProviderId(
+              emergencyIds,
+              runner.runner_number
+            ),
+            name: runner.horse_name,
+            number: runner.runner_number,
+            scratched:
+              runner.scratching_status_preview ===
+              "SCRATCHED (snapshot)",
+            emergency: true,
+          })
+        ),
+      };
+    });
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -198,7 +253,7 @@ const supabase = createClient(url, serviceKey, {
 });
 
 const { data, error } = await supabase.rpc(
-  "smartpunt_import_draft_meeting",
+  "smartpunt_import_mapped_meeting",
   {
     p_meeting: meetingPayload,
     p_races: racePayload,
