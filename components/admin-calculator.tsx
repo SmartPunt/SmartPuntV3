@@ -375,17 +375,21 @@ function buildRaceEdgeLeaders(alerts: SpecialistAlert[]): RaceEdgeLeader[] {
   });
 }
 
-type RaceDayFilter = "yesterday" | "today" | "tomorrow";
+type RaceDayFilter = "yesterday" | "today" | "tomorrow" | "dayAfterTomorrow" | "threeDaysAhead";
 
 type DayDates = {
   yesterday: string;
   today: string;
   tomorrow: string;
+  dayAfterTomorrow: string;
+  threeDaysAhead: string;
 };
 
 function getRaceDayLabel(value: RaceDayFilter) {
   if (value === "yesterday") return "Yesterday";
   if (value === "tomorrow") return "Tomorrow";
+  if (value === "dayAfterTomorrow") return "Today + 2";
+  if (value === "threeDaysAhead") return "Today + 3";
   return "Today";
 }
 
@@ -549,6 +553,8 @@ export default function AdminCalculator({
         yesterday: getPerthDate(-1),
         today: getPerthDate(0),
         tomorrow: getPerthDate(1),
+        dayAfterTomorrow: getPerthDate(2),
+        threeDaysAhead: getPerthDate(3),
       },
     [dayDates],
   );
@@ -2453,6 +2459,30 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
 
                 <button
                   type="button"
+                  onClick={() => setRaceDayFilter("dayAfterTomorrow")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "dayAfterTomorrow"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Today + 2
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("threeDaysAhead")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "threeDaysAhead"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Today + 3
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setRaceDayFilter("yesterday")}
                   className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
                     raceDayFilter === "yesterday"
@@ -2762,7 +2792,7 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
                     ? "Today’s"
                     : raceDayFilter === "tomorrow"
                       ? "Tomorrow’s"
-                      : "Yesterday’s"}{" "}
+                      : raceDayFilter === "yesterday" ? "Yesterday’s" : `${selectedRaceDayLabel} —`}{" "}
                   strongest {strongestBetMode === "win" ? "win" : "place"} bets
                 </h2>
 
@@ -2773,7 +2803,7 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
                       ? "today’s published races"
                       : raceDayFilter === "tomorrow"
                         ? "tomorrow’s published races"
-                        : "yesterday’s published races"}
+                        : raceDayFilter === "yesterday" ? "yesterday’s published races" : `published races for ${selectedRaceDayLabel}`}
                     .
                   </p>
 
@@ -2810,6 +2840,30 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
                   }`}
                 >
                   Tomorrow
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("dayAfterTomorrow")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "dayAfterTomorrow"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Today + 2
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRaceDayFilter("threeDaysAhead")}
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    raceDayFilter === "threeDaysAhead"
+                      ? "bg-black text-amber-300"
+                      : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
+                  }`}
+                >
+                  Today + 3
                 </button>
 
                 <button
@@ -3122,7 +3176,7 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
                             Today
                           </button>
 
-                          <button
+                                                    <button
                             type="button"
                             onClick={() => setRaceDayFilter("tomorrow")}
                             className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
@@ -3134,6 +3188,29 @@ className="rounded-[22px] border border-rose-300 bg-rose-50 p-4 text-left transi
                             Tomorrow
                           </button>
 
+                          <button
+                            type="button"
+                            onClick={() => setRaceDayFilter("dayAfterTomorrow")}
+                            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                              raceDayFilter === "dayAfterTomorrow"
+                                ? "bg-zinc-950 text-amber-300"
+                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                            }`}
+                          >
+                            Today + 2
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setRaceDayFilter("threeDaysAhead")}
+                            className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                              raceDayFilter === "threeDaysAhead"
+                                ? "bg-zinc-950 text-amber-300"
+                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                            }`}
+                          >
+                            Today + 3
+                          </button>
                           <button
                             type="button"
                             onClick={() => setRaceDayFilter("yesterday")}
