@@ -1590,17 +1590,21 @@ function CardTitle({ icon, children }: { icon: string; children: ReactNode }) {
   );
 }
 
-type RaceDayFilter = "yesterday" | "today" | "tomorrow";
+type RaceDayFilter = "yesterday" | "today" | "tomorrow" | "dayAfterTomorrow" | "threeDaysAhead";
 
 type DayDates = {
   yesterday: string;
   today: string;
   tomorrow: string;
+  dayAfterTomorrow: string;
+  threeDaysAhead: string;
 };
 
 function getRaceDayLabel(value: RaceDayFilter) {
   if (value === "yesterday") return "Yesterday";
   if (value === "tomorrow") return "Tomorrow";
+  if (value === "dayAfterTomorrow") return "Today + 2";
+  if (value === "threeDaysAhead") return "Today + 3";
   return "Today";
 }
 
@@ -2817,6 +2821,8 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
         yesterday: getPerthDate(-1),
         today: getPerthDate(0),
         tomorrow: getPerthDate(1),
+        dayAfterTomorrow: getPerthDate(2),
+        threeDaysAhead: getPerthDate(3),
       },
     [dayDates],
   );
@@ -2825,11 +2831,7 @@ const [expandedTopThreeRunnerIds, setExpandedTopThreeRunnerIds] = useState<
     getRaceDayLabel(raceDayFilter);
 
   const selectedRacePlanDate =
-    raceDayFilter === "yesterday"
-      ? activeDayDates.yesterday
-      : raceDayFilter === "tomorrow"
-        ? activeDayDates.tomorrow
-        : activeDayDates.today;
+    activeDayDates[raceDayFilter];
 
   const selectedRacePlanItems =
     useMemo(() => {
@@ -4074,7 +4076,7 @@ const activeRaceWatchSuggestions =
   useMemo(() => {
     if (
       !activeRace ||
-      raceDayFilter === "tomorrow"
+      (raceDayFilter !== "today" && raceDayFilter !== "yesterday")
     ) {
       return [];
     }
@@ -8231,11 +8233,11 @@ filteredMaverickWatchOpportunities.length === 0 ? (
 <div
   className="rounded-[20px] border border-black/10 bg-[#f7f0df]"
   onTouchStart={handleRaceSwipeStart}
-  onTouchEnd={handleRaceSwipeEnd}
+   onTouchEnd={handleRaceSwipeEnd}
 >
             <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                {(["yesterday", "today", "tomorrow"] as RaceDayFilter[]).map((day) => (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                {(["yesterday", "today", "tomorrow", "dayAfterTomorrow", "threeDaysAhead"] as RaceDayFilter[]).map((day) => (
                   <button
                     key={day}
                     type="button"
@@ -10380,7 +10382,7 @@ return (
                     ? "Yesterday's Results"
                     : raceDayFilter === "tomorrow"
                       ? "Tomorrow's Results"
-                      : "Today's Results"}
+                      : raceDayFilter === "today" ? "Today's Results" : `${selectedRaceDayLabel} Results`}
                 </h2>
 
                 <p className="mt-1 text-[10px] font-semibold text-zinc-400">
