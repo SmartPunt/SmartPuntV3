@@ -540,6 +540,7 @@ export default function AdminCalculator({
   );
 
   const [raceDayFilter, setRaceDayFilter] = useState<RaceDayFilter>("today");
+  const [includeDraftRaces, setIncludeDraftRaces] = useState(false);
   const [showTipsOnly, setShowTipsOnly] = useState(false);
   const [showSpecialistsOnly, setShowSpecialistsOnly] = useState(false);
   const [minimumConfidence, setMinimumConfidence] = useState("all");
@@ -787,10 +788,15 @@ tier:
 
   const publishedRaces = useMemo(
     () =>
-      races.filter((race) =>
-        ["published", "closed"].includes(String(race.status || "")),
-      ),
-    [races],
+      races.filter((race) => {
+        const status = String(race.status || "");
+
+        return (
+          ["published", "closed"].includes(status) ||
+          (includeDraftRaces && status === "draft")
+        );
+      }),
+    [races, includeDraftRaces],
   );
 
   const dayPublishedRaces = useMemo(
@@ -1372,6 +1378,7 @@ const importHealthWarnings = importHealthBoard.filter(
 const importHealthWarningCount = importHealthWarnings.length;
   const strongestBets = useMemo(() => {
     return dayPublishedRaces
+      .filter((race) => String(race.status || "") !== "draft")
       .map((race) => {
         const scored =
           scoredRunnersByRaceId.get(Number(race.id)) || [];
@@ -1670,9 +1677,35 @@ onClick={() => {
               ) : null}
 
               <div>
-                <label className="text-sm font-medium text-zinc-700">
-                  Or choose a published race
-                </label>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="text-sm font-medium text-zinc-700">
+                    {includeDraftRaces
+                      ? "Choose a published or draft race"
+                      : "Or choose a published race"}
+                  </label>
+
+                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-zinc-800">
+                    <input
+                      type="checkbox"
+                      checked={includeDraftRaces}
+                      onChange={(e) => {
+                        setIncludeDraftRaces(e.target.checked);
+                        setSelectedRaceId("");
+                        setSelectedAuditRunnerId(null);
+                      }}
+                      className="h-4 w-4 accent-amber-600"
+                    />
+                    Include draft races
+                  </label>
+                </div>
+
+                {includeDraftRaces ? (
+                  <p className="mt-2 text-xs font-medium text-amber-700">
+                    Draft races are available for private analysis only.
+                    They cannot be shared with subscribers.
+                  </p>
+                ) : null}
+
                 <div className="mt-2">
                   <select
                     value={selectedRaceId}
@@ -1686,6 +1719,9 @@ onClick={() => {
                       );
                       return (
                         <option key={race.id} value={String(race.id)}>
+                          {String(race.status || "") === "draft"
+                            ? "[DRAFT] "
+                            : ""}
                           {meeting?.meeting_name || "Meeting"} · R
                           {race.race_number} {race.race_name}
                         </option>
@@ -1779,6 +1815,12 @@ onClick={() => {
                             <h2 className="truncate text-2xl font-black tracking-tight text-white">
                               {activeRace.race_name}
                             </h2>
+
+                            {String(activeRace.status || "") === "draft" ? (
+                              <div className="mt-2 inline-flex rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-300">
+                                DRAFT — ADMIN ANALYSIS ONLY
+                              </div>
+                            ) : null}
                             <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm font-semibold text-zinc-300">
                               <span>{activeRace.distance_m || "—"}m</span>
                               <span>•</span>
