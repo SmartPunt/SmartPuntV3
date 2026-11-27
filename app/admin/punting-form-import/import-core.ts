@@ -8,7 +8,8 @@ import { attachEvidence } from "./evidence";
 export async function processPuntingFormMeeting(
   meetingId: string,
   validateOnly: boolean,
-  actorId: string
+  actorId: string,
+  automated = false
 ) {
   try {
     if (
@@ -30,6 +31,100 @@ export async function processPuntingFormMeeting(
 
     if (meetings.length !== 1) {
       throw new Error("Meeting identity mismatch");
+    }
+
+    if (automated) {
+      const meeting = meetings[0];
+
+      const raw =
+        typeof meeting.raw_record === "string"
+          ? JSON.parse(meeting.raw_record)
+          : meeting.raw_record;
+
+      if (
+        !raw ||
+        typeof raw !== "object" ||
+        Array.isArray(raw)
+      ) {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: Missing meeting metadata"
+        );
+      }
+
+      const metadata = raw as Record<string, unknown>;
+
+      if (meeting.country !== "AUS") {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: International meeting"
+        );
+      }
+
+      if (metadata.tabMeeting !== true) {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: Non-TAB or unverified meeting"
+        );
+      }
+
+      if (metadata.isBarrierTrial !== false) {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: Barrier trial or unverified race type"
+        );
+      }
+
+      if (metadata.isJumps !== false) {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: Jumps or unverified race type"
+        );
+      }
+
+      const meetingDate =
+        meeting.meeting_date instanceof Date
+          ? meeting.meeting_date.toISOString().slice(0, 10)
+          : String(meeting.meeting_date).slice(0, 10);
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(meetingDate)) {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: Invalid meeting date"
+        );
+      }
+
+      const todayPerth = new Intl.DateTimeFormat(
+        "sv-SE",
+        {
+          timeZone: "Australia/Perth",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }
+      ).format(new Date());
+
+      const horizon = new Date(
+        `${todayPerth}T00:00:00Z`
+      );
+
+      horizon.setUTCDate(horizon.getUTCDate() + 4);
+
+      const latestDate = horizon
+        .toISOString()
+        .slice(0, 10);
+
+      if (meetingDate < "2026-11-29") {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: Before automation cutover"
+        );
+      }
+
+      if (meetingDate <= todayPerth) {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: Same-day or past meeting"
+        );
+      }
+
+      if (meetingDate > latestDate) {
+        throw new Error(
+          "AUTOMATION_INELIGIBLE: Outside upcoming racing window"
+        );
+      }
     }
 
     const races = await v2Rows("races", {
