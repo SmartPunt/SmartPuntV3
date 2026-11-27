@@ -1,7 +1,10 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { validatePuntingFormMeeting } from "./import-actions";
+import {
+  validatePuntingFormMeeting,
+  importPuntingFormMeeting,
+} from "./import-actions";
 
 type Row = Record<string, unknown>;
 function row(v: unknown): Row {
@@ -33,14 +36,73 @@ function parse(v: unknown): Preview {
   return { meeting, races, blockers: messages(p.blockers) };
 }
 export default function MeetingPreview({initialPreview, options, selected, serverError}: {initialPreview: unknown; options: {id:string;label:string}[]; selected:string; serverError:string}) {
-  const [preview, setPreview] = useState<Preview | null>(() => initialPreview ? parse(initialPreview) : null);
-const [error, setError] = useState("");
+const [preview] = useState<Preview | null>(() =>
+  initialPreview ? parse(initialPreview) : null
+);
 const [validating, setValidating] = useState(false);
 const [validationResult, setValidationResult] = useState("");
 const [validationError, setValidationError] = useState("");
+const [importing, setImporting] = useState(false);
+const [importResult, setImportResult] = useState("");
+const [importError, setImportError] = useState("");
+const [missingRaces, setMissingRaces] = useState(0);
+const [proposedRunners, setProposedRunners] = useState(0);
+
+async function handleImportMeeting() {
+  if (!selected || importing || validating || missingRaces <= 0) {
+    return;
+  }
+
+  const meetingLabel =
+    options.find((option) => option.id === selected)?.label ||
+    selected;
+
+  const approved = window.confirm(
+    `Import ${meetingLabel}?\n\n` +
+    `Expected new races: ${missingRaces}\n` +
+    `Expected new runner records: ${proposedRunners}\n\n` +
+    `All new races will remain drafts.\n` +
+    `Emergency entries are excluded.\n` +
+    `Scratchings and place terms remain provisional.\n\n` +
+    `Continue with permanent draft import?`
+  );
+
+  if (!approved) return;
+
+  setImporting(true);
+  setImportResult("");
+  setImportError("");
+  setMissingRaces(0);
+
+  try {
+    const response = await importPuntingFormMeeting(selected);
+
+    if (response.success) {
+      setImportResult(
+        JSON.stringify(response.result, null, 2)
+      );
+      setValidationResult("");
+    } else {
+      setImportError(
+        response.error || "Import failed"
+      );
+    }
+  } catch {
+    setImportError(
+      "Import response unavailable. Validate again before retrying."
+    );
+  } finally {
+    setImporting(false);
+  }
+}
 
 async function handleValidateMeeting() {
-  if (!selected || validating) return;
+if (!selected || validating || importing) return;
+
+setMissingRaces(0);
+setProposedRunners(0);
+setImportResult("");
+setImportError("");
 
   setValidating(true);
   setValidationResult("");
@@ -49,10 +111,18 @@ async function handleValidateMeeting() {
   try {
     const response = await validatePuntingFormMeeting(selected);
 
-    if (response.success) {
-      setValidationResult(
-        JSON.stringify(response.result, null, 2)
-      );
+if (response.success) {
+  setValidationResult(
+    JSON.stringify(response.result, null, 2)
+  );
+
+  setMissingRaces(
+    Number(response.result?.missing_races ?? 0)
+  );
+
+  setProposedRunners(
+    Number(response.result?.proposed_new_runners ?? 0)
+  );
     } else {
       setValidationError(
         response.error || "Validation failed"
@@ -67,11 +137,9 @@ async function handleValidateMeeting() {
   return <main className="min-h-screen bg-zinc-950 p-4 text-white lg:p-8"><div className="mx-auto max-w-6xl space-y-5">
     <Link href="/admin/race-builder" className="text-sm text-amber-300">Back to Race Builder</Link>
     <h1 className="text-2xl font-bold text-amber-200">Import from Punting Form</h1>
-    <p className="text-sm text-zinc-300">Stage 3E.2 — meeting validation · Read-only validation against SmartPunt V1. No race imports or publishing.</p>
+    <p className="text-sm text-zinc-300">Stage 3E.4 — validate and import upcoming meetings into SmartPunt V1 as unpublished drafts.</p>
     <form method="get" className="rounded-xl border border-white/15 p-4 space-y-3"><label className="block">Select V2 meeting (today + four days)<select name="meeting" defaultValue={selected} className="mt-2 block w-full rounded bg-zinc-800 p-3"><option value="">Choose meeting</option>{options.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label><button className="rounded bg-amber-300 px-4 py-2 font-semibold text-black">Load preview</button>{!options.length && <p>No available meetings.</p>}</form>
     {serverError && <p role="alert" className="text-red-300">{serverError}</p>}
-    <label className="block rounded-xl border border-white/15 p-4">Select meeting_preview.json (legacy offline preview; form may be truncated)<input className="mt-3 block w-full text-sm" type="file" accept=".json,application/json" onChange={async e => { const file = e.target.files?.[0]; setPreview(null); setError(""); if (!file) return; try { if(file.size > 5_000_000) throw new Error("File exceeds 5 MB"); setPreview(parse(JSON.parse(await file.text()))); } catch(err) { setError(err instanceof Error ? err.message : "Invalid preview"); } }} /></label>
-{error && <p role="alert" className="text-red-300">{error}</p>}
 
 {selected && initialPreview != null && (
   <section className="rounded-xl border border-amber-300/30 p-4 space-y-3">
@@ -86,7 +154,7 @@ async function handleValidateMeeting() {
 
     <button
       type="button"
-      disabled={validating}
+      disabled={validating || importing}
       onClick={handleValidateMeeting}
       className="rounded bg-amber-300 px-4 py-2 font-semibold text-black disabled:opacity-50"
     >
@@ -104,14 +172,67 @@ async function handleValidateMeeting() {
       </div>
     )}
 
-    {validationError && (
-      <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-300">
-        {validationError}
-      </div>
-    )}
+{validationError && (
+  <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-300">
+    {validationError}
+  </div>
+)}
+
+{missingRaces > 0 && (
+  <div className="rounded-lg border border-amber-300/30 p-3 space-y-3">
+    <p className="font-semibold text-amber-200">
+      {missingRaces} missing races · {proposedRunners} proposed runners
+    </p>
+
+    <p className="text-sm text-zinc-300">
+      New races will be created as unpublished drafts.
+      Existing races and horse master records will be preserved.
+    </p>
+
+    <button
+      type="button"
+      disabled={importing || validating}
+      onClick={handleImportMeeting}
+      className="rounded bg-amber-300 px-4 py-2 font-semibold text-black disabled:opacity-50"
+    >
+      Import draft meeting
+    </button>
+  </div>
+)}
+
+{importing && (
+  <p className="font-semibold text-amber-300">
+    Importing draft meeting. Please wait...
+  </p>
+)}
+
+{importResult && (
+  <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
+    <p className="font-semibold text-emerald-300">
+      Draft import successful
+    </p>
+
+    <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-sm">
+      {importResult}
+    </pre>
+
+    <Link
+      href="/admin/race-builder"
+      className="mt-3 inline-block text-amber-300"
+    >
+      Open Race Builder
+    </Link>
+  </div>
+)}
+
+{importError && (
+  <div role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-red-300">
+    {importError}
+  </div>
+)}
   </section>
 )}
-    {preview && <><section className="rounded-xl border border-amber-300/30 p-4"><h2 className="text-xl font-semibold">{text(preview.meeting.meeting_name)} · {text(preview.meeting.meeting_date)}</h2><p>{preview.races.length} races · {preview.races.reduce((n,r)=>n+r.ordinary.length,0)} ordinary · {preview.races.reduce((n,r)=>n+r.emergency.length,0)} emergencies</p><p>Track condition (stored evidence): {text(preview.meeting.track_condition)}</p><p className="text-sm">Conditions collected (UTC): {text(preview.meeting.conditions_collected_utc)}</p><p className="text-sm">Provider condition update: {text(preview.meeting.condition_provider_update)}</p><p className="text-sm">Scratchings collected (UTC): {text(preview.meeting.scratchings_collected_utc)}</p><p className="text-sm">Unverified entries are not confirmed starters. Evidence may be stale.</p><p className="mt-2 font-semibold text-amber-300">NOT IMPORT READY</p>{preview.blockers.map((b,i)=><p key={i} className="text-sm text-zinc-300">{b}</p>)}</section>
+    {preview && <><section className="rounded-xl border border-amber-300/30 p-4"><h2 className="text-xl font-semibold">{text(preview.meeting.meeting_name)} · {text(preview.meeting.meeting_date)}</h2><p>{preview.races.length} races · {preview.races.reduce((n,r)=>n+r.ordinary.length,0)} ordinary · {preview.races.reduce((n,r)=>n+r.emergency.length,0)} emergencies</p><p>Track condition (stored evidence): {text(preview.meeting.track_condition)}</p><p className="text-sm">Conditions collected (UTC): {text(preview.meeting.conditions_collected_utc)}</p><p className="text-sm">Provider condition update: {text(preview.meeting.condition_provider_update)}</p><p className="text-sm">Scratchings collected (UTC): {text(preview.meeting.scratchings_collected_utc)}</p><p className="text-sm">Unverified entries are not confirmed starters. Evidence may be stale.</p><p className="mt-2 font-semibold text-amber-300">PROVISIONAL DATA — REVIEW BEFORE PUBLICATION</p>{preview.blockers.map((b,i)=><p key={i} className="text-sm text-zinc-300">{b}</p>)}</section>
     {preview.races.map(r=><details key={text(r.race.provider_race_id)} className="rounded-xl border border-white/15 p-4"><summary className="cursor-pointer font-semibold">Race {text(r.race.race_number)} · {text(r.race.distance_m)}m · {r.ordinary.length} ordinary / {r.emergency.length} emergencies</summary><p className="mt-2 text-sm">{text(r.race.race_name)} · UTC {text(r.race.start_time_utc)}</p>{r.warnings.map((w,i)=><p key={i} className="text-sm text-amber-300">{w}</p>)}{[ {label:"Ordinary entries", entries:r.ordinary}, {label:"Emergencies — not confirmed starters",entries:r.emergency} ].map(group=><div key={group.label} className="mt-4 overflow-x-auto"><h3 className="font-semibold">{group.label}</h3><table className="w-full text-left text-sm"><thead><tr>{["No.","Horse","Barrier","Weight","Claim","Apprentice","Jockey","Trainer","Prize money","Form (source)","Scratchings","Track","Distance","Good","Soft","Heavy","Synthetic"].map(h=><th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{group.entries.map((runner,i)=><tr key={i} className="border-t border-white/10">{["runner_number","horse_name","barrier","weight_kg","apprentice_claim_kg","is_apprentice","jockey_name","trainer_name","prize_money","form_last_6","scratching_status_preview","track_form_last_6","distance_form_last_6","good_track_record","soft_track_record","heavy_track_record","synthetic_track_record"].map(k=><td key={k} className="whitespace-nowrap p-2">{text(runner[k])}</td>)}</tr>)}</tbody></table></div>)}</details>)}
     </>}
   </div></main>;
