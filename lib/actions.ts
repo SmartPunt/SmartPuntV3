@@ -169,6 +169,44 @@ async function serviceRoleSelect(path: string) {
   });
 }
 
+async function protectedDelete(
+  entity: "meeting" | "race" | "field" | "runner",
+  id: number,
+) {
+  const profile = await requireRacingAdmin();
+
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error("Invalid deletion identity.");
+  }
+
+  const result = await serviceRoleFetch(
+    "rpc/smartpunt_protected_delete",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        p_entity: entity,
+        p_id: id,
+        p_actor: profile.id,
+      }),
+    },
+  );
+
+  if (
+    !result ||
+    result.success !== true ||
+    result.entity !== entity ||
+    Number(result.id) !== id
+  ) {
+    throw new Error(
+      "Protected deletion could not be confirmed.",
+    );
+  }
+}
+
 /*
  * Protect Punting Form managed records from manual
  * deletion and destructive field rebuilding.
@@ -8605,20 +8643,9 @@ export async function deleteMeetingAction(
         };
       }
 
-      await serviceRoleDelete(
-        `race_runners?race_id=${buildInFilter(
-          raceIds,
-        )}`,
-      );
-
-      await serviceRoleDelete(
-        `races?id=${buildInFilter(
-          raceIds,
-        )}`,
-      );
     }
 
-    await serviceRoleDelete(`meetings?id=eq.${meetingId}`);
+    await protectedDelete("meeting", meetingId);
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
@@ -9308,13 +9335,7 @@ export async function deleteRaceAction(
       };
     }
 
-    await serviceRoleDelete(
-      `race_runners?race_id=eq.${raceId}`,
-    );
-
-    await serviceRoleDelete(
-      `races?id=eq.${raceId}`,
-    );
+    await protectedDelete("race", raceId);
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
@@ -10310,9 +10331,7 @@ export async function removeAllRaceRunnersAction(
         };
       }
 
-      await serviceRoleDelete(
-        `race_runners?race_id=eq.${raceId}`,
-      );
+      await protectedDelete("field", raceId);
 
       revalidatePath("/admin/race-builder");
       revalidatePath("/current-races");
@@ -10402,50 +10421,12 @@ export async function removeAllRaceRunnersAction(
         `calculator_predictions?race_id=eq.${raceId}`,
       ),
 
-      serviceRoleDelete(
-        `power_rating_predictions?race_id=eq.${raceId}`,
-      ),
-
-      serviceRoleDelete(
-        `race_prediction_snapshot_runners?race_id=eq.${raceId}`,
-      ),
-
-      serviceRoleDelete(
-        `runner_component_snapshots?race_id=eq.${raceId}`,
-      ),
-
-      serviceRoleDelete(
-        `race_classification_snapshots?race_id=eq.${raceId}`,
-      ),
-
-      serviceRoleDelete(
-        `calculator_tip_evolution?race_id=eq.${raceId}`,
-      ),
-    ]);
-
-    /*
-     * Now the incorrect draft runners can safely go.
+     /*
+     * Atomically clear disposable draft predictions,
+     * research data and runners, then reset the
+     * meeting's Calculator release.
      */
-    await serviceRoleDelete(
-      `race_runners?race_id=eq.${raceId}`,
-    );
-
-    /*
-     * A changed field invalidates any previous subscriber
-     * Calculator release for the meeting.
-     */
-    if (race.meeting_id) {
-      await serviceRolePatch(
-        `meetings?id=eq.${Number(
-          race.meeting_id,
-        )}`,
-        {
-          calculator_released_at: null,
-          updated_at:
-            new Date().toISOString(),
-        },
-      );
-    }
+    await protectedDelete("field", raceId);
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
@@ -10513,9 +10494,7 @@ export async function deleteRaceRunnerAction(
       };
     }
 
-    await serviceRoleDelete(
-      `race_runners?id=eq.${runnerId}`,
-    );
+    await protectedDelete("runner", runnerId);
 
     revalidatePath("/admin/race-builder");
     revalidatePath("/current-races");
