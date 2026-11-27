@@ -7411,17 +7411,38 @@ const profile = await requireAdmin();
     };
 
     if (!payload.race_id || !payload.race_runner_id || !payload.horse_id) {
-throw new Error("Race, runner, and horse are required for calculator tips.");
+      throw new Error("Race, runner, and horse are required for calculator tips.");
     }
 
-const insertedRows = await serviceRoleFetch("smartpunt_calculator_tips?select=*", {
-  method: "POST",
-  headers: {
-    Prefer: "return=representation",
-  },
-  body: JSON.stringify(payload),
-});
+    const supabase = await createClient();
 
+    const { data: linkedRace, error: linkedRaceError } = await supabase
+      .from("races")
+      .select("id, status")
+      .eq("id", payload.race_id)
+      .maybeSingle();
+
+    if (linkedRaceError) {
+      throw new Error(linkedRaceError.message);
+    }
+
+    if (!linkedRace) {
+      throw new Error("The selected race could not be found.");
+    }
+
+    if (String(linkedRace.status || "") === "draft") {
+      throw new Error(
+        "Draft races are available for admin analysis only. Publish the race before sharing calculator tips with subscribers.",
+      );
+    }
+
+    const insertedRows = await serviceRoleFetch("smartpunt_calculator_tips?select=*", {
+      method: "POST",
+      headers: {
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify(payload),
+    });
 const data = Array.isArray(insertedRows) ? insertedRows[0] : insertedRows;
 
 if (!data) {
