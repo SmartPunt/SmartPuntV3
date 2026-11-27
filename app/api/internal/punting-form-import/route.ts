@@ -67,31 +67,65 @@ export async function POST(request: Request) {
       !body ||
       typeof body !== "object" ||
       Array.isArray(body) ||
-      body.mode !== "validate" ||
+      !["validate", "import"].includes(body.mode) ||
       typeof body.meetingId !== "string" ||
       !/^[1-9]\d{0,17}$/.test(body.meetingId)
     ) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Only single-meeting validation is enabled",
+          error: "Invalid automation request",
         },
         { status: 400 }
       );
     }
 
-    // Permanent writes are deliberately disabled.
+    const validateOnly = body.mode === "validate";
+
+    if (!validateOnly) {
+      const allowedMeetingId =
+        process.env.SMARTPUNT_V1_ALLOWED_IMPORT_MEETING_ID;
+
+      if (
+        !allowedMeetingId ||
+        allowedMeetingId !== body.meetingId
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Permanent automated import is not authorised for this meeting",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (
+        body.confirmation !==
+        "CREATE_DRAFT_RACES_ONLY"
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Permanent import confirmation missing",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const result = await processPuntingFormMeeting(
       body.meetingId,
-      true,
+      validateOnly,
       actorId
     );
 
     return NextResponse.json(
       {
         ...result,
-        automation_mode: "VALIDATION_ONLY",
+        automation_mode: validateOnly
+          ? "VALIDATION_ONLY"
+          : "CONTROLLED_DRAFT_IMPORT",
         provider_meeting_id: body.meetingId,
       },
       {
@@ -103,14 +137,14 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error(
-      "Automation validation failed",
+      "Automation request failed",
       error
     );
 
     return NextResponse.json(
       {
         success: false,
-        error: "Automation validation failed",
+        error: "Automation request failed",
       },
       { status: 500 }
     );
