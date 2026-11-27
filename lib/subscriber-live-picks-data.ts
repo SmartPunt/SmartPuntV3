@@ -12,6 +12,8 @@ export type SubscriberLivePicksData = {
     yesterday: string;
     today: string;
     tomorrow: string;
+    dayAfterTomorrow: string;
+    threeDaysAhead: string;
   };
   currentMeetings: any[];
   currentRaces: any[];
@@ -34,6 +36,7 @@ getOnEarlyBets: any[];
 };
 type SubscriberLivePicksDataOptions = {
   userId: string;
+  includeExtendedDates?: boolean;
   includeScoringHistory?: boolean;
   includeJockeyProfiles?: boolean;
   includeCalculatorTips?: boolean;
@@ -416,6 +419,7 @@ async function fetchServiceRoleRowsByRaceIds<T>({
 
 export async function loadSubscriberLivePicksData({
   userId,
+  includeExtendedDates = false,
   includeScoringHistory = true,
   includeJockeyProfiles = true,
   includeCalculatorTips = true,
@@ -456,10 +460,14 @@ includeRacePlanItems = true,
   const today = getPerthDate(0);
   const tomorrow = getPerthDate(1);
 
+  const dayAfterTomorrow = getPerthDate(2);
+  const threeDaysAhead = getPerthDate(3);
+
   const loadedMeetingDates = [
     yesterday,
     today,
     tomorrow,
+    ...(includeExtendedDates ? [dayAfterTomorrow, threeDaysAhead] : []),
   ];
 
   logStage(
@@ -469,6 +477,8 @@ includeRacePlanItems = true,
       yesterday,
       today,
       tomorrow,
+      dayAfterTomorrow,
+      threeDaysAhead,
     },
   );
 
@@ -1849,6 +1859,8 @@ includeRacePlanItems,
       yesterday,
       today,
       tomorrow,
+      dayAfterTomorrow,
+      threeDaysAhead,
     },
     currentMeetings,
 currentRaces: subscriberCurrentRaces,
