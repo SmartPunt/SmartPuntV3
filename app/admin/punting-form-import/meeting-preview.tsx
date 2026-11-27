@@ -31,13 +31,15 @@ function parse(v: unknown): Preview {
   if (counts.races !== races.length || counts.ordinary_entries !== races.reduce((n,r)=>n+r.ordinary.length,0) || counts.emergency_entries !== races.reduce((n,r)=>n+r.emergency.length,0)) throw new Error("Preview counts do not reconcile");
   return { meeting, races, blockers: messages(p.blockers) };
 }
-export default function MeetingPreview() {
-  const [preview, setPreview] = useState<Preview | null>(null);
+export default function MeetingPreview({initialPreview, options, selected, serverError}: {initialPreview: unknown; options: {id:string;label:string}[]; selected:string; serverError:string}) {
+  const [preview, setPreview] = useState<Preview | null>(() => initialPreview ? parse(initialPreview) : null);
   const [error, setError] = useState("");
   return <main className="min-h-screen bg-zinc-950 p-4 text-white lg:p-8"><div className="mx-auto max-w-6xl space-y-5">
     <Link href="/admin/race-builder" className="text-sm text-amber-300">Back to Race Builder</Link>
     <h1 className="text-2xl font-bold text-amber-200">Import from Punting Form</h1>
-    <p className="text-sm text-zinc-300">Stage 3A · Offline file preview only. No database writes or publishing.</p>
+    <p className="text-sm text-zinc-300">Stage 3B · V2 warehouse preview only. No database writes or publishing.</p>
+    <form method="get" className="rounded-xl border border-white/15 p-4 space-y-3"><label className="block">Select V2 meeting (today + four days)<select name="meeting" defaultValue={selected} className="mt-2 block w-full rounded bg-zinc-800 p-3"><option value="">Choose meeting</option>{options.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label><button className="rounded bg-amber-300 px-4 py-2 font-semibold text-black">Load preview</button>{!options.length && <p>No available meetings.</p>}</form>
+    {serverError && <p role="alert" className="text-red-300">{serverError}</p>}
     <label className="block rounded-xl border border-white/15 p-4">Select meeting_preview.json<input className="mt-3 block w-full text-sm" type="file" accept=".json,application/json" onChange={async e => { const file = e.target.files?.[0]; setPreview(null); setError(""); if (!file) return; try { if(file.size > 5_000_000) throw new Error("File exceeds 5 MB"); setPreview(parse(JSON.parse(await file.text()))); } catch(err) { setError(err instanceof Error ? err.message : "Invalid preview"); } }} /></label>
     {error && <p role="alert" className="text-red-300">{error}</p>}
     {preview && <><section className="rounded-xl border border-amber-300/30 p-4"><h2 className="text-xl font-semibold">{text(preview.meeting.meeting_name)} · {text(preview.meeting.meeting_date)}</h2><p>{preview.races.length} races · {preview.races.reduce((n,r)=>n+r.ordinary.length,0)} ordinary · {preview.races.reduce((n,r)=>n+r.emergency.length,0)} emergencies</p><p>Track condition: {text(preview.meeting.track_condition)}</p><p className="mt-2 font-semibold text-amber-300">NOT IMPORT READY</p>{preview.blockers.map((b,i)=><p key={i} className="text-sm text-zinc-300">{b}</p>)}</section>
