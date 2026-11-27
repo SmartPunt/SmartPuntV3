@@ -83,13 +83,18 @@ export async function POST(request: Request) {
     const validateOnly = body.mode === "validate";
 
     if (!validateOnly) {
-      const allowedMeetingId =
-        process.env.SMARTPUNT_V1_ALLOWED_IMPORT_MEETING_ID;
+      const allowedMeetingIds = new Set(
+        (
+          process.env.SMARTPUNT_V1_ALLOWED_IMPORT_MEETING_IDS ??
+          process.env.SMARTPUNT_V1_ALLOWED_IMPORT_MEETING_ID ??
+          ""
+        )
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => /^[1-9]\d{0,17}$/.test(id))
+      );
 
-      if (
-        !allowedMeetingId ||
-        allowedMeetingId !== body.meetingId
-      ) {
+      if (!allowedMeetingIds.has(body.meetingId)) {
         return NextResponse.json(
           {
             success: false,
@@ -117,7 +122,8 @@ export async function POST(request: Request) {
     const result = await processPuntingFormMeeting(
       body.meetingId,
       validateOnly,
-      actorId
+      actorId,
+      true
     );
 
     return NextResponse.json(
