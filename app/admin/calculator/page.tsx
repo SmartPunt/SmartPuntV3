@@ -337,7 +337,7 @@ export default async function Page() {
       const { data, error } = await supabase
         .from("races")
         .select("*")
-        .in("status", ["published", "closed"])
+        .in("status", ["draft", "published", "closed"])
         .in("meeting_id", meetingIdChunk)
         .order("meeting_id", { ascending: true })
         .order("race_number", { ascending: true });
