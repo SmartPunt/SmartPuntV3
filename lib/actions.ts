@@ -170,6 +170,71 @@ async function serviceRoleSelect(path: string) {
 }
 
 /*
+ * Protect Punting Form managed records from manual
+ * deletion and destructive field rebuilding.
+ */
+async function getPuntingFormDeletionBlockReason(
+  entity: "meeting" | "race" | "runner",
+  id: number,
+): Promise<string | null> {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error("Invalid record identity.");
+  }
+
+  let path: string;
+
+  if (entity === "meeting") {
+    path =
+      `pf_meeting_map?select=pf_meeting_id` +
+      `&smartpunt_meeting_id=eq.${id}&limit=1`;
+  } else if (entity === "race") {
+    path =
+      `pf_race_map?select=pf_race_id` +
+      `&smartpunt_race_id=eq.${id}&limit=1`;
+  } else {
+    const runners = await serviceRoleSelect(
+      `race_runners?select=race_id&id=eq.${id}&limit=1`,
+    );
+
+    if (!Array.isArray(runners)) {
+      throw new Error(
+        "Unable to verify runner ownership.",
+      );
+    }
+
+    if (runners.length === 0) {
+      return null;
+    }
+
+    const raceId = Number(runners[0].race_id);
+
+    return getPuntingFormDeletionBlockReason(
+      "race",
+      raceId,
+    );
+  }
+
+  const mappings = await serviceRoleSelect(path);
+
+  if (!Array.isArray(mappings)) {
+    throw new Error(
+      "Unable to verify Punting Form ownership.",
+    );
+  }
+
+  if (mappings.length === 0) {
+    return null;
+  }
+
+  return (
+    "This record is managed by Punting Form. " +
+    "Manual deletion and field clearing are disabled " +
+    "to protect its permanent provider identity. " +
+    "Use scratching or supported editing options instead."
+  );
+}
+
+/*
  * SMARTPUNT IN-APP SUBSCRIBER NOTIFICATIONS
  *
  * This is deliberately separate from the existing email-alert system.
@@ -8504,6 +8569,19 @@ export async function deleteMeetingAction(
       return { success: false, error: "Meeting is required." };
     }
 
+    const pfDeletionBlockReason =
+      await getPuntingFormDeletionBlockReason(
+        "meeting",
+        meetingId,
+      );
+
+    if (pfDeletionBlockReason) {
+      return {
+        success: false,
+        error: pfDeletionBlockReason,
+      };
+    }
+
     const races = (await serviceRoleSelect(
       `races?meeting_id=eq.${meetingId}&select=id`,
     )) as Array<{ id: number }> | null;
@@ -9203,6 +9281,19 @@ export async function deleteRaceAction(
 
     if (!raceId) {
       return { success: false, error: "Race is required." };
+    }
+
+    const pfDeletionBlockReason =
+      await getPuntingFormDeletionBlockReason(
+        "race",
+        raceId,
+      );
+
+    if (pfDeletionBlockReason) {
+      return {
+        success: false,
+        error: pfDeletionBlockReason,
+      };
     }
 
     const deletionBlockReason =
@@ -10153,6 +10244,19 @@ export async function removeAllRaceRunnersAction(
       };
     }
 
+    const pfDeletionBlockReason =
+      await getPuntingFormDeletionBlockReason(
+        "race",
+        raceId,
+      );
+
+    if (pfDeletionBlockReason) {
+      return {
+        success: false,
+        error: pfDeletionBlockReason,
+      };
+    }
+
     /*
      * Load the race first.
      *
@@ -10382,6 +10486,19 @@ export async function deleteRaceRunnerAction(
 
     if (!runnerId) {
       return { success: false, error: "Runner is required." };
+    }
+
+    const pfDeletionBlockReason =
+      await getPuntingFormDeletionBlockReason(
+        "runner",
+        runnerId,
+      );
+
+    if (pfDeletionBlockReason) {
+      return {
+        success: false,
+        error: pfDeletionBlockReason,
+      };
     }
 
     const deletionBlockReason =
