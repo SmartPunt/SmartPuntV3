@@ -310,7 +310,9 @@ export default async function Page() {
   const yesterday = getPerthDate(-1);
   const today = getPerthDate(0);
   const tomorrow = getPerthDate(1);
-  const loadedMeetingDates = [yesterday, today, tomorrow];
+  const dayAfterTomorrow = getPerthDate(2);
+  const threeDaysAhead = getPerthDate(3);
+  const loadedMeetingDates = [yesterday, today, tomorrow, dayAfterTomorrow, threeDaysAhead];
 
   const { data: currentMeetingsData, error: meetingsError } = await supabase
     .from("meetings")
@@ -571,7 +573,7 @@ const requiredRaceIds = uniqueNumbers([
       calculatorTips={calculatorTips}
       calculatorPredictions={calculatorPredictions}
       calculatorTipEvolution={calculatorTipEvolution}
-      dayDates={{ yesterday, today, tomorrow }}
+      dayDates={{ yesterday, today, tomorrow, dayAfterTomorrow, threeDaysAhead }}
     />
   );
 }
