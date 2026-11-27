@@ -1555,7 +1555,13 @@ setSuccess(
             <div className="flex items-start justify-between gap-3">
               <Badge tone="amber">Race Builder</Badge>
 
-              <div className="ml-auto flex flex-wrap items-center gap-2">
+<div className="ml-auto flex flex-wrap items-center gap-2">
+                <Link
+                  href="/admin/punting-form-import"
+                  className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-400/15"
+                >
+                  Import from Punting Form
+                </Link>
                 <Link
                   href="/current-races"
                   className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-sm font-semibold text-amber-200 backdrop-blur-sm transition hover:bg-amber-400/15"
