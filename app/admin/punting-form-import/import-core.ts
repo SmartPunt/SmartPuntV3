@@ -9,7 +9,8 @@ export async function processPuntingFormMeeting(
   meetingId: string,
   validateOnly: boolean,
   actorId: string,
-  automated = false
+  automated = false,
+  scheduled = false
 ) {
   try {
     if (
@@ -335,6 +336,43 @@ const supabase = createClient(url, serviceKey, {
     detectSessionInUrl: false,
   },
 });
+
+if (scheduled && !validateOnly) {
+  const {
+    data: checked,
+    error: checkError,
+  } = await supabase.rpc(
+    "smartpunt_import_mapped_meeting",
+    {
+      p_meeting: meetingPayload,
+      p_races: racePayload,
+      p_validate_only: true,
+    }
+  );
+
+  if (checkError) {
+    throw new Error(checkError.message);
+  }
+
+  if (
+    !checked ||
+    checked.mode !== "VALIDATION_ONLY" ||
+    checked.mapping_mode !== "VALIDATION_ONLY" ||
+    checked.records_created !== 0 ||
+    checked.meeting_id !== null ||
+    checked.existing_races !== 0 ||
+    checked.missing_races !== racePayload.length ||
+    checked.proposed_new_runners !==
+      racePayload.reduce(
+        (total, race) => total + race.entries.length,
+        0
+      )
+  ) {
+    throw new Error(
+      "Scheduled creation refused: meeting is not a completely new validated meeting"
+    );
+  }
+}
 
 const { data, error } = await supabase.rpc(
   "smartpunt_import_mapped_meeting",
