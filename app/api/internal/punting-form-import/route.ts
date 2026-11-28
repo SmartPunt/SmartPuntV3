@@ -94,7 +94,17 @@ export async function POST(request: Request) {
           .filter((id) => /^[1-9]\d{0,17}$/.test(id))
       );
 
-      if (!allowedMeetingIds.has(body.meetingId)) {
+      const automaticImportEnabled =
+        process.env.SMARTPUNT_V1_AUTO_IMPORT === "enabled";
+
+      const automaticRequest =
+        body.automatic === true;
+
+      if (
+        automaticRequest
+          ? !automaticImportEnabled
+          : !allowedMeetingIds.has(body.meetingId)
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -123,7 +133,8 @@ export async function POST(request: Request) {
       body.meetingId,
       validateOnly,
       actorId,
-      true
+      true,
+      body.automatic === true
     );
 
     return NextResponse.json(
