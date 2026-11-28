@@ -1,5 +1,6 @@
 "use client";
 
+import { saturdayCandidates } from "@/lib/saturday-settlement-data";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { signOutAction } from "@/lib/actions";
@@ -415,6 +416,9 @@ export default function CurrentRacesPage({
   const isAdmin =
   currentUser?.role === "admin" || currentUser?.role === "staff_admin";
 
+  const [batchSelected, setBatchSelected] = useState<number[]>([]);
+  const [batchLog, setBatchLog] = useState<string[]>([]);
+  const [batchBlocked, setBatchBlocked] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [openRaceIds, setOpenRaceIds] = useState<Record<number, boolean>>({});
   const [editingMeetingIds, setEditingMeetingIds] = useState<number[]>([]);
@@ -1212,6 +1216,125 @@ function handleApplyScratchingsImport() {
     router.refresh();
   });
 }
+  const saturdayAvailable = currentRaces
+    .filter((race) => {
+      const expected = saturdayCandidates[String(race.id)];
+
+      return (
+        expected &&
+        initialMeetings.some(
+          (m) =>
+            m.id === race.meeting_id &&
+            m.meeting_date === "2026-11-28"
+        )
+      );
+    })
+    .sort(
+      (a, b) =>
+        saturdayCandidates[String(a.id)].meeting.localeCompare(
+          saturdayCandidates[String(b.id)].meeting
+        ) || a.race_number - b.race_number
+    );
+
+  function handleSaturdayBatch() {
+    const ids = saturdayAvailable
+      .filter((r) => batchSelected.includes(r.id))
+      .map((r) => r.id);
+
+    if (
+      isPending ||
+      batchBlocked ||
+      !ids.length ||
+      !isAdmin
+    ) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Settle ${ids.length} selected races? Confirm you have checked official final results, every runner, SP and place terms. Do not use other race controls while running.`
+      )
+    ) {
+      return;
+    }
+
+    startTransition(async () => {
+      setBatchLog([]);
+
+      for (const id of ids) {
+        const candidate = saturdayCandidates[String(id)];
+        const label = `${candidate.meeting} R${candidate.number}`;
+
+        setBatchLog((prev) => [
+          ...prev,
+          `${label}: submitting`,
+        ]);
+
+        try {
+          const fd = new FormData();
+
+          fd.set("race_id", String(id));
+          fd.set("saturday_batch", "2026-11-28");
+
+          for (const row of candidate.rows) {
+            fd.set(
+              `finishing_position_${row.id}`,
+              String(row.position ?? "")
+            );
+
+            fd.set(
+              `starting_price_${row.id}`,
+              String(row.sp ?? "")
+            );
+          }
+
+          const result = await settleRaceRunnersAction(fd);
+
+          if (!result.success) {
+            throw new Error(
+              result.error || "Settlement failed"
+            );
+          }
+
+          setClosedRaceIds((prev) => [...prev, id]);
+
+          setBatchSelected((prev) =>
+            prev.filter((value) => value !== id)
+          );
+
+          setBatchLog((prev) => [
+            ...prev,
+            `${label}: action reported success`,
+          ]);
+        } catch (error) {
+          setBatchBlocked(true);
+
+          setBatchLog((prev) => [
+            ...prev,
+            `${label}: STOP — ${
+              error instanceof Error
+                ? error.message
+                : String(error)
+            }. Verify database before retrying.`,
+          ]);
+
+          setError(
+            "Batch stopped. Do not retry until database state is checked."
+          );
+
+          router.refresh();
+          return;
+        }
+      }
+
+      setSuccess(
+        "Selected settlement actions completed. Verify archive and downstream results."
+      );
+
+      router.refresh();
+    });
+  }
+
   function handleLoadPuntingFormResults(raceId: number) {
     if (raceId !== 10959) {
       setError("This race is not included in the initial Punting Form test.");
@@ -1458,6 +1581,92 @@ function handleStartRaceDay(meeting: Meeting) {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.15),transparent_25%),linear-gradient(180deg,#0a0a0a_0%,#18181b_50%,#020617_100%)] text-white">
       <div className="mx-auto max-w-7xl p-4 lg:p-8">
+        {isAdmin && saturdayAvailable.length > 0 && (
+          <section className="mb-6 rounded-2xl border border-amber-400/30 bg-black p-4">
+            <h2 className="font-bold text-amber-300">
+              Saturday 28 November — settlement review
+            </h2>
+
+            <p className="text-sm text-zinc-300">
+              Preliminary export only. Expand each race and compare
+              with official final results before selecting.
+              No automatic scratchings.
+            </p>
+
+            {saturdayAvailable.map((race) => {
+              const c = saturdayCandidates[String(race.id)];
+
+              return (
+                <details
+                  key={race.id}
+                  className="mt-2 border-b border-white/10 py-2"
+                >
+                  <summary>
+                    {c.meeting} R{c.number} — {c.distance}m —{" "}
+                    {c.placeTerms}
+                  </summary>
+
+                  <div className="my-2 text-sm">
+                    {c.rows
+                      .slice()
+                      .sort(
+                        (a, b) =>
+                          (a.position ?? 999) -
+                          (b.position ?? 999)
+                      )
+                      .map((row) => (
+                        <div key={row.id}>
+                          {row.number}. {row.name} —{" "}
+                          {row.scratched
+                            ? "SCR"
+                            : `${row.position} / SP ${row.sp}`}
+                        </div>
+                      ))}
+                  </div>
+
+                  <label className="flex gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      disabled={isPending || batchBlocked}
+                      checked={batchSelected.includes(race.id)}
+                      onChange={(e) =>
+                        setBatchSelected((prev) =>
+                          e.target.checked
+                            ? [...prev, race.id]
+                            : prev.filter(
+                                (id) => id !== race.id
+                              )
+                        )
+                      }
+                    />
+
+                    Official final results and place terms checked
+                  </label>
+                </details>
+              );
+            })}
+
+            <button
+              type="button"
+              disabled={
+                isPending ||
+                batchBlocked ||
+                !batchSelected.length
+              }
+              onClick={handleSaturdayBatch}
+              className="mt-4 rounded-xl bg-amber-400 px-4 py-2 font-bold text-black disabled:opacity-40"
+            >
+              Settle {batchSelected.length} selected races
+            </button>
+
+            <div className="mt-2 text-sm" aria-live="polite">
+              {batchLog.map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+            </div>
+          </section>
+        )}
+
         <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="space-y-6">
             <div className="rounded-[32px] border border-white/10 bg-black/80 p-5 shadow-2xl">
