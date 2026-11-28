@@ -10830,15 +10830,55 @@ export async function settleRaceRunnersAction(
       return { success: false, error: "Race is required." };
     }
 
+    const { data: settlementRace, error: settlementRaceError } =
+      await supabase
+        .from("races")
+        .select("id, status, abandoned_at")
+        .eq("id", raceId)
+        .single();
+
+    if (settlementRaceError || !settlementRace) {
+      return {
+        success: false,
+        error: "Unable to verify race status before settlement.",
+      };
+    }
+
+    if (
+      settlementRace.status !== "published" ||
+      settlementRace.abandoned_at !== null
+    ) {
+      return {
+        success: false,
+        error:
+          "Settlement refused. This race is already closed, abandoned or not published.",
+      };
+    }
+
     const { data: raceRunners, error: runnersError } = await supabase
       .from("race_runners")
 .select(
-  "id, race_id, horse_id, scratched, form_last_6, track_form_last_6, distance_form_last_6",
+  "id, race_id, horse_id, scratched, form_last_6, track_form_last_6, distance_form_last_6, finishing_position, starting_price, settled_at",
 )
       .eq("race_id", raceId);
 
     if (runnersError) {
       return { success: false, error: runnersError.message };
+    }
+
+    const previouslyResultedRunner = (raceRunners || []).find(
+      (runner) =>
+        runner.settled_at !== null ||
+        runner.finishing_position !== null ||
+        runner.starting_price !== null,
+    );
+
+    if (previouslyResultedRunner) {
+      return {
+        success: false,
+        error:
+          "Settlement refused. Existing runner results were detected. Manual review is required.",
+      };
     }
 
     const now = new Date().toISOString();
