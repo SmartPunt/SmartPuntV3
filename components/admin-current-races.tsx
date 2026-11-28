@@ -1212,6 +1212,86 @@ function handleApplyScratchingsImport() {
     router.refresh();
   });
 }
+  function handleLoadPuntingFormResults(raceId: number) {
+    if (raceId !== 10959) {
+      setError("This race is not included in the initial Punting Form test.");
+      return;
+    }
+
+    const expected = [
+      { id: 138996, name: "Tears Are Flowing", position: 4, sp: 1.55 },
+      { id: 138997, name: "Stylish Prince", position: 6, sp: 12 },
+      { id: 138998, name: "Warrego", position: 3, sp: 4.6 },
+      { id: 138999, name: "Lady Fireball", position: 5, sp: 31 },
+      { id: 139000, name: "Pleasing Smile", position: 2, sp: 7.5 },
+      { id: 139001, name: "Karmaroa", position: 1, sp: 9.5 },
+      { id: 139003, name: "My Luna", position: 7, sp: 61 },
+    ];
+
+    const race = initialRaces.find((item) => item.id === raceId);
+    const runners = runnersForRace(raceId);
+    const active = runners.filter((runner) => !runner.scratched);
+
+    if (
+      !race ||
+      race.status !== "published" ||
+      closedRaceIds.includes(raceId) ||
+      runners.length !== 8 ||
+      active.length !== expected.length
+    ) {
+      setError("Race status or field has changed. Import refused.");
+      return;
+    }
+
+    const scratchedRunner = runners.find(
+      (runner) => runner.id === 139002,
+    );
+
+    if (
+      !scratchedRunner ||
+      !scratchedRunner.scratched ||
+      findHorseName(scratchedRunner.horse_id) !== "Charlie Magic"
+    ) {
+      setError("Scratching verification failed. Import refused.");
+      return;
+    }
+
+    for (const row of expected) {
+      const runner = active.find((item) => item.id === row.id);
+
+      if (
+        !runner ||
+        findHorseName(runner.horse_id) !== row.name ||
+        getExistingFinishingPosition(runner.id) !== "" ||
+        getExistingStartingPrice(runner.id) !== ""
+      ) {
+        setError("Runner verification failed. Import refused.");
+        return;
+      }
+    }
+
+    setRaceResultState((prev) => ({
+      ...prev,
+      [raceId]: Object.fromEntries(
+        expected.map((row) => [
+          row.id,
+          {
+            finishingPosition: String(row.position),
+            startingPrice: String(row.sp),
+          },
+        ]),
+      ),
+    }));
+
+    setResultPreviewRaceId(null);
+
+    setSuccess(
+      "Punting Form results loaded for Darwin Race 1. " +
+      "Review finishing positions and starting prices before settling. " +
+      "Nothing has been saved.",
+    );
+  }
+
   function handleParseResultsImport(raceId: number) {
     const raw = resultImportTextByRace[raceId] || "";
     const parsed = parseResultImportText(raw);
@@ -2510,6 +2590,19 @@ addingRunnerRaceId === race.id ? (
                                         >
                                           Parse Results
                                         </button>
+
+                                        {race.id === 10959 && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleLoadPuntingFormResults(race.id)
+                                            }
+                                            disabled={isPending}
+                                            className="rounded-2xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60"
+                                          >
+                                            Load Punting Form Results
+                                          </button>
+                                        )}
 
                                         <button
                                           type="button"
