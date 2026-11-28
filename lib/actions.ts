@@ -1,5 +1,6 @@
 "use server";
 
+import { saturdayCandidates } from "@/lib/saturday-settlement-data";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
@@ -10879,6 +10880,123 @@ export async function settleRaceRunnersAction(
         error:
           "Settlement refused. Existing runner results were detected. Manual review is required.",
       };
+    }
+
+    if (formData.get("saturday_batch") === "2026-11-28") {
+      const expected = saturdayCandidates[String(raceId)];
+
+      if (!expected) {
+        return {
+          success: false,
+          error: "Race not in Saturday manifest.",
+        };
+      }
+
+      const { data: liveRace, error: liveError } = await supabase
+        .from("races")
+        .select(
+          "id, meeting_id, race_number, distance_m, place_terms, status, abandoned_at"
+        )
+        .eq("id", raceId)
+        .single();
+
+      const { data: liveMeeting, error: meetingError } = await supabase
+        .from("meetings")
+        .select("id, meeting_name, meeting_date, track_condition")
+        .eq("id", expected.meetingId)
+        .single();
+
+      const { data: liveField, error: fieldError } = await supabase
+        .from("race_runners")
+        .select(
+          "id, horse_id, runner_number, scratched, finishing_position, starting_price, settled_at"
+        )
+        .eq("race_id", raceId);
+
+      if (
+        liveError ||
+        meetingError ||
+        fieldError ||
+        !liveRace ||
+        !liveMeeting ||
+        !liveField ||
+        Number(liveRace.meeting_id) !== expected.meetingId ||
+        Number(liveRace.race_number) !== expected.number ||
+        Number(liveRace.distance_m) !== expected.distance ||
+        (liveRace.place_terms ?? "top_3") !== expected.placeTerms ||
+        liveRace.status !== "published" ||
+        liveRace.abandoned_at !== null ||
+        liveMeeting.meeting_date !== expected.date ||
+        liveMeeting.meeting_name !== expected.meeting ||
+        liveMeeting.track_condition !== expected.condition ||
+        liveField.length !== expected.rows.length
+      ) {
+        return {
+          success: false,
+          error: "Saturday race or meeting changed; review manually.",
+        };
+      }
+
+      const { data: liveHorses, error: horseError } = await supabase
+        .from("horses")
+        .select("id, horse_name")
+        .in("id", expected.rows.map((row) => row.horseId));
+
+      if (horseError || !liveHorses) {
+        return {
+          success: false,
+          error: "Unable to verify horse identities.",
+        };
+      }
+
+      for (const row of expected.rows) {
+        const runner = liveField.find(
+          (r) => Number(r.id) === row.id
+        );
+
+        const horse = liveHorses.find(
+          (h) => Number(h.id) === row.horseId
+        );
+
+        if (
+          !runner ||
+          !horse ||
+          horse.horse_name !== row.name ||
+          Number(runner.horse_id) !== row.horseId ||
+          Number(runner.runner_number) !== row.number ||
+          Boolean(runner.scratched) !== row.scratched ||
+          runner.finishing_position !== null ||
+          runner.starting_price !== null ||
+          runner.settled_at !== null ||
+          formData.get(`finishing_position_${row.id}`) !==
+            String(row.position ?? "") ||
+          formData.get(`starting_price_${row.id}`) !==
+            String(row.sp ?? "")
+        ) {
+          return {
+            success: false,
+            error: `Saturday runner changed: ${row.name}. Review manually.`,
+          };
+        }
+      }
+
+      if (
+        (raceRunners ?? []).length !== expected.rows.length ||
+        expected.rows.some(
+          (row) =>
+            !(raceRunners ?? []).some(
+              (r) =>
+                Number(r.id) === row.id &&
+                Boolean(r.scratched) === row.scratched &&
+                Number(r.horse_id) === row.horseId
+            )
+        )
+      ) {
+        return {
+          success: false,
+          error: "Field changed during verification.",
+        };
+      }
     }
 
     const now = new Date().toISOString();
